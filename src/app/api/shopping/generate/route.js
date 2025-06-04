@@ -40,9 +40,69 @@ const standardPackageSizes = {
     'cheese': { amount: 8, unit: 'ounce' }
 };
 
+// GET endpoint for single recipe shopping list
+export async function GET(request) {
+    try {
+        console.log('=== SINGLE RECIPE SHOPPING LIST REQUEST ===');
+
+        const session = await getServerSession(authOptions);
+        console.log('Session check:', session ? 'authenticated' : 'not authenticated');
+
+        if (!session?.user?.id) {
+            console.log('❌ Unauthorized - no session');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const recipeId = searchParams.get('recipeId');
+        console.log('Recipe ID from request:', recipeId);
+
+        if (!recipeId) {
+            console.log('❌ No recipe ID provided');
+            return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
+        }
+
+        await connectDB();
+        console.log('✅ Connected to database');
+
+        // Fetch recipe and inventory
+        console.log('Fetching recipe and inventory...');
+        const [recipe, inventory] = await Promise.all([
+            Recipe.findOne({ _id: recipeId, userId: session.user.id }),
+            UserInventory.find({ userId: session.user.id })
+        ]);
+
+        console.log('Recipe found:', recipe ? recipe.title : 'null');
+        console.log('Inventory items found:', inventory ? inventory.length : 0);
+
+        if (!recipe) {
+            console.log('❌ Recipe not found for user:', session.user.id);
+            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+        }
+
+        // Generate shopping list for single recipe
+        const shoppingList = generateShoppingList([recipe], inventory);
+        console.log('✅ Shopping list generated successfully');
+
+        return NextResponse.json({
+            success: true,
+            shoppingList
+        });
+
+    } catch (error) {
+        console.error('❌ Single recipe shopping list error:', error);
+        return NextResponse.json(
+            { error: 'Failed to generate shopping list: ' + error.message },
+            { status: 500 }
+        );
+    }
+}
+
 // POST endpoint for multiple recipes
 export async function POST(request) {
     try {
+        console.log('=== MULTIPLE RECIPE SHOPPING LIST REQUEST ===');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
@@ -50,6 +110,7 @@ export async function POST(request) {
         }
 
         const { recipeIds } = await request.json();
+        console.log('Recipe IDs:', recipeIds);
 
         if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
             return NextResponse.json({ error: 'Recipe IDs are required' }, { status: 400 });
@@ -75,53 +136,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Shopping list generation error:', error);
-        return NextResponse.json(
-            { error: 'Failed to generate shopping list' },
-            { status: 500 }
-        );
-    }
-}
-
-// GET endpoint for single recipe
-export async function GET(request) {
-    try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { searchParams } = new URL(request.url);
-        const recipeId = searchParams.get('recipeId');
-
-        if (!recipeId) {
-            return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
-        }
-
-        await connectDB();
-
-        // Fetch recipe and inventory
-        const [recipe, inventory] = await Promise.all([
-            Recipe.findOne({ _id: recipeId, userId: session.user.id }),
-            UserInventory.find({ userId: session.user.id })
-        ]);
-
-        if (!recipe) {
-            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
-        }
-
-        console.log(`Found recipe "${recipe.title}" and ${inventory.length} inventory items`);
-
-        // Generate shopping list for single recipe
-        const shoppingList = generateShoppingList([recipe], inventory);
-
-        return NextResponse.json({
-            success: true,
-            shoppingList
-        });
-
-    } catch (error) {
-        console.error('Single recipe shopping list error:', error);
         return NextResponse.json(
             { error: 'Failed to generate shopping list' },
             { status: 500 }
