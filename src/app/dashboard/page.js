@@ -81,7 +81,7 @@ export default function Dashboard() {
                             Welcome back, {session.user.name}!
                         </h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            Here's what's happening with your food inventory today.
+                            Here&apos;s what&apos;s happening with your food inventory today.
                         </p>
                     </div>
                 </div>
@@ -155,8 +155,8 @@ export default function Dashboard() {
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                             Quick Actions
                         </h3>
-                        {/* Mobile: 1 column, SM: 1 column, MD: 2 columns, LG: 4 columns */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Mobile: 1 column, MD: 2 columns, LG: 4 columns - Custom CSS */}
+                        <div className="mobile-stack">
                             <a
                                 href="/inventory?action=add"
                                 className="flex items-center p-6 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[100px]"
