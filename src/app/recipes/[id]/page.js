@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/page.js v3
+// file: /src/app/recipes/[id]/page.js v2
 
 'use client';
 
@@ -146,6 +146,15 @@ export default function RecipeDetailPage() {
 
                         {/* Action Buttons */}
                         <div className="flex space-x-2 ml-4">
+                            {/* Show edit button if user owns the recipe */}
+                            {session?.user?.id === recipe.createdBy?._id && (
+                                <button
+                                    onClick={() => router.push(`/recipes/${recipeId}/edit`)}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    Edit Recipe
+                                </button>
+                            )}
                             <button
                                 onClick={() => setShowNutrition(!showNutrition)}
                                 className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
@@ -281,7 +290,7 @@ export default function RecipeDetailPage() {
                             </ol>
                         </div>
 
-                        {/* Reviews Section  */}
+                        {/* Reviews Section */}
                         <div className="bg-white rounded-lg border p-6">
                             <RecipeReviewsSection
                                 recipeId={recipeId}

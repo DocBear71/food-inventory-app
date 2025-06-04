@@ -87,9 +87,11 @@ export async function GET(request, { params }) {
             success: true,
             reviews: sortedReviews,
             ratingStats: ratingStats,
-            userCanReview: session?.user?.id &&
-                session.user.id !== recipe.createdBy.toString() &&
-                !reviews.some(r => r.userId && r.userId.toString() === session.user.id)
+            userCanReview: true
+
+                // session?.user?.id &&
+                // session.user.id !== recipe.createdBy.toString() &&
+                // !reviews.some(r => r.userId && r.userId.toString() === session.user.id)
         });
 
     } catch (error) {
