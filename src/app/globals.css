@@ -49,6 +49,101 @@ body {
     }
 }
 
+/* Quick action card styling */
+.quick-action-card {
+    display: flex !important;
+    align-items: center !important;
+    padding: 1.5rem !important;
+    border-radius: 0.5rem !important;
+    transition: background-color 0.15s ease-in-out !important;
+    min-height: 100px !important;
+    text-decoration: none !important;
+}
+
+.quick-action-icon {
+    font-size: 2rem !important;
+    margin-right: 1rem !important;
+    flex-shrink: 0 !important;
+}
+
+.quick-action-text {
+    min-width: 0 !important;
+}
+
+.quick-action-title {
+    font-weight: 500 !important;
+    font-size: 1rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.quick-action-subtitle {
+    font-size: 0.875rem !important;
+}
+
+/* Individual card colors */
+.card-add {
+    background-color: #eef2ff !important;
+}
+.card-add:hover {
+    background-color: #e0e7ff !important;
+}
+.card-add .quick-action-title {
+    color: #312e81 !important;
+}
+.card-add .quick-action-subtitle {
+    color: #4338ca !important;
+}
+
+.card-view {
+    background-color: #f0fdf4 !important;
+}
+.card-view:hover {
+    background-color: #dcfce7 !important;
+}
+.card-view .quick-action-title {
+    color: #14532d !important;
+}
+.card-view .quick-action-subtitle {
+    color: #15803d !important;
+}
+
+.card-recipes {
+    background-color: #fefce8 !important;
+}
+.card-recipes:hover {
+    background-color: #fef3c7 !important;
+}
+.card-recipes .quick-action-title {
+    color: #713f12 !important;
+}
+.card-recipes .quick-action-subtitle {
+    color: #a16207 !important;
+}
+
+.card-suggestions {
+    background-color: #faf5ff !important;
+}
+.card-suggestions:hover {
+    background-color: #f3e8ff !important;
+}
+.card-suggestions .quick-action-title {
+    color: #581c87 !important;
+}
+.card-suggestions .quick-action-subtitle {
+    color: #7c3aed !important;
+}
+
+/* Page padding fix */
+.dashboard-container {
+    padding: 1rem !important;
+}
+
+@media (min-width: 768px) {
+    .dashboard-container {
+        padding: 1.5rem !important;
+    }
+}
+
 /* Form input styling */
 input[type="text"],
 input[type="email"],
