@@ -1,4 +1,4 @@
-// file: /src/components/inventory/UPCLookup.js - v4
+// file: /src/components/inventory/UPCLookup.js - v5
 
 'use client';
 
@@ -17,7 +17,7 @@ function getNutriScoreColor(score) {
     return colors[score.toLowerCase()] || '#gray';
 }
 
-// NEW: Helper function to convert your API nutrition format to standardized format
+// Helper function to convert your API nutrition format to standardized format
 function standardizeNutritionData(nutrition) {
     if (!nutrition) return null;
 
@@ -65,7 +65,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const [lookupResult, setLookupResult] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
     const [cameraAvailable, setCameraAvailable] = useState(true);
-    const [showNutrition, setShowNutrition] = useState(false); // NEW: Toggle for nutrition display
+    const [showNutrition, setShowNutrition] = useState(false);
 
     // Check if camera is available
     const checkCameraAvailability = () => {
@@ -96,7 +96,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             const data = await response.json();
 
             if (data.success && data.product.found) {
-                // NEW: Extract and standardize nutrition data from your API
+                // Extract and standardize nutrition data from your API
                 const standardizedNutrition = standardizeNutritionData(data.product.nutrition);
 
                 // Enhanced product data with standardized nutrition
@@ -153,7 +153,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(false);
     };
 
-    // NEW: Check if nutrition data is available
+    // 🔧 FIXED: Prevent form submission when toggling nutrition display
+    const handleToggleNutrition = (e) => {
+        e.preventDefault(); // Prevent form submission
+        e.stopPropagation(); // Stop event bubbling
+        console.log('Toggling nutrition display:', !showNutrition);
+        setShowNutrition(!showNutrition);
+    };
+
+    // Check if nutrition data is available
     const hasNutrition = lookupResult?.success && lookupResult.product.nutrition &&
         Object.values(lookupResult.product.nutrition).some(n => n.value > 0);
 
@@ -244,7 +252,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                             </span>
                                         </div>
                                     )}
-                                    {/* NEW: Show additional scores */}
                                     {lookupResult.product.scores && lookupResult.product.scores.nova_group && (
                                         <div><strong>NOVA Group:</strong>
                                             <span className={`ml-1 px-2 py-1 text-xs font-bold text-white rounded ${
@@ -269,14 +276,16 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 )}
                             </div>
 
-                            {/* NEW: Nutrition Section */}
+                            {/* Nutrition Section */}
                             {hasNutrition && (
                                 <div className="mt-4 pt-4 border-t border-green-200">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-green-800 font-medium">🥗 Nutrition Information</span>
+                                        {/* 🔧 FIXED: Added proper event handling */}
                                         <button
-                                            onClick={() => setShowNutrition(!showNutrition)}
-                                            className="text-sm text-green-600 hover:text-green-800 underline"
+                                            type="button"
+                                            onClick={handleToggleNutrition}
+                                            className="text-sm text-green-600 hover:text-green-800 underline focus:outline-none"
                                         >
                                             {showNutrition ? 'Hide' : 'Show'} Details
                                         </button>
@@ -338,7 +347,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 </div>
                             )}
 
-                            {/* NEW: Additional Product Information */}
+                            {/* Additional Product Information */}
                             {(lookupResult.product.ingredients || lookupResult.product.allergens?.length > 0) && (
                                 <div className="mt-4 pt-4 border-t border-green-200">
                                     {lookupResult.product.ingredients && (
