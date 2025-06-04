@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/route.js
+// file: /src/app/api/recipes/route.js - v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe } from '@/lib/models';
 
-// GET - Fetch user's recipes
+// GET - Fetch user's recipes or a single recipe
 export async function GET(request) {
     try {
         const session = await getServerSession(authOptions);
@@ -18,20 +18,46 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { searchParams } = new URL(request.url);
+        const recipeId = searchParams.get('recipeId');
+
         await connectDB();
 
-        // Get user's recipes and public recipes
-        const recipes = await Recipe.find({
-            $or: [
-                { createdBy: session.user.id },
-                { isPublic: true }
-            ]
-        }).sort({ createdAt: -1 });
+        if (recipeId) {
+            // Get single recipe
+            const recipe = await Recipe.findOne({
+                _id: recipeId,
+                $or: [
+                    { createdBy: session.user.id },
+                    { isPublic: true }
+                ]
+            });
 
-        return NextResponse.json({
-            success: true,
-            recipes
-        });
+            if (!recipe) {
+                return NextResponse.json(
+                    { error: 'Recipe not found or access denied' },
+                    { status: 404 }
+                );
+            }
+
+            return NextResponse.json({
+                success: true,
+                recipe
+            });
+        } else {
+            // Get user's recipes and public recipes
+            const recipes = await Recipe.find({
+                $or: [
+                    { createdBy: session.user.id },
+                    { isPublic: true }
+                ]
+            }).sort({ createdAt: -1 });
+
+            return NextResponse.json({
+                success: true,
+                recipes
+            });
+        }
 
     } catch (error) {
         console.error('GET recipes error:', error);

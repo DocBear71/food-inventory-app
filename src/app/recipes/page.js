@@ -1,10 +1,10 @@
-// file: /src/app/recipes/page.js
+// file: /src/app/recipes/page.js v2
 
 'use client';
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { redirect } from 'next/navigation';
 
@@ -12,7 +12,9 @@ import { redirect } from 'next/navigation';
 function RecipesContent() {
     const { data: session, status } = useSession();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const shouldShowAddForm = searchParams.get('action') === 'add';
+    const editRecipeId = searchParams.get('id');
 
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +48,16 @@ function RecipesContent() {
             fetchRecipes();
         }
     }, [session]);
+
+    // Handle editing from URL params
+    useEffect(() => {
+        if (editRecipeId && recipes.length > 0) {
+            const recipeToEdit = recipes.find(r => r._id === editRecipeId);
+            if (recipeToEdit) {
+                handleEdit(recipeToEdit);
+            }
+        }
+    }, [editRecipeId, recipes]);
 
     const fetchRecipes = async () => {
         try {
@@ -214,6 +226,28 @@ function RecipesContent() {
         });
         setShowAddForm(false);
         setEditingRecipe(null);
+        // Clear URL params
+        router.push('/recipes', { scroll: false });
+    };
+
+    // Navigate to recipe detail page
+    const viewRecipe = (recipeId) => {
+        router.push(`/recipes/${recipeId}`);
+    };
+
+    // Calculate nutrition preview (if available)
+    const getNutritionPreview = (recipe) => {
+        if (!recipe.nutrition) return null;
+
+        const hasNutrition = Object.values(recipe.nutrition).some(n => n && n.value > 0);
+        if (!hasNutrition) return null;
+
+        return {
+            calories: Math.round(recipe.nutrition.calories?.value || 0),
+            protein: Math.round(recipe.nutrition.protein?.value || 0),
+            carbs: Math.round(recipe.nutrition.carbs?.value || 0),
+            fat: Math.round(recipe.nutrition.fat?.value || 0)
+        };
     };
 
     // Filter recipes based on search and filters
@@ -607,64 +641,135 @@ function RecipesContent() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredRecipes.map((recipe) => (
-                                    <div key={recipe._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h4 className="text-lg font-medium text-gray-900 truncate">{recipe.title}</h4>
-                                            <div className="flex space-x-1 ml-2">
+                                {filteredRecipes.map((recipe) => {
+                                    const nutritionPreview = getNutritionPreview(recipe);
+                                    const canEdit = recipe.createdBy === session?.user?.id;
+
+                                    return (
+                                        <div key={recipe._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                            {/* Recipe Header */}
+                                            <div className="flex justify-between items-start mb-3">
                                                 <button
-                                                    onClick={() => handleEdit(recipe)}
-                                                    className="text-indigo-600 hover:text-indigo-900 text-sm"
+                                                    onClick={() => viewRecipe(recipe._id)}
+                                                    className="flex-1 text-left hover:text-indigo-600 transition-colors"
                                                 >
-                                                    Edit
+                                                    <h4 className="text-lg font-medium text-gray-900 truncate">
+                                                        {recipe.title}
+                                                    </h4>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(recipe._id)}
-                                                    className="text-red-600 hover:text-red-900 text-sm"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
 
-                                        {recipe.description && (
-                                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{recipe.description}</p>
-                                        )}
-
-                                        <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
-                                            {recipe.prepTime && <span>Prep: {recipe.prepTime}m</span>}
-                                            {recipe.cookTime && <span>Cook: {recipe.cookTime}m</span>}
-                                            {recipe.servings && <span>Serves: {recipe.servings}</span>}
-                                            <span className="capitalize">
-                        {recipe.difficulty === 'easy' ? '🟢' : recipe.difficulty === 'medium' ? '🟡' : '🔴'}
-                                                {recipe.difficulty}
-                      </span>
-                                        </div>
-
-                                        <div className="text-sm text-gray-600 mb-2">
-                                            <strong>Ingredients:</strong> {recipe.ingredients?.length || 0}
-                                        </div>
-
-                                        {recipe.tags && recipe.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                                {recipe.tags.slice(0, 3).map((tag, index) => (
-                                                    <span key={index} className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
-                            {tag}
-                          </span>
-                                                ))}
-                                                {recipe.tags.length > 3 && (
-                                                    <span className="text-xs text-gray-500">+{recipe.tags.length - 3} more</span>
+                                                {canEdit && (
+                                                    <div className="flex space-x-1 ml-2">
+                                                        <button
+                                                            onClick={() => handleEdit(recipe)}
+                                                            className="text-indigo-600 hover:text-indigo-900 text-sm"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(recipe._id)}
+                                                            className="text-red-600 hover:text-red-900 text-sm"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
 
-                                        {recipe.source && (
-                                            <div className="text-xs text-gray-500 mt-2">
-                                                Source: {recipe.source}
+                                            {/* Description */}
+                                            {recipe.description && (
+                                                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{recipe.description}</p>
+                                            )}
+
+                                            {/* Recipe Meta */}
+                                            <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                                                {recipe.prepTime && <span>Prep: {recipe.prepTime}m</span>}
+                                                {recipe.cookTime && <span>Cook: {recipe.cookTime}m</span>}
+                                                {recipe.servings && <span>Serves: {recipe.servings}</span>}
+                                                <span className="capitalize">
+                                                    {recipe.difficulty === 'easy' ? '🟢' : recipe.difficulty === 'medium' ? '🟡' : '🔴'}
+                                                    {recipe.difficulty}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
+
+                                            {/* Nutrition Preview */}
+                                            {nutritionPreview && (
+                                                <div className="bg-green-50 rounded-md p-2 mb-3">
+                                                    <div className="text-xs text-green-800 font-medium mb-1">Nutrition (per serving):</div>
+                                                    <div className="grid grid-cols-4 gap-1 text-xs text-green-700">
+                                                        <div className="text-center">
+                                                            <div className="font-medium">{nutritionPreview.calories}</div>
+                                                            <div>cal</div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <div className="font-medium">{nutritionPreview.protein}g</div>
+                                                            <div>protein</div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <div className="font-medium">{nutritionPreview.carbs}g</div>
+                                                            <div>carbs</div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <div className="font-medium">{nutritionPreview.fat}g</div>
+                                                            <div>fat</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Ingredients Count */}
+                                            <div className="text-sm text-gray-600 mb-2">
+                                                <strong>Ingredients:</strong> {recipe.ingredients?.length || 0}
+                                            </div>
+
+                                            {/* Tags */}
+                                            {recipe.tags && recipe.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mb-3">
+                                                    {recipe.tags.slice(0, 3).map((tag, index) => (
+                                                        <span key={index} className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                    {recipe.tags.length > 3 && (
+                                                        <span className="text-xs text-gray-500">+{recipe.tags.length - 3} more</span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Source */}
+                                            {recipe.source && (
+                                                <div className="text-xs text-gray-500 mb-3">
+                                                    Source: {recipe.source}
+                                                </div>
+                                            )}
+
+                                            {/* Action Buttons */}
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => viewRecipe(recipe._id)}
+                                                    className="flex-1 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-sm font-medium"
+                                                >
+                                                    View Recipe
+                                                </button>
+                                                <button
+                                                    onClick={() => router.push(`/shopping/generate?recipeId=${recipe._id}`)}
+                                                    className="px-3 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm"
+                                                >
+                                                    🛒
+                                                </button>
+                                            </div>
+
+                                            {/* Nutrition Badge */}
+                                            {recipe.nutrition && (
+                                                <div className="mt-2 text-center">
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        🥗 Nutrition Available
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
