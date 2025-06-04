@@ -1,4 +1,4 @@
-// Replace /src/app/api/shopping/generate/route.js with this corrected version
+// file: /src/app/api/shopping/generate/route.js v18
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -277,40 +277,32 @@ function generateShoppingList(recipes, inventory) {
 
             console.log(`✅ Found in inventory: ${inventoryMatch.name} (${quantity} ${unit})`);
 
-            // TEMPORARY TEST: Force pasta and olive oil to be marked as available
-            if (needed.normalizedName.includes('pasta') || needed.normalizedName.includes('olive oil')) {
+            // Create a normalized inventory item with defaults
+            const normalizedInventoryItem = {
+                ...inventoryMatch,
+                quantity: quantity,
+                unit: unit
+            };
+
+            // Smart package size matching
+            const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
+
+            if (packageMatch.hasEnough) {
                 haveAmount = needed.totalAmount;
                 needAmount = 0;
                 status = 'have enough';
-                console.log(`🧪 FORCED TEST: Marking ${needed.name} as available for testing`);
+                console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
             } else {
-                // Create a normalized inventory item with defaults
-                const normalizedInventoryItem = {
-                    ...inventoryMatch,
-                    quantity: quantity,
-                    unit: unit
-                };
-
-                // Smart package size matching
-                const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
-
-                if (packageMatch.hasEnough) {
-                    haveAmount = needed.totalAmount;
-                    needAmount = 0;
-                    status = 'have enough';
-                    console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
+                // Try to convert units if possible
+                const conversion = tryUnitConversion(needed, normalizedInventoryItem);
+                if (conversion.success) {
+                    haveAmount = conversion.convertedAmount;
+                    needAmount = Math.max(0, needed.totalAmount - haveAmount);
+                    status = needAmount > 0 ? 'need more' : 'have enough';
+                    console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
                 } else {
-                    // Try to convert units if possible
-                    const conversion = tryUnitConversion(needed, normalizedInventoryItem);
-                    if (conversion.success) {
-                        haveAmount = conversion.convertedAmount;
-                        needAmount = Math.max(0, needed.totalAmount - haveAmount);
-                        status = needAmount > 0 ? 'need more' : 'have enough';
-                        console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
-                    } else {
-                        console.log(`❌ Cannot convert units or insufficient quantity`);
-                        console.log(`Inventory unit: ${unit}, Recipe unit: ${needed.unit}`);
-                    }
+                    console.log(`❌ Cannot convert units or insufficient quantity`);
+                    console.log(`Inventory unit: ${unit}, Recipe unit: ${needed.unit}`);
                 }
             }
         } else {
@@ -380,8 +372,12 @@ function generateShoppingList(recipes, inventory) {
 
 // Check if standard package size satisfies recipe needs
 function checkPackageSize(needed, inventoryItem) {
+    console.log(`\n🔍 PACKAGE CHECK START`);
+    console.log(`Recipe ingredient: "${needed.name}" (${needed.totalAmount} ${needed.unit})`);
+    console.log(`Inventory item: "${inventoryItem.name}" (${inventoryItem.quantity} ${inventoryItem.unit})`);
+
     if (!inventoryItem?.name || !needed?.normalizedName) {
-        console.log('Invalid data for package check');
+        console.log('❌ Invalid data for package check');
         return { hasEnough: false, packageAmount: 0 };
     }
 
@@ -390,10 +386,11 @@ function checkPackageSize(needed, inventoryItem) {
     const inventoryUnit = (inventoryItem.unit || 'item').toString().toLowerCase();
     const neededUnit = (needed.unit || 'item').toString().toLowerCase();
 
-    console.log(`Package check: ${itemName} (${inventoryItem.quantity} ${inventoryUnit}) vs ${neededName} (${needed.totalAmount} ${neededUnit})`);
+    console.log(`Normalized: "${itemName}" (${inventoryItem.quantity} ${inventoryUnit}) vs "${neededName}" (${needed.totalAmount} ${neededUnit})`);
 
     // If inventory is in "items" or "packages", check against standard sizes
     if (['item', 'items', 'package', 'packages', 'box', 'boxes', 'container', 'containers'].includes(inventoryUnit)) {
+        console.log(`✅ Inventory is in package units (${inventoryUnit}), checking standard sizes...`);
 
         // Find standard package size for this ingredient
         let packageSize = null;
@@ -401,38 +398,56 @@ function checkPackageSize(needed, inventoryItem) {
         // Direct match
         if (standardPackageSizes[neededName]) {
             packageSize = standardPackageSizes[neededName];
+            console.log(`✅ Direct match found: ${neededName} = ${packageSize.amount} ${packageSize.unit}`);
         } else if (standardPackageSizes[itemName]) {
             packageSize = standardPackageSizes[itemName];
+            console.log(`✅ Inventory name match found: ${itemName} = ${packageSize.amount} ${packageSize.unit}`);
         } else {
+            console.log(`❌ No direct matches, checking variations...`);
             // Check variations
             for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
+                console.log(`Checking ${baseIngredient} variations:`, variations);
                 if (variations.includes(neededName) || variations.includes(itemName) ||
                     neededName.includes(baseIngredient) || itemName.includes(baseIngredient)) {
                     packageSize = standardPackageSizes[baseIngredient];
-                    break;
+                    if (packageSize) {
+                        console.log(`✅ Variation match found: ${baseIngredient} = ${packageSize.amount} ${packageSize.unit}`);
+                        break;
+                    }
                 }
             }
         }
 
         if (packageSize) {
             const totalPackageAmount = inventoryItem.quantity * packageSize.amount;
-            console.log(`📦 Standard package: ${inventoryItem.quantity} × ${packageSize.amount} ${packageSize.unit} = ${totalPackageAmount} ${packageSize.unit}`);
+            console.log(`📦 Package calculation: ${inventoryItem.quantity} × ${packageSize.amount} ${packageSize.unit} = ${totalPackageAmount} ${packageSize.unit}`);
 
             // Check if package unit matches needed unit
-            if (packageSize.unit === neededUnit || areCompatibleUnits(packageSize.unit, neededUnit)) {
+            const unitsMatch = packageSize.unit === neededUnit || areCompatibleUnits(packageSize.unit, neededUnit);
+            console.log(`Unit compatibility: ${packageSize.unit} vs ${neededUnit} = ${unitsMatch}`);
+
+            if (unitsMatch) {
                 const hasEnough = totalPackageAmount >= needed.totalAmount;
-                console.log(`Comparison: ${totalPackageAmount} ${packageSize.unit} ${hasEnough ? '>=' : '<'} ${needed.totalAmount} ${neededUnit}`);
+                console.log(`Final comparison: ${totalPackageAmount} ${packageSize.unit} ${hasEnough ? '>=' : '<'} ${needed.totalAmount} ${neededUnit}`);
+                console.log(`🔍 PACKAGE CHECK RESULT: ${hasEnough ? 'HAVE ENOUGH' : 'NOT ENOUGH'}`);
                 return { hasEnough, packageAmount: totalPackageAmount };
+            } else {
+                console.log(`❌ Units not compatible: ${packageSize.unit} vs ${neededUnit}`);
             }
+        } else {
+            console.log(`❌ No package size found for ${neededName} or ${itemName}`);
         }
+    } else {
+        console.log(`❌ Inventory not in package units: ${inventoryUnit}`);
     }
 
     // For small amounts, assume one package is enough
     if (needed.totalAmount <= 2 && ['item', 'items'].includes(inventoryUnit)) {
-        console.log(`Small amount assumption: ${needed.totalAmount} ${neededUnit} likely covered by 1 package`);
+        console.log(`✅ Small amount assumption: ${needed.totalAmount} ${neededUnit} likely covered by 1 package`);
         return { hasEnough: true, packageAmount: needed.totalAmount };
     }
 
+    console.log(`🔍 PACKAGE CHECK RESULT: NOT ENOUGH (no match found)`);
     return { hasEnough: false, packageAmount: 0 };
 }
 
