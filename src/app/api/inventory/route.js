@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/route.js
+// file: /src/app/api/inventory/route.js - v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -59,7 +59,7 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { name, brand, category, quantity, unit, location, upc, expirationDate } = body;
+        const { name, brand, category, quantity, unit, location, upc, expirationDate, nutrition } = body;
 
         console.log('POST /api/inventory - Body:', body);
 
@@ -90,7 +90,9 @@ export async function POST(request) {
             location: location || 'pantry',
             upc: upc || '',
             expirationDate: expirationDate ? new Date(expirationDate) : null,
-            addedDate: new Date()
+            addedDate: new Date(),
+            // Add nutrition data if provided
+            nutrition: nutrition || null
         };
 
         inventory.items.push(newItem);
@@ -118,14 +120,20 @@ export async function POST(request) {
 // PUT - Update inventory item
 export async function PUT(request) {
     try {
-        const session = await getServerSession();
+        // 🔧 FIXED: Added authOptions parameter
+        const session = await getServerSession(authOptions);
+
+        console.log('PUT /api/inventory - Session:', session);
 
         if (!session?.user?.id) {
+            console.log('PUT: No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
         const { itemId, ...updateData } = body;
+
+        console.log('PUT /api/inventory - Body:', body);
 
         if (!itemId) {
             return NextResponse.json(
@@ -156,7 +164,7 @@ export async function PUT(request) {
             );
         }
 
-        // Update the item
+        // Update the item (including nutrition data if provided)
         Object.keys(updateData).forEach(key => {
             if (updateData[key] !== undefined) {
                 inventory.items[itemIndex][key] = updateData[key];
@@ -165,6 +173,8 @@ export async function PUT(request) {
 
         inventory.lastUpdated = new Date();
         await inventory.save();
+
+        console.log('PUT: Item updated successfully:', inventory.items[itemIndex]);
 
         return NextResponse.json({
             success: true,
@@ -184,14 +194,20 @@ export async function PUT(request) {
 // DELETE - Remove item from inventory
 export async function DELETE(request) {
     try {
-        const session = await getServerSession();
+        // 🔧 FIXED: Added authOptions parameter
+        const session = await getServerSession(authOptions);
+
+        console.log('DELETE /api/inventory - Session:', session);
 
         if (!session?.user?.id) {
+            console.log('DELETE: No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
         const itemId = searchParams.get('itemId');
+
+        console.log('DELETE /api/inventory - ItemId:', itemId);
 
         if (!itemId) {
             return NextResponse.json(
@@ -225,6 +241,8 @@ export async function DELETE(request) {
 
         inventory.lastUpdated = new Date();
         await inventory.save();
+
+        console.log('DELETE: Item removed successfully');
 
         return NextResponse.json({
             success: true,
