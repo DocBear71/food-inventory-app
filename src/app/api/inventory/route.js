@@ -1,16 +1,21 @@
 // file: /src/app/api/inventory/route.js
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { UserInventory } from '@/lib/models';
 
 // GET - Fetch user's inventory
 export async function GET(request) {
     try {
-        const session = await getServerSession();
+        const session = await getServerSession(authOptions);
+
+        console.log('GET /api/inventory - Session:', session);
+        console.log('GET /api/inventory - Auth options:', !!authOptions);
 
         if (!session?.user?.id) {
+            console.log('No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -44,14 +49,19 @@ export async function GET(request) {
 // POST - Add item to inventory
 export async function POST(request) {
     try {
-        const session = await getServerSession();
+        const session = await getServerSession(authOptions);
+
+        console.log('POST /api/inventory - Session:', session);
 
         if (!session?.user?.id) {
+            console.log('No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
         const { name, brand, category, quantity, unit, location, upc, expirationDate } = body;
+
+        console.log('POST /api/inventory - Body:', body);
 
         if (!name) {
             return NextResponse.json(
@@ -87,6 +97,8 @@ export async function POST(request) {
         inventory.lastUpdated = new Date();
 
         await inventory.save();
+
+        console.log('Item added successfully:', newItem);
 
         return NextResponse.json({
             success: true,

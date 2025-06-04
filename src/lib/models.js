@@ -43,7 +43,7 @@ const UserInventorySchema = new mongoose.Schema({
 // Recipe Ingredient Schema
 const RecipeIngredientSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    amount: Number,
+    amount: String,
     unit: String,
     category: String,
     alternatives: [String], // for flexible matching
@@ -68,7 +68,8 @@ const RecipeSchema = new mongoose.Schema({
     source: String, // "Doc Bear's Volume 1", etc.
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
+        required: true
     },
     isPublic: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
@@ -80,6 +81,7 @@ UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
 RecipeSchema.index({ tags: 1 });
 RecipeSchema.index({ isPublic: 1 });
+RecipeSchema.index({ createdBy: 1 });
 
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
