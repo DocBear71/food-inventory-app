@@ -1,280 +1,278 @@
-// file: /src/app/recipes/[id]/page.js - v1
+// file: /src/app/recipes/[id]/page.js v2
 
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
+import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
-import { redirect } from 'next/navigation';
 
 export default function RecipeDetailPage() {
-    const { data: session, status } = useSession();
+    const { data: session } = useSession();
     const params = useParams();
-    const router = useRouter();
     const recipeId = params.id;
 
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showNutrition, setShowNutrition] = useState(false);
-    const [selectedServings, setSelectedServings] = useState(1);
+    const [servings, setServings] = useState(1);
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            redirect('/auth/signin');
-        }
-    }, [status]);
-
-    useEffect(() => {
-        if (session && recipeId) {
+        if (recipeId) {
             fetchRecipe();
         }
-    }, [session, recipeId]);
+    }, [recipeId]);
+
+    useEffect(() => {
+        if (recipe && recipe.servings) {
+            setServings(recipe.servings);
+        }
+    }, [recipe]);
 
     const fetchRecipe = async () => {
         try {
-            setLoading(true);
-            const response = await fetch(`/api/recipes?recipeId=${recipeId}`);
+            const response = await fetch(`/api/recipes/${recipeId}`);
             const data = await response.json();
 
-            if (data.success && data.recipe) {
+            if (data.success) {
                 setRecipe(data.recipe);
-                setSelectedServings(data.recipe.servings || 1);
+                // Increment view count
+                await fetch(`/api/recipes/${recipeId}/view`, { method: 'POST' });
             } else {
-                setError('Recipe not found');
+                setError(data.error || 'Recipe not found');
             }
-        } catch (err) {
+        } catch (error) {
+            console.error('Error fetching recipe:', error);
             setError('Failed to load recipe');
-            console.error('Recipe fetch error:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleEdit = () => {
-        router.push(`/recipes?action=edit&id=${recipeId}`);
+    const formatCookTime = (minutes) => {
+        if (!minutes) return 'Not specified';
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     };
 
-    const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this recipe?')) return;
+    const getDifficultyColor = (difficulty) => {
+        const colors = {
+            easy: 'bg-green-100 text-green-800',
+            medium: 'bg-yellow-100 text-yellow-800',
+            hard: 'bg-red-100 text-red-800'
+        };
+        return colors[difficulty] || colors.medium;
+    };
 
-        try {
-            const response = await fetch(`/api/recipes?recipeId=${recipeId}`, {
-                method: 'DELETE'
-            });
+    const getScaledAmount = (amount) => {
+        if (!amount || !recipe?.servings) return amount;
 
-            const data = await response.json();
-
-            if (data.success) {
-                router.push('/recipes');
-            } else {
-                alert(data.error || 'Failed to delete recipe');
-            }
-        } catch (err) {
-            alert('Error deleting recipe');
-            console.error('Recipe delete error:', err);
+        // Extract number from amount string
+        const match = amount.match(/^(\d+(?:\.\d+)?)/);
+        if (match) {
+            const number = parseFloat(match[1]);
+            const scaledNumber = (number * servings) / recipe.servings;
+            return amount.replace(match[1], scaledNumber.toString());
         }
+        return amount;
     };
 
-    const getDifficultyIcon = (difficulty) => {
-        switch (difficulty) {
-            case 'easy': return '🟢';
-            case 'medium': return '🟡';
-            case 'hard': return '🔴';
-            default: return '⚪';
-        }
-    };
-
-    if (status === 'loading' || loading) {
+    if (loading) {
         return (
             <DashboardLayout>
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-lg">Loading recipe...</div>
-                </div>
-            </DashboardLayout>
-        );
-    }
-
-    if (!session) {
-        return null;
-    }
-
-    if (error || !recipe) {
-        return (
-            <DashboardLayout>
-                <div className="max-w-4xl mx-auto py-8">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                        <div className="text-red-800 text-lg font-medium mb-2">
-                            {error || 'Recipe not found'}
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="animate-pulse">
+                        <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="h-32 bg-gray-200 rounded"></div>
+                                <div className="h-64 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="h-96 bg-gray-200 rounded"></div>
                         </div>
-                        <button
-                            onClick={() => router.push('/recipes')}
-                            className="text-red-600 hover:text-red-800 underline"
-                        >
-                            ← Back to Recipes
-                        </button>
                     </div>
                 </div>
             </DashboardLayout>
         );
     }
 
-    const canEdit = recipe.createdBy === session.user.id;
+    if (error) {
+        return (
+            <DashboardLayout>
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="text-center">
+                        <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
+                        <button
+                            onClick={() => window.history.back()}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                        >
+                            Go Back
+                        </button>
+                    </div>
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout>
-            <div className="max-w-6xl mx-auto py-6">
+            <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <button
-                            onClick={() => router.push('/recipes')}
-                            className="text-indigo-600 hover:text-indigo-800 flex items-center"
-                        >
-                            ← Back to Recipes
-                        </button>
-                        {canEdit && (
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={handleEdit}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                                >
-                                    Edit Recipe
-                                </button>
-                                <button
-                                    onClick={handleDelete}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                                >
-                                    Delete
-                                </button>
+                <div className="mb-8">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
+                            {recipe.description && (
+                                <p className="text-gray-600 text-lg mb-4">{recipe.description}</p>
+                            )}
+
+                            {/* Rating and Stats */}
+                            <div className="flex items-center space-x-6 mb-4">
+                                <RatingStats ratingStats={recipe.ratingStats} compact={true} />
+                                {recipe.metrics?.viewCount > 0 && (
+                                    <span className="text-sm text-gray-500">
+                                        {recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}
+                                    </span>
+                                )}
                             </div>
-                        )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex space-x-2 ml-4">
+                            <button
+                                onClick={() => setShowNutrition(!showNutrition)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                            >
+                                {showNutrition ? 'Hide' : 'Show'} Nutrition
+                            </button>
+                            <button
+                                onClick={() => window.print()}
+                                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+                            >
+                                Print
+                            </button>
+                        </div>
                     </div>
 
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
-
-                    {recipe.description && (
-                        <p className="text-lg text-gray-600 mb-4">{recipe.description}</p>
-                    )}
-
                     {/* Recipe Meta */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="flex flex-wrap items-center space-x-4 text-sm text-gray-600">
                         {recipe.prepTime && (
-                            <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
-                                <span className="mr-1">⏱️</span>
-                                Prep: {recipe.prepTime}m
-                            </div>
+                            <span className="flex items-center space-x-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Prep: {formatCookTime(recipe.prepTime)}</span>
+                            </span>
                         )}
                         {recipe.cookTime && (
-                            <div className="flex items-center bg-orange-50 px-3 py-1 rounded-full">
-                                <span className="mr-1">🔥</span>
-                                Cook: {recipe.cookTime}m
-                            </div>
+                            <span className="flex items-center space-x-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                                </svg>
+                                <span>Cook: {formatCookTime(recipe.cookTime)}</span>
+                            </span>
                         )}
                         {recipe.servings && (
-                            <div className="flex items-center bg-green-50 px-3 py-1 rounded-full">
-                                <span className="mr-1">🍽️</span>
-                                Serves: {recipe.servings}
-                            </div>
+                            <span className="flex items-center space-x-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span>Serves: {recipe.servings}</span>
+                            </span>
                         )}
-                        <div className={`flex items-center px-3 py-1 rounded-full ${getDifficultyColor(recipe.difficulty)}`}>
-                            <span className="mr-1">{getDifficultyIcon(recipe.difficulty)}</span>
-                            {recipe.difficulty || 'medium'}
-                        </div>
+                        {recipe.difficulty && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                {recipe.difficulty}
+                            </span>
+                        )}
                     </div>
 
                     {/* Tags */}
                     {recipe.tags && recipe.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-4">
-                            {recipe.tags.map((tag, index) => (
-                                <span
-                                    key={index}
-                                    className="inline-block bg-gray-100 text-gray-800 text-sm px-3 py-1 rounded-full"
-                                >
-                                    #{tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Source */}
-                    {recipe.source && (
-                        <div className="mt-4 text-sm text-gray-600">
-                            <span className="font-medium">Source:</span> {recipe.source}
+                        <div className="mt-4">
+                            <div className="flex flex-wrap gap-2">
+                                {recipe.tags.map((tag, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Main Content */}
+                {/* Nutrition Panel */}
+                {showNutrition && recipe.nutrition && (
+                    <div className="mb-8">
+                        <NutritionFacts nutrition={recipe.nutrition} servings={servings} />
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column - Recipe Content */}
+                    {/* Main Content */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* Ingredients */}
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                                Ingredients
-                                {recipe.servings && recipe.servings !== selectedServings && (
-                                    <span className="text-sm font-normal text-gray-600 ml-2">
-                                        (scaled for {selectedServings} serving{selectedServings !== 1 ? 's' : ''})
-                                    </span>
+                        <div className="bg-white rounded-lg border p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
+                                {recipe.servings && (
+                                    <div className="flex items-center space-x-2">
+                                        <label htmlFor="servings" className="text-sm font-medium text-gray-700">
+                                            Servings:
+                                        </label>
+                                        <input
+                                            id="servings"
+                                            type="number"
+                                            min="1"
+                                            max="20"
+                                            value={servings}
+                                            onChange={(e) => setServings(parseInt(e.target.value) || 1)}
+                                            className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
                                 )}
-                            </h2>
-
-                            {recipe.servings && recipe.servings > 1 && (
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Adjust servings:
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0.5"
-                                        max="20"
-                                        step="0.5"
-                                        value={selectedServings}
-                                        onChange={(e) => setSelectedServings(parseFloat(e.target.value) || 1)}
-                                        className="w-24 border border-gray-300 rounded-md px-3 py-1 text-sm"
-                                    />
-                                </div>
-                            )}
-
-                            <ul className="space-y-3">
-                                {recipe.ingredients?.map((ingredient, index) => {
-                                    const scaleFactor = selectedServings / (recipe.servings || 1);
-                                    let scaledAmount = ingredient.amount;
-
-                                    // Try to scale numeric amounts
-                                    if (ingredient.amount && !isNaN(parseFloat(ingredient.amount))) {
-                                        const numAmount = parseFloat(ingredient.amount);
-                                        scaledAmount = (numAmount * scaleFactor).toString();
-                                        if (scaledAmount.includes('.') && scaledAmount.split('.')[1].length > 2) {
-                                            scaledAmount = parseFloat(scaledAmount).toFixed(2);
-                                        }
-                                    }
-
-                                    return (
-                                        <li key={index} className={`flex items-start ${ingredient.optional ? 'text-gray-600' : ''}`}>
-                                            <span className="inline-block w-2 h-2 bg-indigo-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                                            <span>
-                                                {scaledAmount && `${scaledAmount} `}
-                                                {ingredient.unit && `${ingredient.unit} `}
-                                                <span className="font-medium">{ingredient.name}</span>
-                                                {ingredient.optional && <span className="text-sm"> (optional)</span>}
-                                            </span>
-                                        </li>
-                                    );
-                                })}
+                            </div>
+                            <ul className="space-y-2">
+                                {recipe.ingredients?.map((ingredient, index) => (
+                                    <li key={index} className="flex items-start space-x-3">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className="text-gray-700">
+                                            {ingredient.amount && (
+                                                <span className="font-medium">
+                                                    {getScaledAmount(ingredient.amount)}
+                                                    {ingredient.unit && ` ${ingredient.unit}`}{' '}
+                                                </span>
+                                            )}
+                                            {ingredient.name}
+                                            {ingredient.optional && (
+                                                <span className="text-gray-500 text-sm"> (optional)</span>
+                                            )}
+                                        </span>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
 
                         {/* Instructions */}
-                        <div className="bg-white rounded-lg shadow p-6">
+                        <div className="bg-white rounded-lg border p-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Instructions</h2>
                             <ol className="space-y-4">
                                 {recipe.instructions?.map((instruction, index) => (
-                                    <li key={index} className="flex items-start">
-                                        <span className="inline-flex items-center justify-center w-8 h-8 bg-indigo-600 text-white text-sm font-medium rounded-full mr-4 flex-shrink-0">
+                                    <li key={index} className="flex items-start space-x-4">
+                                        <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                                             {index + 1}
                                         </span>
                                         <p className="text-gray-700 leading-relaxed">{instruction}</p>
@@ -282,82 +280,58 @@ export default function RecipeDetailPage() {
                                 ))}
                             </ol>
                         </div>
+
+                        {/* Reviews Section */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <RecipeReviewsSection
+                                recipeId={recipeId}
+                                recipeOwnerId={recipe.createdBy}
+                            />
+                        </div>
                     </div>
 
-                    {/* Right Column - Nutrition & Actions */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Quick Actions */}
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => setShowNutrition(!showNutrition)}
-                                    className="w-full flex items-center justify-center px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
-                                >
-                                    <span className="mr-2">🥗</span>
-                                    {showNutrition ? 'Hide' : 'Show'} Nutrition Facts
-                                </button>
-
-                                <button
-                                    onClick={() => router.push(`/shopping/generate?recipeId=${recipeId}`)}
-                                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                                >
-                                    <span className="mr-2">🛒</span>
-                                    Generate Shopping List
-                                </button>
-
-                                <button
-                                    onClick={() => window.print()}
-                                    className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                                >
-                                    <span className="mr-2">🖨️</span>
-                                    Print Recipe
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Nutrition Facts */}
-                        {showNutrition && (
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutrition Information</h3>
-                                <NutritionFacts
-                                    recipeId={recipeId}
-                                    servings={selectedServings}
-                                    showPerServing={true}
-                                />
-                            </div>
-                        )}
-
-                        {/* Recipe Stats */}
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Stats</h3>
+                    {/* Sidebar */}
+                    <div className="space-y-6">
+                        {/* Recipe Info Card */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
                             <div className="space-y-3 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Ingredients:</span>
-                                    <span className="font-medium">{recipe.ingredients?.length || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Instructions:</span>
-                                    <span className="font-medium">{recipe.instructions?.length || 0} steps</span>
-                                </div>
-                                {recipe.prepTime && recipe.cookTime && (
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-600">Total Time:</span>
-                                        <span className="font-medium">{recipe.prepTime + recipe.cookTime} minutes</span>
+                                {recipe.source && (
+                                    <div>
+                                        <span className="text-gray-500">Source:</span>
+                                        <span className="ml-2 text-gray-900">{recipe.source}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Visibility:</span>
-                                    <span className={`font-medium ${recipe.isPublic ? 'text-green-600' : 'text-gray-600'}`}>
-                                        {recipe.isPublic ? 'Public' : 'Private'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Created:</span>
-                                    <span className="font-medium">
+                                <div>
+                                    <span className="text-gray-500">Created:</span>
+                                    <span className="ml-2 text-gray-900">
                                         {new Date(recipe.createdAt).toLocaleDateString()}
                                     </span>
                                 </div>
+                                {recipe.updatedAt !== recipe.createdAt && (
+                                    <div>
+                                        <span className="text-gray-500">Updated:</span>
+                                        <span className="ml-2 text-gray-900">
+                                            {new Date(recipe.updatedAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                            <div className="space-y-3">
+                                <button className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">
+                                    Add to Meal Plan
+                                </button>
+                                <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                                    Generate Shopping List
+                                </button>
+                                <button className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+                                    Save to Collection
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -366,12 +340,3 @@ export default function RecipeDetailPage() {
         </DashboardLayout>
     );
 }
-
-const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-        case 'easy': return 'bg-green-100 text-green-800';
-        case 'medium': return 'bg-yellow-100 text-yellow-800';
-        case 'hard': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
-    }
-};

@@ -1,6 +1,111 @@
-// file: /lib/models.js - v2
+// file: /src/lib/models.js - v3
 
 import mongoose from 'mongoose';
+
+// Nutrition Schema
+const NutritionSchema = new mongoose.Schema({
+    calories: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'kcal' },
+        name: { type: String, default: 'Calories' }
+    },
+    protein: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Protein' }
+    },
+    fat: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Fat' }
+    },
+    carbs: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Carbohydrates' }
+    },
+    fiber: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Fiber' }
+    },
+    sugars: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Sugars' }
+    },
+    sodium: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Sodium' }
+    },
+    vitaminC: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Vitamin C' }
+    },
+    vitaminA: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'IU' },
+        name: { type: String, default: 'Vitamin A' }
+    },
+    calcium: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Calcium' }
+    },
+    iron: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Iron' }
+    }
+}, { _id: false });
+
+// NEW: Recipe Review Schema
+const RecipeReviewSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    userName: { type: String, required: true }, // Cache user name for performance
+    rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5
+    },
+    comment: {
+        type: String,
+        maxlength: 1000,
+        trim: true
+    },
+    // Optional: What the user thought about specific aspects
+    aspects: {
+        taste: { type: Number, min: 1, max: 5 },
+        difficulty: { type: Number, min: 1, max: 5 },
+        instructions: { type: Number, min: 1, max: 5 }
+    },
+    // Did they modify the recipe?
+    modifications: {
+        type: String,
+        maxlength: 500,
+        trim: true
+    },
+    // Would they make it again?
+    wouldMakeAgain: { type: Boolean },
+
+    // Helpful voting system
+    helpfulVotes: { type: Number, default: 0 },
+    unhelpfulVotes: { type: Number, default: 0 },
+    votedBy: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        vote: { type: String, enum: ['helpful', 'unhelpful'] }
+    }],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
 
 // Notification Settings Schema
 const NotificationSettingsSchema = new mongoose.Schema({
@@ -46,7 +151,28 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
-    lastNotificationSent: Date, // Track when last notification was sent
+    // Nutrition tracking preferences
+    nutritionGoals: {
+        dailyCalories: { type: Number, default: 2000 },
+        protein: { type: Number, default: 150 }, // grams
+        fat: { type: Number, default: 65 }, // grams
+        carbs: { type: Number, default: 250 }, // grams
+        fiber: { type: Number, default: 25 }, // grams
+        sodium: { type: Number, default: 2300 } // mg
+    },
+    // NEW: User profile for reviews
+    profile: {
+        bio: { type: String, maxlength: 200 },
+        cookingLevel: {
+            type: String,
+            enum: ['beginner', 'intermediate', 'advanced'],
+            default: 'beginner'
+        },
+        favoritesCuisines: [String],
+        reviewCount: { type: Number, default: 0 },
+        averageRatingGiven: { type: Number, default: 0 }
+    },
+    lastNotificationSent: Date,
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -67,9 +193,12 @@ const InventoryItemSchema = new mongoose.Schema({
         default: 'pantry'
     },
     notes: String,
+    // Nutrition data for individual items
+    nutrition: NutritionSchema,
+    fdcId: String, // USDA Food Data Central ID for nutrition lookup
     // Expiration tracking fields
-    notificationSent: { type: Boolean, default: false }, // Track if expiration notification was sent
-    lastNotifiedDate: Date // When last notification was sent for this item
+    notificationSent: { type: Boolean, default: false },
+    lastNotifiedDate: Date
 });
 
 // User Inventory Schema
@@ -83,17 +212,20 @@ const UserInventorySchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now }
 });
 
-// Recipe Ingredient Schema
+// Recipe Ingredient Schema - Enhanced with nutrition
 const RecipeIngredientSchema = new mongoose.Schema({
     name: { type: String, required: true },
     amount: String,
     unit: String,
     category: String,
-    alternatives: [String], // for flexible matching
-    optional: { type: Boolean, default: false }
+    alternatives: [String],
+    optional: { type: Boolean, default: false },
+    // Nutrition data for this ingredient
+    fdcId: String, // USDA Food Data Central ID
+    nutrition: NutritionSchema
 });
 
-// Recipe Schema
+// Recipe Schema - Enhanced with rating and review system
 const RecipeSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: String,
@@ -108,21 +240,98 @@ const RecipeSchema = new mongoose.Schema({
         default: 'medium'
     },
     tags: [String],
-    source: String, // "Doc Bear's Volume 1", etc.
+    source: String,
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
     isPublic: { type: Boolean, default: false },
-    // Recipe rating and review fields for future use
-    rating: { type: Number, min: 1, max: 5 },
-    reviews: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, min: 1, max: 5 },
-        comment: String,
-        createdAt: { type: Date, default: Date.now }
+
+    // Nutrition information
+    nutrition: NutritionSchema,
+    nutritionCalculatedAt: Date,
+    nutritionCoverage: Number, // Percentage of ingredients with nutrition data
+    nutritionManuallySet: { type: Boolean, default: false },
+
+    // NEW: Rating and Review System
+    reviews: [RecipeReviewSchema],
+
+    // Cached rating statistics for performance
+    ratingStats: {
+        averageRating: { type: Number, default: 0, min: 0, max: 5 },
+        totalRatings: { type: Number, default: 0 },
+        ratingDistribution: {
+            star5: { type: Number, default: 0 },
+            star4: { type: Number, default: 0 },
+            star3: { type: Number, default: 0 },
+            star2: { type: Number, default: 0 },
+            star1: { type: Number, default: 0 }
+        }
+    },
+
+    // Recipe engagement metrics
+    metrics: {
+        viewCount: { type: Number, default: 0 },
+        saveCount: { type: Number, default: 0 }, // Future: users can save recipes
+        shareCount: { type: Number, default: 0 },
+        lastViewed: Date
+    },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Daily Nutrition Log Schema - Track user's daily nutrition intake
+const DailyNutritionLogSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    date: { type: Date, required: true },
+    meals: [{
+        mealType: {
+            type: String,
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            required: true
+        },
+        recipeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Recipe'
+        },
+        recipeName: String,
+        servings: { type: Number, default: 1 },
+        nutrition: NutritionSchema,
+        loggedAt: { type: Date, default: Date.now }
     }],
+    totalNutrition: NutritionSchema,
+    goals: {
+        dailyCalories: Number,
+        protein: Number,
+        fat: Number,
+        carbs: Number,
+        fiber: Number,
+        sodium: Number
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// NEW: Recipe Collection Schema - Users can create collections of recipes
+const RecipeCollectionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    recipes: [{
+        recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
+        addedAt: { type: Date, default: Date.now }
+    }],
+    isPublic: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -133,11 +342,29 @@ RecipeSchema.index({ title: 'text', description: 'text' });
 RecipeSchema.index({ tags: 1 });
 RecipeSchema.index({ isPublic: 1 });
 RecipeSchema.index({ createdBy: 1 });
+RecipeSchema.index({ 'nutrition.calories.value': 1 }); // For nutrition-based filtering
+RecipeSchema.index({ nutritionCalculatedAt: 1 });
+
+// NEW: Rating and review indexes
+RecipeSchema.index({ 'ratingStats.averageRating': -1 }); // For sorting by rating
+RecipeSchema.index({ 'ratingStats.totalRatings': -1 }); // For sorting by popularity
+RecipeSchema.index({ 'reviews.userId': 1 }); // For finding user's reviews
+RecipeSchema.index({ 'metrics.viewCount': -1 }); // For trending recipes
 
 // Add expiration date index for efficient expiration queries
 InventoryItemSchema.index({ expirationDate: 1 });
+
+// Add nutrition tracking indexes
+DailyNutritionLogSchema.index({ userId: 1, date: 1 }, { unique: true });
+DailyNutritionLogSchema.index({ userId: 1, 'meals.recipeId': 1 });
+
+// Recipe collection indexes
+RecipeCollectionSchema.index({ userId: 1 });
+RecipeCollectionSchema.index({ isPublic: 1 });
 
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
 export const UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
 export const Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
+export const DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
+export const RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
