@@ -155,49 +155,49 @@ export default function Dashboard() {
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                             Quick Actions
                         </h3>
-                        {/* Mobile: 1 column, SM: 2 columns, LG: 4 columns */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Mobile: 1 column, SM: 1 column, MD: 2 columns, LG: 4 columns */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <a
                                 href="/inventory?action=add"
-                                className="flex items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[80px]"
+                                className="flex items-center p-6 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[100px]"
                             >
-                                <div className="text-3xl mr-3 flex-shrink-0">➕</div>
+                                <div className="text-4xl mr-4 flex-shrink-0">➕</div>
                                 <div className="min-w-0">
-                                    <div className="font-medium text-indigo-900 text-sm">Add Item</div>
-                                    <div className="text-xs text-indigo-700">Add to inventory</div>
+                                    <div className="font-medium text-indigo-900 text-base">Add Item</div>
+                                    <div className="text-sm text-indigo-700">Add to inventory</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/inventory"
-                                className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors min-h-[80px]"
+                                className="flex items-center p-6 bg-green-50 rounded-lg hover:bg-green-100 transition-colors min-h-[100px]"
                             >
-                                <div className="text-3xl mr-3 flex-shrink-0">📋</div>
+                                <div className="text-4xl mr-4 flex-shrink-0">📋</div>
                                 <div className="min-w-0">
-                                    <div className="font-medium text-green-900 text-sm">View Inventory</div>
-                                    <div className="text-xs text-green-700">See all items</div>
+                                    <div className="font-medium text-green-900 text-base">View Inventory</div>
+                                    <div className="text-sm text-green-700">See all items</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/recipes"
-                                className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors min-h-[80px]"
+                                className="flex items-center p-6 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors min-h-[100px]"
                             >
-                                <div className="text-3xl mr-3 flex-shrink-0">🍳</div>
+                                <div className="text-4xl mr-4 flex-shrink-0">🍳</div>
                                 <div className="min-w-0">
-                                    <div className="font-medium text-yellow-900 text-sm">Browse Recipes</div>
-                                    <div className="text-xs text-yellow-700">Find recipes</div>
+                                    <div className="font-medium text-yellow-900 text-base">Browse Recipes</div>
+                                    <div className="text-sm text-yellow-700">Find recipes</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/recipes/suggestions"
-                                className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[80px]"
+                                className="flex items-center p-6 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[100px]"
                             >
-                                <div className="text-3xl mr-3 flex-shrink-0">💡</div>
+                                <div className="text-4xl mr-4 flex-shrink-0">💡</div>
                                 <div className="min-w-0">
-                                    <div className="font-medium text-purple-900 text-sm">What Can I Make?</div>
-                                    <div className="text-xs text-purple-700">Recipe suggestions</div>
+                                    <div className="font-medium text-purple-900 text-base">What Can I Make?</div>
+                                    <div className="text-sm text-purple-700">Recipe suggestions</div>
                                 </div>
                             </a>
                         </div>

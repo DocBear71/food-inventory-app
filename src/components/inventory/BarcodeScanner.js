@@ -64,20 +64,31 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         patchSize: "large",
                         halfSample: false
                     },
-                    numOfWorkers: 2,
-                    frequency: 10, // Increased back to 10 for better detection
+                    numOfWorkers: 1, // Reduced to prevent conflicts
+                    frequency: 5, // Reduced frequency for better accuracy
                     decoder: {
                         readers: [
-                            "ean_reader",     // Prioritize EAN for grocery items
-                            "upc_reader",
-                            "upc_e_reader",
-                            "code_128_reader",
-                            "ean_8_reader",
-                            "code_39_reader"
+                            "ean_reader",     // Best for grocery items
+                            "upc_reader",     // Standard UPC
+                            "upc_e_reader"    // Compact UPC
                         ],
                         multiple: false
                     },
-                    locate: true
+                    locate: true,
+                    debug: {
+                        showCanvas: false,
+                        showPatches: false,
+                        showFoundPatches: false,
+                        showSkeleton: false,
+                        showLabels: false,
+                        showPatchLabels: false,
+                        showRemainingPatchLabels: false,
+                        boxFromPatches: {
+                            showTransformed: false,
+                            showTransformedBox: false,
+                            showBB: false
+                        }
+                    }
                 };
 
                 // Initialize Quagga
@@ -116,12 +127,31 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     const format = result.codeResult.format;
                     console.log(`Barcode detected: ${code} (format: ${format})`);
 
-                    // Validate UPC length and format
+                    // Strict validation for UPC codes
                     const cleanCode = code.replace(/\D/g, ''); // Remove non-digits
-                    if (cleanCode.length < 8 || cleanCode.length > 14) {
-                        console.log('Invalid UPC length, ignoring:', cleanCode);
+
+                    // Validate UPC length (must be exactly 12 digits for UPC-A or 8 for UPC-E)
+                    if (cleanCode.length !== 12 && cleanCode.length !== 8 && cleanCode.length !== 13 && cleanCode.length !== 14) {
+                        console.log('Invalid UPC length, ignoring:', cleanCode, 'Length:', cleanCode.length);
                         return;
                     }
+
+                    // Additional validation - check if it looks like a real UPC
+                    if (cleanCode.length < 8 || cleanCode.startsWith('00000') || cleanCode === '0'.repeat(cleanCode.length)) {
+                        console.log('Invalid UPC pattern, ignoring:', cleanCode);
+                        return;
+                    }
+
+                    // Check result confidence (if available)
+                    if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
+                        const avgConfidence = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
+                        if (avgConfidence > 0.1) { // Too many errors
+                            console.log('Low confidence detection, ignoring. Confidence:', avgConfidence);
+                            return;
+                        }
+                    }
+
+                    console.log('Valid UPC detected:', cleanCode);
 
                     // Set cooldown to prevent multiple detections
                     cooldownRef.current = true;

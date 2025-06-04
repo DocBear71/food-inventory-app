@@ -93,15 +93,15 @@ export default function DashboardLayout({ children }) {
                 {/* Top bar */}
                 <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
                     <div className="flex items-center justify-between h-16 px-4">
-                        {/* Mobile menu button - Made larger and more visible */}
+                        {/* Mobile menu button - Always visible on mobile */}
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                            className="lg:hidden flex items-center justify-center w-12 h-12 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 border border-gray-300"
                         >
                             <span className="sr-only">Open sidebar</span>
-                            {/* Hamburger icon - made larger */}
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            {/* Hamburger icon - made larger and more visible */}
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
 
