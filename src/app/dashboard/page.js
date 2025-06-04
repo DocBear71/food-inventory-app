@@ -1,10 +1,11 @@
-// file: src/app/dashboard/page.js
+// file: src/app/dashboard/page.js v13 - Enhanced with Expiration Notifications
 
 'use client';
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import ExpirationNotifications from '@/components/notifications/ExpirationNotifications';
 import { redirect } from 'next/navigation';
 
 export default function Dashboard() {
@@ -15,6 +16,7 @@ export default function Dashboard() {
         categories: {}
     });
     const [loading, setLoading] = useState(true);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -57,6 +59,11 @@ export default function Dashboard() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleItemsUpdated = () => {
+        // Refresh inventory stats when items are updated from notifications
+        fetchInventoryStats();
     };
 
     if (status === 'loading') {
@@ -108,18 +115,24 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div
+                        className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => setShowNotifications(!showNotifications)}
+                    >
                         <div className="p-5">
                             <div className="flex items-center">
                                 <div className="flex-shrink-0">
-                                    <div className="text-2xl">⚠️</div>
+                                    <div className="text-2xl">
+                                        {inventoryStats.expiringItems > 0 ? '⚠️' : '✅'}
+                                    </div>
                                 </div>
                                 <div className="ml-5 w-0 flex-1">
                                     <dl>
                                         <dt className="text-sm font-medium text-gray-500 truncate">
                                             Expiring Soon
+                                            <span className="text-xs text-indigo-600 ml-1">(click to {showNotifications ? 'hide' : 'view'})</span>
                                         </dt>
-                                        <dd className="text-lg font-medium text-gray-900">
+                                        <dd className={`text-lg font-medium ${inventoryStats.expiringItems > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                                             {loading ? '...' : inventoryStats.expiringItems}
                                         </dd>
                                     </dl>
@@ -148,6 +161,11 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+
+                {/* Expiration Notifications - Show/Hide based on toggle */}
+                {showNotifications && (
+                    <ExpirationNotifications onItemsUpdated={handleItemsUpdated} />
+                )}
 
                 {/* Quick actions - Fixed mobile layout */}
                 <div className="bg-white shadow rounded-lg">
@@ -200,6 +218,27 @@ export default function Dashboard() {
                                     <div className="text-sm text-purple-700">Recipe suggestions</div>
                                 </div>
                             </a>
+
+                            {/* New Expiration Management Quick Action */}
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="flex items-center p-6 bg-red-50 rounded-lg hover:bg-red-100 transition-colors min-h-[100px] w-full text-left"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">
+                                    {inventoryStats.expiringItems > 0 ? '🚨' : '✅'}
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-red-900 text-base">
+                                        {inventoryStats.expiringItems > 0 ? 'Check Expiring Items' : 'All Items Fresh'}
+                                    </div>
+                                    <div className="text-sm text-red-700">
+                                        {inventoryStats.expiringItems > 0
+                                            ? `${inventoryStats.expiringItems} items need attention`
+                                            : 'No items expiring soon'
+                                        }
+                                    </div>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </div>

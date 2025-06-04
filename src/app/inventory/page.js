@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js
+// file: /src/app/inventory/page.js - v2
 
 'use client';
 
@@ -19,6 +19,8 @@ function InventoryContent() {
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(shouldShowAddForm);
     const [editingItem, setEditingItem] = useState(null);
+    const [filterStatus, setFilterStatus] = useState('all'); // all, expired, expiring, fresh
+    const [sortBy, setSortBy] = useState('expiration'); // expiration, name, category, location
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
@@ -57,6 +59,123 @@ function InventoryContent() {
         }
     };
 
+    // Get expiration status for an item
+    const getExpirationStatus = (expirationDate) => {
+        if (!expirationDate) return { status: 'no-date', color: 'gray', bgColor: 'bg-gray-50', textColor: 'text-gray-600', label: 'No expiration date' };
+
+        const expDate = new Date(expirationDate);
+        const today = new Date();
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const expDateStart = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+        const daysUntil = Math.ceil((expDateStart - todayStart) / (1000 * 60 * 60 * 24));
+
+        if (daysUntil < 0) {
+            return {
+                status: 'expired',
+                color: 'red',
+                bgColor: 'bg-red-50',
+                textColor: 'text-red-600',
+                label: `Expired ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`,
+                icon: '🚨'
+            };
+        } else if (daysUntil === 0) {
+            return {
+                status: 'expires-today',
+                color: 'orange',
+                bgColor: 'bg-orange-50',
+                textColor: 'text-orange-600',
+                label: 'Expires today',
+                icon: '⚠️'
+            };
+        } else if (daysUntil <= 3) {
+            return {
+                status: 'expires-soon',
+                color: 'orange',
+                bgColor: 'bg-orange-50',
+                textColor: 'text-orange-600',
+                label: `Expires in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+                icon: '⏰'
+            };
+        } else if (daysUntil <= 7) {
+            return {
+                status: 'expires-week',
+                color: 'yellow',
+                bgColor: 'bg-yellow-50',
+                textColor: 'text-yellow-600',
+                label: `Expires in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+                icon: '📅'
+            };
+        } else {
+            return {
+                status: 'fresh',
+                color: 'green',
+                bgColor: 'bg-green-50',
+                textColor: 'text-green-600',
+                label: `Fresh (${daysUntil} days left)`,
+                icon: '✅'
+            };
+        }
+    };
+
+    // Filter and sort inventory
+    const getFilteredAndSortedInventory = () => {
+        let filtered = [...inventory];
+
+        // Apply status filter
+        if (filterStatus !== 'all') {
+            filtered = filtered.filter(item => {
+                const status = getExpirationStatus(item.expirationDate);
+                switch (filterStatus) {
+                    case 'expired':
+                        return status.status === 'expired';
+                    case 'expiring':
+                        return ['expires-today', 'expires-soon', 'expires-week'].includes(status.status);
+                    case 'fresh':
+                        return status.status === 'fresh' || status.status === 'no-date';
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        // Apply sorting
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'expiration':
+                    // Sort by expiration date, with expired first, then soonest expiring
+                    if (!a.expirationDate && !b.expirationDate) return 0;
+                    if (!a.expirationDate) return 1;
+                    if (!b.expirationDate) return -1;
+
+                    const aStatus = getExpirationStatus(a.expirationDate);
+                    const bStatus = getExpirationStatus(b.expirationDate);
+
+                    // Priority order: expired -> expires-today -> expires-soon -> expires-week -> fresh
+                    const priorityOrder = ['expired', 'expires-today', 'expires-soon', 'expires-week', 'fresh', 'no-date'];
+                    const aPriority = priorityOrder.indexOf(aStatus.status);
+                    const bPriority = priorityOrder.indexOf(bStatus.status);
+
+                    if (aPriority !== bPriority) {
+                        return aPriority - bPriority;
+                    }
+
+                    // If same priority, sort by actual date
+                    return new Date(a.expirationDate) - new Date(b.expirationDate);
+
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                case 'category':
+                    return (a.category || 'Other').localeCompare(b.category || 'Other');
+                case 'location':
+                    return a.location.localeCompare(b.location);
+                default:
+                    return 0;
+            }
+        });
+
+        return filtered;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -82,10 +201,8 @@ function InventoryContent() {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    // Include credentials to ensure session cookies are sent
                     'credentials': 'include'
                 },
-                // Ensure cookies are included
                 credentials: 'include',
                 body: JSON.stringify(body),
             });
@@ -212,6 +329,8 @@ function InventoryContent() {
         return null;
     }
 
+    const filteredInventory = getFilteredAndSortedInventory();
+
     return (
         <DashboardLayout>
             <div className="space-y-6">
@@ -224,6 +343,45 @@ function InventoryContent() {
                     >
                         {showAddForm ? 'Cancel' : 'Add Item'}
                     </button>
+                </div>
+
+                {/* Filters and Sorting */}
+                <div className="bg-white shadow rounded-lg p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                >
+                                    <option value="all">All Items ({inventory.length})</option>
+                                    <option value="expired">Expired ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})</option>
+                                    <option value="expiring">Expiring Soon ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                                    <option value="fresh">Fresh ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sort by</label>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                >
+                                    <option value="expiration">Expiration Date</option>
+                                    <option value="name">Name</option>
+                                    <option value="category">Category</option>
+                                    <option value="location">Location</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="text-sm text-gray-500">
+                            Showing {filteredInventory.length} of {inventory.length} items
+                        </div>
+                    </div>
                 </div>
 
                 {/* Add/Edit Form */}
@@ -363,9 +521,10 @@ function InventoryContent() {
                                         </select>
                                     </div>
 
-                                    <div>
+                                    <div className="md:col-span-2">
                                         <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
                                             Expiration Date
+                                            <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
                                         </label>
                                         <input
                                             type="date"
@@ -375,6 +534,9 @@ function InventoryContent() {
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         />
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Setting expiration dates helps track freshness and prevents food waste
+                                        </p>
                                     </div>
                                 </div>
 
@@ -403,28 +565,35 @@ function InventoryContent() {
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                            Current Inventory ({inventory.length} items)
+                            Current Inventory ({filteredInventory.length} items)
                         </h3>
 
                         {loading ? (
                             <div className="text-center py-8">
                                 <div className="text-gray-500">Loading inventory...</div>
                             </div>
-                        ) : inventory.length === 0 ? (
+                        ) : filteredInventory.length === 0 ? (
                             <div className="text-center py-8">
-                                <div className="text-gray-500 mb-4">No items in your inventory yet</div>
-                                <button
-                                    onClick={() => setShowAddForm(true)}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                >
-                                    Add your first item
-                                </button>
+                                <div className="text-gray-500 mb-4">
+                                    {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
+                                </div>
+                                {inventory.length === 0 && (
+                                    <button
+                                        onClick={() => setShowAddForm(true)}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                    >
+                                        Add your first item
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Item
                                         </th>
@@ -438,7 +607,7 @@ function InventoryContent() {
                                             Location
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Expires
+                                            Expiration
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Actions
@@ -446,13 +615,21 @@ function InventoryContent() {
                                     </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                    {inventory.map((item) => {
-                                        const expirationDate = item.expirationDate ? new Date(item.expirationDate) : null;
-                                        const isExpiring = expirationDate && expirationDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                                        const isExpired = expirationDate && expirationDate <= new Date();
+                                    {filteredInventory.map((item) => {
+                                        const expirationInfo = getExpirationStatus(item.expirationDate);
 
                                         return (
-                                            <tr key={item._id} className={isExpired ? 'bg-red-50' : isExpiring ? 'bg-yellow-50' : ''}>
+                                            <tr key={item._id} className={expirationInfo.bgColor}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <span className="text-xl mr-2">{expirationInfo.icon || '📦'}</span>
+                                                        <div>
+                                                            <div className={`text-xs font-medium ${expirationInfo.textColor}`}>
+                                                                {expirationInfo.label}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{item.name}</div>
@@ -468,17 +645,22 @@ function InventoryContent() {
                                                     {item.quantity} {item.unit}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <span className="capitalize">{item.location}</span>
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                                                            {item.location}
+                                                        </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {expirationDate ? (
-                                                        <span className={`${isExpired ? 'text-red-600' : isExpiring ? 'text-yellow-600' : ''}`}>
-                                {expirationDate.toLocaleDateString()}
-                                                            {isExpired && ' (Expired)'}
-                                                            {isExpiring && !isExpired && ' (Soon)'}
-                              </span>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    {item.expirationDate ? (
+                                                        <div>
+                                                            <div className={expirationInfo.textColor}>
+                                                                {new Date(item.expirationDate).toLocaleDateString()}
+                                                            </div>
+                                                            <div className={`text-xs ${expirationInfo.textColor}`}>
+                                                                {expirationInfo.label}
+                                                            </div>
+                                                        </div>
                                                     ) : (
-                                                        'No expiration'
+                                                        <span className="text-gray-400">No expiration set</span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">

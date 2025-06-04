@@ -1,12 +1,52 @@
-// file: /lib/models.js
+// file: /lib/models.js - v2
 
 import mongoose from 'mongoose';
 
-// User Schema
+// Notification Settings Schema
+const NotificationSettingsSchema = new mongoose.Schema({
+    email: {
+        enabled: { type: Boolean, default: false },
+        dailyDigest: { type: Boolean, default: false },
+        expirationAlerts: { type: Boolean, default: true },
+        daysBeforeExpiration: { type: Number, default: 3, min: 1, max: 30 }
+    },
+    dashboard: {
+        showExpirationPanel: { type: Boolean, default: true },
+        showQuickStats: { type: Boolean, default: true },
+        alertThreshold: { type: Number, default: 7, min: 1, max: 30 }
+    },
+    mobile: {
+        pushNotifications: { type: Boolean, default: false },
+        soundEnabled: { type: Boolean, default: true }
+    }
+}, { _id: false });
+
+// User Schema - Updated
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    notificationSettings: {
+        type: NotificationSettingsSchema,
+        default: () => ({
+            email: {
+                enabled: false,
+                dailyDigest: false,
+                expirationAlerts: true,
+                daysBeforeExpiration: 3
+            },
+            dashboard: {
+                showExpirationPanel: true,
+                showQuickStats: true,
+                alertThreshold: 7
+            },
+            mobile: {
+                pushNotifications: false,
+                soundEnabled: true
+            }
+        })
+    },
+    lastNotificationSent: Date, // Track when last notification was sent
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -26,7 +66,10 @@ const InventoryItemSchema = new mongoose.Schema({
         enum: ['pantry', 'fridge', 'freezer', 'other'],
         default: 'pantry'
     },
-    notes: String
+    notes: String,
+    // Expiration tracking fields
+    notificationSent: { type: Boolean, default: false }, // Track if expiration notification was sent
+    lastNotifiedDate: Date // When last notification was sent for this item
 });
 
 // User Inventory Schema
@@ -72,6 +115,14 @@ const RecipeSchema = new mongoose.Schema({
         required: true
     },
     isPublic: { type: Boolean, default: false },
+    // Recipe rating and review fields for future use
+    rating: { type: Number, min: 1, max: 5 },
+    reviews: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, min: 1, max: 5 },
+        comment: String,
+        createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -82,6 +133,9 @@ RecipeSchema.index({ title: 'text', description: 'text' });
 RecipeSchema.index({ tags: 1 });
 RecipeSchema.index({ isPublic: 1 });
 RecipeSchema.index({ createdBy: 1 });
+
+// Add expiration date index for efficient expiration queries
+InventoryItemSchema.index({ expirationDate: 1 });
 
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
