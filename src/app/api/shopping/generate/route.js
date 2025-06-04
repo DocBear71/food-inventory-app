@@ -159,7 +159,18 @@ function generateShoppingList(recipes, inventory) {
         }
 
         recipe.ingredients.forEach(ingredient => {
+            // Add safety checks for ingredient properties
+            if (!ingredient || !ingredient.name) {
+                console.log('Skipping invalid ingredient:', ingredient);
+                return;
+            }
+
             const normalizedName = normalizeIngredientName(ingredient.name);
+            if (!normalizedName) {
+                console.log('Could not normalize ingredient name:', ingredient.name);
+                return;
+            }
+
             const key = normalizedName;
 
             if (!neededIngredients[key]) {
@@ -173,9 +184,24 @@ function generateShoppingList(recipes, inventory) {
                 };
             }
 
-            // Handle "to taste" amounts
-            const amount = ingredient.amount === 'to taste' ? 1 : (parseFloat(ingredient.amount) || 1);
-            const unit = ingredient.unit || (ingredient.amount === 'to taste' ? 'tsp' : 'item');
+            // Handle "to taste" amounts and empty/invalid amounts
+            let amount = 1; // default
+            if (ingredient.amount === 'to taste') {
+                amount = 1;
+            } else if (typeof ingredient.amount === 'string' && ingredient.amount.trim()) {
+                const parsed = parseFloat(ingredient.amount);
+                amount = isNaN(parsed) ? 1 : parsed;
+            } else if (typeof ingredient.amount === 'number') {
+                amount = ingredient.amount;
+            }
+
+            // Handle empty or invalid units
+            let unit = 'item'; // default
+            if (ingredient.amount === 'to taste') {
+                unit = 'tsp';
+            } else if (ingredient.unit && typeof ingredient.unit === 'string' && ingredient.unit.trim()) {
+                unit = ingredient.unit.trim();
+            }
 
             neededIngredients[key].totalAmount += amount;
             neededIngredients[key].recipes.push(recipe.title);
@@ -291,10 +317,15 @@ function generateShoppingList(recipes, inventory) {
 
 // Check if standard package size satisfies recipe needs
 function checkPackageSize(needed, inventoryItem) {
+    if (!inventoryItem?.name || !needed?.normalizedName) {
+        console.log('Invalid data for package check');
+        return { hasEnough: false, packageAmount: 0 };
+    }
+
     const itemName = inventoryItem.name.toLowerCase();
     const neededName = needed.normalizedName.toLowerCase();
-    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
-    const neededUnit = needed.unit.toLowerCase();
+    const inventoryUnit = (inventoryItem.unit || 'item').toString().toLowerCase();
+    const neededUnit = (needed.unit || 'item').toString().toLowerCase();
 
     console.log(`Package check: ${itemName} (${inventoryItem.quantity} ${inventoryUnit}) vs ${neededName} (${needed.totalAmount} ${neededUnit})`);
 
@@ -344,9 +375,13 @@ function checkPackageSize(needed, inventoryItem) {
 
 // Try to convert units between inventory and recipe
 function tryUnitConversion(needed, inventoryItem) {
-    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
-    const neededUnit = needed.unit.toLowerCase();
-    const inventoryAmount = inventoryItem.quantity;
+    if (!inventoryItem || !needed) {
+        return { success: false, convertedAmount: 0 };
+    }
+
+    const inventoryUnit = (inventoryItem.unit || 'item').toString().toLowerCase();
+    const neededUnit = (needed.unit || 'item').toString().toLowerCase();
+    const inventoryAmount = inventoryItem.quantity || 0;
 
     // If units are the same, direct comparison
     if (inventoryUnit === neededUnit) {
@@ -386,13 +421,18 @@ function tryUnitConversion(needed, inventoryItem) {
 
 // Check if units are compatible (similar types)
 function areCompatibleUnits(unit1, unit2) {
+    if (!unit1 || !unit2) return false;
+
+    const u1 = unit1.toString().toLowerCase();
+    const u2 = unit2.toString().toLowerCase();
+
     const weightUnits = ['ounce', 'oz', 'pound', 'lb', 'gram', 'g', 'kilogram', 'kg'];
     const volumeUnits = ['cup', 'tablespoon', 'tbsp', 'teaspoon', 'tsp', 'ounce', 'oz', 'liter', 'l', 'milliliter', 'ml'];
 
-    const isWeight1 = weightUnits.includes(unit1.toLowerCase());
-    const isWeight2 = weightUnits.includes(unit2.toLowerCase());
-    const isVolume1 = volumeUnits.includes(unit1.toLowerCase());
-    const isVolume2 = volumeUnits.includes(unit2.toLowerCase());
+    const isWeight1 = weightUnits.includes(u1);
+    const isWeight2 = weightUnits.includes(u2);
+    const isVolume1 = volumeUnits.includes(u1);
+    const isVolume2 = volumeUnits.includes(u2);
 
     return (isWeight1 && isWeight2) || (isVolume1 && isVolume2);
 }
@@ -466,6 +506,10 @@ function findInventoryMatch(ingredientName, inventory) {
 
 // Normalize ingredient names for matching
 function normalizeIngredientName(name) {
+    if (!name || typeof name !== 'string') {
+        console.error('Invalid ingredient name:', name);
+        return '';
+    }
     return name.toLowerCase()
         .replace(/[^\w\s]/g, ' ')
         .replace(/\s+/g, ' ')
@@ -474,6 +518,11 @@ function normalizeIngredientName(name) {
 
 // Categorize ingredients for shopping list organization
 function categorizeIngredient(name) {
+    if (!name || typeof name !== 'string') {
+        console.error('Invalid ingredient name for categorization:', name);
+        return 'Other';
+    }
+
     const lowerName = name.toLowerCase();
 
     const categories = {
