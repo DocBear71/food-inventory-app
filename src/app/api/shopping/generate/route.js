@@ -1,4 +1,4 @@
-// Replace /src/app/api/shopping/generate/route.js with this corrected version
+// file: /src/app/api/shopping/generate/route.js v17
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -277,40 +277,32 @@ function generateShoppingList(recipes, inventory) {
 
             console.log(`✅ Found in inventory: ${inventoryMatch.name} (${quantity} ${unit})`);
 
-            // TEMPORARY TEST: Force pasta and olive oil to be marked as available
-            if (needed.normalizedName.includes('pasta') || needed.normalizedName.includes('olive oil')) {
+            // Create a normalized inventory item with defaults
+            const normalizedInventoryItem = {
+                ...inventoryMatch,
+                quantity: quantity,
+                unit: unit
+            };
+
+            // Smart package size matching
+            const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
+
+            if (packageMatch.hasEnough) {
                 haveAmount = needed.totalAmount;
                 needAmount = 0;
                 status = 'have enough';
-                console.log(`🧪 FORCED TEST: Marking ${needed.name} as available for testing`);
+                console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
             } else {
-                // Create a normalized inventory item with defaults
-                const normalizedInventoryItem = {
-                    ...inventoryMatch,
-                    quantity: quantity,
-                    unit: unit
-                };
-
-                // Smart package size matching
-                const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
-
-                if (packageMatch.hasEnough) {
-                    haveAmount = needed.totalAmount;
-                    needAmount = 0;
-                    status = 'have enough';
-                    console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
+                // Try to convert units if possible
+                const conversion = tryUnitConversion(needed, normalizedInventoryItem);
+                if (conversion.success) {
+                    haveAmount = conversion.convertedAmount;
+                    needAmount = Math.max(0, needed.totalAmount - haveAmount);
+                    status = needAmount > 0 ? 'need more' : 'have enough';
+                    console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
                 } else {
-                    // Try to convert units if possible
-                    const conversion = tryUnitConversion(needed, normalizedInventoryItem);
-                    if (conversion.success) {
-                        haveAmount = conversion.convertedAmount;
-                        needAmount = Math.max(0, needed.totalAmount - haveAmount);
-                        status = needAmount > 0 ? 'need more' : 'have enough';
-                        console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
-                    } else {
-                        console.log(`❌ Cannot convert units or insufficient quantity`);
-                        console.log(`Inventory unit: ${unit}, Recipe unit: ${needed.unit}`);
-                    }
+                    console.log(`❌ Cannot convert units or insufficient quantity`);
+                    console.log(`Inventory unit: ${unit}, Recipe unit: ${needed.unit}`);
                 }
             }
         } else {
