@@ -1,496 +1,227 @@
-//  /src/app/api/shopping/generate/route.js
+// Replace /src/app/api/shopping/generate/route.js with this debug version
+// We'll add functionality step by step to find what breaks
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/mongodb';
-import { Recipe, UserInventory } from '@/lib/models';
-
-// Enhanced ingredient variations matching (same as recipe suggestions)
-const ingredientVariations = {
-    'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni', 'fusilli', 'linguine', 'angel hair', 'bow tie', 'rotini'],
-    'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil', 'pure olive oil', 'evoo'],
-    'garlic': ['garlic cloves', 'fresh garlic', 'garlic bulb', 'minced garlic'],
-    'onion': ['yellow onion', 'white onion', 'red onion', 'sweet onion'],
-    'tomato': ['roma tomato', 'cherry tomato', 'grape tomato', 'beefsteak tomato', 'diced tomato', 'crushed tomato'],
-    'cheese': ['cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese'],
-    'milk': ['whole milk', '2% milk', 'skim milk', 'low fat milk'],
-    'butter': ['unsalted butter', 'salted butter', 'sweet butter'],
-    'flour': ['all purpose flour', 'bread flour', 'cake flour', 'whole wheat flour'],
-    'sugar': ['white sugar', 'granulated sugar', 'brown sugar', 'raw sugar'],
-    'salt': ['table salt', 'sea salt', 'kosher salt', 'iodized salt'],
-    'pepper': ['black pepper', 'white pepper', 'ground pepper', 'cracked pepper']
-};
-
-// Standard package sizes for common items
-const standardPackageSizes = {
-    'pasta': { amount: 16, unit: 'ounce' },
-    'penne': { amount: 16, unit: 'ounce' },
-    'spaghetti': { amount: 16, unit: 'ounce' },
-    'macaroni': { amount: 16, unit: 'ounce' },
-    'olive oil': { amount: 32, unit: 'ounce' },
-    'extra virgin olive oil': { amount: 32, unit: 'ounce' },
-    'vegetable oil': { amount: 32, unit: 'ounce' },
-    'flour': { amount: 80, unit: 'ounce' },
-    'sugar': { amount: 64, unit: 'ounce' },
-    'milk': { amount: 32, unit: 'ounce' },
-    'butter': { amount: 16, unit: 'ounce' },
-    'rice': { amount: 32, unit: 'ounce' },
-    'bread': { amount: 24, unit: 'ounce' },
-    'cheese': { amount: 8, unit: 'ounce' }
-};
 
 // GET endpoint for single recipe shopping list
 export async function GET(request) {
     try {
-        console.log('=== SINGLE RECIPE SHOPPING LIST REQUEST ===');
-
-        const session = await getServerSession(authOptions);
-        console.log('Session check:', session ? 'authenticated' : 'not authenticated');
-
-        if (!session?.user?.id) {
-            console.log('❌ Unauthorized - no session');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        console.log('=== STEP 1: Basic API Call ===');
 
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
-        console.log('Recipe ID from request:', recipeId);
+        console.log('Recipe ID:', recipeId);
 
         if (!recipeId) {
-            console.log('❌ No recipe ID provided');
             return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
         }
 
-        await connectDB();
-        console.log('✅ Connected to database');
-
-        // Fetch recipe and inventory
-        console.log('Fetching recipe and inventory...');
-        const [recipe, inventory] = await Promise.all([
-            Recipe.findOne({ _id: recipeId, userId: session.user.id }),
-            UserInventory.find({ userId: session.user.id })
-        ]);
-
-        console.log('Recipe found:', recipe ? recipe.title : 'null');
-        console.log('Inventory items found:', inventory ? inventory.length : 0);
-
-        if (!recipe) {
-            console.log('❌ Recipe not found for user:', session.user.id);
-            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+        console.log('=== STEP 2: Try Auth Import ===');
+        let authModule;
+        try {
+            authModule = await import('@/lib/auth');
+            console.log('✅ Auth import successful');
+        } catch (error) {
+            console.error('❌ Auth import failed:', error);
+            return NextResponse.json({
+                error: 'Auth import failed',
+                details: error.message
+            }, { status: 500 });
         }
 
-        // Generate shopping list for single recipe
-        const shoppingList = generateShoppingList([recipe], inventory);
-        console.log('✅ Shopping list generated successfully');
+        console.log('=== STEP 3: Try Session Check ===');
+        let session;
+        try {
+            const { getServerSession } = await import('next-auth/next');
+            session = await getServerSession(authModule.authOptions);
+            console.log('Session result:', session ? 'found' : 'null');
+        } catch (error) {
+            console.error('❌ Session check failed:', error);
+            return NextResponse.json({
+                error: 'Session check failed',
+                details: error.message
+            }, { status: 500 });
+        }
 
+        if (!session?.user?.id) {
+            console.log('❌ No authenticated user');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        console.log('=== STEP 4: Try MongoDB Import ===');
+        let connectDB;
+        try {
+            const mongoModule = await import('@/lib/mongodb');
+            connectDB = mongoModule.default;
+            console.log('✅ MongoDB import successful');
+        } catch (error) {
+            console.error('❌ MongoDB import failed:', error);
+            return NextResponse.json({
+                error: 'MongoDB import failed',
+                details: error.message
+            }, { status: 500 });
+        }
+
+        console.log('=== STEP 5: Try Database Connection ===');
+        try {
+            await connectDB();
+            console.log('✅ Database connected');
+        } catch (error) {
+            console.error('❌ Database connection failed:', error);
+            return NextResponse.json({
+                error: 'Database connection failed',
+                details: error.message
+            }, { status: 500 });
+        }
+
+        console.log('=== STEP 6: Try Models Import ===');
+        let Recipe, UserInventory;
+        try {
+            const modelsModule = await import('@/lib/models');
+            Recipe = modelsModule.Recipe;
+            UserInventory = modelsModule.UserInventory;
+            console.log('✅ Models import successful');
+        } catch (error) {
+            console.error('❌ Models import failed:', error);
+            return NextResponse.json({
+                error: 'Models import failed',
+                details: error.message
+            }, { status: 500 });
+        }
+
+        console.log('=== STEP 7: Try Database Queries ===');
+        let recipe, inventory;
+        try {
+            console.log('Querying recipe with ID:', recipeId);
+            console.log('User ID:', session.user.id);
+
+            recipe = await Recipe.findOne({ _id: recipeId, userId: session.user.id });
+            console.log('Recipe query result:', recipe ? `Found: ${recipe.title}` : 'Not found');
+
+            inventory = await UserInventory.find({ userId: session.user.id });
+            console.log('Inventory query result:', `Found ${inventory.length} items`);
+
+        } catch (error) {
+            console.error('❌ Database query failed:', error);
+            return NextResponse.json({
+                error: 'Database query failed',
+                details: error.message,
+                stack: error.stack
+            }, { status: 500 });
+        }
+
+        if (!recipe) {
+            console.log('❌ Recipe not found');
+            return NextResponse.json({
+                error: 'Recipe not found',
+                debug: {
+                    recipeId,
+                    userId: session.user.id,
+                    foundRecipe: false
+                }
+            }, { status: 404 });
+        }
+
+        console.log('=== SUCCESS: All steps completed ===');
+
+        // Return minimal shopping list for now
         return NextResponse.json({
             success: true,
-            shoppingList
+            shoppingList: {
+                items: {
+                    'Produce': [
+                        {
+                            name: '1 clove garlic',
+                            category: 'Produce',
+                            originalName: 'garlic',
+                            needAmount: 1,
+                            haveAmount: 0,
+                            unit: 'clove',
+                            recipes: [recipe.title],
+                            status: 'need to buy',
+                            isPantryStaple: false
+                        }
+                    ],
+                    'Pantry': [
+                        {
+                            name: '1 tsp salt',
+                            category: 'Pantry',
+                            originalName: 'salt',
+                            needAmount: 1,
+                            haveAmount: 0,
+                            unit: 'tsp',
+                            recipes: [recipe.title],
+                            status: 'need to buy',
+                            isPantryStaple: true
+                        },
+                        {
+                            name: '1 tsp pepper',
+                            category: 'Pantry',
+                            originalName: 'pepper',
+                            needAmount: 1,
+                            haveAmount: 0,
+                            unit: 'tsp',
+                            recipes: [recipe.title],
+                            status: 'need to buy',
+                            isPantryStaple: true
+                        }
+                    ]
+                },
+                recipes: [recipe.title],
+                summary: {
+                    totalItems: 5,
+                    categories: 2,
+                    alreadyHave: 2, // pasta and oil
+                    needToBuy: 3 // garlic, salt, pepper
+                }
+            },
+            debug: {
+                recipeTitle: recipe.title,
+                inventoryCount: inventory.length,
+                step: 'All steps successful'
+            }
         });
 
     } catch (error) {
-        console.error('❌ Single recipe shopping list error:', error);
-        return NextResponse.json(
-            { error: 'Failed to generate shopping list: ' + error.message },
-            { status: 500 }
-        );
+        console.error('❌ Unexpected error:', error);
+        return NextResponse.json({
+            error: 'Unexpected error occurred',
+            details: error.message,
+            stack: error.stack
+        }, { status: 500 });
     }
 }
 
 // POST endpoint for multiple recipes
 export async function POST(request) {
     try {
-        console.log('=== MULTIPLE RECIPE SHOPPING LIST REQUEST ===');
+        console.log('=== MULTIPLE RECIPE REQUEST ===');
 
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { recipeIds } = await request.json();
-        console.log('Recipe IDs:', recipeIds);
-
-        if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
-            return NextResponse.json({ error: 'Recipe IDs are required' }, { status: 400 });
-        }
-
-        await connectDB();
-
-        // Fetch recipes and inventory
-        const [recipes, inventory] = await Promise.all([
-            Recipe.find({ _id: { $in: recipeIds }, userId: session.user.id }),
-            UserInventory.find({ userId: session.user.id })
-        ]);
-
-        console.log(`Found ${recipes.length} recipes and ${inventory.length} inventory items`);
-
-        // Generate shopping list
-        const shoppingList = generateShoppingList(recipes, inventory);
+        // For now, return a simple response
+        const body = await request.json();
 
         return NextResponse.json({
             success: true,
-            shoppingList
+            shoppingList: {
+                items: {},
+                recipes: [],
+                summary: {
+                    totalItems: 0,
+                    categories: 0,
+                    alreadyHave: 0,
+                    needToBuy: 0
+                }
+            },
+            debug: {
+                receivedRecipeIds: body.recipeIds
+            }
         });
 
     } catch (error) {
-        console.error('Shopping list generation error:', error);
-        return NextResponse.json(
-            { error: 'Failed to generate shopping list' },
-            { status: 500 }
-        );
+        console.error('❌ POST error:', error);
+        return NextResponse.json({
+            error: 'POST request failed',
+            details: error.message
+        }, { status: 500 });
     }
-}
-
-function generateShoppingList(recipes, inventory) {
-    console.log('=== SHOPPING LIST GENERATION ===');
-    console.log(`Recipes: ${recipes.length}, Inventory: ${inventory.length}`);
-
-    const neededIngredients = {};
-
-    // Collect all needed ingredients from recipes
-    recipes.forEach(recipe => {
-        console.log(`\nProcessing recipe: ${recipe.title}`);
-
-        if (!recipe.ingredients || recipe.ingredients.length === 0) {
-            console.log('No ingredients found for recipe');
-            return;
-        }
-
-        recipe.ingredients.forEach(ingredient => {
-            const normalizedName = normalizeIngredientName(ingredient.name);
-            const key = normalizedName;
-
-            if (!neededIngredients[key]) {
-                neededIngredients[key] = {
-                    name: ingredient.name,
-                    normalizedName,
-                    totalAmount: 0,
-                    unit: ingredient.unit || 'item',
-                    recipes: [],
-                    category: categorizeIngredient(ingredient.name)
-                };
-            }
-
-            const amount = ingredient.amount || 1;
-            const unit = ingredient.unit || 'item';
-
-            // Keep original units, don't convert
-            neededIngredients[key].totalAmount += amount;
-            neededIngredients[key].recipes.push(recipe.title);
-
-            console.log(`Added ingredient: ${ingredient.name} - ${amount} ${unit}`);
-        });
-    });
-
-    console.log('\n=== INVENTORY MATCHING ===');
-
-    // Check what we have vs what we need
-    Object.values(neededIngredients).forEach(needed => {
-        const inventoryMatch = findInventoryMatch(needed.normalizedName, inventory);
-
-        let haveAmount = 0;
-        let needAmount = needed.totalAmount;
-        let status = 'need to buy';
-
-        // Check if this is a pantry staple (but don't automatically assume we have it)
-        const pantryStaples = ['salt', 'pepper', 'black pepper', 'garlic powder', 'onion powder'];
-        const isPantryStaple = pantryStaples.some(staple =>
-            needed.normalizedName.includes(staple)
-        );
-
-        if (inventoryMatch) {
-            console.log(`\n🔍 Checking: ${needed.name}`);
-            console.log(`Recipe needs: ${needed.totalAmount} ${needed.unit}`);
-            console.log(`Inventory has: ${inventoryMatch.quantity} ${inventoryMatch.unit || 'item'}`);
-
-            // Smart package size matching
-            const packageMatch = checkPackageSize(needed, inventoryMatch);
-
-            if (packageMatch.hasEnough) {
-                haveAmount = needed.totalAmount;
-                needAmount = 0;
-                status = 'have enough';
-                console.log(`✅ Package size assumption: Have enough!`);
-            } else {
-                // Try to convert units if possible
-                const conversion = tryUnitConversion(needed, inventoryMatch);
-                if (conversion.success) {
-                    haveAmount = conversion.convertedAmount;
-                    needAmount = Math.max(0, needed.totalAmount - haveAmount);
-                    status = needAmount > 0 ? 'need more' : 'have enough';
-                    console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
-                } else {
-                    console.log(`❌ Cannot convert units or insufficient quantity`);
-                }
-            }
-        } else {
-            console.log(`❌ No inventory match found for: ${needed.name}`);
-
-            // For pantry staples, add a note but still include in shopping list
-            if (isPantryStaple) {
-                console.log(`📝 Note: ${needed.name} is a common pantry staple`);
-                needed.isPantryStaple = true;
-            }
-        }
-
-        needed.haveAmount = haveAmount;
-        needed.needAmount = needAmount;
-        needed.status = status;
-    });
-
-    // Filter and categorize shopping list
-    const shoppingListItems = Object.values(neededIngredients)
-        .filter(item => item.needAmount > 0)
-        .map(item => ({
-            name: `${item.needAmount} ${item.unit} ${item.name}`,
-            category: item.category,
-            originalName: item.name,
-            needAmount: item.needAmount,
-            haveAmount: item.haveAmount,
-            unit: item.unit,
-            recipes: item.recipes,
-            status: item.status,
-            isPantryStaple: item.isPantryStaple || false
-        }));
-
-    // Group by category
-    const categorizedList = {};
-    shoppingListItems.forEach(item => {
-        if (!categorizedList[item.category]) {
-            categorizedList[item.category] = [];
-        }
-        categorizedList[item.category].push(item);
-    });
-
-    // Calculate summary
-    const totalItems = Object.values(neededIngredients).length;
-    const alreadyHave = Object.values(neededIngredients).filter(item => item.needAmount === 0).length;
-    const needToBuy = shoppingListItems.length;
-
-    const result = {
-        items: categorizedList,
-        recipes: recipes.map(r => r.title),
-        summary: {
-            totalItems,
-            categories: Object.keys(categorizedList).length,
-            alreadyHave,
-            needToBuy
-        }
-    };
-
-    console.log('\n=== FINAL SUMMARY ===');
-    console.log(`Total ingredients: ${totalItems}`);
-    console.log(`Already have: ${alreadyHave}`);
-    console.log(`Need to buy: ${needToBuy}`);
-
-    return result;
-}
-
-// Check if standard package size satisfies recipe needs
-function checkPackageSize(needed, inventoryItem) {
-    const itemName = inventoryItem.name.toLowerCase();
-    const neededName = needed.normalizedName.toLowerCase();
-    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
-    const neededUnit = needed.unit.toLowerCase();
-
-    console.log(`Package check: ${itemName} (${inventoryItem.quantity} ${inventoryUnit}) vs ${neededName} (${needed.totalAmount} ${neededUnit})`);
-
-    // If inventory is in "items" or "packages", check against standard sizes
-    if (['item', 'items', 'package', 'packages', 'box', 'boxes', 'container', 'containers'].includes(inventoryUnit)) {
-
-        // Find standard package size for this ingredient
-        let packageSize = null;
-
-        // Direct match
-        if (standardPackageSizes[neededName]) {
-            packageSize = standardPackageSizes[neededName];
-        } else if (standardPackageSizes[itemName]) {
-            packageSize = standardPackageSizes[itemName];
-        } else {
-            // Check variations
-            for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
-                if (variations.includes(neededName) || variations.includes(itemName) ||
-                    neededName.includes(baseIngredient) || itemName.includes(baseIngredient)) {
-                    packageSize = standardPackageSizes[baseIngredient];
-                    break;
-                }
-            }
-        }
-
-        if (packageSize) {
-            const totalPackageAmount = inventoryItem.quantity * packageSize.amount;
-            console.log(`📦 Standard package: ${inventoryItem.quantity} × ${packageSize.amount} ${packageSize.unit} = ${totalPackageAmount} ${packageSize.unit}`);
-
-            // Check if package unit matches needed unit
-            if (packageSize.unit === neededUnit || areCompatibleUnits(packageSize.unit, neededUnit)) {
-                const hasEnough = totalPackageAmount >= needed.totalAmount;
-                console.log(`Comparison: ${totalPackageAmount} ${packageSize.unit} ${hasEnough ? '>=' : '<'} ${needed.totalAmount} ${neededUnit}`);
-                return { hasEnough, packageAmount: totalPackageAmount };
-            }
-        }
-    }
-
-    // For small amounts, assume one package is enough
-    if (needed.totalAmount <= 2 && ['item', 'items'].includes(inventoryUnit)) {
-        console.log(`Small amount assumption: ${needed.totalAmount} ${neededUnit} likely covered by 1 package`);
-        return { hasEnough: true, packageAmount: needed.totalAmount };
-    }
-
-    return { hasEnough: false, packageAmount: 0 };
-}
-
-// Try to convert units between inventory and recipe
-function tryUnitConversion(needed, inventoryItem) {
-    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
-    const neededUnit = needed.unit.toLowerCase();
-    const inventoryAmount = inventoryItem.quantity;
-
-    // If units are the same, direct comparison
-    if (inventoryUnit === neededUnit) {
-        return {
-            success: true,
-            convertedAmount: inventoryAmount
-        };
-    }
-
-    // Common conversions
-    const conversions = {
-        // Weight conversions
-        'pound': { 'ounce': 16 },
-        'lb': { 'ounce': 16, 'oz': 16 },
-        'ounce': { 'tablespoon': 2 },
-        'oz': { 'tablespoon': 2, 'tbsp': 2 },
-
-        // Volume conversions
-        'cup': { 'tablespoon': 16, 'tbsp': 16, 'ounce': 8, 'oz': 8 },
-        'tablespoon': { 'teaspoon': 3, 'tsp': 3 },
-        'tbsp': { 'teaspoon': 3, 'tsp': 3 }
-    };
-
-    if (conversions[inventoryUnit] && conversions[inventoryUnit][neededUnit]) {
-        const conversionFactor = conversions[inventoryUnit][neededUnit];
-        const convertedAmount = inventoryAmount * conversionFactor;
-
-        console.log(`Unit conversion: ${inventoryAmount} ${inventoryUnit} = ${convertedAmount} ${neededUnit}`);
-        return {
-            success: true,
-            convertedAmount
-        };
-    }
-
-    return { success: false, convertedAmount: 0 };
-}
-
-// Check if units are compatible (similar types)
-function areCompatibleUnits(unit1, unit2) {
-    const weightUnits = ['ounce', 'oz', 'pound', 'lb', 'gram', 'g', 'kilogram', 'kg'];
-    const volumeUnits = ['cup', 'tablespoon', 'tbsp', 'teaspoon', 'tsp', 'ounce', 'oz', 'liter', 'l', 'milliliter', 'ml'];
-
-    const isWeight1 = weightUnits.includes(unit1.toLowerCase());
-    const isWeight2 = weightUnits.includes(unit2.toLowerCase());
-    const isVolume1 = volumeUnits.includes(unit1.toLowerCase());
-    const isVolume2 = volumeUnits.includes(unit2.toLowerCase());
-
-    return (isWeight1 && isWeight2) || (isVolume1 && isVolume2);
-}
-
-// Find matching item in inventory using enhanced matching
-function findInventoryMatch(ingredientName, inventory) {
-    const normalizedIngredient = normalizeIngredientName(ingredientName);
-
-    console.log(`Looking for: "${normalizedIngredient}"`);
-
-    // 1. Exact match
-    let match = inventory.find(item =>
-        normalizeIngredientName(item.name) === normalizedIngredient
-    );
-
-    if (match) {
-        console.log(`✅ Exact match: ${match.name}`);
-        return match;
-    }
-
-    // 2. Ingredient variations match
-    for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
-        if (normalizedIngredient.includes(baseIngredient) ||
-            variations.some(v => normalizedIngredient.includes(v) || v.includes(normalizedIngredient))) {
-
-            match = inventory.find(item => {
-                const itemName = normalizeIngredientName(item.name);
-                return variations.some(variation =>
-                    itemName.includes(variation) || variation.includes(itemName)
-                ) || itemName.includes(baseIngredient) || baseIngredient.includes(itemName);
-            });
-
-            if (match) {
-                console.log(`✅ Variation match: ${match.name} matches ${normalizedIngredient}`);
-                return match;
-            }
-        }
-    }
-
-    // 3. Partial name match
-    match = inventory.find(item => {
-        const itemName = normalizeIngredientName(item.name);
-        return itemName.includes(normalizedIngredient) || normalizedIngredient.includes(itemName);
-    });
-
-    if (match) {
-        console.log(`✅ Partial match: ${match.name}`);
-        return match;
-    }
-
-    // 4. Fuzzy word matching
-    match = inventory.find(item => {
-        const itemWords = normalizeIngredientName(item.name).split(/\s+/);
-        const ingredientWords = normalizedIngredient.split(/\s+/);
-
-        return ingredientWords.some(ingredientWord =>
-            itemWords.some(itemWord =>
-                itemWord.includes(ingredientWord) || ingredientWord.includes(itemWord)
-            )
-        );
-    });
-
-    if (match) {
-        console.log(`✅ Fuzzy match: ${match.name}`);
-        return match;
-    }
-
-    console.log(`❌ No match found for: ${normalizedIngredient}`);
-    return null;
-}
-
-// Normalize ingredient names for matching
-function normalizeIngredientName(name) {
-    return name.toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-// Categorize ingredients for shopping list organization
-function categorizeIngredient(name) {
-    const lowerName = name.toLowerCase();
-
-    const categories = {
-        'Produce': ['tomato', 'onion', 'garlic', 'lettuce', 'carrot', 'celery', 'pepper', 'mushroom', 'spinach', 'potato', 'lemon', 'lime', 'apple', 'banana', 'herb', 'cilantro', 'parsley', 'basil'],
-        'Meat': ['chicken', 'beef', 'pork', 'fish', 'salmon', 'tuna', 'turkey', 'ham', 'bacon', 'sausage', 'ground beef', 'steak'],
-        'Dairy': ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'sour cream', 'cottage cheese', 'mozzarella', 'cheddar', 'parmesan'],
-        'Grains': ['pasta', 'rice', 'bread', 'flour', 'cereal', 'oats', 'quinoa', 'barley', 'penne', 'spaghetti', 'macaroni'],
-        'Pantry': ['oil', 'vinegar', 'salt', 'pepper', 'sugar', 'honey', 'vanilla', 'baking powder', 'baking soda', 'spice'],
-        'Condiments': ['ketchup', 'mustard', 'mayo', 'mayonnaise', 'hot sauce', 'soy sauce', 'worcestershire', 'olive oil', 'vegetable oil'],
-        'Frozen': ['frozen', 'ice cream', 'frozen vegetables', 'frozen fruit'],
-        'Beverages': ['juice', 'soda', 'coffee', 'tea', 'water', 'wine', 'beer']
-    };
-
-    for (const [category, keywords] of Object.entries(categories)) {
-        if (keywords.some(keyword => lowerName.includes(keyword))) {
-            return category;
-        }
-    }
-
-    return 'Other';
 }
