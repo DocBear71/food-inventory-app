@@ -1,4 +1,4 @@
-// file: /src/app/shopping/page.js
+// Replace /src/app/shopping/page.js with this fixed version
 
 'use client';
 
@@ -83,6 +83,7 @@ export default function ShoppingList() {
         }
 
         setIsGenerating(true);
+        console.log('Generating shopping list for recipes:', selectedRecipes);
 
         try {
             const response = await fetch('/api/shopping/generate', {
@@ -96,9 +97,12 @@ export default function ShoppingList() {
             });
 
             const data = await response.json();
+            console.log('Shopping list response:', data);
 
             if (data.success) {
                 setShoppingList(data.shoppingList);
+                // DON'T clear selectedRecipes here - keep them selected
+                console.log('Shopping list generated successfully');
             } else {
                 alert('Error generating shopping list: ' + data.error);
             }
@@ -117,7 +121,7 @@ export default function ShoppingList() {
 
     const clearShoppingList = () => {
         setShoppingList(null);
-        setSelectedRecipes([]);
+        // Keep selectedRecipes - don't clear them
     };
 
     if (loading) {
