@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/[id]/reviews/route.js v1
+// file: /src/app/api/recipes/[id]/reviews/route.js v2 - FIXED
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -9,10 +9,16 @@ import { Recipe, User } from '@/lib/models';
 // GET - Fetch reviews for a recipe
 export async function GET(request, { params }) {
     try {
+        console.log('=== GET /api/recipes/[id]/reviews START ===');
+
         const session = await getServerSession(authOptions);
         const recipeId = params.id;
 
+        console.log('Recipe ID:', recipeId);
+        console.log('Session:', session);
+
         if (!recipeId) {
+            console.log('No recipe ID provided');
             return NextResponse.json(
                 { error: 'Recipe ID is required' },
                 { status: 400 }
@@ -20,13 +26,16 @@ export async function GET(request, { params }) {
         }
 
         await connectDB();
+        console.log('Database connected');
 
         const recipe = await Recipe.findById(recipeId)
             .select('reviews ratingStats title isPublic createdBy')
-            .populate('reviews.userId', 'name profile.cookingLevel')
             .lean();
 
+        console.log('Recipe found:', !!recipe);
+
         if (!recipe) {
+            console.log('Recipe not found');
             return NextResponse.json(
                 { error: 'Recipe not found' },
                 { status: 404 }
@@ -35,18 +44,29 @@ export async function GET(request, { params }) {
 
         // Check if user can view this recipe
         if (!recipe.isPublic && (!session?.user?.id || recipe.createdBy.toString() !== session.user.id)) {
+            console.log('Access denied - recipe not public and user not owner');
             return NextResponse.json(
                 { error: 'Not authorized to view this recipe' },
                 { status: 403 }
             );
         }
 
+        // Initialize empty reviews if none exist
+        const reviews = recipe.reviews || [];
+
+        // Initialize empty rating stats if none exist
+        const ratingStats = recipe.ratingStats || {
+            averageRating: 0,
+            totalRatings: 0,
+            ratingDistribution: { star5: 0, star4: 0, star3: 0, star2: 0, star1: 0 }
+        };
+
         // Sort reviews by helpfulness and recency
-        const sortedReviews = recipe.reviews
+        const sortedReviews = reviews
             .sort((a, b) => {
                 // First by helpfulness (helpful votes - unhelpful votes)
-                const aHelpfulness = a.helpfulVotes - a.unhelpfulVotes;
-                const bHelpfulness = b.helpfulVotes - b.unhelpfulVotes;
+                const aHelpfulness = (a.helpfulVotes || 0) - (a.unhelpfulVotes || 0);
+                const bHelpfulness = (b.helpfulVotes || 0) - (b.unhelpfulVotes || 0);
                 if (bHelpfulness !== aHelpfulness) {
                     return bHelpfulness - aHelpfulness;
                 }
@@ -61,17 +81,24 @@ export async function GET(request, { params }) {
                     null
             }));
 
+        console.log('Reviews processed:', sortedReviews.length);
+
         return NextResponse.json({
             success: true,
             reviews: sortedReviews,
-            ratingStats: recipe.ratingStats,
+            ratingStats: ratingStats,
             userCanReview: session?.user?.id &&
                 session.user.id !== recipe.createdBy.toString() &&
-                !recipe.reviews.some(r => r.userId.toString() === session.user.id)
+                !reviews.some(r => r.userId && r.userId.toString() === session.user.id)
         });
 
     } catch (error) {
-        console.error('GET recipe reviews error:', error);
+        console.error('=== GET recipe reviews error ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('================================');
+
         return NextResponse.json(
             { error: 'Failed to fetch reviews' },
             { status: 500 }
@@ -82,6 +109,8 @@ export async function GET(request, { params }) {
 // POST - Add a new review
 export async function POST(request, { params }) {
     try {
+        console.log('=== POST /api/recipes/[id]/reviews START ===');
+
         const session = await getServerSession(authOptions);
         const recipeId = params.id;
 
@@ -96,7 +125,10 @@ export async function POST(request, { params }) {
             );
         }
 
-        const { rating, comment, aspects, modifications, wouldMakeAgain } = await request.json();
+        const body = await request.json();
+        const { rating, comment, aspects, modifications, wouldMakeAgain } = body;
+
+        console.log('Review data:', { rating, comment, aspects, modifications, wouldMakeAgain });
 
         // Validate rating
         if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
@@ -132,9 +164,14 @@ export async function POST(request, { params }) {
             );
         }
 
+        // Initialize reviews array if it doesn't exist
+        if (!recipe.reviews) {
+            recipe.reviews = [];
+        }
+
         // Check if user has already reviewed this recipe
         const existingReview = recipe.reviews.find(
-            review => review.userId.toString() === session.user.id
+            review => review.userId && review.userId.toString() === session.user.id
         );
 
         if (existingReview) {
@@ -192,13 +229,7 @@ export async function POST(request, { params }) {
         recipe.updatedAt = new Date();
         await recipe.save();
 
-        // Update user's review count
-        await User.findByIdAndUpdate(session.user.id, {
-            $inc: { 'profile.reviewCount': 1 },
-            $set: {
-                'profile.averageRatingGiven': await calculateUserAverageRating(session.user.id)
-            }
-        });
+        console.log('Review added successfully');
 
         return NextResponse.json({
             success: true,
@@ -208,7 +239,12 @@ export async function POST(request, { params }) {
         });
 
     } catch (error) {
-        console.error('POST recipe review error:', error);
+        console.error('=== POST recipe review error ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('================================');
+
         return NextResponse.json(
             { error: 'Failed to add review' },
             { status: 500 }
@@ -226,7 +262,8 @@ export async function PUT(request, { params }) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
-        const { reviewId, rating, comment, aspects, modifications, wouldMakeAgain } = await request.json();
+        const body = await request.json();
+        const { reviewId, rating, comment, aspects, modifications, wouldMakeAgain } = body;
 
         if (!reviewId) {
             return NextResponse.json(
@@ -251,6 +288,11 @@ export async function PUT(request, { params }) {
                 { error: 'Recipe not found' },
                 { status: 404 }
             );
+        }
+
+        // Initialize reviews array if it doesn't exist
+        if (!recipe.reviews) {
+            recipe.reviews = [];
         }
 
         // Find the review
@@ -341,6 +383,11 @@ export async function DELETE(request, { params }) {
             );
         }
 
+        // Initialize reviews array if it doesn't exist
+        if (!recipe.reviews) {
+            recipe.reviews = [];
+        }
+
         // Find and remove the review
         const initialLength = recipe.reviews.length;
         recipe.reviews = recipe.reviews.filter(
@@ -382,14 +429,6 @@ export async function DELETE(request, { params }) {
 
         recipe.updatedAt = new Date();
         await recipe.save();
-
-        // Update user's review count
-        await User.findByIdAndUpdate(session.user.id, {
-            $inc: { 'profile.reviewCount': -1 },
-            $set: {
-                'profile.averageRatingGiven': await calculateUserAverageRating(session.user.id)
-            }
-        });
 
         return NextResponse.json({
             success: true,
