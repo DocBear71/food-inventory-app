@@ -65,12 +65,19 @@ export async function GET(request) {
         await connectDB();
         console.log('✅ Connected to database');
 
-        // FIXED: Use createdBy instead of userId
+        // FIXED: Use createdBy instead of userId for recipes, and handle nested inventory structure
         console.log('Fetching recipe and inventory...');
-        const [recipe, inventory] = await Promise.all([
+        const [recipe, inventoryDocs] = await Promise.all([
             Recipe.findOne({ _id: recipeId, createdBy: session.user.id }),
             UserInventory.find({ userId: session.user.id })
         ]);
+
+        // Extract items from the nested inventory structure
+        let inventory = [];
+        if (inventoryDocs && inventoryDocs.length > 0) {
+            // Get the items array from the first inventory document
+            inventory = inventoryDocs[0].items || [];
+        }
 
         console.log('Recipe found:', recipe ? recipe.title : 'null');
         console.log('Inventory items found:', inventory ? inventory.length : 0);
@@ -118,11 +125,18 @@ export async function POST(request) {
 
         await connectDB();
 
-        // FIXED: Use createdBy instead of userId
-        const [recipes, inventory] = await Promise.all([
+        // FIXED: Use createdBy instead of userId for recipes, and handle nested inventory structure
+        const [recipes, inventoryDocs] = await Promise.all([
             Recipe.find({ _id: { $in: recipeIds }, createdBy: session.user.id }),
             UserInventory.find({ userId: session.user.id })
         ]);
+
+        // Extract items from the nested inventory structure
+        let inventory = [];
+        if (inventoryDocs && inventoryDocs.length > 0) {
+            // Get the items array from the first inventory document
+            inventory = inventoryDocs[0].items || [];
+        }
 
         console.log(`Found ${recipes.length} recipes and ${inventory.length} inventory items`);
 
@@ -231,10 +245,21 @@ function generateShoppingList(recipes, inventory) {
         );
 
         if (inventoryMatch) {
-            console.log(`✅ Found in inventory: ${inventoryMatch.name} (${inventoryMatch.quantity} ${inventoryMatch.unit || 'item'})`);
+            // Add default values for missing quantity/unit fields
+            const quantity = inventoryMatch.quantity || 1;
+            const unit = inventoryMatch.unit || 'item';
+
+            console.log(`✅ Found in inventory: ${inventoryMatch.name} (${quantity} ${unit})`);
+
+            // Create a normalized inventory item with defaults
+            const normalizedInventoryItem = {
+                ...inventoryMatch,
+                quantity: quantity,
+                unit: unit
+            };
 
             // Smart package size matching
-            const packageMatch = checkPackageSize(needed, inventoryMatch);
+            const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
 
             if (packageMatch.hasEnough) {
                 haveAmount = needed.totalAmount;
@@ -243,7 +268,7 @@ function generateShoppingList(recipes, inventory) {
                 console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
             } else {
                 // Try to convert units if possible
-                const conversion = tryUnitConversion(needed, inventoryMatch);
+                const conversion = tryUnitConversion(needed, normalizedInventoryItem);
                 if (conversion.success) {
                     haveAmount = conversion.convertedAmount;
                     needAmount = Math.max(0, needed.totalAmount - haveAmount);
@@ -251,7 +276,7 @@ function generateShoppingList(recipes, inventory) {
                     console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
                 } else {
                     console.log(`❌ Cannot convert units or insufficient quantity`);
-                    console.log(`Inventory unit: ${inventoryMatch.unit || 'item'}, Recipe unit: ${needed.unit}`);
+                    console.log(`Inventory unit: ${unit}, Recipe unit: ${needed.unit}`);
                 }
             }
         } else {
