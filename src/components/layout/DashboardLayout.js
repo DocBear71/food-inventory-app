@@ -1,16 +1,14 @@
-// file: src/components/layout/DashboardLayout.js
+// file: /src/components/layout/DashboardLayout.js
 
 'use client';
 
+import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
-import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 
 export default function DashboardLayout({ children }) {
     const { data: session } = useSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const pathname = usePathname();
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
@@ -24,90 +22,113 @@ export default function DashboardLayout({ children }) {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100">
-            {/* Sidebar */}
-            <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex-shrink-0`}>
-                <div className="flex items-center justify-center h-16 px-4 bg-indigo-600">
-                    <h1 className="text-xl font-bold text-white">Food Inventory</h1>
-                </div>
+        <div className="min-h-screen bg-gray-50">
+            {/* Mobile sidebar overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
-                <nav className="mt-8">
-                    <div className="px-4 space-y-2">
+            {/* Sidebar */}
+            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}>
+                <div className="flex flex-col h-full">
+                    {/* Logo/Title */}
+                    <div className="flex items-center justify-between h-16 px-4 bg-indigo-600">
+                        <h1 className="text-lg font-semibold text-white truncate">
+                            Food Inventory
+                        </h1>
+                        {/* Mobile close button */}
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="lg:hidden text-white hover:text-gray-200 p-1"
+                        >
+                            <span className="text-xl">×</span>
+                        </button>
+                    </div>
+
+                    {/* Navigation */}
+                    <nav className="flex-1 px-4 py-4 space-y-2">
                         {navigation.map((item) => (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                                    pathname === item.href
-                                        ? 'bg-indigo-100 text-indigo-700'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                }`}
+                                className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                                onClick={() => setSidebarOpen(false)} // Close sidebar on mobile after click
                             >
                                 <span className="mr-3 text-lg">{item.icon}</span>
                                 {item.name}
                             </Link>
                         ))}
-                    </div>
-                </nav>
+                    </nav>
 
-                {/* User info and sign out */}
-                <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
-                    <div className="flex items-center">
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                                {session?.user?.name}
-                            </p>
-                            <p className="text-sm text-gray-500 truncate">
-                                {session?.user?.email}
-                            </p>
+                    {/* User info and sign out - Fixed layout */}
+                    {session && (
+                        <div className="border-t border-gray-200 p-4">
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                    {session.user.name}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                    {session.user.email}
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleSignOut}
+                                className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                            >
+                                <span className="mr-2">🚪</span>
+                                Sign Out
+                            </button>
                         </div>
-                        <button
-                            onClick={handleSignOut}
-                            className="ml-3 flex-shrink-0 p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            title="Sign out"
-                        >
-                            🚪
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Mobile sidebar overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 z-40 lg:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                >
-                    <div className="absolute inset-0 bg-gray-600 opacity-75"></div>
-                </div>
-            )}
-
             {/* Main content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="lg:pl-64">
                 {/* Top bar */}
-                <header className="bg-white shadow-sm lg:static lg:overflow-y-visible">
-                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                        <div className="relative flex justify-between xl:grid xl:grid-cols-12 lg:gap-8">
-                            <div className="flex md:absolute md:left-0 md:inset-y-0 lg:static xl:col-span-2">
-                                <div className="flex-shrink-0 flex items-center">
+                <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
+                    <div className="flex items-center justify-between h-16 px-4">
+                        {/* Mobile menu button - Made larger and more visible */}
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                        >
+                            <span className="sr-only">Open sidebar</span>
+                            {/* Hamburger icon - made larger */}
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+
+                        {/* Desktop user info */}
+                        <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
+                            {session && (
+                                <>
+                                    <div className="text-sm text-gray-700">
+                                        Welcome, <span className="font-medium">{session.user.name}</span>
+                                    </div>
                                     <button
-                                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                                        className="p-2 rounded-md text-gray-400 lg:hidden focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                                        onClick={handleSignOut}
+                                        className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
                                     >
-                                        ☰
+                                        <span className="mr-1">🚪</span>
+                                        Sign Out
                                     </button>
-                                </div>
-                            </div>
+                                </>
+                            )}
                         </div>
                     </div>
-                </header>
+                </div>
 
                 {/* Page content */}
-                <main className="flex-1 overflow-y-auto bg-gray-50">
-                    <div className="py-6">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            {children}
-                        </div>
+                <main className="p-4 lg:p-6">
+                    <div className="max-w-7xl mx-auto">
+                        {children}
                     </div>
                 </main>
             </div>

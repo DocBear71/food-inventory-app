@@ -86,8 +86,8 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Stats cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Stats cards - Stack on mobile */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
                         <div className="p-5">
                             <div className="flex items-center">
@@ -149,54 +149,55 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Quick actions */}
+                {/* Quick actions - Fixed mobile layout */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                             Quick Actions
                         </h3>
+                        {/* Mobile: 1 column, SM: 2 columns, LG: 4 columns */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <a
                                 href="/inventory?action=add"
-                                className="flex items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                                className="flex items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[80px]"
                             >
-                                <div className="text-2xl mr-3">➕</div>
-                                <div>
-                                    <div className="font-medium text-indigo-900">Add Item</div>
-                                    <div className="text-sm text-indigo-700">Add to inventory</div>
+                                <div className="text-3xl mr-3 flex-shrink-0">➕</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-indigo-900 text-sm">Add Item</div>
+                                    <div className="text-xs text-indigo-700">Add to inventory</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/inventory"
-                                className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                                className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors min-h-[80px]"
                             >
-                                <div className="text-2xl mr-3">📋</div>
-                                <div>
-                                    <div className="font-medium text-green-900">View Inventory</div>
-                                    <div className="text-sm text-green-700">See all items</div>
+                                <div className="text-3xl mr-3 flex-shrink-0">📋</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-green-900 text-sm">View Inventory</div>
+                                    <div className="text-xs text-green-700">See all items</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/recipes"
-                                className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
+                                className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors min-h-[80px]"
                             >
-                                <div className="text-2xl mr-3">🍳</div>
-                                <div>
-                                    <div className="font-medium text-yellow-900">Browse Recipes</div>
-                                    <div className="text-sm text-yellow-700">Find recipes</div>
+                                <div className="text-3xl mr-3 flex-shrink-0">🍳</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-yellow-900 text-sm">Browse Recipes</div>
+                                    <div className="text-xs text-yellow-700">Find recipes</div>
                                 </div>
                             </a>
 
                             <a
                                 href="/recipes/suggestions"
-                                className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                                className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[80px]"
                             >
-                                <div className="text-2xl mr-3">💡</div>
-                                <div>
-                                    <div className="font-medium text-purple-900">What Can I Make?</div>
-                                    <div className="text-sm text-purple-700">Recipe suggestions</div>
+                                <div className="text-3xl mr-3 flex-shrink-0">💡</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-purple-900 text-sm">What Can I Make?</div>
+                                    <div className="text-xs text-purple-700">Recipe suggestions</div>
                                 </div>
                             </a>
                         </div>
@@ -215,12 +216,12 @@ export default function Dashboard() {
                                     .sort(([,a], [,b]) => b - a)
                                     .map(([category, count]) => (
                                         <div key={category} className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">
-                        {category}
-                      </span>
+                                            <span className="text-sm font-medium text-gray-700">
+                                                {category}
+                                            </span>
                                             <span className="text-sm text-gray-500">
-                        {count} item{count !== 1 ? 's' : ''}
-                      </span>
+                                                {count} item{count !== 1 ? 's' : ''}
+                                            </span>
                                         </div>
                                     ))}
                             </div>

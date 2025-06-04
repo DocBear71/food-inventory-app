@@ -9,24 +9,43 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const hasDetectedRef = useRef(false); // Prevent multiple detections
+    const [isScanning, setIsScanning] = useState(true);
+    const cooldownRef = useRef(false);
     const quaggaRef = useRef(null);
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         let Quagga;
 
         const initializeScanner = async () => {
-            if (!isActive || isInitialized) return;
+            if (!isActive || isInitialized || !mountedRef.current) return;
 
             try {
                 setIsLoading(true);
                 setError(null);
+                setIsScanning(true);
+                cooldownRef.current = false;
+
+                // Check if camera is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setError('Camera not supported on this device.');
+                    setIsLoading(false);
+                    return;
+                }
 
                 // Dynamic import of Quagga2 (only load when needed)
                 const QuaggaModule = await import('@ericblade/quagga2');
                 Quagga = QuaggaModule.default;
+                quaggaRef.current = Quagga;
 
-                if (!scannerRef.current) return;
+                if (!scannerRef.current || !mountedRef.current) return;
 
                 // Configure Quagga2 for barcode scanning
                 const config = {
@@ -42,26 +61,29 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         }
                     },
                     locator: {
-                        patchSize: "large", // Changed from medium to large for better accuracy
-                        halfSample: false   // Changed to false for better quality
+                        patchSize: "large",
+                        halfSample: false
                     },
-                    numOfWorkers: 1, // Reduced workers to prevent conflicts
-                    frequency: 5,    // Reduced frequency to prevent over-scanning
+                    numOfWorkers: 2,
+                    frequency: 10, // Increased back to 10 for better detection
                     decoder: {
                         readers: [
                             "ean_reader",     // Prioritize EAN for grocery items
                             "upc_reader",
                             "upc_e_reader",
                             "code_128_reader",
-                            "ean_8_reader"
+                            "ean_8_reader",
+                            "code_39_reader"
                         ],
-                        multiple: false // Only detect one barcode at a time
+                        multiple: false
                     },
                     locate: true
                 };
 
                 // Initialize Quagga
                 Quagga.init(config, (err) => {
+                    if (!mountedRef.current) return;
+
                     if (err) {
                         console.error('Quagga initialization error:', err);
                         if (err.name === 'NotAllowedError') {
@@ -85,9 +107,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 // Set up barcode detection handler
                 Quagga.onDetected((result) => {
-                    // Prevent multiple rapid detections
-                    if (cooldownRef.current || !isScanning) {
-                        console.log('Scanner in cooldown, ignoring detection');
+                    if (!mountedRef.current || cooldownRef.current || !isScanning) {
+                        console.log('Scanner not ready, ignoring detection');
                         return;
                     }
 
@@ -97,65 +118,69 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                     // Validate UPC length and format
                     const cleanCode = code.replace(/\D/g, ''); // Remove non-digits
-                    if (cleanCode.length < 10 || cleanCode.length > 14) {
+                    if (cleanCode.length < 8 || cleanCode.length > 14) {
                         console.log('Invalid UPC length, ignoring:', cleanCode);
-                        return; // Ignore invalid codes
+                        return;
                     }
 
                     // Set cooldown to prevent multiple detections
                     cooldownRef.current = true;
                     setIsScanning(false);
 
-                    // Stop scanning immediately to prevent multiple detections
-                    if (Quagga && isInitialized) {
-                        console.log('Stopping scanner after successful detection');
-                        Quagga.stop();
-                        Quagga.offDetected();
-                        setIsInitialized(false);
-                    }
-
-                    // Play beep sound (optional)
+                    // Play beep sound
                     playBeepSound();
 
-                    // Brief visual feedback
-                    if (scannerRef.current) {
+                    // Visual feedback
+                    if (scannerRef.current && mountedRef.current) {
                         scannerRef.current.style.border = '4px solid #10B981';
                         setTimeout(() => {
-                            if (scannerRef.current) {
+                            if (scannerRef.current && mountedRef.current) {
                                 scannerRef.current.style.border = '';
                             }
                         }, 500);
                     }
 
-                    // Small delay to ensure scanner is stopped before callback
+                    // Stop scanner and call callback
                     setTimeout(() => {
-                        onBarcodeDetected(cleanCode);
-                    }, 200);
+                        if (mountedRef.current) {
+                            cleanupScanner();
+                            onBarcodeDetected(cleanCode);
+                        }
+                    }, 600);
                 });
 
             } catch (error) {
                 console.error('Scanner setup error:', error);
-                setError('Camera scanner not supported on this device.');
-                setIsLoading(false);
+                if (mountedRef.current) {
+                    setError('Camera scanner not supported on this device.');
+                    setIsLoading(false);
+                }
             }
         };
 
         const cleanupScanner = () => {
-            if (Quagga && isInitialized) {
+            if (quaggaRef.current && isInitialized) {
                 console.log('Stopping Quagga scanner');
-                Quagga.stop();
-                Quagga.offDetected();
+                try {
+                    quaggaRef.current.stop();
+                    quaggaRef.current.offDetected();
+                } catch (error) {
+                    console.log('Error stopping Quagga:', error);
+                }
                 setIsInitialized(false);
+                setIsScanning(false);
             }
         };
 
-        if (isActive) {
+        if (isActive && mountedRef.current) {
             initializeScanner();
         }
 
         // Cleanup on unmount or when scanner becomes inactive
-        return cleanupScanner;
-    }, [isActive, isInitialized, onBarcodeDetected]);
+        return () => {
+            cleanupScanner();
+        };
+    }, [isActive, onBarcodeDetected]);
 
     // Play a beep sound when barcode is detected
     const playBeepSound = () => {
@@ -220,8 +245,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
                                         {/* Targeting box */}
                                         <div className="absolute inset-4 border-2 border-red-500 rounded-lg">
-                                            {/* Scanning line */}
-                                            <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
+                                            {/* Scanning line - only show when actively scanning */}
+                                            {isScanning && (
+                                                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
+                                            )}
 
                                             {/* Corner indicators */}
                                             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
@@ -233,7 +260,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                                     {/* Instructions */}
                                     <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
-                                        📱 Position barcode within the red frame
+                                        {isScanning ? (
+                                            <>📱 Position barcode within the red frame</>
+                                        ) : (
+                                            <>✅ Barcode detected! Processing...</>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -242,15 +273,20 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         {!isLoading && (
                             <div className="mt-4 space-y-2">
                                 <div className="text-sm text-gray-600 text-center">
-                                    Hold your device steady and ensure good lighting
+                                    {isScanning ? (
+                                        <>Hold your device steady and ensure good lighting</>
+                                    ) : (
+                                        <>Processing barcode...</>
+                                    )}
                                 </div>
 
                                 <div className="flex justify-center space-x-2">
                                     <button
                                         onClick={onClose}
                                         className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+                                        disabled={!isScanning}
                                     >
-                                        Cancel
+                                        {isScanning ? 'Cancel' : 'Processing...'}
                                     </button>
                                 </div>
                             </div>
@@ -264,6 +300,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     <div>• Works best with good lighting</div>
                     <div>• Hold device steady for 1-2 seconds</div>
                     <div>• Try different angles if not detecting</div>
+                    <div>• Make sure barcode is clearly visible</div>
                 </div>
             </div>
         </div>
