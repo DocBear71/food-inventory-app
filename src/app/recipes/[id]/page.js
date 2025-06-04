@@ -281,15 +281,13 @@ export default function RecipeDetailPage() {
                             </ol>
                         </div>
 
-                        {/* Reviews Section - TEMPORARILY COMMENTED OUT FOR DEBUG */}
-                        {/*
+                        {/* Reviews Section  */}
                         <div className="bg-white rounded-lg border p-6">
                             <RecipeReviewsSection
                                 recipeId={recipeId}
                                 recipeOwnerId={recipe.createdBy}
                             />
                         </div>
-                        */}
                     </div>
 
                     {/* Sidebar */}
