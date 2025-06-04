@@ -221,6 +221,9 @@ function generateShoppingList(recipes, inventory) {
         let needAmount = needed.totalAmount;
         let status = 'need to buy';
 
+        console.log(`\n🔍 Analyzing ingredient: ${needed.name}`);
+        console.log(`Recipe needs: ${needed.totalAmount} ${needed.unit}`);
+
         // Check if this is a pantry staple (but don't automatically assume we have it)
         const pantryStaples = ['salt', 'pepper', 'black pepper', 'garlic powder', 'onion powder'];
         const isPantryStaple = pantryStaples.some(staple =>
@@ -228,9 +231,7 @@ function generateShoppingList(recipes, inventory) {
         );
 
         if (inventoryMatch) {
-            console.log(`\n🔍 Checking: ${needed.name}`);
-            console.log(`Recipe needs: ${needed.totalAmount} ${needed.unit}`);
-            console.log(`Inventory has: ${inventoryMatch.quantity} ${inventoryMatch.unit || 'item'}`);
+            console.log(`✅ Found in inventory: ${inventoryMatch.name} (${inventoryMatch.quantity} ${inventoryMatch.unit || 'item'})`);
 
             // Smart package size matching
             const packageMatch = checkPackageSize(needed, inventoryMatch);
@@ -239,7 +240,7 @@ function generateShoppingList(recipes, inventory) {
                 haveAmount = needed.totalAmount;
                 needAmount = 0;
                 status = 'have enough';
-                console.log(`✅ Package size assumption: Have enough!`);
+                console.log(`✅ SMART PACKAGE: Have enough! (${packageMatch.packageAmount} available)`);
             } else {
                 // Try to convert units if possible
                 const conversion = tryUnitConversion(needed, inventoryMatch);
@@ -250,10 +251,11 @@ function generateShoppingList(recipes, inventory) {
                     console.log(`🔄 Unit conversion: Have ${haveAmount} ${needed.unit}, need ${needAmount} more`);
                 } else {
                     console.log(`❌ Cannot convert units or insufficient quantity`);
+                    console.log(`Inventory unit: ${inventoryMatch.unit || 'item'}, Recipe unit: ${needed.unit}`);
                 }
             }
         } else {
-            console.log(`❌ No inventory match found for: ${needed.name}`);
+            console.log(`❌ Not found in inventory`);
 
             // For pantry staples, add a note but still include in shopping list
             if (isPantryStaple) {
@@ -265,6 +267,8 @@ function generateShoppingList(recipes, inventory) {
         needed.haveAmount = haveAmount;
         needed.needAmount = needAmount;
         needed.status = status;
+
+        console.log(`📊 Final result: Have ${haveAmount}, Need ${needAmount}, Status: ${status}`);
     });
 
     // Filter and categorize shopping list

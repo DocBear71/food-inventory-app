@@ -115,33 +115,39 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     }
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white mb-10 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-start justify-center p-4">
+            <div className="w-full max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-lg overflow-hidden mt-8">
+                {/* Fixed Header */}
+                <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white">
                     <h3 className="text-lg font-medium text-gray-900">
                         🛒 Shopping List for "{recipeName}"
                     </h3>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                        className="text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 flex items-center justify-center"
                     >
                         ×
                     </button>
                 </div>
 
                 {/* Package Size Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <p className="text-blue-800 text-sm">
-                        📦 <strong>Smart Package Matching:</strong> The system assumes standard package sizes
-                        (pasta box = 16 oz, oil bottle = 32 oz, etc.) when your inventory shows "items" or "packages".
-                    </p>
+                <div className="px-6 pt-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-blue-800 text-sm">
+                            📦 <strong>Smart Package Matching:</strong> The system assumes standard package sizes
+                            (pasta box = 16 oz, oil bottle = 32 oz, etc.) when your inventory shows "items" or "packages".
+                        </p>
+                    </div>
                 </div>
 
-                <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-                    <ShoppingListDisplay
-                        shoppingList={shoppingList}
-                        onClose={onClose}
-                    />
+                {/* Scrollable Content */}
+                <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+                    <div className="p-6 pt-4">
+                        <ShoppingListDisplay
+                            shoppingList={shoppingList}
+                            onClose={onClose}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
