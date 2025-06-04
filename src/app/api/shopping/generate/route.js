@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v18
+// file: /src/app/api/shopping/generate/route.js v20
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -105,7 +105,14 @@ export async function GET(request) {
             debug: {
                 inventoryCount: inventory.length,
                 inventoryItems: inventory.map(item => ({ name: item.name, quantity: item.quantity, unit: item.unit })),
-                processingSteps: 'Added detailed logging'
+                processingSteps: 'Added detailed logging',
+                // Add package matching results for debugging
+                packageMatchingResults: Object.values(neededIngredients).map(item => ({
+                    ingredient: item.name,
+                    haveAmount: item.haveAmount,
+                    needAmount: item.needAmount,
+                    status: item.status
+                }))
             }
         });
 
@@ -503,6 +510,25 @@ function areCompatibleUnits(unit1, unit2) {
 
     const u1 = unit1.toString().toLowerCase();
     const u2 = unit2.toString().toLowerCase();
+
+    // Direct match
+    if (u1 === u2) return true;
+
+    // Common unit aliases
+    const unitAliases = {
+        'ounce': ['oz', 'ounces'],
+        'oz': ['ounce', 'ounces'],
+        'tablespoon': ['tbsp', 'tablespoons'],
+        'tbsp': ['tablespoon', 'tablespoons'],
+        'teaspoon': ['tsp', 'teaspoons'],
+        'tsp': ['teaspoon', 'teaspoons'],
+        'pound': ['lb', 'lbs', 'pounds'],
+        'lb': ['pound', 'lbs', 'pounds']
+    };
+
+    // Check if units are aliases of each other
+    if (unitAliases[u1] && unitAliases[u1].includes(u2)) return true;
+    if (unitAliases[u2] && unitAliases[u2].includes(u1)) return true;
 
     const weightUnits = ['ounce', 'oz', 'pound', 'lb', 'gram', 'g', 'kilogram', 'kg'];
     const volumeUnits = ['cup', 'tablespoon', 'tbsp', 'teaspoon', 'tsp', 'ounce', 'oz', 'liter', 'l', 'milliliter', 'ml'];
