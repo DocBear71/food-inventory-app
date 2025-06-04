@@ -33,15 +33,21 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     alreadyHave: data.shoppingList.summary.alreadyHave
                 });
 
-                // Log items by category
+                // TEMPORARY: Log detailed ingredient analysis
                 Object.entries(data.shoppingList.items).forEach(([category, items]) => {
                     console.log(`${category}:`, items.map(item => ({
-                        name: item.name,
+                        name: item.originalName,
                         haveAmount: item.haveAmount,
                         needAmount: item.needAmount,
-                        status: item.status
+                        status: item.status,
+                        isPantryStaple: item.isPantryStaple
                     })));
                 });
+
+                // TEMPORARY: Check if debug info is available
+                if (data.debug) {
+                    console.log('API Debug Info:', data.debug);
+                }
             } else {
                 console.error('Shopping list generation failed:', data.error);
                 setError(data.error || 'Failed to generate shopping list');
