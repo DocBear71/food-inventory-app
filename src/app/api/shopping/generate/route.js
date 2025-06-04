@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v24
+// file /src/app/api/shopping/generate/route.js v30
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -155,6 +155,12 @@ export async function POST(request) {
                 quantity: item.quantity,
                 unit: item.unit
             })));
+
+            // TEMPORARY: Also log what the findInventoryMatch function sees
+            const testPastaMatch = findInventoryMatch('pasta', inventory);
+            const testOilMatch = findInventoryMatch('olive oil', inventory);
+            console.log('🧪 API pasta match test:', testPastaMatch ? testPastaMatch.name : 'NOT FOUND');
+            console.log('🧪 API olive oil match test:', testOilMatch ? testOilMatch.name : 'NOT FOUND');
         } else {
             console.log('No inventory documents found');
         }
