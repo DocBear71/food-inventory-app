@@ -1,9 +1,9 @@
-/* file: /src/app/globals.css */
+/* file: /src/app/global.css */
 
 @import "tailwindcss/preflight";
 @import "tailwindcss/utilities";
 
-/* Basic layout fixes - removed conflicting grid overrides */
+/* Emergency layout fixes */
 .max-w-7xl {
     max-width: 80rem !important;
 }
@@ -23,126 +23,223 @@ body {
     margin: 0;
     padding: 0;
 }
+.px-4 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+}
 
-/* Force mobile grid layout for quick actions */
+.py-6 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+
+.flex {
+    display: flex !important;
+}
+
+.h-screen {
+    height: 100vh !important;
+}
+
+.w-64 {
+    width: 16rem !important;
+}
+
+/* Force mobile grid layout for quick actions - Higher specificity */
+.dashboard-container .mobile-stack {
+    display: grid !important;
+}
+
 @media (max-width: 767px) {
-    .mobile-stack {
-        display: grid !important;
+    .dashboard-container .mobile-stack {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
     }
 }
 
-@media (min-width: 768px) {
-    .mobile-stack {
-        display: grid !important;
+@media (min-width: 768px) and (max-width: 1023px) {
+    .dashboard-container .mobile-stack {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 1rem !important;
     }
 }
 
 @media (min-width: 1024px) {
-    .mobile-stack {
-        display: grid !important;
+    .dashboard-container .mobile-stack {
         grid-template-columns: repeat(4, 1fr) !important;
         gap: 1rem !important;
     }
 }
-
-/* Quick action card styling */
-.quick-action-card {
-    display: flex !important;
-    align-items: center !important;
-    padding: 1.5rem !important;
-    border-radius: 0.5rem !important;
-    transition: background-color 0.15s ease-in-out !important;
-    min-height: 100px !important;
-    text-decoration: none !important;
+.bg-gray-100 {
+    background-color: #f3f4f6 !important;
 }
 
-.quick-action-icon {
-    font-size: 2rem !important;
-    margin-right: 1rem !important;
-    flex-shrink: 0 !important;
+.bg-white {
+    background-color: #ffffff !important;
 }
 
-.quick-action-text {
-    min-width: 0 !important;
+/* Grid fixes */
+.grid {
+    display: grid !important;
 }
 
-.quick-action-title {
-    font-weight: 500 !important;
-    font-size: 1rem !important;
-    margin-bottom: 0.25rem !important;
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
 }
 
-.quick-action-subtitle {
-    font-size: 0.875rem !important;
+.sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
-/* Individual card colors */
-.card-add {
-    background-color: #eef2ff !important;
-}
-.card-add:hover {
-    background-color: #e0e7ff !important;
-}
-.card-add .quick-action-title {
-    color: #312e81 !important;
-}
-.card-add .quick-action-subtitle {
-    color: #4338ca !important;
+.lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
-.card-view {
-    background-color: #f0fdf4 !important;
-}
-.card-view:hover {
-    background-color: #dcfce7 !important;
-}
-.card-view .quick-action-title {
-    color: #14532d !important;
-}
-.card-view .quick-action-subtitle {
-    color: #15803d !important;
-}
-
-.card-recipes {
-    background-color: #fefce8 !important;
-}
-.card-recipes:hover {
-    background-color: #fef3c7 !important;
-}
-.card-recipes .quick-action-title {
-    color: #713f12 !important;
-}
-.card-recipes .quick-action-subtitle {
-    color: #a16207 !important;
-}
-
-.card-suggestions {
-    background-color: #faf5ff !important;
-}
-.card-suggestions:hover {
-    background-color: #f3e8ff !important;
-}
-.card-suggestions .quick-action-title {
-    color: #581c87 !important;
-}
-.card-suggestions .quick-action-subtitle {
-    color: #7c3aed !important;
-}
-
-/* Page padding fix */
-.dashboard-container {
-    padding: 1rem !important;
+@media (min-width: 640px) {
+    .sm\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
 }
 
 @media (min-width: 768px) {
-    .dashboard-container {
-        padding: 1.5rem !important;
+    .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 }
+
+@media (min-width: 1024px) {
+    .lg\:grid-cols-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+}
+
+.gap-4 {
+    gap: 1rem !important;
+}
+
+.gap-6 {
+    gap: 1.5rem !important;
+}
+
+/* Padding and margin fixes */
+.p-4 {
+    padding: 1rem !important;
+}
+
+.p-5 {
+    padding: 1.25rem !important;
+}
+
+.mb-4 {
+    margin-bottom: 1rem !important;
+}
+
+.mr-3 {
+    margin-right: 0.75rem !important;
+}
+
+/* Background colors */
+.bg-indigo-50 {
+    background-color: #eef2ff !important;
+}
+
+.bg-green-50 {
+    background-color: #f0fdf4 !important;
+}
+
+.bg-yellow-50 {
+    background-color: #fefce8 !important;
+}
+
+.bg-purple-50 {
+    background-color: #faf5ff !important;
+}
+
+/* Text colors */
+.text-indigo-900 {
+    color: #312e81 !important;
+}
+
+.text-indigo-700 {
+    color: #4338ca !important;
+}
+
+.text-green-900 {
+    color: #14532d !important;
+}
+
+.text-green-700 {
+    color: #15803d !important;
+}
+
+.text-yellow-900 {
+    color: #713f12 !important;
+}
+
+.text-yellow-700 {
+    color: #a16207 !important;
+}
+
+.text-purple-900 {
+    color: #581c87 !important;
+}
+
+.text-purple-700 {
+    color: #7c3aed !important;
+}
+
+/* Border radius */
+.rounded-lg {
+    border-radius: 0.5rem !important;
+}
+
+/* Hover effects */
+.hover\:bg-indigo-100:hover {
+    background-color: #e0e7ff !important;
+}
+
+.hover\:bg-green-100:hover {
+    background-color: #dcfce7 !important;
+}
+
+.hover\:bg-yellow-100:hover {
+    background-color: #fef3c7 !important;
+}
+
+.hover\:bg-purple-100:hover {
+    background-color: #f3e8ff !important;
+}
+
+/* Transitions */
+.transition-colors {
+    transition: background-color 0.15s ease-in-out !important;
+}
+
+
+/* Hamburger menu button fix */
+.mobile-menu-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    border-radius: 0.5rem !important;
+    background-color: #4f46e5 !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.mobile-menu-button:hover {
+    background-color: #4338ca !important;
+}
+
+.mobile-menu-button svg {
+    width: 2rem !important;
+    height: 2rem !important;
+    stroke-width: 3 !important;
+}
+
 
 /* Form input styling */
 input[type="text"],
