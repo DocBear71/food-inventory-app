@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v20
+// file: /src/app/api/shopping/generate/route.js v24
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -22,22 +22,22 @@ const ingredientVariations = {
     'pepper': ['black pepper', 'white pepper', 'ground pepper', 'cracked pepper']
 };
 
-// Standard package sizes for common items
+// Standard package sizes for common items - Updated with oz aliases
 const standardPackageSizes = {
-    'pasta': { amount: 16, unit: 'ounce' },
-    'penne': { amount: 16, unit: 'ounce' },
-    'spaghetti': { amount: 16, unit: 'ounce' },
-    'macaroni': { amount: 16, unit: 'ounce' },
-    'olive oil': { amount: 32, unit: 'ounce' },
-    'extra virgin olive oil': { amount: 32, unit: 'ounce' },
-    'vegetable oil': { amount: 32, unit: 'ounce' },
-    'flour': { amount: 80, unit: 'ounce' },
-    'sugar': { amount: 64, unit: 'ounce' },
-    'milk': { amount: 32, unit: 'ounce' },
-    'butter': { amount: 16, unit: 'ounce' },
-    'rice': { amount: 32, unit: 'ounce' },
-    'bread': { amount: 24, unit: 'ounce' },
-    'cheese': { amount: 8, unit: 'ounce' }
+    'pasta': { amount: 16, unit: 'oz' },
+    'penne': { amount: 16, unit: 'oz' },
+    'spaghetti': { amount: 16, unit: 'oz' },
+    'macaroni': { amount: 16, unit: 'oz' },
+    'olive oil': { amount: 32, unit: 'oz' },
+    'extra virgin olive oil': { amount: 32, unit: 'oz' },
+    'vegetable oil': { amount: 32, unit: 'oz' },
+    'flour': { amount: 80, unit: 'oz' },
+    'sugar': { amount: 64, unit: 'oz' },
+    'milk': { amount: 32, unit: 'oz' },
+    'butter': { amount: 16, unit: 'oz' },
+    'rice': { amount: 32, unit: 'oz' },
+    'bread': { amount: 24, unit: 'oz' },
+    'cheese': { amount: 8, unit: 'oz' }
 };
 
 // GET endpoint for single recipe shopping list
@@ -105,14 +105,7 @@ export async function GET(request) {
             debug: {
                 inventoryCount: inventory.length,
                 inventoryItems: inventory.map(item => ({ name: item.name, quantity: item.quantity, unit: item.unit })),
-                processingSteps: 'Added detailed logging',
-                // Add package matching results for debugging
-                packageMatchingResults: Object.values(neededIngredients).map(item => ({
-                    ingredient: item.name,
-                    haveAmount: item.haveAmount,
-                    needAmount: item.needAmount,
-                    status: item.status
-                }))
+                processingSteps: 'Added detailed logging'
             }
         });
 
@@ -293,6 +286,13 @@ function generateShoppingList(recipes, inventory) {
 
             // Smart package size matching
             const packageMatch = checkPackageSize(needed, normalizedInventoryItem);
+
+            // TEMPORARY: Force console log to browser for debugging
+            if (needed.normalizedName.includes('pasta') || needed.normalizedName.includes('olive oil')) {
+                console.log(`🧪 DEBUGGING ${needed.name}: packageMatch =`, packageMatch);
+                console.log(`🧪 Recipe needs: ${needed.totalAmount} ${needed.unit}`);
+                console.log(`🧪 Package result: hasEnough = ${packageMatch.hasEnough}, amount = ${packageMatch.packageAmount}`);
+            }
 
             if (packageMatch.hasEnough) {
                 haveAmount = needed.totalAmount;
@@ -479,9 +479,9 @@ function tryUnitConversion(needed, inventoryItem) {
     // Common conversions
     const conversions = {
         // Weight conversions
-        'pound': { 'ounce': 16 },
+        'pound': { 'ounce': 16, 'oz': 16 },
         'lb': { 'ounce': 16, 'oz': 16 },
-        'ounce': { 'tablespoon': 2 },
+        'ounce': { 'tablespoon': 2, 'tbsp': 2 },
         'oz': { 'tablespoon': 2, 'tbsp': 2 },
 
         // Volume conversions
