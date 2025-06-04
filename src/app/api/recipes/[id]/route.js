@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/[id]/route.js v1
+// file: /src/app/api/recipes/[id]/route.js v3
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -129,13 +129,13 @@ export async function DELETE(request, { params }) {
         const recipeId = params.id;
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+            return NextResponse.json({error: 'Authentication required'}, {status: 401});
         }
 
         if (!recipeId) {
             return NextResponse.json(
-                { error: 'Recipe ID is required' },
-                { status: 400 }
+                {error: 'Recipe ID is required'},
+                {status: 400}
             );
         }
 
@@ -144,16 +144,16 @@ export async function DELETE(request, { params }) {
         const recipe = await Recipe.findById(recipeId);
         if (!recipe) {
             return NextResponse.json(
-                { error: 'Recipe not found' },
-                { status: 404 }
+                {error: 'Recipe not found'},
+                {status: 404}
             );
         }
 
         // Check if user owns this recipe
         if (recipe.createdBy.toString() !== session.user.id) {
             return NextResponse.json(
-                { error: 'Not authorized to delete this recipe' },
-                { status: 403 }
+                {error: 'Not authorized to delete this recipe'},
+                {status: 403}
             );
         }
 
@@ -167,8 +167,8 @@ export async function DELETE(request, { params }) {
     } catch (error) {
         console.error('DELETE recipe error:', error);
         return NextResponse.json(
-            { error: 'Failed to delete recipe' },
-            { status: 500 }
+            {error: 'Failed to delete recipe'},
+            {status: 500}
         );
     }
 }
