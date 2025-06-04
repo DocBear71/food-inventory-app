@@ -15,6 +15,8 @@ export default function DashboardLayout({ children }) {
         { name: 'Inventory', href: '/inventory', icon: '📦' },
         { name: 'Recipes', href: '/recipes', icon: '🍳' },
         { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
+        { name: 'Shopping List', href: '/shopping', icon: '🛒' },
+        { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 
     const handleSignOut = () => {

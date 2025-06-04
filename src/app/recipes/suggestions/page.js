@@ -5,6 +5,7 @@
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import { redirect } from 'next/navigation';
 
 export default function RecipeSuggestions() {
@@ -15,6 +16,7 @@ export default function RecipeSuggestions() {
     const [loading, setLoading] = useState(true);
     const [matchThreshold, setMatchThreshold] = useState(0.4); // Lower default threshold
     const [sortBy, setSortBy] = useState('match'); // 'match', 'time', 'difficulty'
+    const [showShoppingList, setShowShoppingList] = useState(null); // {recipeId, recipeName}
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -159,27 +161,6 @@ export default function RecipeSuggestions() {
         console.log(`Looking for recipe ingredient: "${recipeName}"`);
         console.log('Available inventory:', inventory.map(item => ({ name: item.name, category: item.category })));
 
-        // Direct name match
-        let found = inventory.find(item =>
-            item.name.toLowerCase().trim() === recipeName
-        );
-
-        if (found) {
-            console.log(`✅ Direct match found: ${found.name}`);
-            return found;
-        }
-
-        // Partial name match (contains)
-        found = inventory.find(item =>
-            item.name.toLowerCase().includes(recipeName) ||
-            recipeName.includes(item.name.toLowerCase())
-        );
-
-        if (found) {
-            console.log(`✅ Partial match found: ${found.name}`);
-            return found;
-        }
-
         // Enhanced keyword matching for common ingredient variations
         const ingredientVariations = {
             'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni', 'fusilli', 'linguine', 'angel hair', 'bow tie', 'rotini'],
@@ -196,6 +177,16 @@ export default function RecipeSuggestions() {
             'pepper': ['black pepper', 'white pepper', 'ground pepper', 'cracked pepper']
         };
 
+        // Direct name match
+        let found = inventory.find(item =>
+            item.name.toLowerCase().trim() === recipeName
+        );
+
+        if (found) {
+            console.log(`✅ Direct match found: ${found.name}`);
+            return found;
+        }
+
         // Check if recipe ingredient matches any variation
         for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
             if (recipeName.includes(baseIngredient) || variations.some(v => recipeName.includes(v))) {
@@ -211,6 +202,17 @@ export default function RecipeSuggestions() {
                     return found;
                 }
             }
+        }
+
+        // Partial name match (contains)
+        found = inventory.find(item =>
+            item.name.toLowerCase().includes(recipeName) ||
+            recipeName.includes(item.name.toLowerCase())
+        );
+
+        if (found) {
+            console.log(`✅ Partial match found: ${found.name}`);
+            return found;
         }
 
         // Check alternatives if they exist
@@ -463,16 +465,16 @@ export default function RecipeSuggestions() {
                                             <div className="text-sm text-gray-500">
                                                 {recipe.analysis.canMake ? (
                                                     <span className="text-green-600 font-medium">
-                            🎉 You can make this recipe!
-                          </span>
+                                                        🎉 You can make this recipe!
+                                                    </span>
                                                 ) : recipe.analysis.requiredMissing === 1 ? (
                                                     <span className="text-yellow-600 font-medium">
-                            Missing only 1 required ingredient
-                          </span>
+                                                        Missing only 1 required ingredient
+                                                    </span>
                                                 ) : (
                                                     <span className="text-red-600">
-                            Missing {recipe.analysis.requiredMissing} required ingredients
-                          </span>
+                                                        Missing {recipe.analysis.requiredMissing} required ingredients
+                                                    </span>
                                                 )}
                                             </div>
                                             <div className="flex space-x-2">
@@ -484,7 +486,10 @@ export default function RecipeSuggestions() {
                                                 </a>
                                                 {!recipe.analysis.canMake && (
                                                     <button
-                                                        onClick={() => {/* TODO: Generate shopping list */}}
+                                                        onClick={() => setShowShoppingList({
+                                                            recipeId: recipe._id,
+                                                            recipeName: recipe.title
+                                                        })}
                                                         className="text-blue-600 hover:text-blue-900 text-sm font-medium"
                                                     >
                                                         Shopping List
@@ -498,6 +503,15 @@ export default function RecipeSuggestions() {
                         )}
                     </div>
                 </div>
+
+                {/* Shopping List Modal */}
+                {showShoppingList && (
+                    <RecipeShoppingList
+                        recipeId={showShoppingList.recipeId}
+                        recipeName={showShoppingList.recipeName}
+                        onClose={() => setShowShoppingList(null)}
+                    />
+                )}
             </div>
         </DashboardLayout>
     );

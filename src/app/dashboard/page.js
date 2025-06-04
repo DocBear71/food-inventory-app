@@ -1,4 +1,4 @@
-// file: /src/app/dashboard/page.js
+// file: src/app/dashboard/page.js
 
 'use client';
 
@@ -81,7 +81,7 @@ export default function Dashboard() {
                             Welcome back, {session.user.name}!
                         </h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            Here&apos;s what&apos;s happening with your food inventory today.
+                            Here's what's happening with your food inventory today.
                         </p>
                     </div>
                 </div>
