@@ -1,4 +1,4 @@
-// file /src/app/api/shopping/generate/route.js v30
+// file: /src/app/api/shopping/generate/route.js v32
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -282,6 +282,7 @@ function generateShoppingList(recipes, inventory) {
             const unit = inventoryMatch.unit || 'item';
 
             console.log(`✅ Found in inventory: ${inventoryMatch.name} (${quantity} ${unit})`);
+            console.log(`🔥 FOUND MATCH FOR: ${needed.name} -> ${inventoryMatch.name}`);
 
             // Create a normalized inventory item with defaults
             const normalizedInventoryItem = {
