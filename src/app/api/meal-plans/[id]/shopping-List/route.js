@@ -1,4 +1,4 @@
-// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v1
+// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -116,13 +116,20 @@ export async function POST(request, { params }) {
         console.log('=== POST /api/meal-plans/[id]/shopping-list START ===');
 
         const session = await getServerSession(authOptions);
-        const { id: mealPlanId } = await params;
+
+        // Fix for Next.js 15 - await params
+        const resolvedParams = await params;
+        const { id: mealPlanId } = resolvedParams;
+
+        console.log('Resolved meal plan ID:', mealPlanId);
 
         if (!session?.user?.id) {
+            console.log('No session or user ID found');
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
         if (!mealPlanId) {
+            console.log('No meal plan ID provided');
             return NextResponse.json(
                 { error: 'Meal plan ID is required' },
                 { status: 400 }
@@ -133,6 +140,7 @@ export async function POST(request, { params }) {
         const { options = {} } = body;
 
         console.log('Generating shopping list for meal plan:', mealPlanId);
+        console.log('User ID:', session.user.id);
         console.log('Options:', options);
 
         await connectDB();
@@ -143,43 +151,75 @@ export async function POST(request, { params }) {
             userId: session.user.id
         });
 
+        console.log('Found meal plan:', !!mealPlan);
+
         if (!mealPlan) {
+            console.log('Meal plan not found for ID:', mealPlanId, 'User:', session.user.id);
             return NextResponse.json(
                 { error: 'Meal plan not found' },
                 { status: 404 }
             );
         }
 
+        console.log('Meal plan meals:', mealPlan.meals);
+
         // Get user's current inventory
         const inventory = await UserInventory.findOne({ userId: session.user.id });
+        console.log('Found inventory:', !!inventory);
 
         // Collect all recipe IDs from the meal plan
         const recipeIds = [];
         const mealRecipes = {}; // Track which recipes are used for which meals
 
         Object.keys(mealPlan.meals).forEach(day => {
-            mealPlan.meals[day].forEach(meal => {
-                if (!recipeIds.includes(meal.recipeId.toString())) {
-                    recipeIds.push(meal.recipeId.toString());
-                }
+            if (Array.isArray(mealPlan.meals[day])) {
+                mealPlan.meals[day].forEach(meal => {
+                    if (meal.recipeId && !recipeIds.includes(meal.recipeId.toString())) {
+                        recipeIds.push(meal.recipeId.toString());
+                    }
 
-                // Track recipe usage
-                const recipeKey = meal.recipeId.toString();
-                if (!mealRecipes[recipeKey]) {
-                    mealRecipes[recipeKey] = {
-                        recipeName: meal.recipeName,
-                        meals: []
-                    };
-                }
-                mealRecipes[recipeKey].meals.push({
-                    day,
-                    mealType: meal.mealType,
-                    servings: meal.servings
+                    // Track recipe usage
+                    if (meal.recipeId) {
+                        const recipeKey = meal.recipeId.toString();
+                        if (!mealRecipes[recipeKey]) {
+                            mealRecipes[recipeKey] = {
+                                recipeName: meal.recipeName,
+                                meals: []
+                            };
+                        }
+                        mealRecipes[recipeKey].meals.push({
+                            day,
+                            mealType: meal.mealType,
+                            servings: meal.servings
+                        });
+                    }
                 });
-            });
+            }
         });
 
         console.log('Found recipes to process:', recipeIds.length);
+        console.log('Recipe IDs:', recipeIds);
+
+        if (recipeIds.length === 0) {
+            console.log('No recipes found in meal plan');
+            return NextResponse.json({
+                success: true,
+                shoppingList: {
+                    items: [],
+                    generatedAt: new Date(),
+                    mealPlanName: mealPlan.name,
+                    weekStart: mealPlan.weekStartDate,
+                    stats: {
+                        totalItems: 0,
+                        inInventory: 0,
+                        needToBuy: 0,
+                        optional: 0,
+                        categories: 0
+                    }
+                },
+                message: 'No recipes found in meal plan'
+            });
+        }
 
         // Get all recipes
         const recipes = await Recipe.find({
@@ -188,37 +228,50 @@ export async function POST(request, { params }) {
 
         console.log('Retrieved recipes from database:', recipes.length);
 
+        if (recipes.length === 0) {
+            console.log('No recipe documents found in database');
+            return NextResponse.json(
+                { error: 'No recipes found in database for the planned meals' },
+                { status: 404 }
+            );
+        }
+
         // Process all ingredients
         const allIngredients = [];
 
         recipes.forEach(recipe => {
+            console.log('Processing recipe:', recipe.title);
             const recipeUsage = mealRecipes[recipe._id.toString()];
 
-            recipe.ingredients.forEach(ingredient => {
-                // Calculate total needed based on all planned servings
-                let totalAmount = 0;
-                let baseAmount = 0;
+            if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+                recipe.ingredients.forEach(ingredient => {
+                    // Calculate total needed based on all planned servings
+                    let totalAmount = 0;
+                    let baseAmount = 0;
 
-                // Parse the ingredient amount
-                const parsed = parseIngredientAmount(ingredient.amount);
-                baseAmount = parsed.amount;
+                    // Parse the ingredient amount
+                    const parsed = parseIngredientAmount(ingredient.amount);
+                    baseAmount = parsed.amount;
 
-                // Calculate total needed across all meals using this recipe
-                recipeUsage.meals.forEach(meal => {
-                    const scalingFactor = meal.servings / (recipe.servings || 1);
-                    totalAmount += baseAmount * scalingFactor;
+                    // Calculate total needed across all meals using this recipe
+                    if (recipeUsage && recipeUsage.meals) {
+                        recipeUsage.meals.forEach(meal => {
+                            const scalingFactor = meal.servings / (recipe.servings || 1);
+                            totalAmount += baseAmount * scalingFactor;
+                        });
+                    }
+
+                    allIngredients.push({
+                        name: ingredient.name,
+                        amount: totalAmount,
+                        unit: parsed.unit,
+                        category: categorizeIngredient(ingredient.name),
+                        recipes: recipeUsage ? [recipeUsage.recipeName] : [recipe.title],
+                        recipeIds: [recipe._id.toString()],
+                        optional: ingredient.optional || false
+                    });
                 });
-
-                allIngredients.push({
-                    name: ingredient.name,
-                    amount: totalAmount,
-                    unit: parsed.unit,
-                    category: categorizeIngredient(ingredient.name),
-                    recipes: [recipeUsage.recipeName],
-                    recipeIds: [recipe._id.toString()],
-                    optional: ingredient.optional || false
-                });
-            });
+            }
         });
 
         console.log('Processed ingredients:', allIngredients.length);
@@ -277,7 +330,7 @@ export async function POST(request, { params }) {
 
         await mealPlan.save();
 
-        console.log('Shopping list generated successfully');
+        console.log('Shopping list generated successfully with', sortedItems.length, 'items');
 
         // Calculate statistics
         const stats = {
@@ -317,7 +370,10 @@ export async function POST(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        const { id: mealPlanId } = await params;
+
+        // Fix for Next.js 15 - await params
+        const resolvedParams = await params;
+        const { id: mealPlanId } = resolvedParams;
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
