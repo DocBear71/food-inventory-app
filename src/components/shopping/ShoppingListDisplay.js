@@ -1,10 +1,10 @@
-// file: /src/components/shopping/ShoppingListDisplay.js v4
+// file: /src/components/shopping/ShoppingListDisplay.js v5
 
 'use client';
 
 import { useState } from 'react';
 
-export default function ShoppingListDisplay({ shoppingList, onClose }) {
+export default function ShoppingListDisplay({ shoppingList, onClose, onRefresh }) {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('category');
 
@@ -261,6 +261,13 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
         }, 500);
     };
 
+    // Refresh shopping list (if function provided)
+    const refreshShoppingList = () => {
+        if (onRefresh) {
+            onRefresh();
+        }
+    };
+
     // Filter and sort items
     const getFilteredItems = (normalizedList) => {
         if (!normalizedList?.items) return [];
@@ -312,9 +319,11 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
     const getCategoryName = (category) => {
         const names = {
             produce: '🥬 Produce',
-            meat: '🥩 Meat & Seafood',
-            dairy: '🥛 Dairy & Eggs',
+            grains: '🌾 Grains',
             pantry: '🥫 Pantry & Dry Goods',
+            condiments: '🫙 Condiments',
+            dairy: '🥛 Dairy & Eggs',
+            meat: '🥩 Meat & Seafood',
             frozen: '🧊 Frozen Foods',
             bakery: '🍞 Bakery',
             other: '📦 Other Items'
@@ -582,6 +591,25 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
 
                         {/* STANDARDIZED BUTTONS - Match "What Can I Make" layout */}
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {onRefresh && (
+                                <button
+                                    onClick={refreshShoppingList}
+                                    style={{
+                                        backgroundColor: '#6b7280',
+                                        color: 'white',
+                                        padding: '0.5rem 0.75rem',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    🔄 Refresh
+                                </button>
+                            )}
                             <button
                                 onClick={printShoppingList}
                                 style={{
@@ -741,7 +769,7 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                     )}
                 </div>
 
-                {/* Footer */}
+                {/* STANDARDIZED FOOTER - Match "What Can I Make" layout */}
                 <div style={{
                     padding: '1rem 1.5rem',
                     borderTop: '1px solid #e5e7eb',
