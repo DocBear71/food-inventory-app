@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v3
+// file: /src/components/meal-planning/ShoppingListGenerator.js v4
 
 'use client';
 
@@ -179,7 +179,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-full overflow-hidden flex flex-col">
+            <div className="bg-white rounded-lg max-w-4xl w-full h-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between">
@@ -271,7 +271,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 )}
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                     {loading && (
                         <div className="p-8 text-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
