@@ -1,4 +1,4 @@
-// file: /src/app/api/meal-plans/route.js - FIXED VERSION
+// file: /src/app/api/meal-plans/route.js - v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -29,8 +29,18 @@ export async function GET(request) {
         let query = { userId: session.user.id };
 
         if (weekStart) {
+            // Create date range for the entire week
             const weekStartDate = new Date(weekStart);
-            query.weekStartDate = weekStartDate;
+            const weekEndDate = new Date(weekStartDate);
+            weekEndDate.setDate(weekEndDate.getDate() + 6);
+            weekEndDate.setHours(23, 59, 59, 999);
+
+            console.log('Searching for meal plans between:', weekStartDate, 'and', weekEndDate);
+
+            query.weekStartDate = {
+                $gte: weekStartDate,
+                $lte: weekEndDate
+            };
         }
 
         if (active) {
@@ -89,14 +99,22 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Parse the date properly
+        // Parse the date properly and set to start of day
         const parsedWeekStart = new Date(weekStartDate);
+        parsedWeekStart.setHours(0, 0, 0, 0);
         console.log('Parsed week start:', parsedWeekStart);
 
-        // Check if meal plan already exists for this week
+        // Check if meal plan already exists for this week (search by date range)
+        const weekEndDate = new Date(parsedWeekStart);
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        weekEndDate.setHours(23, 59, 59, 999);
+
         const existingPlan = await MealPlan.findOne({
             userId: session.user.id,
-            weekStartDate: parsedWeekStart
+            weekStartDate: {
+                $gte: parsedWeekStart,
+                $lte: weekEndDate
+            }
         });
 
         if (existingPlan) {
