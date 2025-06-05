@@ -1,4 +1,4 @@
-// file: /src/components/shopping/ShoppingListDisplay.js v3
+// file: /src/components/shopping/ShoppingListDisplay.js v4
 
 'use client';
 
@@ -334,12 +334,36 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
 
     if (!normalizedShoppingList) {
         return (
-            <div className="bg-white shadow rounded-lg p-6">
-                <div className="text-center">
-                    <p className="text-gray-500">No shopping list data available.</p>
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 50
+            }}>
+                <div style={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    padding: '2rem',
+                    textAlign: 'center'
+                }}>
+                    <p style={{ color: '#6b7280' }}>No shopping list data available.</p>
                     <button
                         onClick={onClose}
-                        className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                        style={{
+                            marginTop: '1rem',
+                            backgroundColor: '#6b7280',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer'
+                        }}
                     >
                         Close
                     </button>
@@ -349,198 +373,413 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
     }
 
     return (
-        <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-xl font-semibold text-gray-900">🛒 Your Shopping List</h2>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Items you need to buy based on selected recipes
-                        </p>
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            padding: '1rem'
+        }}>
+            <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                width: '100%',
+                maxWidth: '1200px',
+                height: '90vh',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                {/* Header */}
+                <div style={{
+                    padding: '1.5rem',
+                    borderBottom: '1px solid #e5e7eb',
+                    flexShrink: 0
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <div>
+                            <h2 style={{
+                                margin: 0,
+                                fontSize: '1.5rem',
+                                fontWeight: '600',
+                                color: '#111827'
+                            }}>
+                                🛒 Your Shopping List
+                            </h2>
+                            <p style={{
+                                margin: '0.25rem 0 0 0',
+                                fontSize: '0.875rem',
+                                color: '#6b7280'
+                            }}>
+                                Items you need to buy based on selected recipes
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            style={{
+                                color: '#9ca3af',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '1.5rem'
+                            }}
+                        >
+                            ×
+                        </button>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+
+                    {/* Stats - Colorful Cards like "What Can I Make" */}
+                    {normalizedShoppingList?.stats && (
+                        <div style={{
+                            marginTop: '1rem',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                            gap: '1rem'
+                        }}>
+                            <div style={{
+                                backgroundColor: '#dbeafe',
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: 'bold',
+                                    color: '#2563eb'
+                                }}>
+                                    {normalizedShoppingList.stats.totalItems}
+                                </div>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    color: '#1e40af'
+                                }}>
+                                    Total Items
+                                </div>
+                            </div>
+                            <div style={{
+                                backgroundColor: '#dcfce7',
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: 'bold',
+                                    color: '#16a34a'
+                                }}>
+                                    {normalizedShoppingList.stats.inInventory}
+                                </div>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    color: '#15803d'
+                                }}>
+                                    In Inventory
+                                </div>
+                            </div>
+                            <div style={{
+                                backgroundColor: '#fed7aa',
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: 'bold',
+                                    color: '#ea580c'
+                                }}>
+                                    {normalizedShoppingList.stats.needToBuy}
+                                </div>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    color: '#c2410c'
+                                }}>
+                                    Need to Buy
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Stats */}
-                {normalizedShoppingList?.stats && (
-                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="bg-blue-50 p-3 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-blue-600">
-                                {normalizedShoppingList.stats.totalItems}
+                {/* Controls */}
+                <div style={{
+                    padding: '1rem 1.5rem',
+                    borderBottom: '1px solid #e5e7eb',
+                    backgroundColor: '#f9fafb',
+                    flexShrink: 0
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                    }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <label style={{
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#374151'
+                                }}>
+                                    Filter:
+                                </label>
+                                <select
+                                    value={filter}
+                                    onChange={(e) => setFilter(e.target.value)}
+                                    style={{
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '6px',
+                                        padding: '0.25rem 0.75rem',
+                                        fontSize: '0.875rem'
+                                    }}
+                                >
+                                    <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
+                                    <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
+                                    <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
+                                </select>
                             </div>
-                            <div className="text-sm text-blue-800">Total Items</div>
-                        </div>
-                        <div className="bg-green-50 p-3 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-green-600">
-                                {normalizedShoppingList.stats.inInventory}
-                            </div>
-                            <div className="text-sm text-green-800">In Inventory</div>
-                        </div>
-                        <div className="bg-orange-50 p-3 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-orange-600">
-                                {normalizedShoppingList.stats.needToBuy}
-                            </div>
-                            <div className="text-sm text-orange-800">Need to Buy</div>
-                        </div>
-                    </div>
-                )}
-            </div>
 
-            {/* Controls */}
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <div className="flex flex-wrap gap-4 items-center justify-between">
-                    <div className="flex gap-4 items-center">
-                        <div className="flex items-center space-x-2">
-                            <label className="text-sm font-medium text-gray-700">Filter:</label>
-                            <select
-                                value={filter}
-                                onChange={(e) => setFilter(e.target.value)}
-                                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <label style={{
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#374151'
+                                }}>
+                                    Sort by:
+                                </label>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    style={{
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '6px',
+                                        padding: '0.25rem 0.75rem',
+                                        fontSize: '0.875rem'
+                                    }}
+                                >
+                                    <option value="category">Category</option>
+                                    <option value="name">Name</option>
+                                    <option value="recipes">Recipe</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Print/Export Buttons - Same style as "What Can I Make" */}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={printShoppingList}
+                                style={{
+                                    backgroundColor: '#4f46e5',
+                                    color: 'white',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}
                             >
-                                <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
-                                <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
-                                <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
-                            </select>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                                🖨️ Print
+                            </button>
+                            <button
+                                onClick={exportToPDF}
+                                style={{
+                                    backgroundColor: '#dc2626',
+                                    color: 'white',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}
                             >
-                                <option value="category">Category</option>
-                                <option value="name">Name</option>
-                                <option value="recipes">Recipe</option>
-                            </select>
+                                📄 PDF
+                            </button>
+                            <button
+                                onClick={exportToText}
+                                style={{
+                                    backgroundColor: '#059669',
+                                    color: 'white',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}
+                            >
+                                📝 Text
+                            </button>
                         </div>
                     </div>
 
-                    {/* Print/Export Buttons */}
-                    <div className="flex gap-2">
-                        <button
-                            onClick={printShoppingList}
-                            className="bg-indigo-600 text-white px-3 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-                            </svg>
-                            Print
-                        </button>
-
-                        <button
-                            onClick={exportToPDF}
-                            className="bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 transition-colors flex items-center gap-2"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                            </svg>
-                            PDF
-                        </button>
-
-                        <button
-                            onClick={exportToText}
-                            className="bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 transition-colors flex items-center gap-2"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
-                            </svg>
-                            Text
-                        </button>
+                    <div style={{
+                        marginTop: '0.5rem',
+                        fontSize: '0.875rem',
+                        color: '#6b7280'
+                    }}>
+                        Showing {filteredItems.length} items
                     </div>
                 </div>
 
-                <div className="mt-2 text-sm text-gray-600">
-                    Showing {filteredItems.length} items
-                </div>
-            </div>
+                {/* Content */}
+                <div style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: 'auto',
+                    padding: '1.5rem'
+                }}>
+                    {Object.keys(groupedItems).length === 0 ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '2rem',
+                            color: '#6b7280'
+                        }}>
+                            No items match your current filter.
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            {Object.entries(groupedItems).map(([category, items]) => (
+                                <div key={category}>
+                                    <h3 style={{
+                                        fontSize: '1.125rem',
+                                        fontWeight: '600',
+                                        color: '#111827',
+                                        marginBottom: '0.75rem'
+                                    }}>
+                                        {getCategoryName(category)} ({items.length})
+                                    </h3>
 
-            {/* Shopping List Content */}
-            <div className="px-6 py-4 max-h-96 overflow-y-auto">
-                {Object.keys(groupedItems).length === 0 ? (
-                    <div className="text-center py-8">
-                        <p className="text-gray-500">No items match your current filter.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {Object.entries(groupedItems).map(([category, items]) => (
-                            <div key={category}>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                                    {getCategoryName(category)} ({items.length})
-                                </h3>
-
-                                <div className="space-y-2">
-                                    {items.map((item, index) => (
-                                        <div
-                                            key={`${item.ingredient}-${index}`}
-                                            className={`p-3 border rounded-lg ${
-                                                item.inInventory
-                                                    ? 'bg-blue-50 border-blue-200'
-                                                    : 'bg-white border-gray-200'
-                                            }`}
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-gray-900">
-                                                        {item.ingredient}
-                                                    </div>
-
-                                                    {item.amount && (
-                                                        <div className="text-sm text-gray-600 mt-1">
-                                                            {item.amount}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {items.map((item, index) => (
+                                            <div
+                                                key={`${item.ingredient}-${index}`}
+                                                style={{
+                                                    padding: '0.75rem',
+                                                    border: '1px solid #e5e7eb',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: item.inInventory ? '#eff6ff' : 'white',
+                                                    borderColor: item.inInventory ? '#bfdbfe' : '#e5e7eb'
+                                                }}
+                                            >
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start'
+                                                }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{
+                                                            fontWeight: '500',
+                                                            color: '#111827'
+                                                        }}>
+                                                            {item.ingredient}
                                                         </div>
-                                                    )}
 
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        Used in: {item.recipes.join(', ')}
+                                                        {item.amount && (
+                                                            <div style={{
+                                                                fontSize: '0.875rem',
+                                                                color: '#6b7280',
+                                                                marginTop: '0.25rem'
+                                                            }}>
+                                                                {item.amount}
+                                                            </div>
+                                                        )}
+
+                                                        <div style={{
+                                                            fontSize: '0.75rem',
+                                                            color: '#9ca3af',
+                                                            marginTop: '0.25rem'
+                                                        }}>
+                                                            Used in: {item.recipes.join(', ')}
+                                                        </div>
+
+                                                        {/* Show inventory details */}
+                                                        {item.inInventory && item.haveAmount && (
+                                                            <div style={{
+                                                                fontSize: '0.75rem',
+                                                                color: '#2563eb',
+                                                                marginTop: '0.25rem'
+                                                            }}>
+                                                                In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    {/* Show inventory details */}
-                                                    {item.inInventory && item.haveAmount && (
-                                                        <div className="text-xs text-blue-600 mt-1">
-                                                            In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                    {item.inInventory && (
+                                                        <div style={{
+                                                            color: '#2563eb',
+                                                            fontSize: '0.75rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem'
+                                                        }}>
+                                                            ✓ In Inventory
                                                         </div>
                                                     )}
                                                 </div>
-
-                                                {item.inInventory && (
-                                                    <div className="text-blue-600 text-xs flex items-center">
-                                                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                        </svg>
-                                                        In Inventory
-                                                    </div>
-                                                )}
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    padding: '1rem 1.5rem',
+                    borderTop: '1px solid #e5e7eb',
+                    backgroundColor: '#f9fafb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexShrink: 0
+                }}>
+                    <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280'
+                    }}>
+                        Generated on {new Date().toLocaleDateString()}
                     </div>
-                )}
+                    <button
+                        onClick={onClose}
+                        style={{
+                            backgroundColor: '#6b7280',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                    Generated on {new Date().toLocaleDateString()}
-                </div>
-                <button
-                    onClick={onClose}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                >
-                    Close
-                </button>
-            </div>
+            <style jsx>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }
