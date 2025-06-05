@@ -1,9 +1,57 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v4
+// file: /src/components/meal-planning/ShoppingListGenerator.js v7
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+
+const scrollingStyles = {
+    modal: {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: '50',
+        padding: '16px'
+    },
+    container: {
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        maxWidth: '1024px',
+        width: '100%',
+        height: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+    },
+    content: {
+        flex: '1',
+        overflowY: 'auto',
+        padding: '16px'
+    }
+};
+
+// Then replace your return statement's outer divs with:
+
+return (
+    <div style={scrollingStyles.modal}>
+        <div style={scrollingStyles.container}>
+            {/* Your existing header content */}
+
+            {/* Content with forced scrolling */}
+            <div style={scrollingStyles.content}>
+                {/* All your existing content here */}
+            </div>
+
+            {/* Your existing footer */}
+        </div>
+    </div>
+);
 
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -179,9 +227,9 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full h-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200">
+                <div className="flex-none p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900">
@@ -232,7 +280,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
                 {/* Controls */}
                 {shoppingList && (
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
+                    <div className="flex-none p-4 border-b border-gray-200 bg-gray-50">
                         <div className="flex flex-wrap gap-4 items-center">
                             {/* Filter */}
                             <div className="flex items-center space-x-2">
@@ -271,7 +319,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 )}
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {loading && (
                         <div className="p-8 text-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -312,7 +360,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {shoppingList && (
-                        <div className="p-4 space-y-6">
+                        <div className="p-4 space-y-6 pb-20">
                             {Object.keys(groupedItems).length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500">No items match your current filter.</p>
@@ -410,7 +458,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
                 {/* Footer */}
                 {shoppingList && (
-                    <div className="p-4 border-t border-gray-200 bg-gray-50 text-center">
+                    <div className="flex-none p-4 border-t border-gray-200 bg-gray-50 text-center">
                         <p className="text-sm text-gray-600">
                             Shopping list generated on {new Date(shoppingList.generatedAt).toLocaleDateString()}
                         </p>
