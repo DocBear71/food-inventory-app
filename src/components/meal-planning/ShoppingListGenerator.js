@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v7
+// file: /src/components/meal-planning/ShoppingListGenerator.js v3
 
 'use client';
 
@@ -179,7 +179,10 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div
+                className="bg-white rounded-lg max-w-4xl w-full flex flex-col"
+                style={{ height: '90vh', maxHeight: '90vh' }}
+            >
                 {/* Header */}
                 <div className="flex-none p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between">
@@ -270,8 +273,16 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     </div>
                 )}
 
-                {/* Content - Fixed with better scrolling */}
-                <div className="flex-1 min-h-0 overflow-auto">
+                {/* Content - Fixed with inline styles */}
+                <div
+                    className="p-4 space-y-6 pb-8"
+                    style={{
+                        flex: '1',
+                        minHeight: '0',
+                        overflowY: 'scroll',
+                        maxHeight: 'calc(90vh - 300px)'
+                    }}
+                >
                     {loading && (
                         <div className="p-8 text-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -312,7 +323,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {shoppingList && (
-                        <div className="p-4 space-y-6 pb-8">
+                        <div className="space-y-6">
                             {Object.keys(groupedItems).length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500">No items match your current filter.</p>
