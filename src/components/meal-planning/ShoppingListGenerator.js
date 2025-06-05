@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v7
+// file: /src/components/meal-planning/ShoppingListGenerator.js v8
 
 'use client';
 
@@ -10,8 +10,64 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
     const [shoppingList, setShoppingList] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [filter, setFilter] = useState('all'); // all, needed, inventory
-    const [sortBy, setSortBy] = useState('category'); // category, name, recipes
+    const [filter, setFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('category');
+
+    // Force scrolling styles - NO CSS CLASSES, PURE INLINE
+    const modalStyles = {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '16px'
+    };
+
+    const containerStyles = {
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        maxWidth: '1024px',
+        width: '100%',
+        height: '80vh',
+        maxHeight: '80vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+    };
+
+    const headerStyles = {
+        padding: '24px',
+        borderBottom: '1px solid #e5e7eb',
+        flexShrink: 0
+    };
+
+    const controlsStyles = {
+        padding: '16px 24px',
+        borderBottom: '1px solid #e5e7eb',
+        backgroundColor: '#f9fafb',
+        flexShrink: 0
+    };
+
+    const contentStyles = {
+        flex: '1',
+        overflow: 'auto',
+        padding: '16px 24px 40px 24px',
+        minHeight: '0'
+    };
+
+    const footerStyles = {
+        padding: '16px 24px',
+        borderTop: '1px solid #e5e7eb',
+        backgroundColor: '#f9fafb',
+        textAlign: 'center',
+        flexShrink: 0
+    };
 
     console.log('ShoppingListGenerator props:', { mealPlanId, mealPlanName });
 
@@ -97,7 +153,6 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
         let filtered = shoppingList.items;
 
-        // Apply filter
         switch (filter) {
             case 'needed':
                 filtered = filtered.filter(item => !item.inInventory && !item.purchased);
@@ -109,11 +164,9 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 filtered = filtered.filter(item => item.purchased);
                 break;
             default:
-                // 'all' - no filtering
                 break;
         }
 
-        // Apply sorting
         switch (sortBy) {
             case 'name':
                 filtered.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
@@ -122,7 +175,6 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 filtered.sort((a, b) => a.recipes.join(', ').localeCompare(b.recipes.join(', ')));
                 break;
             default:
-                // 'category' - already sorted by category in API
                 break;
         }
 
@@ -163,7 +215,6 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
     const formatAmount = (item) => {
         let display = item.amount || '';
 
-        // Add alternative amounts if any
         if (item.alternativeAmounts && item.alternativeAmounts.length > 0) {
             const alternatives = item.alternativeAmounts
                 .map(alt => `${alt.amount} ${alt.unit}`)
@@ -178,25 +229,30 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
     const groupedItems = getGroupedItems();
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div
-                className="bg-white rounded-lg max-w-4xl w-full flex flex-col modal-container-mobile"
-                style={{ height: '90vh', maxHeight: '90vh' }}
-            >
+        <div style={modalStyles}>
+            <div style={containerStyles}>
                 {/* Header */}
-                <div className="flex-none p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
+                <div style={headerStyles}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: '0' }}>
                                 🛒 Shopping List
                             </h2>
-                            <p className="text-gray-600 mt-1">
+                            <p style={{ color: '#6b7280', marginTop: '4px', margin: '4px 0 0 0' }}>
                                 {mealPlanName}
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                            style={{
+                                color: '#9ca3af',
+                                fontSize: '24px',
+                                fontWeight: 'bold',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '8px'
+                            }}
                         >
                             ×
                         </button>
@@ -204,30 +260,35 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
                     {/* Stats */}
                     {shoppingList?.stats && (
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-blue-50 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-blue-600">
+                        <div style={{
+                            marginTop: '16px',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                            gap: '16px'
+                        }}>
+                            <div style={{ backgroundColor: '#dbeafe', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>
                                     {shoppingList.stats.totalItems}
                                 </div>
-                                <div className="text-sm text-blue-800">Total Items</div>
+                                <div style={{ fontSize: '12px', color: '#1e40af' }}>Total Items</div>
                             </div>
-                            <div className="bg-green-50 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-green-600">
+                            <div style={{ backgroundColor: '#dcfce7', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>
                                     {shoppingList.stats.inInventory}
                                 </div>
-                                <div className="text-sm text-green-800">In Inventory</div>
+                                <div style={{ fontSize: '12px', color: '#15803d' }}>In Inventory</div>
                             </div>
-                            <div className="bg-orange-50 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-orange-600">
+                            <div style={{ backgroundColor: '#fed7aa', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ea580c' }}>
                                     {shoppingList.stats.needToBuy}
                                 </div>
-                                <div className="text-sm text-orange-800">Need to Buy</div>
+                                <div style={{ fontSize: '12px', color: '#c2410c' }}>Need to Buy</div>
                             </div>
-                            <div className="bg-purple-50 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-purple-600">
+                            <div style={{ backgroundColor: '#e9d5ff', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#9333ea' }}>
                                     {shoppingList.stats.categories}
                                 </div>
-                                <div className="text-sm text-purple-800">Categories</div>
+                                <div style={{ fontSize: '12px', color: '#7c3aed' }}>Categories</div>
                             </div>
                         </div>
                     )}
@@ -235,15 +296,19 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
                 {/* Controls */}
                 {shoppingList && (
-                    <div className="flex-none p-4 border-b border-gray-200 bg-gray-50">
-                        <div className="flex flex-wrap gap-4 items-center">
-                            {/* Filter */}
-                            <div className="flex items-center space-x-2">
-                                <label className="text-sm font-medium text-gray-700">Filter:</label>
+                    <div style={controlsStyles}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Filter:</label>
                                 <select
                                     value={filter}
                                     onChange={(e) => setFilter(e.target.value)}
-                                    className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                                    style={{
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '6px',
+                                        padding: '4px 12px',
+                                        fontSize: '14px'
+                                    }}
                                 >
                                     <option value="all">All Items ({shoppingList.stats.totalItems})</option>
                                     <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
@@ -252,13 +317,17 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 </select>
                             </div>
 
-                            {/* Sort */}
-                            <div className="flex items-center space-x-2">
-                                <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Sort by:</label>
                                 <select
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
-                                    className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                                    style={{
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '6px',
+                                        padding: '4px 12px',
+                                        fontSize: '14px'
+                                    }}
                                 >
                                     <option value="category">Category</option>
                                     <option value="name">Name</option>
@@ -266,29 +335,51 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 </select>
                             </div>
 
-                            <div className="text-sm text-gray-600">
+                            <div style={{ fontSize: '14px', color: '#6b7280' }}>
                                 Showing {filteredItems.length} items
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Content - Fixed with CSS class */}
-                <div className="modal-scroll-fix p-4">
+                {/* Content - GUARANTEED TO SCROLL */}
+                <div style={contentStyles}>
                     {loading && (
-                        <div className="p-8 text-center">
-                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                            <p className="mt-2 text-gray-600">Generating smart shopping list...</p>
+                        <div style={{ padding: '32px', textAlign: 'center' }}>
+                            <div style={{
+                                display: 'inline-block',
+                                width: '32px',
+                                height: '32px',
+                                border: '2px solid #6366f1',
+                                borderTop: '2px solid transparent',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite'
+                            }}></div>
+                            <p style={{ marginTop: '8px', color: '#6b7280' }}>Generating smart shopping list...</p>
                         </div>
                     )}
 
                     {error && (
-                        <div className="p-4 m-4 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="text-red-800 font-medium">Error generating shopping list</div>
-                            <div className="text-red-600 text-sm mt-1">{error}</div>
+                        <div style={{
+                            padding: '16px',
+                            margin: '16px 0',
+                            backgroundColor: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            borderRadius: '8px'
+                        }}>
+                            <div style={{ color: '#991b1b', fontWeight: '500' }}>Error generating shopping list</div>
+                            <div style={{ color: '#dc2626', fontSize: '14px', marginTop: '4px' }}>{error}</div>
                             <button
                                 onClick={generateShoppingList}
-                                className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+                                style={{
+                                    marginTop: '8px',
+                                    color: '#dc2626',
+                                    fontSize: '14px',
+                                    background: 'none',
+                                    border: 'none',
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer'
+                                }}
                             >
                                 Try Again
                             </button>
@@ -296,18 +387,27 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {!shoppingList && !loading && !error && (
-                        <div className="p-8 text-center">
-                            <div className="text-6xl mb-4">🛒</div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <div style={{ padding: '32px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
+                            <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#111827', marginBottom: '8px' }}>
                                 Ready to Generate Shopping List
                             </h3>
-                            <p className="text-gray-600 mb-6">
+                            <p style={{ color: '#6b7280', marginBottom: '24px' }}>
                                 We'll analyze your meal plan, combine ingredients, and check your inventory
                                 to create a smart shopping list organized by store sections.
                             </p>
                             <button
                                 onClick={generateShoppingList}
-                                className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors"
+                                style={{
+                                    backgroundColor: '#4f46e5',
+                                    color: 'white',
+                                    padding: '12px 24px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '16px',
+                                    fontWeight: '500'
+                                }}
                             >
                                 Generate Shopping List
                             </button>
@@ -315,33 +415,45 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {shoppingList && (
-                        <div className="space-y-6 pb-20">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             {Object.keys(groupedItems).length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500">No items match your current filter.</p>
+                                <div style={{ textAlign: 'center', padding: '32px' }}>
+                                    <p style={{ color: '#6b7280' }}>No items match your current filter.</p>
                                 </div>
                             ) : (
                                 Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category}>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-3 sticky top-0 bg-white py-2">
+                                        <h3 style={{
+                                            fontSize: '18px',
+                                            fontWeight: '600',
+                                            color: '#111827',
+                                            marginBottom: '12px',
+                                            position: 'sticky',
+                                            top: '0',
+                                            backgroundColor: 'white',
+                                            padding: '8px 0'
+                                        }}>
                                             {getCategoryName(category)} ({items.length})
                                         </h3>
 
-                                        <div className="space-y-2">
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             {items.map((item, index) => (
                                                 <div
                                                     key={`${item.ingredient}-${index}`}
-                                                    className={`p-3 border rounded-lg ${
-                                                        item.purchased
-                                                            ? 'bg-green-50 border-green-200'
+                                                    style={{
+                                                        padding: '12px',
+                                                        border: '1px solid #e5e7eb',
+                                                        borderRadius: '8px',
+                                                        backgroundColor: item.purchased
+                                                            ? '#f0fdf4'
                                                             : item.inInventory
-                                                                ? 'bg-blue-50 border-blue-200'
-                                                                : 'bg-white border-gray-200'
-                                                    }`}
+                                                                ? '#eff6ff'
+                                                                : 'white'
+                                                    }}
                                                 >
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center space-x-3">
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                                        <div style={{ flex: '1' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={item.purchased || false}
@@ -350,53 +462,66 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                                                             purchased: e.target.checked
                                                                         })
                                                                     }
-                                                                    className="h-5 w-5 text-indigo-600 rounded"
+                                                                    style={{ width: '20px', height: '20px' }}
                                                                 />
 
-                                                                <div className="flex-1">
-                                                                    <div className={`font-medium ${
-                                                                        item.purchased ? 'line-through text-gray-500' : 'text-gray-900'
-                                                                    }`}>
+                                                                <div style={{ flex: '1' }}>
+                                                                    <div style={{
+                                                                        fontWeight: '500',
+                                                                        color: item.purchased ? '#6b7280' : '#111827',
+                                                                        textDecoration: item.purchased ? 'line-through' : 'none'
+                                                                    }}>
                                                                         {item.ingredient}
                                                                         {item.optional && (
-                                                                            <span className="text-gray-400 text-sm ml-2">(optional)</span>
+                                                                            <span style={{ color: '#9ca3af', fontSize: '14px', marginLeft: '8px' }}>(optional)</span>
                                                                         )}
                                                                     </div>
 
-                                                                    <div className="text-sm text-gray-600 mt-1">
+                                                                    <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
                                                                         {formatAmount(item)}
                                                                     </div>
 
-                                                                    <div className="text-xs text-gray-500 mt-1">
+                                                                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
                                                                         Used in: {item.recipes.join(', ')}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center space-x-2 ml-4">
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}>
                                                             {item.inInventory && (
-                                                                <div className="flex items-center text-blue-600 text-xs">
-                                                                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                    In Inventory
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    color: '#2563eb',
+                                                                    fontSize: '12px'
+                                                                }}>
+                                                                    ✓ In Inventory
                                                                 </div>
                                                             )}
 
                                                             {item.purchased && (
-                                                                <div className="flex items-center text-green-600 text-xs">
-                                                                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                    Purchased
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    color: '#16a34a',
+                                                                    fontSize: '12px'
+                                                                }}>
+                                                                    ✓ Purchased
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
 
                                                     {item.inventoryItem && (
-                                                        <div className="mt-2 p-2 bg-blue-100 rounded text-sm text-blue-800">
+                                                        <div style={{
+                                                            marginTop: '8px',
+                                                            padding: '8px',
+                                                            backgroundColor: '#dbeafe',
+                                                            borderRadius: '4px',
+                                                            fontSize: '14px',
+                                                            color: '#1e40af'
+                                                        }}>
                                                             <strong>In your inventory:</strong> {item.inventoryItem.quantity} {item.inventoryItem.unit}
                                                             {item.inventoryItem.location && ` (${item.inventoryItem.location})`}
                                                         </div>
@@ -413,19 +538,33 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
 
                 {/* Footer */}
                 {shoppingList && (
-                    <div className="flex-none p-4 border-t border-gray-200 bg-gray-50 text-center">
-                        <p className="text-sm text-gray-600">
+                    <div style={footerStyles}>
+                        <p style={{ fontSize: '14px', color: '#6b7280', margin: '0' }}>
                             Shopping list generated on {new Date(shoppingList.generatedAt).toLocaleDateString()}
                         </p>
                         <button
                             onClick={generateShoppingList}
-                            className="mt-2 text-indigo-600 hover:text-indigo-800 text-sm"
+                            style={{
+                                marginTop: '8px',
+                                color: '#4f46e5',
+                                fontSize: '14px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer'
+                            }}
                         >
                             Regenerate Shopping List
                         </button>
                     </div>
                 )}
             </div>
+
+            <style jsx>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }
