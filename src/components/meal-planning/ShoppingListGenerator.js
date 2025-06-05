@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v8
+// file: /src/components/meal-planning/ShoppingListGenerator.js v5
 
 'use client';
 
@@ -65,8 +65,12 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
         padding: '16px 24px',
         borderTop: '1px solid #e5e7eb',
         backgroundColor: '#f9fafb',
-        textAlign: 'center',
-        flexShrink: 0
+        flexShrink: 0,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px'
     };
 
     console.log('ShoppingListGenerator props:', { mealPlanId, mealPlanName });
@@ -145,6 +149,214 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
             console.error('Error updating item:', err);
             setError(err.message);
         }
+    };
+
+    // Print Shopping List
+    const printShoppingList = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = generatePrintHTML();
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+
+    // Generate Print HTML
+    const generatePrintHTML = () => {
+        const groupedItems = getGroupedItems();
+        const printDate = new Date().toLocaleDateString();
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Shopping List - ${mealPlanName}</title>
+                <style>
+                    @media print {
+                        @page { margin: 0.5in; }
+                        body { font-family: Arial, sans-serif; font-size: 12pt; }
+                    }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        line-height: 1.4; 
+                        color: #333;
+                        max-width: 8.5in;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header { 
+                        text-align: center; 
+                        margin-bottom: 30px; 
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 15px;
+                    }
+                    .header h1 { margin: 0; font-size: 24pt; }
+                    .header p { margin: 5px 0 0 0; font-size: 11pt; color: #666; }
+                    .category { 
+                        margin-bottom: 25px; 
+                        break-inside: avoid;
+                    }
+                    .category h2 { 
+                        font-size: 16pt; 
+                        margin: 0 0 10px 0; 
+                        padding: 8px 12px;
+                        background: #f5f5f5; 
+                        border-left: 4px solid #333;
+                    }
+                    .item { 
+                        display: flex; 
+                        align-items: flex-start; 
+                        margin-bottom: 8px; 
+                        padding: 4px 0;
+                        border-bottom: 1px dotted #ccc;
+                    }
+                    .checkbox { 
+                        width: 15px; 
+                        height: 15px; 
+                        border: 2px solid #333; 
+                        margin-right: 12px; 
+                        margin-top: 2px;
+                        flex-shrink: 0;
+                    }
+                    .item-content { flex: 1; }
+                    .item-name { font-weight: bold; font-size: 11pt; }
+                    .item-amount { font-size: 10pt; color: #666; margin-left: 8px; }
+                    .item-recipes { font-size: 9pt; color: #888; font-style: italic; margin-top: 2px; }
+                    .inventory-note { 
+                        color: #0066cc; 
+                        font-size: 9pt; 
+                        font-weight: bold; 
+                        margin-top: 2px;
+                    }
+                    .stats { 
+                        margin-top: 30px; 
+                        padding: 15px; 
+                        background: #f9f9f9; 
+                        border: 1px solid #ddd;
+                        font-size: 10pt;
+                    }
+                    .footer { 
+                        margin-top: 30px; 
+                        text-align: center; 
+                        font-size: 9pt; 
+                        color: #666;
+                        border-top: 1px solid #ddd;
+                        padding-top: 15px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🛒 Shopping List</h1>
+                    <p>${mealPlanName} • Generated on ${printDate}</p>
+                </div>
+                
+                ${Object.entries(groupedItems).map(([category, items]) => `
+                    <div class="category">
+                        <h2>${getCategoryName(category)} (${items.length} items)</h2>
+                        ${items.map(item => `
+                            <div class="item">
+                                <div class="checkbox"></div>
+                                <div class="item-content">
+                                    <span class="item-name">${item.ingredient}</span>
+                                    <span class="item-amount">${formatAmount(item)}</span>
+                                    ${item.inInventory ? '<div class="inventory-note">✓ In your inventory</div>' : ''}
+                                    <div class="item-recipes">Used in: ${item.recipes.join(', ')}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('')}
+                
+                <div class="stats">
+                    <strong>Shopping Summary:</strong><br>
+                    Total Items: ${shoppingList.stats.totalItems} • 
+                    Need to Buy: ${shoppingList.stats.needToBuy} • 
+                    In Inventory: ${shoppingList.stats.inInventory} • 
+                    Categories: ${shoppingList.stats.categories}
+                </div>
+                
+                <div class="footer">
+                    Generated by Food Inventory App • ${new Date().toLocaleString()}
+                </div>
+            </body>
+            </html>
+        `;
+    };
+
+    // Export to Text
+    const exportToText = () => {
+        const groupedItems = getGroupedItems();
+        const exportDate = new Date().toLocaleDateString();
+
+        let textContent = `SHOPPING LIST\n`;
+        textContent += `${mealPlanName}\n`;
+        textContent += `Generated: ${exportDate}\n`;
+        textContent += `${'='.repeat(50)}\n\n`;
+
+        Object.entries(groupedItems).forEach(([category, items]) => {
+            textContent += `${getCategoryName(category).toUpperCase()} (${items.length} items)\n`;
+            textContent += `${'-'.repeat(30)}\n`;
+
+            items.forEach(item => {
+                textContent += `☐ ${item.ingredient}`;
+                if (formatAmount(item)) {
+                    textContent += ` - ${formatAmount(item)}`;
+                }
+                if (item.inInventory) {
+                    textContent += ` [IN INVENTORY]`;
+                }
+                textContent += `\n`;
+                textContent += `  Used in: ${item.recipes.join(', ')}\n`;
+            });
+            textContent += `\n`;
+        });
+
+        textContent += `SUMMARY:\n`;
+        textContent += `Total Items: ${shoppingList.stats.totalItems}\n`;
+        textContent += `Need to Buy: ${shoppingList.stats.needToBuy}\n`;
+        textContent += `In Inventory: ${shoppingList.stats.inInventory}\n`;
+        textContent += `Categories: ${shoppingList.stats.categories}\n`;
+
+        // Download as text file
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `shopping-list-${mealPlanName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    // Export to PDF (using browser's print to PDF)
+    const exportToPDF = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = generatePrintHTML();
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+
+        // Add instructions for PDF export
+        const instructionDiv = printWindow.document.createElement('div');
+        instructionDiv.innerHTML = `
+            <div style="position: fixed; top: 10px; right: 10px; background: #ffffcc; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; z-index: 1000;">
+                <strong>To save as PDF:</strong><br>
+                1. Press Ctrl+P (Cmd+P on Mac)<br>
+                2. Choose "Save as PDF"<br>
+                3. Click Save
+            </div>
+        `;
+        printWindow.document.body.appendChild(instructionDiv);
+
+        // Auto-trigger print dialog
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     };
 
     // Filter and sort items
@@ -536,25 +748,98 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
                 </div>
 
-                {/* Footer */}
+                {/* Footer with Print/Export Options */}
                 {shoppingList && (
                     <div style={footerStyles}>
-                        <p style={{ fontSize: '14px', color: '#6b7280', margin: '0' }}>
-                            Shopping list generated on {new Date(shoppingList.generatedAt).toLocaleDateString()}
-                        </p>
-                        <button
-                            onClick={generateShoppingList}
-                            style={{
-                                marginTop: '8px',
-                                color: '#4f46e5',
-                                fontSize: '14px',
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Regenerate Shopping List
-                        </button>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                            Generated on {new Date(shoppingList.generatedAt).toLocaleDateString()}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                                onClick={printShoppingList}
+                                style={{
+                                    backgroundColor: '#4f46e5',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                                </svg>
+                                Print
+                            </button>
+
+                            <button
+                                onClick={exportToPDF}
+                                style={{
+                                    backgroundColor: '#dc2626',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                PDF
+                            </button>
+
+                            <button
+                                onClick={exportToText}
+                                style={{
+                                    backgroundColor: '#059669',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
+                                </svg>
+                                Text
+                            </button>
+
+                            <button
+                                onClick={generateShoppingList}
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
