@@ -1,4 +1,4 @@
-// file: /src/components/recipes/RecipeShoppingList.js v3
+// file: /src/components/recipes/RecipeShoppingList.js v4
 
 'use client';
 
@@ -15,11 +15,65 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         generateShoppingList();
     }, [recipeId]);
 
+    // Convert API response structure to component-expected structure
+    const normalizeShoppingList = (apiResponse) => {
+        if (!apiResponse) return null;
+
+        console.log('Normalizing API response:', apiResponse);
+
+        // Handle the API structure where items are grouped by category
+        let normalizedItems = [];
+
+        if (apiResponse.items && typeof apiResponse.items === 'object') {
+            // API returns: { items: { Pantry: [...], Produce: [...] } }
+            Object.entries(apiResponse.items).forEach(([category, categoryItems]) => {
+                if (Array.isArray(categoryItems)) {
+                    categoryItems.forEach(item => {
+                        normalizedItems.push({
+                            ingredient: item.name || item.ingredient,
+                            amount: item.name || '',  // API puts full description in 'name'
+                            category: category.toLowerCase(),
+                            recipes: [recipeName],  // Single recipe context
+                            inInventory: item.haveAmount > 0,
+                            purchased: false,
+                            originalName: item.originalName,
+                            needAmount: item.needAmount,
+                            haveAmount: item.haveAmount
+                        });
+                    });
+                }
+            });
+        } else if (Array.isArray(apiResponse.items)) {
+            // Already in expected format
+            normalizedItems = apiResponse.items;
+        }
+
+        // Create stats from summary or calculate them
+        const stats = {
+            totalItems: apiResponse.summary?.totalItems || normalizedItems.length,
+            needToBuy: apiResponse.summary?.needToBuy || normalizedItems.filter(item => !item.inInventory).length,
+            inInventory: apiResponse.summary?.alreadyHave || normalizedItems.filter(item => item.inInventory).length
+        };
+
+        console.log('Normalized shopping list:', {
+            items: normalizedItems,
+            stats: stats
+        });
+
+        return {
+            items: normalizedItems,
+            stats: stats,
+            recipes: [recipeName]
+        };
+    };
+
     const generateShoppingList = async () => {
         setLoading(true);
         setError(null);
 
         try {
+            console.log('Generating shopping list for recipe:', recipeId);
+
             const response = await fetch('/api/shopping/generate', {
                 method: 'POST',
                 headers: {
@@ -31,6 +85,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
             });
 
             const data = await response.json();
+            console.log('Shopping list API response:', data);
 
             if (data.success) {
                 setShoppingList(data.shoppingList);
@@ -38,6 +93,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 setError(data.error || 'Failed to generate shopping list');
             }
         } catch (err) {
+            console.error('Error generating shopping list:', err);
             setError('Failed to generate shopping list');
         } finally {
             setLoading(false);
@@ -58,7 +114,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
 
     // Generate Print HTML
     const generatePrintHTML = () => {
-        const groupedItems = getGroupedItems();
+        const normalizedList = normalizeShoppingList(shoppingList);
+        const groupedItems = getGroupedItems(normalizedList);
         const printDate = new Date().toLocaleDateString();
 
         return `
@@ -163,9 +220,9 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 
                 <div class="stats">
                     <strong>Shopping Summary:</strong><br>
-                    Total Items: ${shoppingList.stats.totalItems} • 
-                    Need to Buy: ${shoppingList.stats.needToBuy} • 
-                    In Inventory: ${shoppingList.stats.inInventory}
+                    Total Items: ${normalizedList.stats.totalItems} • 
+                    Need to Buy: ${normalizedList.stats.needToBuy} • 
+                    In Inventory: ${normalizedList.stats.inInventory}
                 </div>
                 
                 <div class="footer">
@@ -178,7 +235,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
 
     // Export to Text
     const exportToText = () => {
-        const groupedItems = getGroupedItems();
+        const normalizedList = normalizeShoppingList(shoppingList);
+        const groupedItems = getGroupedItems(normalizedList);
         const exportDate = new Date().toLocaleDateString();
 
         let textContent = `SHOPPING LIST\n`;
@@ -204,9 +262,9 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         });
 
         textContent += `SUMMARY:\n`;
-        textContent += `Total Items: ${shoppingList.stats.totalItems}\n`;
-        textContent += `Need to Buy: ${shoppingList.stats.needToBuy}\n`;
-        textContent += `In Inventory: ${shoppingList.stats.inInventory}\n`;
+        textContent += `Total Items: ${normalizedList.stats.totalItems}\n`;
+        textContent += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
+        textContent += `In Inventory: ${normalizedList.stats.inInventory}\n`;
 
         // Download as text file
         const blob = new Blob([textContent], { type: 'text/plain' });
@@ -253,10 +311,10 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     };
 
     // Filter and sort items
-    const getFilteredItems = () => {
-        if (!shoppingList?.items) return [];
+    const getFilteredItems = (normalizedList) => {
+        if (!normalizedList?.items) return [];
 
-        let filtered = shoppingList.items;
+        let filtered = normalizedList.items;
 
         switch (filter) {
             case 'needed':
@@ -281,8 +339,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     };
 
     // Group items by category for display
-    const getGroupedItems = () => {
-        const filtered = getFilteredItems();
+    const getGroupedItems = (normalizedList) => {
+        const filtered = getFilteredItems(normalizedList);
         const grouped = {};
 
         filtered.forEach(item => {
@@ -309,6 +367,9 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         };
         return names[category] || `📦 ${category}`;
     };
+
+    // Normalize the shopping list for display
+    const normalizedShoppingList = normalizeShoppingList(shoppingList);
 
     if (loading) {
         return (
@@ -403,8 +464,48 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         );
     }
 
-    const filteredItems = getFilteredItems();
-    const groupedItems = getGroupedItems();
+    if (!normalizedShoppingList) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 50
+            }}>
+                <div style={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    padding: '2rem',
+                    textAlign: 'center'
+                }}>
+                    <p style={{ color: '#6b7280' }}>No shopping list data available.</p>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            marginTop: '1rem',
+                            backgroundColor: '#6b7280',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const filteredItems = getFilteredItems(normalizedShoppingList);
+    const groupedItems = getGroupedItems(normalizedShoppingList);
 
     return (
         <div style={{
@@ -472,7 +573,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     </div>
 
                     {/* Stats */}
-                    {shoppingList?.stats && (
+                    {normalizedShoppingList?.stats && (
                         <div style={{
                             marginTop: '1rem',
                             display: 'grid',
@@ -490,7 +591,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     fontWeight: 'bold',
                                     color: '#2563eb'
                                 }}>
-                                    {shoppingList.stats.totalItems}
+                                    {normalizedShoppingList.stats.totalItems}
                                 </div>
                                 <div style={{
                                     fontSize: '0.875rem',
@@ -510,7 +611,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     fontWeight: 'bold',
                                     color: '#16a34a'
                                 }}>
-                                    {shoppingList.stats.inInventory}
+                                    {normalizedShoppingList.stats.inInventory}
                                 </div>
                                 <div style={{
                                     fontSize: '0.875rem',
@@ -530,7 +631,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     fontWeight: 'bold',
                                     color: '#ea580c'
                                 }}>
-                                    {shoppingList.stats.needToBuy}
+                                    {normalizedShoppingList.stats.needToBuy}
                                 </div>
                                 <div style={{
                                     fontSize: '0.875rem',
@@ -576,9 +677,9 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         fontSize: '0.875rem'
                                     }}
                                 >
-                                    <option value="all">All Items ({shoppingList.stats.totalItems})</option>
-                                    <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
-                                    <option value="inventory">In Inventory ({shoppingList.stats.inInventory})</option>
+                                    <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
+                                    <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
+                                    <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
                                 </select>
                             </div>
 
@@ -750,6 +851,17 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                                                 {item.amount}
                                                             </div>
                                                         )}
+
+                                                        {/* Show inventory details */}
+                                                        {item.inInventory && item.haveAmount && (
+                                                            <div style={{
+                                                                fontSize: '0.75rem',
+                                                                color: '#2563eb',
+                                                                marginTop: '0.25rem'
+                                                            }}>
+                                                                In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {item.inInventory && (
@@ -804,6 +916,13 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     </button>
                 </div>
             </div>
+
+            <style jsx>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }

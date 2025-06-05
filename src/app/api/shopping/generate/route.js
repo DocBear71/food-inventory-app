@@ -1,5 +1,4 @@
 // file: /src/app/api/shopping/generate/route.js v33
-// Working implementation with real smart package matching
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';

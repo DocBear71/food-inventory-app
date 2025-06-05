@@ -1,4 +1,4 @@
-// file: /src/components/shopping/ShoppingListDisplay.js v2
+// file: /src/components/shopping/ShoppingListDisplay.js v3
 
 'use client';
 
@@ -7,6 +7,51 @@ import { useState } from 'react';
 export default function ShoppingListDisplay({ shoppingList, onClose }) {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('category');
+
+    // Convert API response structure to component-expected structure
+    const normalizeShoppingList = (apiResponse) => {
+        if (!apiResponse) return null;
+
+        // Handle the API structure where items are grouped by category
+        let normalizedItems = [];
+
+        if (apiResponse.items && typeof apiResponse.items === 'object') {
+            // API returns: { items: { Pantry: [...], Produce: [...] } }
+            Object.entries(apiResponse.items).forEach(([category, categoryItems]) => {
+                if (Array.isArray(categoryItems)) {
+                    categoryItems.forEach(item => {
+                        normalizedItems.push({
+                            ingredient: item.name || item.ingredient,
+                            amount: item.name || '',  // API puts full description in 'name'
+                            category: category.toLowerCase(),
+                            recipes: apiResponse.recipes || [],
+                            inInventory: item.haveAmount > 0,
+                            purchased: false,
+                            originalName: item.originalName,
+                            needAmount: item.needAmount,
+                            haveAmount: item.haveAmount
+                        });
+                    });
+                }
+            });
+        } else if (Array.isArray(apiResponse.items)) {
+            // Already in expected format
+            normalizedItems = apiResponse.items;
+        }
+
+        // Create stats from summary or calculate them
+        const stats = {
+            totalItems: apiResponse.summary?.totalItems || normalizedItems.length,
+            needToBuy: apiResponse.summary?.needToBuy || normalizedItems.filter(item => !item.inInventory).length,
+            inInventory: apiResponse.summary?.alreadyHave || normalizedItems.filter(item => item.inInventory).length
+        };
+
+        return {
+            items: normalizedItems,
+            stats: stats,
+            recipes: apiResponse.recipes || []
+        };
+    };
 
     // Print Shopping List
     const printShoppingList = () => {
@@ -22,7 +67,8 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
 
     // Generate Print HTML
     const generatePrintHTML = () => {
-        const groupedItems = getGroupedItems();
+        const normalizedList = normalizeShoppingList(shoppingList);
+        const groupedItems = getGroupedItems(normalizedList);
         const printDate = new Date().toLocaleDateString();
 
         return `
@@ -129,9 +175,9 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                 
                 <div class="stats">
                     <strong>Shopping Summary:</strong><br>
-                    Total Items: ${shoppingList.stats.totalItems} • 
-                    Need to Buy: ${shoppingList.stats.needToBuy} • 
-                    In Inventory: ${shoppingList.stats.inInventory}
+                    Total Items: ${normalizedList.stats.totalItems} • 
+                    Need to Buy: ${normalizedList.stats.needToBuy} • 
+                    In Inventory: ${normalizedList.stats.inInventory}
                 </div>
                 
                 <div class="footer">
@@ -144,7 +190,8 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
 
     // Export to Text
     const exportToText = () => {
-        const groupedItems = getGroupedItems();
+        const normalizedList = normalizeShoppingList(shoppingList);
+        const groupedItems = getGroupedItems(normalizedList);
         const exportDate = new Date().toLocaleDateString();
 
         let textContent = `SHOPPING LIST\n`;
@@ -171,9 +218,9 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
         });
 
         textContent += `SUMMARY:\n`;
-        textContent += `Total Items: ${shoppingList.stats.totalItems}\n`;
-        textContent += `Need to Buy: ${shoppingList.stats.needToBuy}\n`;
-        textContent += `In Inventory: ${shoppingList.stats.inInventory}\n`;
+        textContent += `Total Items: ${normalizedList.stats.totalItems}\n`;
+        textContent += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
+        textContent += `In Inventory: ${normalizedList.stats.inInventory}\n`;
 
         // Download as text file
         const blob = new Blob([textContent], { type: 'text/plain' });
@@ -215,10 +262,10 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
     };
 
     // Filter and sort items
-    const getFilteredItems = () => {
-        if (!shoppingList?.items) return [];
+    const getFilteredItems = (normalizedList) => {
+        if (!normalizedList?.items) return [];
 
-        let filtered = shoppingList.items;
+        let filtered = normalizedList.items;
 
         switch (filter) {
             case 'needed':
@@ -246,8 +293,8 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
     };
 
     // Group items by category for display
-    const getGroupedItems = () => {
-        const filtered = getFilteredItems();
+    const getGroupedItems = (normalizedList) => {
+        const filtered = getFilteredItems(normalizedList);
         const grouped = {};
 
         filtered.forEach(item => {
@@ -280,8 +327,26 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
         return item.amount || '';
     };
 
-    const filteredItems = getFilteredItems();
-    const groupedItems = getGroupedItems();
+    // Normalize the shopping list for display
+    const normalizedShoppingList = normalizeShoppingList(shoppingList);
+    const filteredItems = getFilteredItems(normalizedShoppingList);
+    const groupedItems = getGroupedItems(normalizedShoppingList);
+
+    if (!normalizedShoppingList) {
+        return (
+            <div className="bg-white shadow rounded-lg p-6">
+                <div className="text-center">
+                    <p className="text-gray-500">No shopping list data available.</p>
+                    <button
+                        onClick={onClose}
+                        className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white shadow rounded-lg">
@@ -304,23 +369,23 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                 </div>
 
                 {/* Stats */}
-                {shoppingList?.stats && (
+                {normalizedShoppingList?.stats && (
                     <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="bg-blue-50 p-3 rounded-lg text-center">
                             <div className="text-2xl font-bold text-blue-600">
-                                {shoppingList.stats.totalItems}
+                                {normalizedShoppingList.stats.totalItems}
                             </div>
                             <div className="text-sm text-blue-800">Total Items</div>
                         </div>
                         <div className="bg-green-50 p-3 rounded-lg text-center">
                             <div className="text-2xl font-bold text-green-600">
-                                {shoppingList.stats.inInventory}
+                                {normalizedShoppingList.stats.inInventory}
                             </div>
                             <div className="text-sm text-green-800">In Inventory</div>
                         </div>
                         <div className="bg-orange-50 p-3 rounded-lg text-center">
                             <div className="text-2xl font-bold text-orange-600">
-                                {shoppingList.stats.needToBuy}
+                                {normalizedShoppingList.stats.needToBuy}
                             </div>
                             <div className="text-sm text-orange-800">Need to Buy</div>
                         </div>
@@ -339,9 +404,9 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                                 onChange={(e) => setFilter(e.target.value)}
                                 className="border border-gray-300 rounded-md px-3 py-1 text-sm"
                             >
-                                <option value="all">All Items ({shoppingList.stats.totalItems})</option>
-                                <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
-                                <option value="inventory">In Inventory ({shoppingList.stats.inInventory})</option>
+                                <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
+                                <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
+                                <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
                             </select>
                         </div>
 
@@ -437,6 +502,13 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                                                     <div className="text-xs text-gray-500 mt-1">
                                                         Used in: {item.recipes.join(', ')}
                                                     </div>
+
+                                                    {/* Show inventory details */}
+                                                    {item.inInventory && item.haveAmount && (
+                                                        <div className="text-xs text-blue-600 mt-1">
+                                                            In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {item.inInventory && (
