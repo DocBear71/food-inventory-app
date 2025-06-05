@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v3
+// file: /src/lib/models.js - v4
 
 import mongoose from 'mongoose';
 
@@ -336,6 +336,177 @@ const RecipeCollectionSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
+const MealPlanEntrySchema = new mongoose.Schema({
+    recipeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe',
+        required: true
+    },
+    recipeName: { type: String, required: true }, // Cache for performance
+    mealType: {
+        type: String,
+        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        required: true
+    },
+    servings: { type: Number, default: 1, min: 1 },
+    notes: { type: String, maxlength: 200 },
+    prepTime: Number, // Cached from recipe
+    cookTime: Number, // Cached from recipe
+    createdAt: { type: Date, default: Date.now }
+});
+
+// NEW: Meal Plan Schema
+const MealPlanSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+
+    // Week-based planning (Monday = 0, Sunday = 6)
+    weekStartDate: { type: Date, required: true }, // Start of the planning week
+
+    // Meals organized by day and meal type
+    meals: {
+        monday: [MealPlanEntrySchema],
+        tuesday: [MealPlanEntrySchema],
+        wednesday: [MealPlanEntrySchema],
+        thursday: [MealPlanEntrySchema],
+        friday: [MealPlanEntrySchema],
+        saturday: [MealPlanEntrySchema],
+        sunday: [MealPlanEntrySchema]
+    },
+
+    // Planning preferences
+    preferences: {
+        defaultServings: { type: Number, default: 4 },
+        mealTypes: {
+            type: [String],
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            default: ['breakfast', 'lunch', 'dinner']
+        },
+        dietaryRestrictions: [String],
+        avoidIngredients: [String]
+    },
+
+    // Shopping list generation
+    shoppingList: {
+        generated: { type: Boolean, default: false },
+        generatedAt: Date,
+        items: [{
+            ingredient: { type: String, required: true },
+            amount: String,
+            unit: String,
+            category: { type: String, default: 'other' },
+            recipes: [String], // Which recipes need this ingredient
+            inInventory: { type: Boolean, default: false },
+            purchased: { type: Boolean, default: false }
+        }]
+    },
+
+    // Meal prep suggestions
+    mealPrep: {
+        batchCookingSuggestions: [{
+            ingredient: String,
+            recipes: [String],
+            prepMethod: String,
+            storageTime: String
+        }],
+        prepDays: {
+            type: [String],
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            default: ['sunday']
+        }
+    },
+
+    // Nutrition tracking for the week
+    weeklyNutrition: {
+        totalCalories: { type: Number, default: 0 },
+        averageDailyCalories: { type: Number, default: 0 },
+        protein: { type: Number, default: 0 },
+        carbs: { type: Number, default: 0 },
+        fat: { type: Number, default: 0 },
+        fiber: { type: Number, default: 0 }
+    },
+
+    isTemplate: { type: Boolean, default: false }, // Can be saved as a reusable template
+    isActive: { type: Boolean, default: true },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// NEW: Meal Plan Template Schema (for saving favorite meal plans)
+const MealPlanTemplateSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    category: {
+        type: String,
+        enum: ['family', 'healthy', 'quick', 'budget', 'vegetarian', 'keto', 'custom'],
+        default: 'custom'
+    },
+
+    // Template meals (same structure as MealPlan)
+    templateMeals: {
+        monday: [MealPlanEntrySchema],
+        tuesday: [MealPlanEntrySchema],
+        wednesday: [MealPlanEntrySchema],
+        thursday: [MealPlanEntrySchema],
+        friday: [MealPlanEntrySchema],
+        saturday: [MealPlanEntrySchema],
+        sunday: [MealPlanEntrySchema]
+    },
+
+    // Usage statistics
+    timesUsed: { type: Number, default: 0 },
+    rating: { type: Number, min: 1, max: 5 },
+
+    isPublic: { type: Boolean, default: false }, // Share with other users
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Add meal planning preferences to User schema
+const UserMealPlanningPreferencesSchema = new mongoose.Schema({
+    defaultMealTypes: {
+        type: [String],
+        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        default: ['breakfast', 'lunch', 'dinner']
+    },
+    planningHorizon: {
+        type: String,
+        enum: ['week', '2weeks', 'month'],
+        default: 'week'
+    },
+    shoppingDay: {
+        type: String,
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: 'sunday'
+    },
+    mealPrepDays: {
+        type: [String],
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: ['sunday']
+    },
+    dietaryRestrictions: [String],
+    avoidIngredients: [String],
+    preferredCuisines: [String],
+    cookingTimePreference: {
+        type: String,
+        enum: ['quick', 'moderate', 'any'],
+        default: 'any'
+    }
+}, { _id: false });
+
+
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
@@ -362,9 +533,21 @@ DailyNutritionLogSchema.index({ userId: 1, 'meals.recipeId': 1 });
 RecipeCollectionSchema.index({ userId: 1 });
 RecipeCollectionSchema.index({ isPublic: 1 });
 
+// Create indexes for meal planning
+MealPlanSchema.index({ userId: 1, weekStartDate: 1 });
+MealPlanSchema.index({ userId: 1, isActive: 1 });
+MealPlanSchema.index({ weekStartDate: 1 });
+
+MealPlanTemplateSchema.index({ userId: 1 });
+MealPlanTemplateSchema.index({ isPublic: 1, category: 1 });
+MealPlanTemplateSchema.index({ timesUsed: -1 }); // For popular templates
+
+
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
 export const UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
 export const Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
 export const DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
 export const RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
+export const MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
+export const MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);

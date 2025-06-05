@@ -19,10 +19,20 @@
 .space-x-1 > * + * { margin-left: 0.25rem !important; }
 .space-x-2 > * + * { margin-left: 0.5rem !important; }
 .space-x-4 > * + * { margin-left: 1rem !important; }
+.space-y-2 > * + * { margin-top: 0.5rem !important; }
+.space-y-3 > * + * { margin-top: 0.75rem !important; }
+.space-y-4 > * + * { margin-top: 1rem !important; }
 .mt-1 { margin-top: 0.25rem !important; }
 .mt-2 { margin-top: 0.5rem !important; }
 .mb-1 { margin-bottom: 0.25rem !important; }
 .mb-2 { margin-bottom: 0.5rem !important; }
+
+/* ADD MISSING GRID UTILITIES */
+.grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+
+/* ADD MISSING HOVER UTILITIES */
+.hover\:bg-gray-50:hover { background-color: #f9fafb !important; }
+.hover\:text-indigo-800:hover { color: #3730a3 !important; }
 
 /* ADD MISSING COLOR UTILITIES */
 .text-gray-300 { color: #d1d5db !important; }
