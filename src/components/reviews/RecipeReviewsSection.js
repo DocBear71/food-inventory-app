@@ -1,4 +1,4 @@
-// file: /src/components/reviews/RecipeReviewsSection.js v1
+// file: /src/components/reviews/RecipeReviewsSection.js v4
 
 'use client';
 
@@ -194,7 +194,7 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
             ) : (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                     <div className="text-gray-500 mb-4">
-                        <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.96 8.96 0 01-4.906-1.431L3 21l2.431-5.094A8.96 8.96 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z" />
                         </svg>
                     </div>

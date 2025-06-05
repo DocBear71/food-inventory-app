@@ -1,10 +1,10 @@
-// file: /src/app/recipes/[id]/page.js v2
+// file: /src/app/recipes/[id]/page.js v6
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
@@ -13,6 +13,7 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts';
 export default function RecipeDetailPage() {
     const { data: session } = useSession();
     const params = useParams();
+    const router = useRouter();
     const recipeId = params.id;
 
     const [recipe, setRecipe] = useState(null);
