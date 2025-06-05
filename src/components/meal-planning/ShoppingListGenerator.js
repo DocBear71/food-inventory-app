@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v3
+// file: /src/components/meal-planning/ShoppingListGenerator.js v7
 
 'use client';
 
@@ -180,7 +180,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div
-                className="bg-white rounded-lg max-w-4xl w-full flex flex-col"
+                className="bg-white rounded-lg max-w-4xl w-full flex flex-col modal-container-mobile"
                 style={{ height: '90vh', maxHeight: '90vh' }}
             >
                 {/* Header */}
@@ -273,16 +273,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     </div>
                 )}
 
-                {/* Content - Fixed with inline styles */}
-                <div
-                    className="p-4 space-y-6 pb-8"
-                    style={{
-                        flex: '1',
-                        minHeight: '0',
-                        overflowY: 'scroll',
-                        maxHeight: 'calc(90vh - 300px)'
-                    }}
-                >
+                {/* Content - Fixed with CSS class */}
+                <div className="modal-scroll-fix p-4">
                     {loading && (
                         <div className="p-8 text-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -323,7 +315,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {shoppingList && (
-                        <div className="space-y-6">
+                        <div className="space-y-6 pb-20">
                             {Object.keys(groupedItems).length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500">No items match your current filter.</p>

@@ -343,3 +343,54 @@ textarea:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
+
+/* ADD THIS TO THE END OF YOUR /src/app/globals.css FILE */
+
+/* Force modal content to scroll properly */
+.modal-scroll-fix {
+    height: 60vh !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Override webkit scrollbar issues in modals */
+.modal-scroll-fix::-webkit-scrollbar {
+    width: 12px !important;
+    background: transparent !important;
+}
+
+.modal-scroll-fix::-webkit-scrollbar-thumb {
+    background: #d1d5db !important;
+    border-radius: 6px !important;
+    border: 2px solid transparent !important;
+    background-clip: content-box !important;
+}
+
+.modal-scroll-fix::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af !important;
+    background-clip: content-box !important;
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 768px) {
+    .modal-scroll-fix {
+        height: 50vh !important;
+        max-height: 50vh !important;
+    }
+
+    /* Ensure mobile scrolling works */
+    .modal-container-mobile {
+        height: 90vh !important;
+        max-height: 90vh !important;
+        overflow: hidden !important;
+    }
+}
+
+/* Force scroll for stubborn elements */
+.force-scroll {
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+}
