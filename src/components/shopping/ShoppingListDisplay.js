@@ -509,7 +509,7 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                     )}
                 </div>
 
-                {/* Controls */}
+                {/* Controls - STANDARDIZED LAYOUT */}
                 <div style={{
                     padding: '1rem 1.5rem',
                     borderBottom: '1px solid #e5e7eb',
@@ -571,9 +571,16 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                                     <option value="recipes">Recipe</option>
                                 </select>
                             </div>
+
+                            <div style={{
+                                fontSize: '0.875rem',
+                                color: '#6b7280'
+                            }}>
+                                Showing {filteredItems.length} items
+                            </div>
                         </div>
 
-                        {/* Print/Export Buttons - Same style as "What Can I Make" */}
+                        {/* STANDARDIZED BUTTONS - Match "What Can I Make" layout */}
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button
                                 onClick={printShoppingList}
@@ -627,14 +634,6 @@ export default function ShoppingListDisplay({ shoppingList, onClose }) {
                                 📝 Text
                             </button>
                         </div>
-                    </div>
-
-                    <div style={{
-                        marginTop: '0.5rem',
-                        fontSize: '0.875rem',
-                        color: '#6b7280'
-                    }}>
-                        Showing {filteredItems.length} items
                     </div>
                 </div>
 

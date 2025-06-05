@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/ShoppingListGenerator.js v5
+// file: /src/components/meal-planning/ShoppingListGenerator.js v6
 
 'use client';
 
@@ -114,6 +114,11 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
         } finally {
             setLoading(false);
         }
+    };
+
+    // Refresh shopping list
+    const refreshShoppingList = () => {
+        generateShoppingList();
     };
 
     // Update item (mark as purchased, etc.)
@@ -506,49 +511,123 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
                 </div>
 
-                {/* Controls */}
+                {/* Controls - STANDARDIZED LAYOUT */}
                 {shoppingList && (
                     <div style={controlsStyles}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Filter:</label>
-                                <select
-                                    value={filter}
-                                    onChange={(e) => setFilter(e.target.value)}
-                                    style={{
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '6px',
-                                        padding: '4px 12px',
-                                        fontSize: '14px'
-                                    }}
-                                >
-                                    <option value="all">All Items ({shoppingList.stats.totalItems})</option>
-                                    <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
-                                    <option value="inventory">In Inventory ({shoppingList.stats.inInventory})</option>
-                                    <option value="purchased">Purchased</option>
-                                </select>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Filter:</label>
+                                    <select
+                                        value={filter}
+                                        onChange={(e) => setFilter(e.target.value)}
+                                        style={{
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '6px',
+                                            padding: '4px 12px',
+                                            fontSize: '14px'
+                                        }}
+                                    >
+                                        <option value="all">All Items ({shoppingList.stats.totalItems})</option>
+                                        <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
+                                        <option value="inventory">In Inventory ({shoppingList.stats.inInventory})</option>
+                                        <option value="purchased">Purchased</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Sort by:</label>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        style={{
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '6px',
+                                            padding: '4px 12px',
+                                            fontSize: '14px'
+                                        }}
+                                    >
+                                        <option value="category">Category</option>
+                                        <option value="name">Name</option>
+                                        <option value="recipes">Recipe</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                    Showing {filteredItems.length} items
+                                </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Sort by:</label>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
+                            {/* STANDARDIZED BUTTONS - Match "What Can I Make" layout */}
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    onClick={refreshShoppingList}
                                     style={{
-                                        border: '1px solid #d1d5db',
+                                        backgroundColor: '#6b7280',
+                                        color: 'white',
+                                        padding: '8px 16px',
                                         borderRadius: '6px',
-                                        padding: '4px 12px',
-                                        fontSize: '14px'
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
                                     }}
                                 >
-                                    <option value="category">Category</option>
-                                    <option value="name">Name</option>
-                                    <option value="recipes">Recipe</option>
-                                </select>
-                            </div>
-
-                            <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                                Showing {filteredItems.length} items
+                                    🔄 Refresh
+                                </button>
+                                <button
+                                    onClick={printShoppingList}
+                                    style={{
+                                        backgroundColor: '#4f46e5',
+                                        color: 'white',
+                                        padding: '8px 16px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}
+                                >
+                                    🖨️ Print
+                                </button>
+                                <button
+                                    onClick={exportToPDF}
+                                    style={{
+                                        backgroundColor: '#dc2626',
+                                        color: 'white',
+                                        padding: '8px 16px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}
+                                >
+                                    📄 PDF
+                                </button>
+                                <button
+                                    onClick={exportToText}
+                                    style={{
+                                        backgroundColor: '#059669',
+                                        color: 'white',
+                                        padding: '8px 16px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}
+                                >
+                                    📝 Text
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -748,98 +827,27 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
                 </div>
 
-                {/* Footer with Print/Export Options */}
+                {/* STANDARDIZED FOOTER - Match "What Can I Make" layout */}
                 {shoppingList && (
                     <div style={footerStyles}>
                         <div style={{ fontSize: '14px', color: '#6b7280' }}>
                             Generated on {new Date(shoppingList.generatedAt).toLocaleDateString()}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <button
-                                onClick={printShoppingList}
-                                style={{
-                                    backgroundColor: '#4f46e5',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-                                </svg>
-                                Print
-                            </button>
-
-                            <button
-                                onClick={exportToPDF}
-                                style={{
-                                    backgroundColor: '#dc2626',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                </svg>
-                                PDF
-                            </button>
-
-                            <button
-                                onClick={exportToText}
-                                style={{
-                                    backgroundColor: '#059669',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
-                                </svg>
-                                Text
-                            </button>
-
-                            <button
-                                onClick={generateShoppingList}
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
-                                </svg>
-                                Refresh
-                            </button>
-                        </div>
+                        <button
+                            onClick={onClose}
+                            style={{
+                                backgroundColor: '#6b7280',
+                                color: 'white',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }}
+                        >
+                            Close
+                        </button>
                     </div>
                 )}
             </div>
