@@ -5,54 +5,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
-const scrollingStyles = {
-    modal: {
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: '50',
-        padding: '16px'
-    },
-    container: {
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        maxWidth: '1024px',
-        width: '100%',
-        height: '90vh',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-    },
-    content: {
-        flex: '1',
-        overflowY: 'auto',
-        padding: '16px'
-    }
-};
-
-// Then replace your return statement's outer divs with:
-
-return (
-    <div style={scrollingStyles.modal}>
-        <div style={scrollingStyles.container}>
-            {/* Your existing header content */}
-
-            {/* Content with forced scrolling */}
-            <div style={scrollingStyles.content}>
-                {/* All your existing content here */}
-            </div>
-
-            {/* Your existing footer */}
-        </div>
-    </div>
-);
-
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
     const [shoppingList, setShoppingList] = useState(null);
@@ -318,8 +270,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     </div>
                 )}
 
-                {/* Content */}
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                {/* Content - Fixed with better scrolling */}
+                <div className="flex-1 min-h-0 overflow-auto">
                     {loading && (
                         <div className="p-8 text-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -360,7 +312,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     )}
 
                     {shoppingList && (
-                        <div className="p-4 space-y-6 pb-20">
+                        <div className="p-4 space-y-6 pb-8">
                             {Object.keys(groupedItems).length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500">No items match your current filter.</p>
