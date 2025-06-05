@@ -1,264 +1,473 @@
-// file: /src/components/shopping/ShoppingListDisplay.js
+// file: /src/components/shopping/ShoppingListDisplay.js v2
 
 'use client';
 
 import { useState } from 'react';
 
 export default function ShoppingListDisplay({ shoppingList, onClose }) {
-    const [checkedItems, setCheckedItems] = useState(new Set());
+    const [filter, setFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('category');
 
-    if (!shoppingList || !shoppingList.items) {
-        return (
-            <div className="text-center py-8">
-                <p className="text-gray-500">No shopping list data available</p>
-            </div>
-        );
-    }
+    // Print Shopping List
+    const printShoppingList = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = generatePrintHTML();
 
-    const toggleItemCheck = (itemId) => {
-        const newChecked = new Set(checkedItems);
-        if (newChecked.has(itemId)) {
-            newChecked.delete(itemId);
-        } else {
-            newChecked.add(itemId);
-        }
-        setCheckedItems(newChecked);
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
     };
 
+    // Generate Print HTML
+    const generatePrintHTML = () => {
+        const groupedItems = getGroupedItems();
+        const printDate = new Date().toLocaleDateString();
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Shopping List - Selected Recipes</title>
+                <style>
+                    @media print {
+                        @page { margin: 0.5in; }
+                        body { font-family: Arial, sans-serif; font-size: 12pt; }
+                    }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        line-height: 1.4; 
+                        color: #333;
+                        max-width: 8.5in;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header { 
+                        text-align: center; 
+                        margin-bottom: 30px; 
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 15px;
+                    }
+                    .header h1 { margin: 0; font-size: 24pt; }
+                    .header p { margin: 5px 0 0 0; font-size: 11pt; color: #666; }
+                    .category { 
+                        margin-bottom: 25px; 
+                        break-inside: avoid;
+                    }
+                    .category h2 { 
+                        font-size: 16pt; 
+                        margin: 0 0 10px 0; 
+                        padding: 8px 12px;
+                        background: #f5f5f5; 
+                        border-left: 4px solid #333;
+                    }
+                    .item { 
+                        display: flex; 
+                        align-items: flex-start; 
+                        margin-bottom: 8px; 
+                        padding: 4px 0;
+                        border-bottom: 1px dotted #ccc;
+                    }
+                    .checkbox { 
+                        width: 15px; 
+                        height: 15px; 
+                        border: 2px solid #333; 
+                        margin-right: 12px; 
+                        margin-top: 2px;
+                        flex-shrink: 0;
+                    }
+                    .item-content { flex: 1; }
+                    .item-name { font-weight: bold; font-size: 11pt; }
+                    .item-amount { font-size: 10pt; color: #666; margin-left: 8px; }
+                    .item-recipes { font-size: 9pt; color: #888; font-style: italic; margin-top: 2px; }
+                    .inventory-note { 
+                        color: #0066cc; 
+                        font-size: 9pt; 
+                        font-weight: bold; 
+                        margin-top: 2px;
+                    }
+                    .stats { 
+                        margin-top: 30px; 
+                        padding: 15px; 
+                        background: #f9f9f9; 
+                        border: 1px solid #ddd;
+                        font-size: 10pt;
+                    }
+                    .footer { 
+                        margin-top: 30px; 
+                        text-align: center; 
+                        font-size: 9pt; 
+                        color: #666;
+                        border-top: 1px solid #ddd;
+                        padding-top: 15px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🛒 Shopping List</h1>
+                    <p>Selected Recipes • Generated on ${printDate}</p>
+                </div>
+                
+                ${Object.entries(groupedItems).map(([category, items]) => `
+                    <div class="category">
+                        <h2>${getCategoryName(category)} (${items.length} items)</h2>
+                        ${items.map(item => `
+                            <div class="item">
+                                <div class="checkbox"></div>
+                                <div class="item-content">
+                                    <span class="item-name">${item.ingredient}</span>
+                                    <span class="item-amount">${formatAmount(item)}</span>
+                                    ${item.inInventory ? '<div class="inventory-note">✓ In your inventory</div>' : ''}
+                                    <div class="item-recipes">Used in: ${item.recipes.join(', ')}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('')}
+                
+                <div class="stats">
+                    <strong>Shopping Summary:</strong><br>
+                    Total Items: ${shoppingList.stats.totalItems} • 
+                    Need to Buy: ${shoppingList.stats.needToBuy} • 
+                    In Inventory: ${shoppingList.stats.inInventory}
+                </div>
+                
+                <div class="footer">
+                    Generated by Food Inventory App • ${new Date().toLocaleString()}
+                </div>
+            </body>
+            </html>
+        `;
+    };
+
+    // Export to Text
     const exportToText = () => {
-        let text = `🛒 Shopping List\n`;
-        text += `Generated on ${new Date().toLocaleDateString()}\n\n`;
+        const groupedItems = getGroupedItems();
+        const exportDate = new Date().toLocaleDateString();
 
-        text += `📋 Recipes (${shoppingList.recipes.length}):\n`;
-        shoppingList.recipes.forEach(recipe => {
-            text += `• ${recipe}\n`;
-        });
-        text += '\n';
+        let textContent = `SHOPPING LIST\n`;
+        textContent += `Selected Recipes\n`;
+        textContent += `Generated: ${exportDate}\n`;
+        textContent += `${'='.repeat(50)}\n\n`;
 
-        Object.entries(shoppingList.items).forEach(([category, items]) => {
-            text += `${getCategoryIcon(category)} ${category} (${items.length} items)\n`;
+        Object.entries(groupedItems).forEach(([category, items]) => {
+            textContent += `${getCategoryName(category).toUpperCase()} (${items.length} items)\n`;
+            textContent += `${'-'.repeat(30)}\n`;
+
             items.forEach(item => {
-                const status = checkedItems.has(item.name) ? '☑' : '☐';
-                text += `${status} ${item.name}\n`;
-                if (item.haveAmount > 0) {
-                    text += `   Have: ${item.haveAmount} ${item.unit} → Need: ${item.needAmount} more\n`;
+                textContent += `☐ ${item.ingredient}`;
+                if (formatAmount(item)) {
+                    textContent += ` - ${formatAmount(item)}`;
                 }
+                if (item.inInventory) {
+                    textContent += ` [IN INVENTORY]`;
+                }
+                textContent += `\n`;
+                textContent += `  Used in: ${item.recipes.join(', ')}\n`;
             });
-            text += '\n';
+            textContent += `\n`;
         });
 
-        text += `📊 Summary:\n`;
-        text += `Total Items: ${shoppingList.summary.totalItems}\n`;
-        text += `Already Have: ${shoppingList.summary.alreadyHave}\n`;
-        text += `Need to Buy: ${shoppingList.summary.needToBuy}\n`;
+        textContent += `SUMMARY:\n`;
+        textContent += `Total Items: ${shoppingList.stats.totalItems}\n`;
+        textContent += `Need to Buy: ${shoppingList.stats.needToBuy}\n`;
+        textContent += `In Inventory: ${shoppingList.stats.inInventory}\n`;
 
-        const blob = new Blob([text], { type: 'text/plain' });
+        // Download as text file
+        const blob = new Blob([textContent], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `shopping-list-${new Date().toISOString().split('T')[0]}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `shopping-list-recipes-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
 
-    const printList = () => {
-        const printContent = document.getElementById('shopping-list-content').innerHTML;
+    // Export to PDF (using browser's print to PDF)
+    const exportToPDF = () => {
         const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Shopping List</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        .category { font-weight: bold; margin-top: 20px; }
-                        .item { margin-left: 20px; margin-bottom: 5px; }
-                        .summary { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 15px; }
-                        @media print { body { margin: 0; } }
-                    </style>
-                </head>
-                <body>
-                    <h1>🛒 Shopping List</h1>
-                    <p>Generated on ${new Date().toLocaleDateString()}</p>
-                    ${printContent}
-                </body>
-            </html>
-        `);
+        const printContent = generatePrintHTML();
+
+        printWindow.document.write(printContent);
         printWindow.document.close();
-        printWindow.print();
+        printWindow.focus();
+
+        // Add instructions for PDF export
+        const instructionDiv = printWindow.document.createElement('div');
+        instructionDiv.innerHTML = `
+            <div style="position: fixed; top: 10px; right: 10px; background: #ffffcc; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; z-index: 1000;">
+                <strong>To save as PDF:</strong><br>
+                1. Press Ctrl+P (Cmd+P on Mac)<br>
+                2. Choose "Save as PDF"<br>
+                3. Click Save
+            </div>
+        `;
+        printWindow.document.body.appendChild(instructionDiv);
+
+        // Auto-trigger print dialog
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     };
 
-    const getCategoryIcon = (category) => {
-        const icons = {
-            'Produce': '🥬',
-            'Meat': '🥩',
-            'Dairy': '🥛',
-            'Grains': '🌾',
-            'Pantry': '🏺',
-            'Condiments': '🧂',
-            'Frozen': '🧊',
-            'Beverages': '🥤',
-            'Other': '📦'
+    // Filter and sort items
+    const getFilteredItems = () => {
+        if (!shoppingList?.items) return [];
+
+        let filtered = shoppingList.items;
+
+        switch (filter) {
+            case 'needed':
+                filtered = filtered.filter(item => !item.inInventory);
+                break;
+            case 'inventory':
+                filtered = filtered.filter(item => item.inInventory);
+                break;
+            default:
+                break;
+        }
+
+        switch (sortBy) {
+            case 'name':
+                filtered.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
+                break;
+            case 'recipes':
+                filtered.sort((a, b) => a.recipes.join(', ').localeCompare(b.recipes.join(', ')));
+                break;
+            default:
+                break;
+        }
+
+        return filtered;
+    };
+
+    // Group items by category for display
+    const getGroupedItems = () => {
+        const filtered = getFilteredItems();
+        const grouped = {};
+
+        filtered.forEach(item => {
+            const category = item.category || 'other';
+            if (!grouped[category]) {
+                grouped[category] = [];
+            }
+            grouped[category].push(item);
+        });
+
+        return grouped;
+    };
+
+    // Get category display name
+    const getCategoryName = (category) => {
+        const names = {
+            produce: '🥬 Produce',
+            meat: '🥩 Meat & Seafood',
+            dairy: '🥛 Dairy & Eggs',
+            pantry: '🥫 Pantry & Dry Goods',
+            frozen: '🧊 Frozen Foods',
+            bakery: '🍞 Bakery',
+            other: '📦 Other Items'
         };
-        return icons[category] || '📦';
+        return names[category] || `📦 ${category}`;
     };
 
-    const hasItems = Object.keys(shoppingList.items).length > 0;
+    // Format amount display
+    const formatAmount = (item) => {
+        return item.amount || '';
+    };
+
+    const filteredItems = getFilteredItems();
+    const groupedItems = getGroupedItems();
 
     return (
-        <div className="bg-white">
-            {/* Header with Actions */}
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">🛒 Your Shopping List</h2>
-                <div className="flex space-x-2">
-                    <button
-                        onClick={exportToText}
-                        className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-                    >
-                        💾 Export
-                    </button>
-                    <button
-                        onClick={printList}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                    >
-                        🖨️ Print
-                    </button>
+        <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-900">🛒 Your Shopping List</h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Items you need to buy based on selected recipes
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+                        className="text-gray-400 hover:text-gray-600"
                     >
-                        ↻ New List
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
+                </div>
+
+                {/* Stats */}
+                {shoppingList?.stats && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="bg-blue-50 p-3 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                                {shoppingList.stats.totalItems}
+                            </div>
+                            <div className="text-sm text-blue-800">Total Items</div>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                                {shoppingList.stats.inInventory}
+                            </div>
+                            <div className="text-sm text-green-800">In Inventory</div>
+                        </div>
+                        <div className="bg-orange-50 p-3 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-orange-600">
+                                {shoppingList.stats.needToBuy}
+                            </div>
+                            <div className="text-sm text-orange-800">Need to Buy</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Controls */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-wrap gap-4 items-center justify-between">
+                    <div className="flex gap-4 items-center">
+                        <div className="flex items-center space-x-2">
+                            <label className="text-sm font-medium text-gray-700">Filter:</label>
+                            <select
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                            >
+                                <option value="all">All Items ({shoppingList.stats.totalItems})</option>
+                                <option value="needed">Need to Buy ({shoppingList.stats.needToBuy})</option>
+                                <option value="inventory">In Inventory ({shoppingList.stats.inInventory})</option>
+                            </select>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                            >
+                                <option value="category">Category</option>
+                                <option value="name">Name</option>
+                                <option value="recipes">Recipe</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Print/Export Buttons */}
+                    <div className="flex gap-2">
+                        <button
+                            onClick={printShoppingList}
+                            className="bg-indigo-600 text-white px-3 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                            </svg>
+                            Print
+                        </button>
+
+                        <button
+                            onClick={exportToPDF}
+                            className="bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 transition-colors flex items-center gap-2"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                            PDF
+                        </button>
+
+                        <button
+                            onClick={exportToText}
+                            className="bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 transition-colors flex items-center gap-2"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
+                            </svg>
+                            Text
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-2 text-sm text-gray-600">
+                    Showing {filteredItems.length} items
                 </div>
             </div>
 
-            <div id="shopping-list-content">
-                {/* Selected Recipes */}
-                <div className="mb-6">
-                    <h3 className="font-medium text-gray-900 mb-2">📋 Selected Recipes ({shoppingList.recipes.length})</h3>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                        {shoppingList.recipes.map((recipe, index) => (
-                            <span key={index} className="inline-block bg-indigo-100 text-indigo-800 text-sm px-2 py-1 rounded mr-2 mb-1">
-                                {recipe}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-
-                {!hasItems ? (
-                    /* No items needed */
-                    <div className="text-center py-8 bg-green-50 rounded-lg border border-green-200">
-                        <div className="text-green-600 text-lg font-medium mb-2">
-                            🎉 You have everything you need!
-                        </div>
-                        <p className="text-green-700">
-                            Your current inventory covers all the ingredients for the selected recipe(s).
-                        </p>
-                        <div className="mt-4 text-sm text-green-600">
-                            📦 Based on standard package sizes and ingredient matching
-                        </div>
+            {/* Shopping List Content */}
+            <div className="px-6 py-4 max-h-96 overflow-y-auto">
+                {Object.keys(groupedItems).length === 0 ? (
+                    <div className="text-center py-8">
+                        <p className="text-gray-500">No items match your current filter.</p>
                     </div>
                 ) : (
-                    /* Shopping list items by category */
                     <div className="space-y-6">
-                        {Object.entries(shoppingList.items).map(([category, items]) => (
-                            <div key={category} className="border border-gray-200 rounded-lg">
-                                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                                    <h4 className="font-medium text-gray-900">
-                                        {getCategoryIcon(category)} {category} ({items.length} items)
-                                    </h4>
-                                </div>
-                                <div className="p-4 space-y-3">
-                                    {items.map((item, index) => {
-                                        const itemId = `${category}-${index}`;
-                                        const isChecked = checkedItems.has(itemId);
+                        {Object.entries(groupedItems).map(([category, items]) => (
+                            <div key={category}>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                                    {getCategoryName(category)} ({items.length})
+                                </h3>
 
-                                        return (
-                                            <div key={index} className="flex items-start space-x-3">
-                                                <button
-                                                    onClick={() => toggleItemCheck(itemId)}
-                                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
-                                                        isChecked
-                                                            ? 'bg-green-500 border-green-500 text-white'
-                                                            : 'border-gray-300 hover:border-gray-400'
-                                                    }`}
-                                                >
-                                                    {isChecked && '✓'}
-                                                </button>
+                                <div className="space-y-2">
+                                    {items.map((item, index) => (
+                                        <div
+                                            key={`${item.ingredient}-${index}`}
+                                            className={`p-3 border rounded-lg ${
+                                                item.inInventory
+                                                    ? 'bg-blue-50 border-blue-200'
+                                                    : 'bg-white border-gray-200'
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start">
                                                 <div className="flex-1">
-                                                    <div className={`${isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                                                        <span className="font-medium">{item.originalName}</span>
-                                                        <span className="text-sm text-gray-600 ml-2">
-                                                            ({item.needAmount} {item.unit})
-                                                        </span>
+                                                    <div className="font-medium text-gray-900">
+                                                        {item.ingredient}
                                                     </div>
 
-                                                    {/* Show inventory status */}
-                                                    {item.haveAmount > 0 && (
-                                                        <div className="text-sm text-blue-600 mt-1">
-                                                            Have: {item.haveAmount} {item.unit} → Need: {item.needAmount} more
+                                                    {item.amount && (
+                                                        <div className="text-sm text-gray-600 mt-1">
+                                                            {item.amount}
                                                         </div>
                                                     )}
 
-                                                    {/* Show pantry staple note */}
-                                                    {item.isPantryStaple && (
-                                                        <div className="text-xs text-yellow-600 mt-1">
-                                                            💡 Common pantry staple - check your spice rack
-                                                        </div>
-                                                    )}
-
-                                                    {/* Show which recipes use this ingredient */}
-                                                    {item.recipes && item.recipes.length > 0 && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            Used in: {item.recipes.join(', ')}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        Used in: {item.recipes.join(', ')}
+                                                    </div>
                                                 </div>
+
+                                                {item.inInventory && (
+                                                    <div className="text-blue-600 text-xs flex items-center">
+                                                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                        </svg>
+                                                        In Inventory
+                                                    </div>
+                                                )}
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
+            </div>
 
-                {/* Shopping Summary */}
-                <div className="mt-6 bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">📊 Shopping Summary</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{shoppingList.summary.totalItems}</div>
-                            <div className="text-sm text-gray-600">Total Items</div>
-                        </div>
-                        <div>
-                            <div className="text-2xl font-bold text-blue-600">{shoppingList.summary.categories}</div>
-                            <div className="text-sm text-gray-600">Categories</div>
-                        </div>
-                        <div>
-                            <div className="text-2xl font-bold text-green-600">{shoppingList.summary.alreadyHave}</div>
-                            <div className="text-sm text-gray-600">Already Have</div>
-                        </div>
-                        <div>
-                            <div className="text-2xl font-bold text-red-600">{shoppingList.summary.needToBuy}</div>
-                            <div className="text-sm text-gray-600">Need to Buy</div>
-                        </div>
-                    </div>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                    Generated on {new Date().toLocaleDateString()}
                 </div>
-
-                {/* Package Size Explanation */}
-                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h5 className="font-medium text-blue-900 mb-2">📦 Smart Package Matching</h5>
-                    <p className="text-blue-800 text-sm">
-                        When your inventory shows "items" or "packages", the system assumes standard package sizes:
-                    </p>
-                    <ul className="text-blue-700 text-xs mt-2 space-y-1">
-                        <li>• Pasta box = 16 oz • Oil bottle = 32 oz • Flour bag = 80 oz</li>
-                        <li>• Milk carton = 32 oz • Butter stick = 16 oz • Rice package = 32 oz</li>
-                        <li>• For small amounts (≤2 units), assumes one package covers the recipe</li>
-                    </ul>
-                </div>
+                <button
+                    onClick={onClose}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                    Close
+                </button>
             </div>
         </div>
     );
