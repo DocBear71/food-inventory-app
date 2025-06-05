@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/[id]/reviews/route.js v2 - FIXED
+// file: /src/app/api/recipes/[id]/reviews/route.js v3 - FIXED
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
         console.log('=== GET /api/recipes/[id]/reviews START ===');
 
         const session = await getServerSession(authOptions);
-        const recipeId = params.id;
+        const { id: recipeId } = await params;
 
         console.log('Recipe ID:', recipeId);
         console.log('Session:', session);
@@ -87,11 +87,9 @@ export async function GET(request, { params }) {
             success: true,
             reviews: sortedReviews,
             ratingStats: ratingStats,
-            userCanReview: true
-
-                // session?.user?.id &&
-                // session.user.id !== recipe.createdBy.toString() &&
-                // !reviews.some(r => r.userId && r.userId.toString() === session.user.id)
+            userCanReview: session?.user?.id &&
+                session.user.id !== recipe.createdBy.toString() &&
+                !reviews.some(r => r.userId && r.userId.toString() === session.user.id)
         });
 
     } catch (error) {

@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/[id]/view/route.js v1
+// file: /src/app/api/recipes/[id]/view/route.js v2
 
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
@@ -7,7 +7,7 @@ import { Recipe } from '@/lib/models';
 // POST - Track a recipe view
 export async function POST(request, { params }) {
     try {
-        const recipeId = params.id;
+        const { id: recipeId } = await params;
 
         if (!recipeId) {
             return NextResponse.json(
