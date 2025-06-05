@@ -1,14 +1,16 @@
-// file: /src/app/api/meal-plans/route.js v1
+// file: /src/app/api/meal-plans/route.js - FIXED VERSION
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { MealPlan, Recipe, UserInventory } from '@/lib/models';
+import { MealPlan, Recipe } from '@/lib/models';
 
 // GET - Fetch user's meal plans
 export async function GET(request) {
     try {
+        console.log('=== GET /api/meal-plans START ===');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
@@ -19,28 +21,29 @@ export async function GET(request) {
         const weekStart = searchParams.get('weekStart');
         const active = searchParams.get('active') !== 'false';
 
+        console.log('Week start:', weekStart);
+        console.log('User ID:', session.user.id);
+
         await connectDB();
 
         let query = { userId: session.user.id };
 
         if (weekStart) {
-            query.weekStartDate = new Date(weekStart);
+            const weekStartDate = new Date(weekStart);
+            query.weekStartDate = weekStartDate;
         }
 
         if (active) {
             query.isActive = true;
         }
 
+        console.log('Query:', query);
+
         const mealPlans = await MealPlan.find(query)
-            .populate('meals.monday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.tuesday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.wednesday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.thursday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.friday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.saturday.recipeId', 'title prepTime cookTime difficulty')
-            .populate('meals.sunday.recipeId', 'title prepTime cookTime difficulty')
             .sort({ weekStartDate: -1 })
             .lean();
+
+        console.log('Found meal plans:', mealPlans.length);
 
         return NextResponse.json({
             success: true,
@@ -48,7 +51,11 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        console.error('GET meal plans error:', error);
+        console.error('=== GET meal plans error ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+
         return NextResponse.json(
             { error: 'Failed to fetch meal plans' },
             { status: 500 }
@@ -59,6 +66,8 @@ export async function GET(request) {
 // POST - Create a new meal plan
 export async function POST(request) {
     try {
+        console.log('=== POST /api/meal-plans START ===');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
@@ -66,9 +75,12 @@ export async function POST(request) {
         }
 
         const body = await request.json();
+        console.log('Request body:', body);
+
         const { name, description, weekStartDate, preferences } = body;
 
         if (!name || !weekStartDate) {
+            console.log('Validation failed - missing name or weekStartDate');
             return NextResponse.json(
                 { error: 'Name and week start date are required' },
                 { status: 400 }
@@ -77,26 +89,35 @@ export async function POST(request) {
 
         await connectDB();
 
+        // Parse the date properly
+        const parsedWeekStart = new Date(weekStartDate);
+        console.log('Parsed week start:', parsedWeekStart);
+
         // Check if meal plan already exists for this week
         const existingPlan = await MealPlan.findOne({
             userId: session.user.id,
-            weekStartDate: new Date(weekStartDate)
+            weekStartDate: parsedWeekStart
         });
 
         if (existingPlan) {
-            return NextResponse.json(
-                { error: 'Meal plan already exists for this week' },
-                { status: 400 }
-            );
+            console.log('Meal plan already exists for this week');
+            return NextResponse.json({
+                success: true,
+                mealPlan: existingPlan,
+                message: 'Meal plan already exists for this week'
+            });
         }
 
         // Create new meal plan
-        const mealPlan = new MealPlan({
+        const mealPlanData = {
             userId: session.user.id,
             name,
             description: description || '',
-            weekStartDate: new Date(weekStartDate),
-            preferences: preferences || {},
+            weekStartDate: parsedWeekStart,
+            preferences: preferences || {
+                defaultServings: 4,
+                mealTypes: ['breakfast', 'lunch', 'dinner', 'snack']
+            },
             meals: {
                 monday: [],
                 tuesday: [],
@@ -105,10 +126,33 @@ export async function POST(request) {
                 friday: [],
                 saturday: [],
                 sunday: []
-            }
-        });
+            },
+            shoppingList: {
+                generated: false,
+                items: []
+            },
+            mealPrep: {
+                batchCookingSuggestions: [],
+                prepDays: ['sunday']
+            },
+            weeklyNutrition: {
+                totalCalories: 0,
+                averageDailyCalories: 0,
+                protein: 0,
+                carbs: 0,
+                fat: 0,
+                fiber: 0
+            },
+            isTemplate: false,
+            isActive: true
+        };
 
+        console.log('Creating meal plan with data:', mealPlanData);
+
+        const mealPlan = new MealPlan(mealPlanData);
         await mealPlan.save();
+
+        console.log('Meal plan created successfully:', mealPlan._id);
 
         return NextResponse.json({
             success: true,
@@ -117,9 +161,13 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('POST meal plan error:', error);
+        console.error('=== POST meal plan error ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+
         return NextResponse.json(
-            { error: 'Failed to create meal plan' },
+            { error: 'Failed to create meal plan', details: error.message },
             { status: 500 }
         );
     }
@@ -128,6 +176,8 @@ export async function POST(request) {
 // PUT - Update meal plan
 export async function PUT(request) {
     try {
+        console.log('=== PUT /api/meal-plans START ===');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
@@ -135,6 +185,8 @@ export async function PUT(request) {
         }
 
         const body = await request.json();
+        console.log('Update body:', body);
+
         const { mealPlanId, ...updates } = body;
 
         if (!mealPlanId) {
@@ -168,6 +220,8 @@ export async function PUT(request) {
         mealPlan.updatedAt = new Date();
         await mealPlan.save();
 
+        console.log('Meal plan updated successfully');
+
         return NextResponse.json({
             success: true,
             mealPlan,
@@ -175,7 +229,11 @@ export async function PUT(request) {
         });
 
     } catch (error) {
-        console.error('PUT meal plan error:', error);
+        console.error('=== PUT meal plan error ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+
         return NextResponse.json(
             { error: 'Failed to update meal plan' },
             { status: 500 }
