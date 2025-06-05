@@ -424,12 +424,47 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
-                {/* Mobile Recipe Selection Modal */}
+                {/* Mobile Recipe Selection Modal - FIXED */}
                 {showRecipeModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end z-40">
-                        <div className="bg-white rounded-t-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
-                            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-900">
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '16px'
+                    }}>
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: '8px',
+                            maxWidth: '500px',
+                            width: '100%',
+                            maxHeight: '80vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}>
+                            {/* Header */}
+                            <div style={{
+                                padding: '16px',
+                                borderBottom: '1px solid #e5e7eb',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexShrink: 0
+                            }}>
+                                <h3 style={{
+                                    fontSize: '18px',
+                                    fontWeight: '600',
+                                    color: '#111827',
+                                    margin: 0
+                                }}>
                                     Add to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
                                 <button
@@ -437,37 +472,88 @@ export default function MealPlanningCalendar() {
                                         setShowRecipeModal(false);
                                         setSelectedSlot(null);
                                     }}
-                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                    style={{
+                                        color: '#9ca3af',
+                                        fontSize: '20px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        padding: '4px'
+                                    }}
                                 >
                                     ×
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4">
+                            {/* Content */}
+                            <div style={{
+                                flex: '1',
+                                overflow: 'auto',
+                                padding: '16px'
+                            }}>
                                 {recipes.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500">No recipes found. Add some recipes first!</p>
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '32px'
+                                    }}>
+                                        <p style={{ color: '#6b7280' }}>No recipes found. Add some recipes first!</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '12px'
+                                    }}>
                                         {recipes.map(recipe => (
                                             <button
                                                 key={recipe._id}
                                                 onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
-                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                style={{
+                                                    width: '100%',
+                                                    textAlign: 'left',
+                                                    padding: '16px',
+                                                    border: '1px solid #e5e7eb',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: 'white',
+                                                    cursor: 'pointer',
+                                                    transition: 'background-color 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                                                onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
                                             >
-                                                <div className="font-medium text-gray-900">{recipe.title}</div>
-                                                <div className="text-sm text-gray-600 mt-1">
-                                                    {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
-                                                    • {recipe.difficulty}
+                                                <div style={{
+                                                    fontWeight: '500',
+                                                    color: '#111827',
+                                                    marginBottom: '4px'
+                                                }}>
+                                                    {recipe.title}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '14px',
+                                                    color: '#6b7280',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min • {recipe.difficulty}
                                                 </div>
                                                 {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        flexWrap: 'wrap',
+                                                        gap: '4px'
+                                                    }}>
                                                         {recipe.tags.slice(0, 3).map(tag => (
-                                                            <span key={tag}
-                                                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                            {tag}
-                                                        </span>
+                                                            <span
+                                                                key={tag}
+                                                                style={{
+                                                                    padding: '2px 8px',
+                                                                    backgroundColor: '#f3f4f6',
+                                                                    color: '#6b7280',
+                                                                    fontSize: '12px',
+                                                                    borderRadius: '4px'
+                                                                }}
+                                                            >
+                                                                {tag}
+                                                            </span>
                                                         ))}
                                                     </div>
                                                 )}
