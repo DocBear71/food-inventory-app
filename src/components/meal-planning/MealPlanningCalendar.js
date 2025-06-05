@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v1
+// file: /src/components/meal-planning/MealPlanningCalendar.js v2
 
 'use client';
 
@@ -206,14 +206,21 @@ export default function MealPlanningCalendar() {
 
     const fetchMealPlan = async () => {
         try {
+            console.log('=== Fetching meal plan ===');
             const weekStartParam = currentWeekStart.toISOString().split('T')[0];
+            console.log('Week start param:', weekStartParam);
+
             const response = await fetch(`/api/meal-plans?weekStart=${weekStartParam}`);
             const data = await response.json();
 
+            console.log('Fetch response:', data);
+
             if (data.success) {
                 if (data.mealPlans.length > 0) {
+                    console.log('Found existing meal plan:', data.mealPlans[0]);
                     setMealPlan(data.mealPlans[0]);
                 } else {
+                    console.log('No meal plan found, creating new one');
                     // Create a new meal plan for this week
                     await createMealPlan();
                 }
@@ -275,6 +282,11 @@ export default function MealPlanningCalendar() {
     const handleSelectRecipe = async (recipe) => {
         if (!mealPlan) return;
 
+        console.log('=== Adding meal to slot ===');
+        console.log('Selected slot:', selectedSlot);
+        console.log('Recipe:', recipe.title);
+        console.log('Current meal plan ID:', mealPlan._id);
+
         const newMeal = {
             recipeId: recipe._id,
             recipeName: recipe.title,
@@ -289,6 +301,11 @@ export default function MealPlanningCalendar() {
             const updatedMeals = { ...mealPlan.meals };
             updatedMeals[selectedSlot.day] = [...(updatedMeals[selectedSlot.day] || []), newMeal];
 
+            console.log('Sending update to API:', {
+                mealPlanId: mealPlan._id,
+                meals: updatedMeals
+            });
+
             const response = await fetch('/api/meal-plans', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -299,11 +316,18 @@ export default function MealPlanningCalendar() {
             });
 
             const data = await response.json();
+            console.log('API Response:', data);
+
             if (data.success) {
+                console.log('Meal saved successfully!');
                 setMealPlan(data.mealPlan);
+            } else {
+                console.error('Failed to save meal:', data.error);
+                alert('Failed to save meal: ' + data.error);
             }
         } catch (error) {
             console.error('Error adding meal:', error);
+            alert('Error adding meal: ' + error.message);
         }
 
         setShowRecipeModal(false);
