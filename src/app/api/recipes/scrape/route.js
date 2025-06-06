@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/scrape/route.js - v1
+// file: /src/app/api/recipes/scrape/route.js - v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -33,6 +33,163 @@ const extractNumericValue = (value) => {
     const match = strValue.match(/^(\d+(?:\.\d+)?)/);
     return match ? match[1] : '';
 };
+
+// Parse ingredient text into structured format
+function parseIngredientText(text) {
+    if (!text) return { name: '', amount: '', unit: '', optional: false };
+
+    console.log('Parsing ingredient text:', text);
+
+    // Clean up the text first
+    text = text.trim();
+
+    // Convert fraction characters
+    text = text
+        .replace(/½/g, '1/2')
+        .replace(/¼/g, '1/4')
+        .replace(/¾/g, '3/4')
+        .replace(/⅓/g, '1/3')
+        .replace(/⅔/g, '2/3')
+        .replace(/⅛/g, '1/8');
+
+    // Enhanced unit lists including metric
+    const units = [
+        // US measurements
+        'cups?', 'cup', 'tablespoons?', 'tablespoon', 'tbsp', 'teaspoons?', 'teaspoon', 'tsp',
+        'pounds?', 'pound', 'lbs?', 'lb', 'ounces?', 'ounce', 'oz', 'fluid ounces?', 'fl oz',
+        'pints?', 'pint', 'pt', 'quarts?', 'quart', 'qt', 'gallons?', 'gallon', 'gal',
+
+        // Metric measurements
+        'grams?', 'gram', 'g', 'kilograms?', 'kilogram', 'kg', 'milligrams?', 'milligram', 'mg',
+        'liters?', 'liter', 'litres?', 'litre', 'l', 'milliliters?', 'milliliter', 'ml', 'millilitres?', 'millitre',
+
+        // Count-based units
+        'pieces?', 'piece', 'slices?', 'slice', 'cloves?', 'clove', 'bulbs?', 'bulb',
+        'stalks?', 'stalk', 'sprigs?', 'sprig', 'leaves?', 'leaf', 'strips?', 'strip',
+        'wedges?', 'wedge', 'segments?', 'segment', 'cans?', 'can', 'jars?', 'jar',
+        'bottles?', 'bottle', 'packages?', 'package', 'boxes?', 'box', 'bags?', 'bag', 'bunches?', 'bunch',
+
+        // Size descriptors (treated as units for parsing purposes)
+        'large', 'medium', 'small', 'extra-large', 'extra large', 'xl',
+        'jumbo', 'mini', 'baby', 'whole', 'half', 'quarter'
+    ];
+
+    // Create a comprehensive pattern for all units - more specific matching
+    const unitPattern = units.join('|');
+
+    // Enhanced patterns for different ingredient formats - order matters!
+    const patterns = [
+        // "to taste" items like "salt, to taste" or "vegetable oil, to taste"
+        /^(.+?),?\s+to\s+taste$/i,
+
+        // "2 tablespoons vegetable oil" (amount + unit + ingredient)
+        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
+
+        // "vegetable oil, 2 tablespoons" (ingredient first, then amount + unit)
+        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
+
+        // "2 large eggs" or "1 medium onion" (amount + size + ingredient)
+        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(large|medium|small|extra-large|extra large|xl|jumbo|mini|baby|whole)\\s+(.+)$`, 'i'),
+
+        // "1 (15 oz) can tomatoes" - handle parenthetical amounts
+        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s*\([^)]+\)\s*(.+)$/i,
+
+        // "2 pounds ground beef" - general amount + item (fallback)
+        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s+(.+)$/i
+    ];
+
+    // Try each pattern in order
+    for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
+        const match = text.match(pattern);
+
+        if (match) {
+            console.log(`Pattern ${i + 1} matched:`, match);
+
+            // Handle "to taste" items (Pattern 1)
+            if (pattern.source.includes('to\\s+taste')) {
+                return {
+                    name: match[1].trim(),
+                    amount: 'to taste',
+                    unit: '',
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle "amount + unit + ingredient" (Pattern 2)
+            if (i === 1) {
+                return {
+                    name: match[3].trim(),
+                    amount: match[1],
+                    unit: match[2],
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle "ingredient, amount + unit" (Pattern 3)
+            if (i === 2) {
+                return {
+                    name: match[1].trim(),
+                    amount: match[2],
+                    unit: match[3],
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle "amount + size + ingredient" (Pattern 4)
+            if (i === 3) {
+                return {
+                    name: `${match[2]} ${match[3]}`.trim(),
+                    amount: match[1],
+                    unit: '',
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle parenthetical amounts (Pattern 5)
+            if (i === 4) {
+                return {
+                    name: match[2].trim(),
+                    amount: match[1],
+                    unit: '',
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle general amount + item (Pattern 6 - fallback)
+            if (i === 5) {
+                // Check if the second part starts with a known unit
+                const remainingText = match[2].trim();
+                const unitMatch = remainingText.match(new RegExp(`^(${unitPattern})\\s+(.+)$`, 'i'));
+
+                if (unitMatch) {
+                    return {
+                        name: unitMatch[2].trim(),
+                        amount: match[1],
+                        unit: unitMatch[1],
+                        optional: text.toLowerCase().includes('optional')
+                    };
+                } else {
+                    return {
+                        name: remainingText,
+                        amount: match[1],
+                        unit: '',
+                        optional: text.toLowerCase().includes('optional')
+                    };
+                }
+            }
+        }
+    }
+
+    console.log('No pattern matched, using entire text as ingredient name');
+    // No pattern matched, return the whole text as ingredient name
+    return {
+        name: text.trim(),
+        amount: '',
+        unit: '',
+        optional: text.toLowerCase().includes('optional')
+    };
+}
 
 // Clean and normalize recipe data
 function normalizeRecipeData(jsonLdData) {
@@ -270,155 +427,6 @@ function normalizeRecipeData(jsonLdData) {
 
     console.log('Final normalized recipe:', normalizedRecipe);
     return normalizedRecipe;
-}
-
-// Parse ingredient text into structured format
-function parseIngredientText(text) {
-    if (!text) return { name: '', amount: '', unit: '', optional: false };
-
-    console.log('Parsing ingredient text:', text);
-
-    // Clean up the text first
-    text = text.trim();
-
-    // Convert fraction characters
-    text = text
-        .replace(/½/g, '1/2')
-        .replace(/¼/g, '1/4')
-        .replace(/¾/g, '3/4')
-        .replace(/⅓/g, '1/3')
-        .replace(/⅔/g, '2/3')
-        .replace(/⅛/g, '1/8');
-
-    // Enhanced unit lists including metric
-    const units = [
-        // US measurements
-        'cups?', 'cup', 'tablespoons?', 'tbsp', 'teaspoons?', 'tsp',
-        'pounds?', 'lbs?', 'ounces?', 'oz', 'fluid ounces?', 'fl oz',
-        'pints?', 'pt', 'quarts?', 'qt', 'gallons?', 'gal',
-
-        // Metric measurements
-        'grams?', 'g', 'kilograms?', 'kg', 'milligrams?', 'mg',
-        'liters?', 'l', 'litres?', 'milliliters?', 'ml', 'millilitres?',
-
-        // Count-based units
-        'pieces?', 'slices?', 'cloves?', 'bulbs?', 'stalks?', 'sprigs?',
-        'leaves?', 'strips?', 'wedges?', 'segments?', 'cans?', 'jars?',
-        'bottles?', 'packages?', 'boxes?', 'bags?', 'bunches?',
-
-        // Size descriptors
-        'large', 'medium', 'small', 'extra-large', 'extra large', 'xl',
-        'jumbo', 'mini', 'baby', 'whole', 'half', 'quarter'
-    ];
-
-    // Create a comprehensive pattern for all units
-    const unitPattern = units.join('|');
-
-    // Enhanced patterns for different ingredient formats
-    const patterns = [
-        // "220 grams pineapple" or "650 grams chicken breast"
-        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
-
-        // "1 cup flour" or "2 tablespoons olive oil"
-        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
-
-        // "pineapple, 220 grams" (ingredient first, then amount)
-        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
-
-        // "chicken breast, 650 grams" (ingredient first, then amount)
-        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
-
-        // "1 (15 oz) can tomatoes" - handle parenthetical amounts
-        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s*\([^)]+\)\s*(.+)$/i,
-
-        // "to taste" items like "salt, to taste" or "vegetable oil, to taste"
-        /^(.+?),?\s+to\s+taste$/i,
-
-        // "2 large eggs" or "1 medium onion" (size descriptor)
-        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(large|medium|small|extra-large|extra large|xl|jumbo|mini|baby|whole)\\s+(.+)$`, 'i'),
-
-        // "2 pounds ground beef" - general amount + item
-        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s+(.+)$/i
-    ];
-
-    // Try each pattern
-    for (let i = 0; i < patterns.length; i++) {
-        const pattern = patterns[i];
-        const match = text.match(pattern);
-
-        if (match) {
-            console.log(`Pattern ${i + 1} matched:`, match);
-
-            // Handle "to taste" items
-            if (pattern.source.includes('to\\s+taste')) {
-                return {
-                    name: match[1].trim(),
-                    amount: 'to taste',
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle ingredient-first patterns (like "pineapple, 220 grams")
-            if (pattern.source.includes('[^,]+')) {
-                return {
-                    name: match[1].trim(),
-                    amount: match[2],
-                    unit: match[3],
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle parenthetical amounts
-            if (pattern.source.includes('\\([^)]+\\)')) {
-                return {
-                    name: match[2].trim(),
-                    amount: match[1],
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle size descriptors (large, medium, small)
-            if (pattern.source.includes('large|medium|small')) {
-                return {
-                    name: `${match[2]} ${match[3]}`.trim(),
-                    amount: match[1],
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle standard amount + unit + ingredient
-            if (match.length >= 4) {
-                return {
-                    name: match[3].trim(),
-                    amount: match[1],
-                    unit: match[2],
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle general amount + item (no explicit unit)
-            if (match.length === 3) {
-                return {
-                    name: match[2].trim(),
-                    amount: match[1],
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-        }
-    }
-
-    console.log('No pattern matched, using entire text as ingredient name');
-    // No pattern matched, return the whole text as ingredient name
-    return {
-        name: text.trim(),
-        amount: '',
-        unit: '',
-        optional: text.toLowerCase().includes('optional')
-    };
 }
 
 // Extract JSON-LD structured data from HTML
