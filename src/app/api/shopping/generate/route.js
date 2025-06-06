@@ -1,454 +1,554 @@
-// file: /src/app/api/shopping/generate/route.js v33
+// file: /src/app/api/shopping/generate/route.js v35
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { Recipe } from '@/lib/models';
+import { Recipe, UserInventory, MealPlan } from '@/lib/models';
 
-// Enhanced ingredient variations matching (same as recipe suggestions)
-const ingredientVariations = {
-    'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni', 'fusilli', 'linguine', 'angel hair', 'bow tie', 'rotini'],
-    'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil', 'pure olive oil', 'evoo'],
-    'garlic': ['garlic cloves', 'fresh garlic', 'garlic bulb', 'minced garlic'],
-    'onion': ['yellow onion', 'white onion', 'red onion', 'sweet onion'],
-    'tomato': ['roma tomato', 'cherry tomato', 'grape tomato', 'beefsteak tomato', 'diced tomato', 'crushed tomato'],
-    'cheese': ['cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese'],
-    'milk': ['whole milk', '2% milk', 'skim milk', 'low fat milk'],
-    'butter': ['unsalted butter', 'salted butter', 'sweet butter'],
-    'flour': ['all purpose flour', 'bread flour', 'cake flour', 'whole wheat flour'],
-    'sugar': ['white sugar', 'granulated sugar', 'brown sugar', 'raw sugar'],
-    'salt': ['table salt', 'sea salt', 'kosher salt', 'iodized salt'],
-    'pepper': ['black pepper', 'white pepper', 'ground pepper', 'cracked pepper']
+// Enhanced ingredient matching and categorization system
+const INGREDIENT_CATEGORIES = {
+    // Fresh produce
+    'produce': [
+        'tomato', 'onion', 'garlic', 'ginger', 'potato', 'carrot', 'celery', 'bell pepper', 'pepper',
+        'cucumber', 'lettuce', 'spinach', 'kale', 'broccoli', 'cauliflower', 'cabbage', 'zucchini',
+        'eggplant', 'mushroom', 'avocado', 'lemon', 'lime', 'orange', 'apple', 'banana', 'berry',
+        'strawberry', 'blueberry', 'raspberry', 'grape', 'pineapple', 'mango', 'cilantro', 'parsley',
+        'basil', 'mint', 'rosemary', 'thyme', 'oregano', 'sage', 'dill', 'chive', 'scallion',
+        'green onion', 'shallot', 'leek', 'jalapeño', 'serrano', 'habanero', 'poblano', 'anaheim'
+    ],
+
+    // Pantry staples
+    'pantry': [
+        'flour', 'sugar', 'brown sugar', 'salt', 'pepper', 'baking powder', 'baking soda', 'vanilla',
+        'olive oil', 'vegetable oil', 'coconut oil', 'vinegar', 'soy sauce', 'worcestershire',
+        'hot sauce', 'ketchup', 'mustard', 'mayonnaise', 'honey', 'maple syrup', 'rice', 'pasta',
+        'quinoa', 'oats', 'bread', 'tortilla', 'beans', 'lentils', 'chickpeas', 'broth', 'stock',
+        'tomato sauce', 'tomato paste', 'coconut milk', 'peanut butter', 'almond butter', 'nuts',
+        'almonds', 'walnuts', 'pecans', 'cashews', 'peanuts', 'pine nuts', 'sesame seeds', 'chia seeds'
+    ],
+
+    // Dairy products
+    'dairy': [
+        'milk', 'butter', 'cheese', 'cheddar', 'mozzarella', 'parmesan', 'feta', 'goat cheese',
+        'cream cheese', 'sour cream', 'yogurt', 'greek yogurt', 'heavy cream', 'half and half',
+        'buttermilk', 'cottage cheese', 'ricotta', 'swiss cheese', 'provolone', 'brie', 'camembert'
+    ],
+
+    // Meat and seafood
+    'meat': [
+        'chicken', 'beef', 'pork', 'turkey', 'lamb', 'duck', 'bacon', 'ham', 'sausage', 'ground beef',
+        'ground turkey', 'ground chicken', 'ground pork', 'steak', 'roast', 'chop', 'tenderloin',
+        'brisket', 'ribs', 'wings', 'thigh', 'breast', 'leg', 'salmon', 'tuna', 'cod', 'halibut',
+        'shrimp', 'crab', 'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'fish', 'seafood'
+    ],
+
+    // Frozen foods
+    'frozen': [
+        'frozen vegetables', 'frozen fruit', 'frozen berries', 'ice cream', 'frozen pizza',
+        'frozen dinner', 'frozen chicken', 'frozen fish', 'frozen shrimp', 'frozen peas',
+        'frozen corn', 'frozen broccoli', 'frozen spinach', 'frozen strawberries', 'frozen mango'
+    ],
+
+    // Beverages
+    'beverages': [
+        'water', 'sparkling water', 'juice', 'coffee', 'tea', 'wine', 'beer', 'soda', 'kombucha',
+        'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'energy drink', 'sports drink'
+    ],
+
+    // Bakery
+    'bakery': [
+        'bread', 'bagel', 'muffin', 'croissant', 'baguette', 'sourdough', 'whole wheat bread',
+        'pita bread', 'naan', 'tortilla', 'wrap', 'roll', 'bun', 'cake', 'pie', 'cookie', 'donut'
+    ],
+
+    // Deli
+    'deli': [
+        'turkey', 'ham', 'salami', 'pepperoni', 'prosciutto', 'roast beef', 'pastrami', 'bologna',
+        'deli meat', 'lunch meat', 'sliced cheese', 'hummus', 'olives', 'pickles'
+    ]
 };
 
-// Standard package sizes for common items
-const standardPackageSizes = {
-    'pasta': { amount: 16, unit: 'oz' },
-    'penne': { amount: 16, unit: 'oz' },
-    'spaghetti': { amount: 16, unit: 'oz' },
-    'olive oil': { amount: 32, unit: 'oz' },
-    'extra virgin olive oil': { amount: 32, unit: 'oz' },
-    'flour': { amount: 80, unit: 'oz' },
-    'sugar': { amount: 64, unit: 'oz' },
-    'milk': { amount: 32, unit: 'oz' },
-    'butter': { amount: 16, unit: 'oz' },
-    'rice': { amount: 32, unit: 'oz' }
+// Ingredient variations and aliases
+const INGREDIENT_VARIATIONS = {
+    'tomato': ['tomatoes', 'cherry tomatoes', 'grape tomatoes', 'roma tomatoes', 'beefsteak tomatoes'],
+    'onion': ['onions', 'yellow onion', 'white onion', 'red onion', 'sweet onion', 'vidalia onion'],
+    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'garlic powder'],
+    'bell pepper': ['bell peppers', 'red bell pepper', 'green bell pepper', 'yellow bell pepper', 'orange bell pepper'],
+    'mushroom': ['mushrooms', 'button mushrooms', 'cremini mushrooms', 'portobello mushrooms', 'shiitake mushrooms'],
+    'chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings', 'whole chicken'],
+    'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef'],
+    'cheese': ['shredded cheese', 'sliced cheese', 'block cheese', 'grated cheese'],
+    'pasta': ['spaghetti', 'penne', 'fusilli', 'rigatoni', 'linguine', 'fettuccine', 'angel hair'],
+    'rice': ['white rice', 'brown rice', 'jasmine rice', 'basmati rice', 'wild rice', 'arborio rice'],
+    'oil': ['olive oil', 'vegetable oil', 'canola oil', 'sunflower oil', 'avocado oil', 'coconut oil'],
+    'vinegar': ['white vinegar', 'apple cider vinegar', 'balsamic vinegar', 'red wine vinegar', 'rice vinegar'],
+    'flour': ['all-purpose flour', 'whole wheat flour', 'bread flour', 'cake flour', 'self-rising flour'],
+    'sugar': ['white sugar', 'granulated sugar', 'cane sugar', 'brown sugar', 'powdered sugar', 'confectioners sugar'],
+    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat-free milk', 'almond milk', 'oat milk', 'soy milk']
 };
 
-// GET endpoint for single recipe shopping list
-export async function GET(request) {
+// Standard package sizes for inventory matching
+const STANDARD_PACKAGE_SIZES = {
+    // Liquids (in oz)
+    'olive oil': { size: 16.9, unit: 'fl oz', type: 'liquid' },
+    'vegetable oil': { size: 48, unit: 'fl oz', type: 'liquid' },
+    'milk': { size: 64, unit: 'fl oz', type: 'liquid' },
+    'heavy cream': { size: 16, unit: 'fl oz', type: 'liquid' },
+    'chicken broth': { size: 32, unit: 'fl oz', type: 'liquid' },
+    'vegetable broth': { size: 32, unit: 'fl oz', type: 'liquid' },
+    'beef broth': { size: 32, unit: 'fl oz', type: 'liquid' },
+    'soy sauce': { size: 10, unit: 'fl oz', type: 'liquid' },
+    'vinegar': { size: 16, unit: 'fl oz', type: 'liquid' },
+    'vanilla extract': { size: 2, unit: 'fl oz', type: 'liquid' },
+
+    // Dry goods (in oz or lbs)
+    'flour': { size: 5, unit: 'lb', type: 'dry' },
+    'sugar': { size: 4, unit: 'lb', type: 'dry' },
+    'brown sugar': { size: 2, unit: 'lb', type: 'dry' },
+    'rice': { size: 2, unit: 'lb', type: 'dry' },
+    'pasta': { size: 1, unit: 'lb', type: 'dry' },
+    'quinoa': { size: 16, unit: 'oz', type: 'dry' },
+    'oats': { size: 18, unit: 'oz', type: 'dry' },
+    'beans': { size: 15, unit: 'oz', type: 'canned' },
+    'chickpeas': { size: 15, unit: 'oz', type: 'canned' },
+    'lentils': { size: 16, unit: 'oz', type: 'dry' },
+
+    // Dairy (various units)
+    'butter': { size: 1, unit: 'lb', type: 'dairy' },
+    'cheese': { size: 8, unit: 'oz', type: 'dairy' },
+    'cream cheese': { size: 8, unit: 'oz', type: 'dairy' },
+    'sour cream': { size: 16, unit: 'oz', type: 'dairy' },
+    'yogurt': { size: 32, unit: 'oz', type: 'dairy' },
+
+    // Canned goods (in oz)
+    'tomato sauce': { size: 15, unit: 'oz', type: 'canned' },
+    'tomato paste': { size: 6, unit: 'oz', type: 'canned' },
+    'coconut milk': { size: 13.5, unit: 'fl oz', type: 'canned' },
+    'diced tomatoes': { size: 14.5, unit: 'oz', type: 'canned' },
+    'crushed tomatoes': { size: 28, unit: 'oz', type: 'canned' },
+
+    // Condiments and sauces (in oz)
+    'ketchup': { size: 20, unit: 'oz', type: 'condiment' },
+    'mustard': { size: 8, unit: 'oz', type: 'condiment' },
+    'mayonnaise': { size: 30, unit: 'oz', type: 'condiment' },
+    'hot sauce': { size: 5, unit: 'fl oz', type: 'condiment' },
+    'worcestershire sauce': { size: 10, unit: 'fl oz', type: 'condiment' },
+
+    // Spices (in oz)
+    'salt': { size: 26, unit: 'oz', type: 'spice' },
+    'black pepper': { size: 3, unit: 'oz', type: 'spice' },
+    'garlic powder': { size: 3.12, unit: 'oz', type: 'spice' },
+    'onion powder': { size: 2.33, unit: 'oz', type: 'spice' },
+    'paprika': { size: 2.37, unit: 'oz', type: 'spice' },
+    'cumin': { size: 1.5, unit: 'oz', type: 'spice' },
+    'oregano': { size: 1, unit: 'oz', type: 'spice' },
+    'basil': { size: 1, unit: 'oz', type: 'spice' },
+    'thyme': { size: 1, unit: 'oz', type: 'spice' },
+    'rosemary': { size: 1, unit: 'oz', type: 'spice' },
+
+    // Nuts and seeds (in oz or lbs)
+    'almonds': { size: 16, unit: 'oz', type: 'nuts' },
+    'walnuts': { size: 16, unit: 'oz', type: 'nuts' },
+    'peanuts': { size: 16, unit: 'oz', type: 'nuts' },
+    'cashews': { size: 10, unit: 'oz', type: 'nuts' },
+    'pine nuts': { size: 2, unit: 'oz', type: 'nuts' }
+};
+
+// Function to extract recipe IDs from meal plan
+async function getRecipeIdsFromMealPlan(mealPlanId) {
     try {
-        console.log('=== V33 REAL SMART MATCHING ===');
-
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const mealPlan = await MealPlan.findById(mealPlanId);
+        if (!mealPlan) {
+            throw new Error('Meal plan not found');
         }
 
-        const { searchParams } = new URL(request.url);
-        const recipeId = searchParams.get('recipeId');
+        const recipeIds = new Set();
 
-        if (!recipeId) {
-            return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
-        }
-
-        await connectDB();
-
-        // Get recipe
-        const recipe = await Recipe.findOne({ _id: recipeId, createdBy: session.user.id });
-        if (!recipe) {
-            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
-        }
-
-        // Get inventory from the same API the frontend uses
-        const baseUrl = request.headers.get('host') ? `https://${request.headers.get('host')}` : 'http://localhost:3000';
-
-        const inventoryResponse = await fetch(`${baseUrl}/api/inventory`, {
-            headers: {
-                'Cookie': request.headers.get('cookie') || ''
-            }
-        });
-
-        let inventory = [];
-        if (inventoryResponse.ok) {
-            const inventoryData = await inventoryResponse.json();
-            inventory = inventoryData.success ? inventoryData.inventory : [];
-        }
-
-        console.log('V33: Recipe found:', recipe.title);
-        console.log('V33: Inventory count:', inventory.length);
-
-        // Generate real shopping list with smart matching
-        const shoppingList = generateSmartShoppingList([recipe], inventory);
-
-        return NextResponse.json({
-            success: true,
-            shoppingList,
-            debug: {
-                version: 'v33',
-                message: 'Real smart package matching implementation',
-                inventoryCount: inventory.length,
-                inventoryItems: inventory.map(item => ({ name: item.name, quantity: item.quantity, unit: item.unit }))
-            }
-        });
-
-    } catch (error) {
-        console.error('V33 Error:', error);
-        return NextResponse.json({
-            error: 'V33 Failed: ' + error.message,
-            version: 'v33'
-        }, { status: 500 });
-    }
-}
-
-// POST endpoint for multiple recipes
-export async function POST(request) {
-    try {
-        console.log('=== V33 POST REAL SMART MATCHING ===');
-
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { recipeIds } = await request.json();
-        if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
-            return NextResponse.json({ error: 'Recipe IDs are required' }, { status: 400 });
-        }
-
-        await connectDB();
-
-        // Get recipes
-        const recipes = await Recipe.find({ _id: { $in: recipeIds }, createdBy: session.user.id });
-
-        // Get inventory from the same API the frontend uses
-        const baseUrl = request.headers.get('host') ? `https://${request.headers.get('host')}` : 'http://localhost:3000';
-
-        const inventoryResponse = await fetch(`${baseUrl}/api/inventory`, {
-            headers: {
-                'Cookie': request.headers.get('cookie') || ''
-            }
-        });
-
-        let inventory = [];
-        if (inventoryResponse.ok) {
-            const inventoryData = await inventoryResponse.json();
-            inventory = inventoryData.success ? inventoryData.inventory : [];
-        }
-
-        console.log('V33 POST: Found recipes:', recipes.length);
-        console.log('V33 POST: Inventory count:', inventory.length);
-
-        // Generate real shopping list with smart matching
-        const shoppingList = generateSmartShoppingList(recipes, inventory);
-
-        return NextResponse.json({
-            success: true,
-            shoppingList,
-            debug: {
-                version: 'v33',
-                message: 'Real smart package matching POST implementation',
-                recipeCount: recipes.length,
-                inventoryCount: inventory.length,
-                inventoryItems: inventory.map(item => ({ name: item.name, quantity: item.quantity, unit: item.unit }))
-            }
-        });
-
-    } catch (error) {
-        console.error('V33 POST Error:', error);
-        return NextResponse.json({
-            error: 'V33 POST Failed: ' + error.message,
-            version: 'v33'
-        }, { status: 500 });
-    }
-}
-
-// Real smart shopping list generation
-function generateSmartShoppingList(recipes, inventory) {
-    console.log('V33: Generating smart shopping list...');
-
-    const neededIngredients = {};
-
-    // Collect all needed ingredients from recipes
-    recipes.forEach(recipe => {
-        console.log(`V33: Processing recipe: ${recipe.title}`);
-
-        if (!recipe.ingredients || recipe.ingredients.length === 0) {
-            return;
-        }
-
-        recipe.ingredients.forEach(ingredient => {
-            if (!ingredient || !ingredient.name) return;
-
-            const normalizedName = normalizeIngredientName(ingredient.name);
-            const key = normalizedName;
-
-            if (!neededIngredients[key]) {
-                neededIngredients[key] = {
-                    name: ingredient.name,
-                    normalizedName,
-                    totalAmount: 0,
-                    unit: ingredient.unit || 'item',
-                    recipes: [],
-                    category: categorizeIngredient(ingredient.name)
-                };
-            }
-
-            // Handle "to taste" amounts and empty/invalid amounts
-            let amount = 1;
-            if (ingredient.amount === 'to taste') {
-                amount = 1;
-            } else if (typeof ingredient.amount === 'string' && ingredient.amount.trim()) {
-                const parsed = parseFloat(ingredient.amount);
-                amount = isNaN(parsed) ? 1 : parsed;
-            } else if (typeof ingredient.amount === 'number') {
-                amount = ingredient.amount;
-            }
-
-            let unit = 'item';
-            if (ingredient.amount === 'to taste') {
-                unit = 'tsp';
-            } else if (ingredient.unit && typeof ingredient.unit === 'string' && ingredient.unit.trim()) {
-                unit = ingredient.unit.trim();
-            }
-
-            neededIngredients[key].totalAmount += amount;
-            neededIngredients[key].recipes.push(recipe.title);
-            neededIngredients[key].unit = unit;
-
-            console.log(`V33: Added ingredient: ${ingredient.name} - ${amount} ${unit}`);
-        });
-    });
-
-    console.log('V33: Starting inventory matching...');
-
-    // Check what we have vs what we need
-    Object.values(neededIngredients).forEach(needed => {
-        const inventoryMatch = findInventoryMatch(needed.normalizedName, inventory);
-
-        let haveAmount = 0;
-        let needAmount = needed.totalAmount;
-        let status = 'need to buy';
-
-        console.log(`V33: Checking ${needed.name} (${needed.totalAmount} ${needed.unit})`);
-
-        if (inventoryMatch) {
-            console.log(`V33: Found match: ${inventoryMatch.name} (${inventoryMatch.quantity} ${inventoryMatch.unit})`);
-
-            // Simple smart package matching logic
-            const isSmartMatch = checkSmartPackageMatch(needed, inventoryMatch);
-
-            if (isSmartMatch) {
-                haveAmount = needed.totalAmount;
-                needAmount = 0;
-                status = 'have enough';
-                console.log(`V33: ✅ Smart package match! Have enough.`);
-            } else {
-                console.log(`V33: ❌ Not enough or no package match.`);
-            }
-        } else {
-            console.log(`V33: ❌ No inventory match found.`);
-        }
-
-        // Check if it's a pantry staple
-        const pantryStaples = ['salt', 'pepper'];
-        const isPantryStaple = pantryStaples.some(staple =>
-            needed.normalizedName.includes(staple)
-        );
-
-        needed.haveAmount = haveAmount;
-        needed.needAmount = needAmount;
-        needed.status = status;
-        needed.isPantryStaple = isPantryStaple;
-
-        console.log(`V33: Final: ${needed.name} - Have: ${haveAmount}, Need: ${needAmount}, Status: ${status}`);
-    });
-
-    // Filter and categorize shopping list
-    const shoppingListItems = Object.values(neededIngredients)
-        .filter(item => item.needAmount > 0)
-        .map(item => ({
-            name: `${item.needAmount} ${item.unit} ${item.name}`,
-            category: item.category,
-            originalName: item.name,
-            needAmount: item.needAmount,
-            haveAmount: item.haveAmount,
-            unit: item.unit,
-            recipes: item.recipes,
-            status: item.status,
-            isPantryStaple: item.isPantryStaple || false
-        }));
-
-    // Group by category
-    const categorizedList = {};
-    shoppingListItems.forEach(item => {
-        if (!categorizedList[item.category]) {
-            categorizedList[item.category] = [];
-        }
-        categorizedList[item.category].push(item);
-    });
-
-    // Calculate summary
-    const totalItems = Object.values(neededIngredients).length;
-    const alreadyHave = Object.values(neededIngredients).filter(item => item.needAmount === 0).length;
-    const needToBuy = shoppingListItems.length;
-
-    console.log(`V33: Summary - Total: ${totalItems}, Have: ${alreadyHave}, Need: ${needToBuy}`);
-
-    return {
-        items: categorizedList,
-        recipes: recipes.map(r => r.title),
-        summary: {
-            totalItems,
-            categories: Object.keys(categorizedList).length,
-            alreadyHave,
-            needToBuy
-        }
-    };
-}
-
-// Simple smart package matching
-function checkSmartPackageMatch(needed, inventoryItem) {
-    const itemName = inventoryItem.name.toLowerCase();
-    const neededName = needed.normalizedName.toLowerCase();
-    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
-    const neededUnit = (needed.unit || 'item').toLowerCase();
-
-    console.log(`V33: Package check: ${itemName} (${inventoryItem.quantity} ${inventoryUnit}) vs ${neededName} (${needed.totalAmount} ${neededUnit})`);
-
-    // If inventory is in "items", check package sizes
-    if (inventoryUnit === 'item' || inventoryUnit === 'items') {
-
-        // Check variations first
-        for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
-            if (variations.includes(neededName) || neededName.includes(baseIngredient) ||
-                variations.includes(itemName) || itemName.includes(baseIngredient)) {
-
-                // Found a variation match, check package size
-                const packageSize = standardPackageSizes[baseIngredient];
-                if (packageSize) {
-                    const totalPackageAmount = inventoryItem.quantity * packageSize.amount;
-                    console.log(`V33: Package size check: ${baseIngredient} = ${packageSize.amount} ${packageSize.unit}`);
-                    console.log(`V33: Total available: ${totalPackageAmount} ${packageSize.unit}`);
-
-                    // Check if units are compatible and we have enough
-                    if (unitsAreCompatible(packageSize.unit, neededUnit)) {
-                        const hasEnough = totalPackageAmount >= needed.totalAmount;
-                        console.log(`V33: Compatible units, hasEnough = ${hasEnough}`);
-                        return hasEnough;
+        // Extract recipe IDs from all days
+        Object.values(mealPlan.meals).forEach(dayMeals => {
+            if (Array.isArray(dayMeals)) {
+                dayMeals.forEach(meal => {
+                    if (meal.recipeId) {
+                        recipeIds.add(meal.recipeId.toString());
                     }
-                }
+                });
             }
-        }
+        });
 
-        // For small amounts, assume one package is enough
-        if (needed.totalAmount <= 2) {
-            console.log(`V33: Small amount assumption - assuming 1 package covers ${needed.totalAmount} ${neededUnit}`);
-            return true;
-        }
+        return Array.from(recipeIds);
+    } catch (error) {
+        console.error('Error extracting recipe IDs from meal plan:', error);
+        throw error;
     }
-
-    return false;
 }
 
-// Simple unit compatibility check
-function unitsAreCompatible(unit1, unit2) {
-    if (!unit1 || !unit2) return false;
-
-    const u1 = unit1.toLowerCase();
-    const u2 = unit2.toLowerCase();
-
-    // Direct match
-    if (u1 === u2) return true;
-
-    // Common aliases
-    const aliases = {
-        'oz': ['ounce', 'ounces'],
-        'ounce': ['oz', 'ounces'],
-        'tbsp': ['tablespoon', 'tablespoons'],
-        'tablespoon': ['tbsp', 'tablespoons'],
-        'tsp': ['teaspoon', 'teaspoons'],
-        'teaspoon': ['tsp', 'teaspoons']
-    };
-
-    if (aliases[u1] && aliases[u1].includes(u2)) return true;
-    if (aliases[u2] && aliases[u2].includes(u1)) return true;
-
-    return false;
-}
-
-// Find matching item in inventory
-function findInventoryMatch(ingredientName, inventory) {
-    const normalizedIngredient = normalizeIngredientName(ingredientName);
-
-    console.log(`V33: Looking for: "${normalizedIngredient}"`);
-
-    // 1. Exact match
-    let match = inventory.find(item =>
-        normalizeIngredientName(item.name) === normalizedIngredient
-    );
-
-    if (match) {
-        console.log(`V33: ✅ Exact match: ${match.name}`);
-        return match;
-    }
-
-    // 2. Ingredient variations match
-    for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
-        if (normalizedIngredient.includes(baseIngredient) ||
-            variations.some(v => normalizedIngredient.includes(v) || v.includes(normalizedIngredient))) {
-
-            match = inventory.find(item => {
-                const itemName = normalizeIngredientName(item.name);
-                return variations.some(variation =>
-                    itemName.includes(variation) || variation.includes(itemName)
-                ) || itemName.includes(baseIngredient) || baseIngredient.includes(itemName);
-            });
-
-            if (match) {
-                console.log(`V33: ✅ Variation match: ${match.name} matches ${normalizedIngredient}`);
-                return match;
-            }
-        }
-    }
-
-    console.log(`V33: ❌ No match found for: ${normalizedIngredient}`);
-    return null;
-}
-
-// Normalize ingredient names for matching
-function normalizeIngredientName(name) {
-    if (!name || typeof name !== 'string') {
+// Enhanced ingredient normalization
+function normalizeIngredient(ingredient) {
+    if (!ingredient || typeof ingredient !== 'string') {
         return '';
     }
-    return name.toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .replace(/\s+/g, ' ')
+
+    return ingredient
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s]/g, ' ')  // Replace non-word characters with spaces
+        .replace(/\s+/g, ' ')      // Replace multiple spaces with single space
         .trim();
 }
 
-// Categorize ingredients for shopping list organization
-function categorizeIngredient(name) {
-    if (!name || typeof name !== 'string') {
-        return 'Other';
-    }
+// Get all variations of an ingredient
+function getIngredientVariations(ingredient) {
+    const normalized = normalizeIngredient(ingredient);
+    const variations = new Set([normalized]);
 
-    const lowerName = name.toLowerCase();
-
-    const categories = {
-        'Produce': ['garlic', 'onion', 'tomato', 'lettuce', 'carrot', 'celery', 'pepper', 'mushroom'],
-        'Grains': ['pasta', 'rice', 'bread', 'flour', 'cereal', 'penne', 'spaghetti'],
-        'Pantry': ['oil', 'vinegar', 'salt', 'pepper', 'sugar', 'honey', 'vanilla', 'spice'],
-        'Condiments': ['olive oil', 'vegetable oil', 'ketchup', 'mustard'],
-        'Dairy': ['milk', 'cheese', 'butter', 'yogurt', 'cream']
-    };
-
-    for (const [category, keywords] of Object.entries(categories)) {
-        if (keywords.some(keyword => lowerName.includes(keyword))) {
-            return category;
+    // Add known variations
+    for (const [base, vars] of Object.entries(INGREDIENT_VARIATIONS)) {
+        if (normalized.includes(base) || vars.some(v => normalized.includes(v))) {
+            variations.add(base);
+            vars.forEach(v => variations.add(normalizeIngredient(v)));
         }
     }
 
-    return 'Other';
+    return Array.from(variations);
+}
+
+// Categorize ingredient based on name
+function categorizeIngredient(ingredient) {
+    const normalized = normalizeIngredient(ingredient);
+
+    for (const [category, items] of Object.entries(INGREDIENT_CATEGORIES)) {
+        for (const item of items) {
+            if (normalized.includes(item) || item.includes(normalized)) {
+                return category;
+            }
+        }
+    }
+
+    // Check variations
+    const variations = getIngredientVariations(ingredient);
+    for (const variation of variations) {
+        for (const [category, items] of Object.entries(INGREDIENT_CATEGORIES)) {
+            for (const item of items) {
+                if (variation.includes(item) || item.includes(variation)) {
+                    return category;
+                }
+            }
+        }
+    }
+
+    return 'other';
+}
+
+// Enhanced inventory matching with variations and fuzzy matching
+function findBestInventoryMatch(ingredient, inventory) {
+    if (!inventory || inventory.length === 0) return null;
+
+    const ingredientVariations = getIngredientVariations(ingredient);
+
+    // Direct exact matches first
+    for (const variation of ingredientVariations) {
+        for (const item of inventory) {
+            const itemName = normalizeIngredient(item.name);
+            if (itemName === variation) {
+                return item;
+            }
+        }
+    }
+
+    // Partial matches - ingredient contains item name or vice versa
+    for (const variation of ingredientVariations) {
+        for (const item of inventory) {
+            const itemName = normalizeIngredient(item.name);
+            if (variation.includes(itemName) || itemName.includes(variation)) {
+                return item;
+            }
+        }
+    }
+
+    // Fuzzy matching - check if key words match
+    const ingredientWords = ingredientVariations.flatMap(v => v.split(' '));
+    for (const item of inventory) {
+        const itemWords = normalizeIngredient(item.name).split(' ');
+        const commonWords = ingredientWords.filter(word =>
+                word.length > 3 && itemWords.some(itemWord =>
+                    itemWord.includes(word) || word.includes(itemWord)
+                )
+        );
+
+        if (commonWords.length > 0) {
+            return item;
+        }
+    }
+
+    return null;
+}
+
+// Get standard package information for an ingredient
+function getStandardPackageInfo(ingredient) {
+    const normalized = normalizeIngredient(ingredient);
+
+    // Direct match
+    if (STANDARD_PACKAGE_SIZES[normalized]) {
+        return STANDARD_PACKAGE_SIZES[normalized];
+    }
+
+    // Check variations
+    const variations = getIngredientVariations(ingredient);
+    for (const variation of variations) {
+        if (STANDARD_PACKAGE_SIZES[variation]) {
+            return STANDARD_PACKAGE_SIZES[variation];
+        }
+    }
+
+    // Check partial matches
+    for (const [packageItem, info] of Object.entries(STANDARD_PACKAGE_SIZES)) {
+        if (normalized.includes(packageItem) || packageItem.includes(normalized)) {
+            return info;
+        }
+    }
+
+    return null;
+}
+
+// Check if inventory covers the needed amount
+function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
+    if (!inventoryItem) return false;
+
+    // If we have package info, do smart comparison
+    if (packageInfo) {
+        const inventoryQuantity = inventoryItem.quantity || 1;
+        const inventoryUnit = inventoryItem.unit || 'item';
+
+        // Convert to comparable units if possible
+        if (packageInfo.unit === inventoryUnit) {
+            const packageSize = packageInfo.size;
+            const totalInventory = inventoryQuantity * packageSize;
+
+            // Try to parse needed amount
+            const neededMatch = neededAmount?.match(/(\d+(?:\.\d+)?)/);
+            const neededNumber = neededMatch ? parseFloat(neededMatch[1]) : 1;
+
+            return totalInventory >= neededNumber;
+        }
+    }
+
+    // Fallback to simple check - if we have any inventory, assume it covers small amounts
+    const neededMatch = neededAmount?.match(/(\d+(?:\.\d+)?)/);
+    const neededNumber = neededMatch ? parseFloat(neededMatch[1]) : 1;
+    const inventoryQuantity = inventoryItem.quantity || 1;
+
+    // Simple heuristic: if we need 1-2 of something and have at least 1, probably OK
+    if (neededNumber <= 2 && inventoryQuantity >= 1) {
+        return true;
+    }
+
+    return inventoryQuantity >= neededNumber;
+}
+
+export async function POST(request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { recipeIds: providedRecipeIds, mealPlanId } = await request.json();
+
+        let recipeIds = providedRecipeIds;
+
+        // If mealPlanId is provided, extract recipe IDs from the meal plan
+        if (mealPlanId) {
+            console.log('Processing meal plan:', mealPlanId);
+            try {
+                recipeIds = await getRecipeIdsFromMealPlan(mealPlanId);
+                console.log('Extracted recipe IDs from meal plan:', recipeIds);
+            } catch (error) {
+                console.error('Error processing meal plan:', error);
+                return NextResponse.json({
+                    error: 'Failed to process meal plan: ' + error.message
+                }, { status: 400 });
+            }
+        }
+
+        // Validation
+        if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
+            return NextResponse.json({
+                error: 'Recipe IDs are required'
+            }, { status: 400 });
+        }
+
+        await connectDB();
+
+        // Fetch recipes
+        const recipes = await Recipe.find({
+            _id: { $in: recipeIds }
+        });
+
+        if (recipes.length === 0) {
+            return NextResponse.json({
+                error: 'No valid recipes found'
+            }, { status: 404 });
+        }
+
+        console.log(`Found ${recipes.length} recipes for shopping list generation`);
+
+        // Fetch user's inventory
+        const userInventory = await UserInventory.findOne({
+            userId: session.user.id
+        });
+        const inventory = userInventory ? userInventory.items : [];
+
+        console.log(`Found ${inventory.length} items in user inventory`);
+
+        // Aggregate ingredients from all recipes with enhanced processing
+        const ingredientMap = new Map();
+
+        recipes.forEach(recipe => {
+            console.log(`Processing recipe: ${recipe.title}`);
+
+            if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
+                console.log(`Recipe ${recipe.title} has no ingredients array`);
+                return;
+            }
+
+            recipe.ingredients.forEach(ingredient => {
+                const normalizedName = normalizeIngredient(ingredient.name);
+                const key = normalizedName;
+
+                if (ingredientMap.has(key)) {
+                    const existing = ingredientMap.get(key);
+                    existing.recipes.push(recipe.title);
+                    // Could add logic here to combine amounts intelligently
+                } else {
+                    const category = categorizeIngredient(ingredient.name);
+                    const packageInfo = getStandardPackageInfo(ingredient.name);
+
+                    ingredientMap.set(key, {
+                        name: ingredient.name,
+                        originalName: ingredient.name,
+                        normalizedName: normalizedName,
+                        amount: ingredient.amount || '',
+                        unit: ingredient.unit || '',
+                        category: category,
+                        recipes: [recipe.title],
+                        optional: ingredient.optional || false,
+                        alternatives: ingredient.alternatives || [],
+                        packageInfo: packageInfo,
+                        variations: getIngredientVariations(ingredient.name)
+                    });
+                }
+            });
+        });
+
+        console.log(`Aggregated ${ingredientMap.size} unique ingredients`);
+
+        // Enhanced inventory checking and categorization
+        const shoppingListItems = [];
+        const itemsByCategory = {};
+
+        for (const [key, ingredient] of ingredientMap) {
+            // Skip optional ingredients for now (could be a user preference later)
+            if (ingredient.optional) {
+                console.log(`Skipping optional ingredient: ${ingredient.name}`);
+                continue;
+            }
+
+            const inventoryMatch = findBestInventoryMatch(ingredient.name, inventory);
+            const category = ingredient.category;
+
+            // Normalize category name for display
+            const normalizedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+
+            // Enhanced inventory coverage check
+            const hasEnoughInInventory = inventoryMatch &&
+                checkInventoryCoverage(ingredient.amount, inventoryMatch, ingredient.packageInfo);
+
+            const item = {
+                name: ingredient.name,
+                ingredient: ingredient.name,
+                originalName: ingredient.originalName,
+                amount: ingredient.amount,
+                unit: ingredient.unit,
+                category: normalizedCategory,
+                recipes: ingredient.recipes,
+                inInventory: hasEnoughInInventory,
+                inventoryItem: inventoryMatch ? {
+                    id: inventoryMatch._id,
+                    name: inventoryMatch.name,
+                    quantity: inventoryMatch.quantity,
+                    unit: inventoryMatch.unit,
+                    location: inventoryMatch.location,
+                    expirationDate: inventoryMatch.expirationDate,
+                    brand: inventoryMatch.brand
+                } : null,
+                needAmount: ingredient.amount || '1',
+                haveAmount: inventoryMatch ? `${inventoryMatch.quantity} ${inventoryMatch.unit}` : '0',
+                packageInfo: ingredient.packageInfo,
+                alternatives: ingredient.alternatives,
+                variations: ingredient.variations,
+                normalizedName: ingredient.normalizedName
+            };
+
+            shoppingListItems.push(item);
+
+            // Group by category
+            if (!itemsByCategory[normalizedCategory]) {
+                itemsByCategory[normalizedCategory] = [];
+            }
+            itemsByCategory[normalizedCategory].push(item);
+        }
+
+        console.log(`Generated shopping list with ${shoppingListItems.length} items across ${Object.keys(itemsByCategory).length} categories`);
+
+        // Calculate comprehensive summary statistics
+        const summary = {
+            totalItems: shoppingListItems.length,
+            needToBuy: shoppingListItems.filter(item => !item.inInventory).length,
+            alreadyHave: shoppingListItems.filter(item => item.inInventory).length,
+            inInventory: shoppingListItems.filter(item => item.inInventory).length,
+            categories: Object.keys(itemsByCategory).length,
+            recipeCount: recipes.length,
+            optionalItemsSkipped: Array.from(ingredientMap.values()).filter(i => i.optional).length
+        };
+
+        // Enhanced shopping list response
+        const response = {
+            success: true,
+            shoppingList: {
+                items: itemsByCategory,
+                recipes: recipes.map(r => r.title),
+                summary,
+                generatedAt: new Date().toISOString(),
+                source: mealPlanId ? 'meal_plan' : 'recipes',
+                sourceId: mealPlanId || null,
+                sourceRecipeIds: recipeIds,
+                metadata: {
+                    totalRecipes: recipes.length,
+                    totalIngredients: ingredientMap.size,
+                    inventoryItems: inventory.length,
+                    categoriesUsed: Object.keys(itemsByCategory),
+                    packageSizesApplied: shoppingListItems.filter(item => item.packageInfo).length,
+                    variationsMatched: shoppingListItems.filter(item => item.variations.length > 1).length
+                }
+            }
+        };
+
+        console.log('Enhanced shopping list generated successfully:', {
+            totalItems: summary.totalItems,
+            categories: summary.categories,
+            source: response.shoppingList.source,
+            packagesApplied: response.shoppingList.metadata.packageSizesApplied,
+            variationsMatched: response.shoppingList.metadata.variationsMatched
+        });
+
+        return NextResponse.json(response);
+
+    } catch (error) {
+        console.error('Error generating shopping list:', error);
+        return NextResponse.json({
+            error: 'Failed to generate shopping list',
+            details: error.message
+        }, { status: 500 });
+    }
 }
