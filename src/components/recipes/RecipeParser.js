@@ -166,8 +166,8 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         console.log('Parsing ingredient line:', cleanLine);
 
-        // Skip lines that are clearly instructions or serving suggestions
-        if (/garnish|serve|enjoy|bold|spicy|delicious/i.test(cleanLine)) {
+        // Skip lines that are clearly instructions or serving suggestions, but NOT garnish ingredients
+        if (/serve|enjoy|bold|spicy|delicious/i.test(cleanLine) && !/basil|parsley|cilantro|herbs/i.test(cleanLine)) {
             console.log('Skipping instruction/serving line:', cleanLine);
             return null;
         }
@@ -190,6 +190,9 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         cleanLine = convertFractions(cleanLine);
 
+        // Declare match variable for reuse
+        let match;
+
         // Pattern 1: Amount + Unit + Description (e.g., "8 oz pappardelle or fettuccine", "1/2 lb Italian sausage")
         const amountUnitDescPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(oz|ounces|lb|lbs|pound|pounds|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|clove|cloves|g|gram|grams)\s+(.+)$/i;
 
@@ -202,17 +205,23 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         // Pattern 4: "to taste" ingredients
         const toTastePattern = /^(.+?)\s+to\s+taste$/i;
 
-        // Pattern 5: Items with "for garnish" - these should be skipped
-        const garnishPattern = /for\s+garnish/i;
+        // Pattern 5: Garnish ingredients (e.g., "Fresh basil, for garnish")
+        const garnishPattern = /^(.+?),?\s+for\s+garnish$/i;
 
-        // Skip garnish items
-        if (garnishPattern.test(cleanLine)) {
-            console.log('Skipping garnish item:', cleanLine);
-            return null;
+        // Handle garnish items - parse but mark as optional
+        match = cleanLine.match(garnishPattern);
+        if (match) {
+            console.log('Matched garnish item:', match);
+            return {
+                name: match[1].trim(),
+                amount: '',
+                unit: '',
+                optional: true // Mark garnish items as optional
+            };
         }
 
         // Try "to taste" pattern first
-        let match = cleanLine.match(toTastePattern);
+        match = cleanLine.match(toTastePattern);
         if (match) {
             console.log('Matched to taste:', match);
             return {
