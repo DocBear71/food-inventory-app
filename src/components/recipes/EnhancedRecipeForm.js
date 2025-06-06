@@ -40,6 +40,16 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
 
+    // Helper function to clean nutrition values (remove units)
+    const cleanNutritionValue = (value) => {
+        if (!value) return '';
+
+        // Extract just the number from strings like "203 kcal", "12 g", "9 mg"
+        const strValue = String(value);
+        const match = strValue.match(/^(\d+(?:\.\d+)?)/);
+        return match ? match[1] : '';
+    };
+
     // Handle parsed recipe data
     const handleParsedRecipe = (parsedData) => {
         setRecipe(prevRecipe => ({
@@ -99,12 +109,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     difficulty: data.recipe.difficulty || 'medium',
                     tags: data.recipe.tags || [],
                     source: data.recipe.source || url,
-                    nutrition: data.recipe.nutrition || {
-                        calories: '',
-                        protein: '',
-                        carbs: '',
-                        fat: '',
-                        fiber: ''
+                    nutrition: {
+                        // Clean nutrition values (remove units, keep only numbers)
+                        calories: cleanNutritionValue(data.recipe.nutrition?.calories),
+                        protein: cleanNutritionValue(data.recipe.nutrition?.protein),
+                        carbs: cleanNutritionValue(data.recipe.nutrition?.carbs),
+                        fat: cleanNutritionValue(data.recipe.nutrition?.fat),
+                        fiber: cleanNutritionValue(data.recipe.nutrition?.fiber)
                     }
                 };
 

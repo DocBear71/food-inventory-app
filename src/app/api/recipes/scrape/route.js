@@ -22,9 +22,21 @@ const SUPPORTED_DOMAINS = [
     'bonappetit.com'
 ];
 
+// Helper function to extract numeric values from nutrition data
+const extractNumericValue = (value) => {
+    if (!value) return '';
+
+    // Convert to string if it's not already
+    const strValue = String(value);
+
+    // Extract just the number from strings like "203 kcal", "12 g", "9 mg"
+    const match = strValue.match(/^(\d+(?:\.\d+)?)/);
+    return match ? match[1] : '';
+};
+
 // Clean and normalize recipe data
 function normalizeRecipeData(jsonLdData) {
-    console.log('Normalizing recipe data:', jsonLdData);
+    console.log('Raw JSON-LD data received:', JSON.stringify(jsonLdData, null, 2));
 
     // Handle arrays - some sites return arrays of recipes
     let recipe = Array.isArray(jsonLdData) ? jsonLdData[0] : jsonLdData;
@@ -38,8 +50,13 @@ function normalizeRecipeData(jsonLdData) {
     }
 
     if (!recipe || !recipe.name) {
+        console.log('No recipe found, available properties:', Object.keys(recipe || {}));
         throw new Error('No valid recipe data found in structured data');
     }
+
+    console.log('Found recipe:', recipe.name);
+    console.log('Recipe ingredients raw:', recipe.recipeIngredient);
+    console.log('Recipe instructions raw:', recipe.recipeInstructions);
 
     // Helper function to extract text from various formats
     const extractText = (data) => {
@@ -70,8 +87,50 @@ function normalizeRecipeData(jsonLdData) {
         if (!ingredients) return [];
 
         return ingredients.map(ing => {
-            const text = extractText(ing);
-            return parseIngredientText(text);
+            let text = extractText(ing);
+
+            // Special handling for structured ingredient objects that some sites use
+            if (typeof ing === 'object' && ing !== null) {
+                // Some sites structure ingredients as {name: "flour", amount: "2", unit: "cups"}
+                if (ing.name && (ing.amount || ing.quantity)) {
+                    const amount = ing.amount || ing.quantity || '';
+                    const unit = ing.unit || ing.unitText || '';
+                    return {
+                        name: extractText(ing.name),
+                        amount: extractText(amount),
+                        unit: extractText(unit),
+                        optional: extractText(text).toLowerCase().includes('optional')
+                    };
+                }
+
+                // Some sites have ingredient text in different properties
+                text = ing.text || ing.ingredient || ing.name || extractText(ing);
+            }
+
+            // Parse the text format
+            const parsed = parseIngredientText(text);
+
+            // Additional cleanup for common issues
+            if (parsed.name) {
+                // Remove extra whitespace and clean up formatting
+                parsed.name = parsed.name.replace(/\s+/g, ' ').trim();
+
+                // Handle cases where amount/unit got mixed into name
+                const nameWords = parsed.name.split(' ');
+                if (nameWords.length > 1 && !parsed.amount) {
+                    const firstWord = nameWords[0];
+                    const secondWord = nameWords[1];
+
+                    // Check if first word is a number and second is a unit
+                    if (/^\d+(\.\d+)?$/.test(firstWord) && /^(grams?|g|kg|cups?|oz|ounces?)$/i.test(secondWord)) {
+                        parsed.amount = firstWord;
+                        parsed.unit = secondWord;
+                        parsed.name = nameWords.slice(2).join(' ');
+                    }
+                }
+            }
+
+            return parsed;
         }).filter(ing => ing.name && ing.name.trim());
     };
 
@@ -148,11 +207,11 @@ function normalizeRecipeData(jsonLdData) {
 
         // Nutrition information if available
         nutrition: recipe.nutrition ? {
-            calories: recipe.nutrition.calories || '',
-            protein: recipe.nutrition.proteinContent || '',
-            fat: recipe.nutrition.fatContent || '',
-            carbs: recipe.nutrition.carbohydrateContent || '',
-            fiber: recipe.nutrition.fiberContent || ''
+            calories: extractNumericValue(recipe.nutrition.calories) || '',
+            protein: extractNumericValue(recipe.nutrition.proteinContent) || '',
+            fat: extractNumericValue(recipe.nutrition.fatContent) || '',
+            carbs: extractNumericValue(recipe.nutrition.carbohydrateContent) || '',
+            fiber: extractNumericValue(recipe.nutrition.fiberContent) || ''
         } : {
             calories: '',
             protein: '',
@@ -162,13 +221,35 @@ function normalizeRecipeData(jsonLdData) {
         }
     };
 
-    console.log('Normalized recipe:', normalizedRecipe);
+    // Quality check - if we didn't get enough ingredients, try alternative parsing
+    if (normalizedRecipe.ingredients.length === 0 && recipe.recipeIngredient) {
+        console.log('No ingredients parsed, trying fallback parsing...');
+        normalizedRecipe.ingredients = recipe.recipeIngredient.map(ing => {
+            const text = extractText(ing);
+            console.log('Fallback parsing ingredient:', text);
+
+            // Simple fallback - just put everything in the name field
+            return {
+                name: text,
+                amount: '',
+                unit: '',
+                optional: text.toLowerCase().includes('optional')
+            };
+        }).filter(ing => ing.name && ing.name.trim());
+    }
+
+    console.log('Final normalized recipe:', normalizedRecipe);
     return normalizedRecipe;
 }
 
 // Parse ingredient text into structured format
 function parseIngredientText(text) {
     if (!text) return { name: '', amount: '', unit: '', optional: false };
+
+    console.log('Parsing ingredient text:', text);
+
+    // Clean up the text first
+    text = text.trim();
 
     // Convert fraction characters
     text = text
@@ -179,39 +260,117 @@ function parseIngredientText(text) {
         .replace(/⅔/g, '2/3')
         .replace(/⅛/g, '1/8');
 
-    // Pattern matching for amount, unit, and ingredient
-    const patterns = [
-        // "2 cups flour" or "1 tablespoon olive oil"
-        /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(cups?|tablespoons?|tbsp|teaspoons?|tsp|pounds?|lbs?|ounces?|oz|cloves?|slices?|pieces?)\s+(.+)$/i,
-        // "2 large eggs" or "1 medium onion"
-        /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(large|medium|small|extra-large)\s+(.+)$/i,
-        // "1 (15 oz) can tomatoes"
-        /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*\([^)]+\)\s*(.+)$/i,
-        // "2 pounds ground beef"
-        /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(.+)$/
+    // Enhanced unit lists including metric
+    const units = [
+        // US measurements
+        'cups?', 'cup', 'tablespoons?', 'tbsp', 'teaspoons?', 'tsp',
+        'pounds?', 'lbs?', 'ounces?', 'oz', 'fluid ounces?', 'fl oz',
+        'pints?', 'pt', 'quarts?', 'qt', 'gallons?', 'gal',
+
+        // Metric measurements
+        'grams?', 'g', 'kilograms?', 'kg', 'milligrams?', 'mg',
+        'liters?', 'l', 'litres?', 'milliliters?', 'ml', 'millilitres?',
+
+        // Count-based units
+        'pieces?', 'slices?', 'cloves?', 'bulbs?', 'stalks?', 'sprigs?',
+        'leaves?', 'strips?', 'wedges?', 'segments?', 'cans?', 'jars?',
+        'bottles?', 'packages?', 'boxes?', 'bags?', 'bunches?',
+
+        // Size descriptors
+        'large', 'medium', 'small', 'extra-large', 'extra large', 'xl',
+        'jumbo', 'mini', 'baby', 'whole', 'half', 'quarter'
     ];
 
-    for (const pattern of patterns) {
+    // Create a comprehensive pattern for all units
+    const unitPattern = units.join('|');
+
+    // Enhanced patterns for different ingredient formats
+    const patterns = [
+        // "220 grams pineapple" or "650 grams chicken breast"
+        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
+
+        // "1 cup flour" or "2 tablespoons olive oil"
+        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
+
+        // "pineapple, 220 grams" (ingredient first, then amount)
+        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
+
+        // "chicken breast, 650 grams" (ingredient first, then amount)
+        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
+
+        // "1 (15 oz) can tomatoes" - handle parenthetical amounts
+        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s*\([^)]+\)\s*(.+)$/i,
+
+        // "to taste" items like "salt, to taste" or "vegetable oil, to taste"
+        /^(.+?),?\s+to\s+taste$/i,
+
+        // "2 large eggs" or "1 medium onion" (size descriptor)
+        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(large|medium|small|extra-large|extra large|xl|jumbo|mini|baby|whole)\\s+(.+)$`, 'i'),
+
+        // "2 pounds ground beef" - general amount + item
+        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s+(.+)$/i
+    ];
+
+    // Try each pattern
+    for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
         const match = text.match(pattern);
+
         if (match) {
-            if (pattern.source.includes('cups?|tablespoons?')) {
-                // Has explicit unit
+            console.log(`Pattern ${i + 1} matched:`, match);
+
+            // Handle "to taste" items
+            if (pattern.source.includes('to\\s+taste')) {
                 return {
-                    name: match[3].trim(),
-                    amount: match[1],
-                    unit: match[2],
+                    name: match[1].trim(),
+                    amount: 'to taste',
+                    unit: '',
                     optional: text.toLowerCase().includes('optional')
                 };
-            } else if (pattern.source.includes('large|medium|small')) {
-                // Size descriptor
+            }
+
+            // Handle ingredient-first patterns (like "pineapple, 220 grams")
+            if (pattern.source.includes('[^,]+')) {
+                return {
+                    name: match[1].trim(),
+                    amount: match[2],
+                    unit: match[3],
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle parenthetical amounts
+            if (pattern.source.includes('\\([^)]+\\)')) {
+                return {
+                    name: match[2].trim(),
+                    amount: match[1],
+                    unit: '',
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle size descriptors (large, medium, small)
+            if (pattern.source.includes('large|medium|small')) {
                 return {
                     name: `${match[2]} ${match[3]}`.trim(),
                     amount: match[1],
                     unit: '',
                     optional: text.toLowerCase().includes('optional')
                 };
-            } else {
-                // General amount + item
+            }
+
+            // Handle standard amount + unit + ingredient
+            if (match.length >= 4) {
+                return {
+                    name: match[3].trim(),
+                    amount: match[1],
+                    unit: match[2],
+                    optional: text.toLowerCase().includes('optional')
+                };
+            }
+
+            // Handle general amount + item (no explicit unit)
+            if (match.length === 3) {
                 return {
                     name: match[2].trim(),
                     amount: match[1],
@@ -222,6 +381,7 @@ function parseIngredientText(text) {
         }
     }
 
+    console.log('No pattern matched, using entire text as ingredient name');
     // No pattern matched, return the whole text as ingredient name
     return {
         name: text.trim(),
