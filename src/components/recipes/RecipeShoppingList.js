@@ -1,116 +1,31 @@
-// file: /src/components/recipes/RecipeShoppingList.js v6
+// file: /src/components/recipes/RecipeShoppingList.js v7
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
+import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 
 export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     const [shoppingList, setShoppingList] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const [filter, setFilter] = useState('all');
-    const [sortBy, setSortBy] = useState('category');
+    const [purchasedItems, setPurchasedItems] = useState({});
     const [showEmailModal, setShowEmailModal] = useState(false);
-    const [purchasedItems, setPurchasedItems] = useState(new Set()); // Track purchased items locally
+    const [showSaveModal, setShowSaveModal] = useState(false);
 
     useEffect(() => {
-        generateShoppingList();
-    }, [recipeId]);
-
-    // Convert API response structure to component-expected structure
-    const normalizeShoppingList = (apiResponse) => {
-        if (!apiResponse) return null;
-
-        console.log('Normalizing API response:', apiResponse);
-
-        // Handle the API structure where items are grouped by category
-        let normalizedItems = [];
-
-        if (apiResponse.items && typeof apiResponse.items === 'object') {
-            // API returns: { items: { Pantry: [...], Produce: [...] } }
-            Object.entries(apiResponse.items).forEach(([category, categoryItems]) => {
-                if (Array.isArray(categoryItems)) {
-                    categoryItems.forEach(item => {
-                        const itemKey = `${item.name || item.ingredient}-${category}`;
-                        normalizedItems.push({
-                            ingredient: item.name || item.ingredient,
-                            amount: item.name || '',  // API puts full description in 'name'
-                            category: category.toLowerCase(),
-                            recipes: [recipeName],  // Single recipe context
-                            inInventory: item.haveAmount > 0,
-                            purchased: purchasedItems.has(itemKey), // Check if purchased
-                            originalName: item.originalName,
-                            needAmount: item.needAmount,
-                            haveAmount: item.haveAmount,
-                            itemKey: itemKey // Add unique key for tracking
-                        });
-                    });
-                }
-            });
-        } else if (Array.isArray(apiResponse.items)) {
-            // Already in expected format
-            normalizedItems = apiResponse.items.map(item => ({
-                ...item,
-                itemKey: `${item.ingredient}-${item.category || 'other'}`,
-                purchased: purchasedItems.has(`${item.ingredient}-${item.category || 'other'}`)
-            }));
+        if (recipeId) {
+            generateShoppingList();
         }
-
-        // Create stats from summary or calculate them
-        const stats = {
-            totalItems: apiResponse.summary?.totalItems || normalizedItems.length,
-            needToBuy: apiResponse.summary?.needToBuy || normalizedItems.filter(item => !item.inInventory && !item.purchased).length,
-            inInventory: apiResponse.summary?.alreadyHave || normalizedItems.filter(item => item.inInventory).length,
-            purchased: normalizedItems.filter(item => item.purchased).length
-        };
-
-        console.log('Normalized shopping list:', {
-            items: normalizedItems,
-            stats: stats
-        });
-
-        return {
-            items: normalizedItems,
-            stats: stats,
-            recipes: [recipeName]
-        };
-    };
-
-    // Toggle purchased status
-    const togglePurchased = (itemKey) => {
-        setPurchasedItems(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(itemKey)) {
-                newSet.delete(itemKey);
-            } else {
-                newSet.add(itemKey);
-            }
-            return newSet;
-        });
-    };
-
-    // Clear all purchased items
-    const clearAllPurchased = () => {
-        setPurchasedItems(new Set());
-    };
-
-    // Mark all as purchased
-    const markAllPurchased = () => {
-        const normalizedList = normalizeShoppingList(shoppingList);
-        const allKeys = normalizedList.items
-            .filter(item => !item.inInventory) // Only items that need to be bought
-            .map(item => item.itemKey);
-        setPurchasedItems(new Set(allKeys));
-    };
+    }, [recipeId]);
 
     const generateShoppingList = async () => {
         setLoading(true);
-        setError(null);
+        setError('');
 
         try {
-            console.log('Generating shopping list for recipe:', recipeId);
-
             const response = await fetch('/api/shopping/generate', {
                 method: 'POST',
                 headers: {
@@ -118,295 +33,85 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 },
                 body: JSON.stringify({
                     recipeIds: [recipeId]
-                })
+                }),
             });
 
-            const data = await response.json();
-            console.log('Shopping list API response:', data);
+            const result = await response.json();
 
-            if (data.success) {
-                setShoppingList(data.shoppingList);
-            } else {
-                setError(data.error || 'Failed to generate shopping list');
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to generate shopping list');
             }
-        } catch (err) {
-            console.error('Error generating shopping list:', err);
-            setError('Failed to generate shopping list');
+
+            setShoppingList(result.shoppingList);
+        } catch (error) {
+            console.error('Error generating shopping list:', error);
+            setError(error.message);
         } finally {
             setLoading(false);
         }
     };
 
-    // Print Shopping List
-    const printShoppingList = () => {
-        const printWindow = window.open('', '_blank');
-        const printContent = generatePrintHTML();
-
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
+    // Handle checkbox changes
+    const handleItemToggle = (itemKey) => {
+        setPurchasedItems(prev => ({
+            ...prev,
+            [itemKey]: !prev[itemKey]
+        }));
     };
 
-    // Generate Print HTML
-    const generatePrintHTML = () => {
-        const normalizedList = normalizeShoppingList(shoppingList);
-        const groupedItems = getGroupedItems(normalizedList);
-        const printDate = new Date().toLocaleDateString();
+    const markAllAsPurchased = () => {
+        if (!shoppingList?.items) return;
 
-        return `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Shopping List - ${recipeName}</title>
-                <style>
-                    @media print {
-                        @page { margin: 0.5in; }
-                        body { font-family: Arial, sans-serif; font-size: 12pt; }
-                    }
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        line-height: 1.4; 
-                        color: #333;
-                        max-width: 8.5in;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header { 
-                        text-align: center; 
-                        margin-bottom: 30px; 
-                        border-bottom: 2px solid #333;
-                        padding-bottom: 15px;
-                    }
-                    .header h1 { margin: 0; font-size: 24pt; }
-                    .header p { margin: 5px 0 0 0; font-size: 11pt; color: #666; }
-                    .category { 
-                        margin-bottom: 25px; 
-                        break-inside: avoid;
-                    }
-                    .category h2 { 
-                        font-size: 16pt; 
-                        margin: 0 0 10px 0; 
-                        padding: 8px 12px;
-                        background: #f5f5f5; 
-                        border-left: 4px solid #333;
-                    }
-                    .item { 
-                        display: flex; 
-                        align-items: flex-start; 
-                        margin-bottom: 8px; 
-                        padding: 4px 0;
-                        border-bottom: 1px dotted #ccc;
-                    }
-                    .item.purchased { 
-                        opacity: 0.6; 
-                        text-decoration: line-through; 
-                    }
-                    .checkbox { 
-                        width: 15px; 
-                        height: 15px; 
-                        border: 2px solid #333; 
-                        margin-right: 12px; 
-                        margin-top: 2px;
-                        flex-shrink: 0;
-                    }
-                    .checkbox.checked { 
-                        background: #333; 
-                        position: relative; 
-                    }
-                    .checkbox.checked::after { 
-                        content: '✓'; 
-                        color: white; 
-                        position: absolute; 
-                        left: 1px; 
-                        top: -2px; 
-                        font-size: 10pt; 
-                    }
-                    .item-content { flex: 1; }
-                    .item-name { font-weight: bold; font-size: 11pt; }
-                    .item-amount { font-size: 10pt; color: #666; margin-left: 8px; }
-                    .inventory-note { 
-                        color: #0066cc; 
-                        font-size: 9pt; 
-                        font-weight: bold; 
-                        margin-top: 2px;
-                    }
-                    .stats { 
-                        margin-top: 30px; 
-                        padding: 15px; 
-                        background: #f9f9f9; 
-                        border: 1px solid #ddd;
-                        font-size: 10pt;
-                    }
-                    .footer { 
-                        margin-top: 30px; 
-                        text-align: center; 
-                        font-size: 9pt; 
-                        color: #666;
-                        border-top: 1px solid #ddd;
-                        padding-top: 15px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>🛒 Shopping List</h1>
-                    <p>${recipeName} • Generated on ${printDate}</p>
-                </div>
-                
-                ${Object.entries(groupedItems).map(([category, items]) => `
-                    <div class="category">
-                        <h2>${getCategoryName(category)} (${items.length} items)</h2>
-                        ${items.map(item => `
-                            <div class="item${item.purchased ? ' purchased' : ''}">
-                                <div class="checkbox${item.purchased ? ' checked' : ''}"></div>
-                                <div class="item-content">
-                                    <span class="item-name">${item.ingredient}</span>
-                                    <span class="item-amount">${item.amount || ''}</span>
-                                    ${item.inInventory ? '<div class="inventory-note">✓ In your inventory</div>' : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `).join('')}
-                
-                <div class="stats">
-                    <strong>Shopping Summary:</strong><br>
-                    Total Items: ${normalizedList.stats.totalItems} • 
-                    Need to Buy: ${normalizedList.stats.needToBuy} • 
-                    In Inventory: ${normalizedList.stats.inInventory} • 
-                    Purchased: ${normalizedList.stats.purchased}
-                </div>
-                
-                <div class="footer">
-                    Generated by Doc Bear's Comfort Kitchen • ${new Date().toLocaleString()}
-                </div>
-            </body>
-            </html>
-        `;
-    };
-
-    // Export to Text
-    const exportToText = () => {
-        const normalizedList = normalizeShoppingList(shoppingList);
-        const groupedItems = getGroupedItems(normalizedList);
-        const exportDate = new Date().toLocaleDateString();
-
-        let textContent = `SHOPPING LIST\n`;
-        textContent += `${recipeName}\n`;
-        textContent += `Generated: ${exportDate}\n`;
-        textContent += `${'='.repeat(50)}\n\n`;
-
-        Object.entries(groupedItems).forEach(([category, items]) => {
-            textContent += `${getCategoryName(category).toUpperCase()} (${items.length} items)\n`;
-            textContent += `${'-'.repeat(30)}\n`;
-
-            items.forEach(item => {
-                const checkbox = item.purchased ? '☑' : '☐';
-                textContent += `${checkbox} ${item.ingredient}`;
-                if (item.amount) {
-                    textContent += ` - ${item.amount}`;
-                }
-                if (item.inInventory) {
-                    textContent += ` [IN INVENTORY]`;
-                }
-                if (item.purchased) {
-                    textContent += ` [PURCHASED]`;
-                }
-                textContent += `\n`;
-            });
-            textContent += `\n`;
+        const allItems = {};
+        Object.values(shoppingList.items).flat().forEach(item => {
+            const itemKey = `${item.ingredient || item.name}-${item.category || 'other'}`;
+            allItems[itemKey] = true;
         });
-
-        textContent += `SUMMARY:\n`;
-        textContent += `Total Items: ${normalizedList.stats.totalItems}\n`;
-        textContent += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
-        textContent += `In Inventory: ${normalizedList.stats.inInventory}\n`;
-        textContent += `Purchased: ${normalizedList.stats.purchased}\n`;
-
-        // Download as text file
-        const blob = new Blob([textContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `shopping-list-${recipeName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setPurchasedItems(allItems);
     };
 
-    // Export to PDF
-    const exportToPDF = () => {
-        const printWindow = window.open('', '_blank');
-        const printContent = generatePrintHTML();
-
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.focus();
-
-        // Add instructions for PDF export
-        const instructionDiv = printWindow.document.createElement('div');
-        instructionDiv.innerHTML = `
-            <div style="position: fixed; top: 10px; right: 10px; background: #ffffcc; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; z-index: 1000;">
-                <strong>To save as PDF:</strong><br>
-                1. Press Ctrl+P (Cmd+P on Mac)<br>
-                2. Choose "Save as PDF"<br>
-                3. Click Save
-            </div>
-        `;
-        printWindow.document.body.appendChild(instructionDiv);
-
-        // Auto-trigger print dialog
-        setTimeout(() => {
-            printWindow.print();
-        }, 500);
+    const clearAllPurchased = () => {
+        setPurchasedItems({});
     };
 
-    // Refresh shopping list
-    const refreshShoppingList = () => {
-        generateShoppingList();
+    // Add purchased status to items
+    const addPurchasedStatus = (items) => {
+        return items.map(item => {
+            const itemKey = `${item.ingredient || item.name}-${item.category || 'other'}`;
+            return {
+                ...item,
+                purchased: purchasedItems[itemKey] || false,
+                itemKey
+            };
+        });
     };
 
-    // Filter and sort items
-    const getFilteredItems = (normalizedList) => {
-        if (!normalizedList?.items) return [];
-
-        let filtered = normalizedList.items;
+    // Filter items based on current filter
+    const getFilteredItems = (items) => {
+        const itemsWithStatus = addPurchasedStatus(items);
 
         switch (filter) {
-            case 'needed':
-                filtered = filtered.filter(item => !item.inInventory && !item.purchased);
-                break;
-            case 'inventory':
-                filtered = filtered.filter(item => item.inInventory);
-                break;
+            case 'needToBuy':
+                return itemsWithStatus.filter(item => !item.inInventory && !item.purchased);
+            case 'inInventory':
+                return itemsWithStatus.filter(item => item.inInventory);
             case 'purchased':
-                filtered = filtered.filter(item => item.purchased);
-                break;
+                return itemsWithStatus.filter(item => item.purchased);
             default:
-                break;
+                return itemsWithStatus;
         }
-
-        switch (sortBy) {
-            case 'name':
-                filtered.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
-                break;
-            default:
-                break;
-        }
-
-        return filtered;
     };
 
     // Group items by category for display
-    const getGroupedItems = (normalizedList) => {
-        const filtered = getFilteredItems(normalizedList);
+    const getGroupedItems = () => {
+        if (!shoppingList?.items) return {};
+
+        const allItems = Object.values(shoppingList.items).flat();
+        const filtered = getFilteredItems(allItems);
         const grouped = {};
 
         filtered.forEach(item => {
-            const category = item.category || 'other';
+            const category = item.category || 'Other';
             if (!grouped[category]) {
                 grouped[category] = [];
             }
@@ -416,22 +121,30 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         return grouped;
     };
 
-    // Get category display name
-    const getCategoryName = (category) => {
-        const names = {
-            produce: '🥬 Produce',
-            meat: '🥩 Meat & Seafood',
-            dairy: '🥛 Dairy & Eggs',
-            pantry: '🥫 Pantry & Dry Goods',
-            frozen: '🧊 Frozen Foods',
-            bakery: '🍞 Bakery',
-            other: '📦 Other Items'
+    // Calculate statistics including purchased count
+    const getStats = () => {
+        if (!shoppingList?.items) {
+            return { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 };
+        }
+
+        const allItems = Object.values(shoppingList.items).flat();
+        const itemsWithStatus = addPurchasedStatus(allItems);
+
+        return {
+            totalItems: itemsWithStatus.length,
+            needToBuy: itemsWithStatus.filter(item => !item.inInventory && !item.purchased).length,
+            inInventory: itemsWithStatus.filter(item => item.inInventory).length,
+            purchased: itemsWithStatus.filter(item => item.purchased).length
         };
-        return names[category] || `📦 ${category}`;
     };
 
-    // Normalize the shopping list for display
-    const normalizedShoppingList = normalizeShoppingList(shoppingList);
+    const stats = getStats();
+    const groupedItems = getGroupedItems();
+
+    const handleSaveSuccess = (savedList) => {
+        console.log('Recipe shopping list saved successfully:', savedList);
+        // Could show a success message
+    };
 
     if (loading) {
         return (
@@ -445,24 +158,23 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 50
+                zIndex: 1000
             }}>
                 <div style={{
                     backgroundColor: 'white',
-                    borderRadius: '8px',
                     padding: '2rem',
+                    borderRadius: '12px',
                     textAlign: 'center'
                 }}>
                     <div style={{
-                        display: 'inline-block',
-                        width: '2rem',
-                        height: '2rem',
-                        border: '2px solid #e5e7eb',
-                        borderTopColor: '#3b82f6',
+                        width: '3rem',
+                        height: '3rem',
+                        border: '4px solid #e5e7eb',
+                        borderTop: '4px solid #3b82f6',
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite',
-                        marginBottom: '1rem'
-                    }}></div>
+                        margin: '0 auto 1rem'
+                    }} />
                     <p>Generating shopping list...</p>
                 </div>
             </div>
@@ -481,81 +193,27 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 50
+                zIndex: 1000,
+                padding: '1rem'
             }}>
                 <div style={{
                     backgroundColor: 'white',
-                    borderRadius: '8px',
                     padding: '2rem',
+                    borderRadius: '12px',
                     textAlign: 'center',
                     maxWidth: '400px'
                 }}>
-                    <div style={{ color: '#ef4444', marginBottom: '1rem' }}>
-                        Error: {error}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button
-                            onClick={generateShoppingList}
-                            style={{
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                padding: '0.5rem 1rem',
-                                borderRadius: '6px',
-                                border: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Try Again
-                        </button>
-                        <button
-                            onClick={onClose}
-                            style={{
-                                backgroundColor: '#6b7280',
-                                color: 'white',
-                                padding: '0.5rem 1rem',
-                                borderRadius: '6px',
-                                border: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!normalizedShoppingList) {
-        return (
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 50
-            }}>
-                <div style={{
-                    backgroundColor: 'white',
-                    borderRadius: '8px',
-                    padding: '2rem',
-                    textAlign: 'center'
-                }}>
-                    <p style={{ color: '#6b7280' }}>No shopping list data available.</p>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
+                    <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Error</h3>
+                    <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
                     <button
                         onClick={onClose}
                         style={{
-                            marginTop: '1rem',
-                            backgroundColor: '#6b7280',
+                            backgroundColor: '#374151',
                             color: 'white',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '6px',
                             border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.75rem 1.5rem',
                             cursor: 'pointer'
                         }}
                     >
@@ -566,8 +224,9 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         );
     }
 
-    const filteredItems = getFilteredItems(normalizedShoppingList);
-    const groupedItems = getGroupedItems(normalizedShoppingList);
+    if (!shoppingList) {
+        return null;
+    }
 
     return (
         <>
@@ -581,15 +240,17 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 50,
+                zIndex: 1000,
                 padding: '1rem'
             }}>
                 <div style={{
                     backgroundColor: 'white',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     width: '100%',
-                    maxWidth: '1200px',
-                    height: '90vh',
+                    maxWidth: '800px',
+                    maxHeight: '90vh',
+                    overflow: 'hidden',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
@@ -597,284 +258,367 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     <div style={{
                         padding: '1.5rem',
                         borderBottom: '1px solid #e5e7eb',
-                        flexShrink: 0
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <div>
+                            <h2 style={{
+                                margin: 0,
+                                fontSize: '1.25rem',
+                                fontWeight: '600',
+                                color: '#111827'
+                            }}>
+                                🛒 Shopping List
+                            </h2>
+                            <p style={{
+                                margin: '0.25rem 0 0 0',
+                                fontSize: '0.875rem',
+                                color: '#6b7280'
+                            }}>
+                                {recipeName}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.5rem',
+                                cursor: 'pointer',
+                                color: '#6b7280',
+                                padding: '0.25rem'
+                            }}
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    {/* Statistics Cards */}
+                    <div style={{
+                        padding: '1.5rem',
+                        borderBottom: '1px solid #f3f4f6'
                     }}>
                         <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                            gap: '1rem'
                         }}>
-                            <div>
-                                <h2 style={{
-                                    margin: 0,
-                                    fontSize: '1.5rem',
-                                    fontWeight: '600',
-                                    color: '#111827'
-                                }}>
-                                    🛒 Shopping List for {recipeName}
-                                </h2>
-                                <p style={{
-                                    margin: '0.25rem 0 0 0',
-                                    fontSize: '0.875rem',
-                                    color: '#6b7280'
-                                }}>
-                                    Items you need to buy for this recipe
-                                </p>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                style={{
-                                    color: '#9ca3af',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '1.5rem'
-                                }}
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        {/* Stats - Including Purchased Count */}
-                        {normalizedShoppingList?.stats && (
                             <div style={{
-                                marginTop: '1rem',
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                                gap: '1rem'
+                                backgroundColor: '#f8fafc',
+                                padding: '1rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
                             }}>
-                                <div style={{
-                                    backgroundColor: '#dbeafe',
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 'bold',
-                                        color: '#2563eb'
-                                    }}>
-                                        {normalizedShoppingList.stats.totalItems}
-                                    </div>
-                                    <div style={{
-                                        fontSize: '0.875rem',
-                                        color: '#1e40af'
-                                    }}>
-                                        Total Items
-                                    </div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b' }}>
+                                    {stats.totalItems}
                                 </div>
-                                <div style={{
-                                    backgroundColor: '#dcfce7',
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 'bold',
-                                        color: '#16a34a'
-                                    }}>
-                                        {normalizedShoppingList.stats.inInventory}
-                                    </div>
-                                    <div style={{
-                                        fontSize: '0.875rem',
-                                        color: '#15803d'
-                                    }}>
-                                        In Inventory
-                                    </div>
-                                </div>
-                                <div style={{
-                                    backgroundColor: '#fed7aa',
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 'bold',
-                                        color: '#ea580c'
-                                    }}>
-                                        {normalizedShoppingList.stats.needToBuy}
-                                    </div>
-                                    <div style={{
-                                        fontSize: '0.875rem',
-                                        color: '#c2410c'
-                                    }}>
-                                        Need to Buy
-                                    </div>
-                                </div>
-                                <div style={{
-                                    backgroundColor: '#f3e8ff',
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 'bold',
-                                        color: '#9333ea'
-                                    }}>
-                                        {normalizedShoppingList.stats.purchased}
-                                    </div>
-                                    <div style={{
-                                        fontSize: '0.875rem',
-                                        color: '#7c3aed'
-                                    }}>
-                                        Purchased
-                                    </div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                                    Total Items
                                 </div>
                             </div>
-                        )}
+                            <div style={{
+                                backgroundColor: '#f0f9ff',
+                                padding: '1rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0369a1' }}>
+                                    {stats.inInventory}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.25rem' }}>
+                                    In Inventory
+                                </div>
+                            </div>
+                            <div style={{
+                                backgroundColor: '#fef3c7',
+                                padding: '1rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d97706' }}>
+                                    {stats.needToBuy}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.25rem' }}>
+                                    Need to Buy
+                                </div>
+                            </div>
+                            <div style={{
+                                backgroundColor: '#f3e8ff',
+                                padding: '1rem',
+                                borderRadius: '8px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#7c3aed' }}>
+                                    {stats.purchased}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#8b5cf6', marginTop: '0.25rem' }}>
+                                    Purchased
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Controls */}
                     <div style={{
                         padding: '1rem 1.5rem',
-                        borderBottom: '1px solid #e5e7eb',
-                        backgroundColor: '#f9fafb',
-                        flexShrink: 0
+                        borderBottom: '1px solid #f3f4f6',
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center',
+                        flexWrap: 'wrap'
                     }}>
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '1rem',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                        }}>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <label style={{
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        color: '#374151'
-                                    }}>
-                                        Filter:
-                                    </label>
-                                    <select
-                                        value={filter}
-                                        onChange={(e) => setFilter(e.target.value)}
-                                        style={{
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            padding: '0.25rem 0.75rem',
-                                            fontSize: '0.875rem'
-                                        }}
-                                    >
-                                        <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
-                                        <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
-                                        <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
-                                        <option value="purchased">Purchased ({normalizedShoppingList.stats.purchased})</option>
-                                    </select>
-                                </div>
+                        {/* Filter Dropdown */}
+                        <select
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            style={{
+                                padding: '0.5rem',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem',
+                                backgroundColor: 'white'
+                            }}
+                        >
+                            <option value="all">All Items ({stats.totalItems})</option>
+                            <option value="needToBuy">Need to Buy ({stats.needToBuy})</option>
+                            <option value="inInventory">In Inventory ({stats.inInventory})</option>
+                            <option value="purchased">Purchased ({stats.purchased})</option>
+                        </select>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <label style={{
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        color: '#374151'
-                                    }}>
-                                        Sort by:
-                                    </label>
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        style={{
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            padding: '0.25rem 0.75rem',
-                                            fontSize: '0.875rem'
-                                        }}
-                                    >
-                                        <option value="category">Category</option>
-                                        <option value="name">Name</option>
-                                    </select>
-                                </div>
-                            </div>
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            {/* Checkbox Actions */}
+                            <button
+                                onClick={markAllAsPurchased}
+                                style={{
+                                    backgroundColor: '#8b5cf6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                ✓ All
+                            </button>
+                            <button
+                                onClick={clearAllPurchased}
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                ✗ Clear
+                            </button>
 
-                            {/* Action Buttons */}
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={markAllPurchased}
-                                    style={{
-                                        backgroundColor: '#7c3aed',
-                                        color: 'white',
-                                        padding: '0.5rem 0.75rem',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    📧 Share
-                                </button>
-                                <button
-                                    onClick={printShoppingList}
-                                    style={{
-                                        backgroundColor: '#4f46e5',
-                                        color: 'white',
-                                        padding: '0.5rem 0.75rem',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    🖨️ Print
-                                </button>
-                                <button
-                                    onClick={exportToPDF}
-                                    style={{
-                                        backgroundColor: '#dc2626',
-                                        color: 'white',
-                                        padding: '0.5rem 0.75rem',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    📄 PDF
-                                </button>
-                                <button
-                                    onClick={exportToText}
-                                    style={{
-                                        backgroundColor: '#059669',
-                                        color: 'white',
-                                        padding: '0.5rem 0.75rem',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    📝 Text
-                                </button>
-                            </div>
-                        </div>
+                            {/* Refresh Button */}
+                            <button
+                                onClick={generateShoppingList}
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🔄 Refresh
+                            </button>
 
-                        <div style={{
-                            marginTop: '0.5rem',
-                            fontSize: '0.875rem',
-                            color: '#6b7280'
-                        }}>
-                            Showing {filteredItems.length} items
+                            {/* Save Button */}
+                            <button
+                                onClick={() => setShowSaveModal(true)}
+                                style={{
+                                    backgroundColor: '#8b5cf6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                💾 Save
+                            </button>
+
+                            {/* Email Share Button */}
+                            <button
+                                onClick={() => setShowEmailModal(true)}
+                                style={{
+                                    backgroundColor: '#16a34a',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                📧 Share
+                            </button>
+
+                            {/* Print Button */}
+                            <button
+                                onClick={() => window.print()}
+                                style={{
+                                    backgroundColor: '#2563eb',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🖨️ Print
+                            </button>
+
+                            {/* PDF Export Button */}
+                            <button
+                                onClick={() => {
+                                    const printContent = document.getElementById('recipe-shopping-list-content').innerHTML;
+                                    const printWindow = window.open('', '_blank');
+                                    printWindow.document.write(`
+                                        <html><head><title>Shopping List - ${recipeName}</title>
+                                        <style>
+                                            body { font-family: Arial, sans-serif; margin: 20px; }
+                                            .header { text-align: center; margin-bottom: 30px; }
+                                            .header h1 { margin: 0; font-size: 24pt; }
+                                            .header p { margin: 5px 0 0 0; font-size: 11pt; color: #666; }
+                                            .category { 
+                                                margin-bottom: 25px; 
+                                                break-inside: avoid; 
+                                            }
+                                            .category h3 { 
+                                                color: #333; 
+                                                border-bottom: 2px solid #333; 
+                                                padding-bottom: 5px; 
+                                                margin-top: 0;
+                                                font-size: 14pt;
+                                            }
+                                            .item { 
+                                                margin: 8px 0; 
+                                                display: flex; 
+                                                align-items: flex-start;
+                                                page-break-inside: avoid;
+                                            }
+                                            .checkbox { 
+                                                margin-right: 10px; 
+                                                margin-top: 2px;
+                                                width: 12px;
+                                                height: 12px;
+                                                border: 1px solid #000;
+                                                display: inline-block;
+                                            }
+                                            .checkbox.checked {
+                                                background-color: #000;
+                                            }
+                                            .item-text {
+                                                flex: 1;
+                                                line-height: 1.3;
+                                            }
+                                            .inventory-note { 
+                                                color: #16a34a; 
+                                                font-size: 0.9em; 
+                                                margin-top: 2px;
+                                                font-style: italic;
+                                            }
+                                            .purchased {
+                                                text-decoration: line-through;
+                                                opacity: 0.6;
+                                            }
+                                        </style></head>
+                                        <body>
+                                            <div class="header">
+                                                <h1>🛒 Shopping List</h1>
+                                                <p>${recipeName}</p>
+                                            </div>
+                                            ${printContent}
+                                        </body></html>
+                                    `);
+                                    printWindow.document.close();
+                                    printWindow.print();
+                                }}
+                                style={{
+                                    backgroundColor: '#dc2626',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                📄 PDF
+                            </button>
+
+                            {/* Text Export Button */}
+                            <button
+                                onClick={() => {
+                                    const textContent = `Shopping List - ${recipeName}\n\n` +
+                                        Object.entries(groupedItems)
+                                            .map(([category, items]) => {
+                                                const categoryItems = items.map(item => {
+                                                    const checkbox = item.purchased ? '☑' : '☐';
+                                                    const status = item.purchased ? ' [PURCHASED]' :
+                                                        item.inInventory ? ' [IN INVENTORY]' : '';
+                                                    return `  ${checkbox} ${item.amount ? `${item.amount} ` : ''}${item.ingredient || item.name}${status}`;
+                                                });
+                                                return `${category}:\n${categoryItems.join('\n')}`;
+                                            })
+                                            .join('\n\n');
+
+                                    const blob = new Blob([textContent], { type: 'text/plain' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `shopping-list-${recipeName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                }}
+                                style={{
+                                    backgroundColor: '#0891b2',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                📝 Text
+                            </button>
                         </div>
                     </div>
 
-                    {/* Content */}
-                    <div style={{
-                        flex: 1,
-                        minHeight: 0,
-                        overflowY: 'auto',
-                        padding: '1.5rem'
-                    }}>
+                    {/* Shopping List Content */}
+                    <div
+                        id="recipe-shopping-list-content"
+                        style={{
+                            flex: 1,
+                            padding: '1.5rem',
+                            overflow: 'auto'
+                        }}
+                    >
                         {Object.keys(groupedItems).length === 0 ? (
                             <div style={{
                                 textAlign: 'center',
-                                padding: '2rem',
+                                padding: '3rem',
                                 color: '#6b7280'
                             }}>
-                                No items match your current filter.
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🛒</div>
+                                <p>No items match the current filter</p>
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -883,105 +627,77 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         <h3 style={{
                                             fontSize: '1.125rem',
                                             fontWeight: '600',
-                                            color: '#111827',
-                                            marginBottom: '0.75rem'
+                                            color: '#374151',
+                                            marginBottom: '0.75rem',
+                                            padding: '0.5rem 0',
+                                            borderBottom: '2px solid #e5e7eb'
                                         }}>
-                                            {getCategoryName(category)} ({items.length})
+                                            {category} ({items.length})
                                         </h3>
-
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                            {items.map((item, index) => (
-                                                <div
-                                                    key={`${item.ingredient}-${index}`}
-                                                    style={{
-                                                        padding: '0.75rem',
-                                                        border: '1px solid #e5e7eb',
-                                                        borderRadius: '8px',
-                                                        backgroundColor: item.purchased
-                                                            ? '#f0fdf4'
-                                                            : item.inInventory
-                                                                ? '#eff6ff'
-                                                                : 'white',
-                                                        borderColor: item.purchased
-                                                            ? '#bbf7d0'
-                                                            : item.inInventory
-                                                                ? '#bfdbfe'
-                                                                : '#e5e7eb',
-                                                        opacity: item.purchased ? 0.7 : 1
-                                                    }}
-                                                >
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'flex-start'
-                                                    }}>
-                                                        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                                                            {/* Checkbox */}
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={item.purchased || false}
-                                                                onChange={() => togglePurchased(item.itemKey)}
-                                                                style={{
-                                                                    width: '18px',
-                                                                    height: '18px',
-                                                                    marginTop: '2px',
-                                                                    cursor: 'pointer'
-                                                                }}
-                                                            />
+                                            {items.map((item, index) => {
+                                                const itemKey = item.itemKey || `${item.ingredient || item.name}-${category}`;
+                                                const isPurchased = item.purchased;
 
-                                                            <div style={{ flex: 1 }}>
-                                                                <div style={{
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'flex-start',
+                                                            gap: '0.75rem',
+                                                            padding: '0.75rem',
+                                                            backgroundColor: isPurchased ? '#f0fdf4' : 'transparent',
+                                                            borderRadius: '6px',
+                                                            opacity: isPurchased ? 0.7 : 1,
+                                                            textDecoration: isPurchased ? 'line-through' : 'none',
+                                                            border: '1px solid transparent'
+                                                        }}
+                                                    >
+                                                        {/* Checkbox */}
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isPurchased}
+                                                            onChange={() => handleItemToggle(itemKey)}
+                                                            style={{
+                                                                marginTop: '0.125rem',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        />
+
+                                                        {/* Item Details */}
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
+                                                                alignItems: 'flex-start',
+                                                                marginBottom: '0.25rem'
+                                                            }}>
+                                                                <span style={{
                                                                     fontWeight: '500',
-                                                                    color: item.purchased ? '#6b7280' : '#111827',
-                                                                    textDecoration: item.purchased ? 'line-through' : 'none'
+                                                                    color: '#374151'
                                                                 }}>
-                                                                    {item.ingredient}
-                                                                </div>
-
-                                                                {item.amount && (
-                                                                    <div style={{
-                                                                        fontSize: '0.875rem',
-                                                                        color: '#6b7280',
-                                                                        marginTop: '0.25rem'
-                                                                    }}>
-                                                                        {item.amount}
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Show inventory details */}
-                                                                {item.inInventory && item.haveAmount && (
-                                                                    <div style={{
-                                                                        fontSize: '0.75rem',
-                                                                        color: '#2563eb',
-                                                                        marginTop: '0.25rem'
-                                                                    }}>
-                                                                        In inventory: {item.haveAmount} (need: {item.needAmount})
-                                                                    </div>
-                                                                )}
+                                                                    {item.amount && `${item.amount} `}{item.ingredient || item.name}
+                                                                </span>
                                                             </div>
-                                                        </div>
 
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            {item.purchased && (
+                                                            {/* Inventory Status */}
+                                                            {item.inInventory && (
                                                                 <div style={{
+                                                                    fontSize: '0.875rem',
                                                                     color: '#16a34a',
-                                                                    fontSize: '0.75rem'
+                                                                    marginTop: '0.25rem'
                                                                 }}>
-                                                                    ✓ Purchased
-                                                                </div>
-                                                            )}
-                                                            {item.inInventory && !item.purchased && (
-                                                                <div style={{
-                                                                    color: '#2563eb',
-                                                                    fontSize: '0.75rem'
-                                                                }}>
-                                                                    ✓ In Inventory
+                                                                    <strong>In your inventory:</strong> {item.haveAmount || 'Available'}
+                                                                    {item.inventoryItem?.location &&
+                                                                        ` (${item.inventoryItem.location})`
+                                                                    }
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
@@ -996,23 +712,25 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         backgroundColor: '#f9fafb',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexShrink: 0
+                        alignItems: 'center'
                     }}>
                         <div style={{
                             fontSize: '0.875rem',
                             color: '#6b7280'
                         }}>
-                            Generated on {new Date().toLocaleDateString()}
+                            {shoppingList.generatedAt && (
+                                `Generated ${new Date(shoppingList.generatedAt).toLocaleString()}`
+                            )}
                         </div>
                         <button
                             onClick={onClose}
                             style={{
-                                backgroundColor: '#6b7280',
+                                backgroundColor: '#374151',
                                 color: 'white',
-                                padding: '0.5rem 1rem',
-                                borderRadius: '6px',
                                 border: 'none',
+                                borderRadius: '6px',
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.875rem',
                                 cursor: 'pointer'
                             }}
                         >
@@ -1020,13 +738,6 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         </button>
                     </div>
                 </div>
-
-                <style jsx>{`
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                `}</style>
             </div>
 
             {/* Email Share Modal */}
@@ -1037,6 +748,25 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 context="recipe"
                 contextName={recipeName}
             />
+
+            {/* Save Shopping List Modal */}
+            <SaveShoppingListModal
+                isOpen={showSaveModal}
+                onClose={() => setShowSaveModal(false)}
+                onSave={handleSaveSuccess}
+                shoppingList={shoppingList}
+                listType="recipe"
+                contextName={recipeName}
+                sourceRecipeIds={[recipeId]}
+                sourceMealPlanId={null}
+            />
+
+            <style jsx>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </>
     );
 }

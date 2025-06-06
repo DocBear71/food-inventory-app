@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v5
+// file: /src/lib/models.js - v6
 
 import mongoose from 'mongoose';
 
@@ -614,6 +614,207 @@ const EmailLogSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// Saved Shopping List Schema
+const SavedShoppingListSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Basic Information
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    description: {
+        type: String,
+        maxlength: 500,
+        trim: true
+    },
+
+    // List Type and Context
+    listType: {
+        type: String,
+        enum: ['recipe', 'recipes', 'meal-plan', 'custom'],
+        required: true
+    },
+    contextName: String, // Recipe name, meal plan name, etc.
+
+    // Source Information
+    sourceRecipeIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe'
+    }],
+    sourceMealPlanId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MealPlan'
+    },
+
+    // Shopping List Data
+    items: [{
+        ingredient: { type: String, required: true },
+        amount: String,
+        category: { type: String, default: 'other' },
+        inInventory: { type: Boolean, default: false },
+        purchased: { type: Boolean, default: false },
+        recipes: [String], // Recipe names using this ingredient
+        originalName: String,
+        needAmount: String,
+        haveAmount: String,
+        itemKey: String, // For checkbox tracking
+        notes: String // User can add notes to specific items
+    }],
+
+    // Statistics (cached for performance)
+    stats: {
+        totalItems: { type: Number, default: 0 },
+        needToBuy: { type: Number, default: 0 },
+        inInventory: { type: Number, default: 0 },
+        purchased: { type: Number, default: 0 },
+        estimatedCost: Number, // Future: price estimation
+        categories: { type: Number, default: 0 }
+    },
+
+    // Usage and Management
+    tags: [String], // User-defined tags for organization
+    color: {
+        type: String,
+        default: '#3b82f6' // Hex color for visual organization
+    },
+
+    // Status and Visibility
+    isTemplate: { type: Boolean, default: false }, // Can be reused as template
+    isShared: { type: Boolean, default: false }, // Shared with family/friends
+    isArchived: { type: Boolean, default: false }, // Archived but not deleted
+
+    // Usage Statistics
+    usage: {
+        timesLoaded: { type: Number, default: 0 },
+        lastLoaded: Date,
+        lastModified: Date,
+        averageCompletionTime: Number, // How long shopping took
+        completionRate: Number // % of items typically purchased
+    },
+
+    // Shopping Session Data
+    shoppingSessions: [{
+        startedAt: { type: Date, default: Date.now },
+        completedAt: Date,
+        itemsPurchased: Number,
+        totalItems: Number,
+        duration: Number, // in minutes
+        notes: String
+    }],
+
+    // Sharing and Collaboration
+    sharedWith: [{
+        email: String,
+        name: String,
+        permissions: {
+            type: String,
+            enum: ['view', 'edit'],
+            default: 'view'
+        },
+        sharedAt: { type: Date, default: Date.now }
+    }],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Shopping List Template Schema (for commonly used lists)
+const ShoppingListTemplateSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    name: {
+        type: String,
+        required: true,
+        maxlength: 100
+    },
+    description: String,
+    category: {
+        type: String,
+        enum: ['weekly-staples', 'meal-prep', 'party', 'holiday', 'bulk-shopping', 'custom'],
+        default: 'custom'
+    },
+
+    // Template Items (without purchased status)
+    templateItems: [{
+        ingredient: { type: String, required: true },
+        defaultAmount: String,
+        category: { type: String, default: 'other' },
+        isOptional: { type: Boolean, default: false },
+        notes: String
+    }],
+
+    // Usage Statistics
+    timesUsed: { type: Number, default: 0 },
+    isPublic: { type: Boolean, default: false }, // Share with community
+    rating: { type: Number, min: 1, max: 5 },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Pre-save middleware to update timestamps and stats
+SavedShoppingListSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+
+    // Recalculate stats
+    this.stats.totalItems = this.items.length;
+    this.stats.needToBuy = this.items.filter(item => !item.inInventory && !item.purchased).length;
+    this.stats.inInventory = this.items.filter(item => item.inInventory).length;
+    this.stats.purchased = this.items.filter(item => item.purchased).length;
+    this.stats.categories = [...new Set(this.items.map(item => item.category))].length;
+
+    next();
+});
+
+// Methods for SavedShoppingList
+SavedShoppingListSchema.methods.markAsLoaded = function() {
+    this.usage.timesLoaded += 1;
+    this.usage.lastLoaded = new Date();
+    return this.save();
+};
+
+SavedShoppingListSchema.methods.startShoppingSession = function() {
+    this.shoppingSessions.push({
+        startedAt: new Date(),
+        totalItems: this.stats.totalItems
+    });
+    return this.save();
+};
+
+SavedShoppingListSchema.methods.completeShoppingSession = function(itemsPurchased, notes = '') {
+    const currentSession = this.shoppingSessions[this.shoppingSessions.length - 1];
+    if (currentSession && !currentSession.completedAt) {
+        const now = new Date();
+        currentSession.completedAt = now;
+        currentSession.itemsPurchased = itemsPurchased;
+        currentSession.duration = Math.round((now - currentSession.startedAt) / (1000 * 60)); // minutes
+        currentSession.notes = notes;
+
+        // Update completion rate
+        const completedSessions = this.shoppingSessions.filter(s => s.completedAt);
+        if (completedSessions.length > 0) {
+            const avgCompletion = completedSessions.reduce((sum, s) =>
+                sum + (s.itemsPurchased / s.totalItems), 0) / completedSessions.length;
+            this.usage.completionRate = Math.round(avgCompletion * 100);
+
+            const avgDuration = completedSessions.reduce((sum, s) => sum + s.duration, 0) / completedSessions.length;
+            this.usage.averageCompletionTime = Math.round(avgDuration);
+        }
+    }
+    return this.save();
+};
+
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
@@ -657,6 +858,18 @@ EmailLogSchema.index({ userId: 1, sentAt: -1 });
 EmailLogSchema.index({ 'recipients.email': 1 });
 EmailLogSchema.index({ emailType: 1, sentAt: -1 });
 
+SavedShoppingListSchema.index({ userId: 1, createdAt: -1 });
+SavedShoppingListSchema.index({ userId: 1, isArchived: 1 });
+SavedShoppingListSchema.index({ userId: 1, listType: 1 });
+SavedShoppingListSchema.index({ userId: 1, tags: 1 });
+SavedShoppingListSchema.index({ 'usage.lastLoaded': -1 });
+SavedShoppingListSchema.index({ 'stats.totalItems': 1 });
+
+ShoppingListTemplateSchema.index({ userId: 1, category: 1 });
+ShoppingListTemplateSchema.index({ isPublic: 1, timesUsed: -1 });
+ShoppingListTemplateSchema.index({ userId: 1, timesUsed: -1 });
+
+
 
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
@@ -668,3 +881,5 @@ export const MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', M
 export const MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
 export const Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
 export const EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
+export const SavedShoppingList = mongoose.models.SavedShoppingList || mongoose.model('SavedShoppingList', SavedShoppingListSchema);
+export const ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mongoose.model('ShoppingListTemplate', ShoppingListTemplateSchema);
