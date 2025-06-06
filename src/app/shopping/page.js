@@ -1,4 +1,4 @@
-// Replace /src/app/shopping/page.js with this fixed version
+// file: /src/app/shopping/page.js v2
 
 'use client';
 
@@ -109,6 +109,43 @@ export default function ShoppingList() {
         } catch (error) {
             console.error('Error generating shopping list:', error);
             alert('Error generating shopping list');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // REFRESH FUNCTION - Regenerates shopping list with current selections
+    const refreshShoppingList = async () => {
+        if (selectedRecipes.length === 0) {
+            return;
+        }
+
+        setIsGenerating(true);
+        console.log('Refreshing shopping list for recipes:', selectedRecipes);
+
+        try {
+            const response = await fetch('/api/shopping/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipeIds: selectedRecipes,
+                }),
+            });
+
+            const data = await response.json();
+            console.log('Refreshed shopping list response:', data);
+
+            if (data.success) {
+                setShoppingList(data.shoppingList);
+                console.log('Shopping list refreshed successfully');
+            } else {
+                alert('Error refreshing shopping list: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error refreshing shopping list:', error);
+            alert('Error refreshing shopping list');
         } finally {
             setIsGenerating(false);
         }
@@ -250,10 +287,11 @@ export default function ShoppingList() {
                         </div>
                     </>
                 ) : (
-                    /* Shopping List Display */
+                    /* Shopping List Display WITH REFRESH FUNCTION */
                     <ShoppingListDisplay
                         shoppingList={shoppingList}
                         onClose={clearShoppingList}
+                        onRefresh={refreshShoppingList}
                     />
                 )}
 
@@ -266,7 +304,8 @@ export default function ShoppingList() {
                         <li>3. The system compares recipe needs with your current inventory</li>
                         <li>4. Shopping list shows only what you need to buy</li>
                         <li>5. Items are organized by store category for easy shopping</li>
-                        <li>6. Print or save the list to take to the store</li>
+                        <li>6. Use the Refresh button to update the list with latest inventory changes</li>
+                        <li>7. Print or save the list to take to the store</li>
                     </ul>
                 </div>
             </div>
