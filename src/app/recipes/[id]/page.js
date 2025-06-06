@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/page.js v6
+// file: /src/app/recipes/[id]/page.js v7
 
 'use client';
 
@@ -84,6 +84,14 @@ export default function RecipeDetailPage() {
         return amount;
     };
 
+    // Check if recipe has nutrition data
+    const hasNutritionData = recipe?.nutrition && (
+        (recipe.nutrition.calories && recipe.nutrition.calories.value > 0) ||
+        (recipe.nutrition.protein && recipe.nutrition.protein.value > 0) ||
+        (recipe.nutrition.fat && recipe.nutrition.fat.value > 0) ||
+        (recipe.nutrition.carbs && recipe.nutrition.carbs.value > 0)
+    );
+
     if (loading) {
         return (
             <DashboardLayout>
@@ -156,12 +164,14 @@ export default function RecipeDetailPage() {
                                     Edit Recipe
                                 </button>
                             )}
-                            <button
-                                onClick={() => setShowNutrition(!showNutrition)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-                            >
-                                {showNutrition ? 'Hide' : 'Show'} Nutrition
-                            </button>
+                            {hasNutritionData && (
+                                <button
+                                    onClick={() => setShowNutrition(!showNutrition)}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                                >
+                                    {showNutrition ? 'Hide' : 'Show'} Nutrition
+                                </button>
+                            )}
                             <button
                                 onClick={() => window.print()}
                                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
@@ -222,9 +232,13 @@ export default function RecipeDetailPage() {
                 </div>
 
                 {/* Nutrition Panel */}
-                {showNutrition && recipe.nutrition && (
+                {showNutrition && hasNutritionData && (
                     <div className="mb-8">
-                        <NutritionFacts nutrition={recipe.nutrition} servings={servings} />
+                        <NutritionFacts
+                            nutrition={recipe.nutrition}
+                            servings={recipe.servings || 1}
+                            showPerServing={true}
+                        />
                     </div>
                 )}
 
@@ -328,6 +342,25 @@ export default function RecipeDetailPage() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Compact Nutrition Display */}
+                        {hasNutritionData && !showNutrition && (
+                            <div className="bg-white rounded-lg border p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutrition Summary</h3>
+                                <NutritionFacts
+                                    nutrition={recipe.nutrition}
+                                    servings={recipe.servings || 1}
+                                    showPerServing={true}
+                                    compact={true}
+                                />
+                                <button
+                                    onClick={() => setShowNutrition(true)}
+                                    className="w-full mt-3 text-sm text-indigo-600 hover:text-indigo-700"
+                                >
+                                    View detailed nutrition facts →
+                                </button>
+                            </div>
+                        )}
 
                         {/* Quick Actions */}
                         <div className="bg-white rounded-lg border p-6">

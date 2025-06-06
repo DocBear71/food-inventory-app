@@ -110,12 +110,12 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     tags: data.recipe.tags || [],
                     source: data.recipe.source || url,
                     nutrition: {
-                        // Clean nutrition values (remove units, keep only numbers)
-                        calories: cleanNutritionValue(data.recipe.nutrition?.calories),
-                        protein: cleanNutritionValue(data.recipe.nutrition?.protein),
-                        carbs: cleanNutritionValue(data.recipe.nutrition?.carbs),
-                        fat: cleanNutritionValue(data.recipe.nutrition?.fat),
-                        fiber: cleanNutritionValue(data.recipe.nutrition?.fiber)
+                        // Convert from structured format to simple values for form
+                        calories: data.recipe.nutrition?.calories?.value || '',
+                        protein: data.recipe.nutrition?.protein?.value || '',
+                        carbs: data.recipe.nutrition?.carbs?.value || '',
+                        fat: data.recipe.nutrition?.fat?.value || '',
+                        fiber: data.recipe.nutrition?.fiber?.value || ''
                     }
                 };
 

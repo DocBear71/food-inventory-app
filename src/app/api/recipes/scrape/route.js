@@ -207,17 +207,47 @@ function normalizeRecipeData(jsonLdData) {
 
         // Nutrition information if available
         nutrition: recipe.nutrition ? {
-            calories: extractNumericValue(recipe.nutrition.calories) || '',
-            protein: extractNumericValue(recipe.nutrition.proteinContent) || '',
-            fat: extractNumericValue(recipe.nutrition.fatContent) || '',
-            carbs: extractNumericValue(recipe.nutrition.carbohydrateContent) || '',
-            fiber: extractNumericValue(recipe.nutrition.fiberContent) || ''
+            calories: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.calories)) || 0,
+                unit: 'kcal',
+                name: 'Calories'
+            },
+            protein: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.proteinContent)) || 0,
+                unit: 'g',
+                name: 'Protein'
+            },
+            fat: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.fatContent)) || 0,
+                unit: 'g',
+                name: 'Fat'
+            },
+            carbs: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.carbohydrateContent)) || 0,
+                unit: 'g',
+                name: 'Carbohydrates'
+            },
+            fiber: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.fiberContent)) || 0,
+                unit: 'g',
+                name: 'Fiber'
+            },
+            sodium: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.sodiumContent)) || 0,
+                unit: 'mg',
+                name: 'Sodium'
+            },
+            sugars: {
+                value: parseFloat(extractNumericValue(recipe.nutrition.sugarContent)) || 0,
+                unit: 'g',
+                name: 'Sugars'
+            }
         } : {
-            calories: '',
-            protein: '',
-            fat: '',
-            carbs: '',
-            fiber: ''
+            calories: { value: 0, unit: 'kcal', name: 'Calories' },
+            protein: { value: 0, unit: 'g', name: 'Protein' },
+            fat: { value: 0, unit: 'g', name: 'Fat' },
+            carbs: { value: 0, unit: 'g', name: 'Carbohydrates' },
+            fiber: { value: 0, unit: 'g', name: 'Fiber' }
         }
     };
 
