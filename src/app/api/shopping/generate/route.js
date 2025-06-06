@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v36
+// file: /src/app/api/shopping/generate/route.js v37
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -97,7 +97,9 @@ const INGREDIENT_VARIATIONS = {
     'sugar': ['white sugar', 'granulated sugar', 'cane sugar'],
     'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
     'butter': ['unsalted butter', 'salted butter', 'sweet cream butter'],
-    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk'] // Keep milk separate from cheese
+    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk'], // Keep milk separate from cheese
+    'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'coarse salt'],
+    'sesame seeds': ['toasted sesame seeds', 'white sesame seeds', 'black sesame seeds']
 };
 
 // Standard package sizes for inventory matching
@@ -169,7 +171,8 @@ const STANDARD_PACKAGE_SIZES = {
     'walnuts': { size: 16, unit: 'oz', type: 'nuts' },
     'peanuts': { size: 16, unit: 'oz', type: 'nuts' },
     'cashews': { size: 10, unit: 'oz', type: 'nuts' },
-    'pine nuts': { size: 2, unit: 'oz', type: 'nuts' }
+    'pine nuts': { size: 2, unit: 'oz', type: 'nuts' },
+    'sesame seeds': { size: 4, unit: 'oz', type: 'nuts' }
 };
 
 // Function to extract recipe IDs from meal plan
@@ -220,7 +223,7 @@ function createIngredientKey(ingredient) {
 
     // Remove common descriptors that shouldn't prevent combination
     const cleaned = normalized
-        .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded)\b/g, '')
+        .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|toasted)\b/g, '')
         .replace(/\b(small|medium|large|extra large)\b/g, '')
         .replace(/\b(can|jar|bottle|bag|box|package)\b/g, '')
         .replace(/\b(of|the|and|or)\b/g, '')
@@ -237,8 +240,109 @@ function createIngredientKey(ingredient) {
     if (cleaned.includes('tomato sauce') || cleaned.includes('marinara')) return 'tomato-sauce';
     if (cleaned.includes('mozzarella')) return 'mozzarella';
     if (cleaned.includes('cheddar')) return 'cheddar';
+    if (cleaned.includes('sesame seeds')) return 'sesame-seeds';
+    if (cleaned.includes('vegetable oil')) return 'vegetable-oil';
+    if (cleaned.includes('olive oil')) return 'olive-oil';
+    if (cleaned.includes('soy sauce')) return 'soy-sauce';
+    if (cleaned.includes('salt')) return 'salt';
 
     return cleaned;
+}
+
+// Parse amount and unit from ingredient amount string
+function parseAmountAndUnit(amountStr) {
+    if (!amountStr || typeof amountStr !== 'string') {
+        return { amount: '', unit: '', numeric: 0, isToTaste: false };
+    }
+
+    const str = amountStr.trim().toLowerCase();
+
+    // Handle "to taste" specially
+    if (str.includes('to taste')) {
+        return { amount: 'to taste', unit: '', numeric: 0, isToTaste: true };
+    }
+
+    // Extract numeric value and unit
+    const match = str.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*(.*)$/);
+    if (match) {
+        const numericValue = parseFloat(match[1]);
+        const unit = match[2].trim();
+        return {
+            amount: match[1],
+            unit: unit,
+            numeric: numericValue,
+            isToTaste: false
+        };
+    }
+
+    // If no numeric match, return as-is
+    return { amount: str, unit: '', numeric: 0, isToTaste: false };
+}
+
+// Smart combination of ingredient amounts
+function combineIngredientAmounts(existing, newIngredient) {
+    const existingParsed = parseAmountAndUnit(existing.amount);
+    const newParsed = parseAmountAndUnit(newIngredient.amount);
+
+    console.log(`Combining amounts: "${existing.amount}" + "${newIngredient.amount}"`);
+    console.log(`Parsed - Existing: ${JSON.stringify(existingParsed)}, New: ${JSON.stringify(newParsed)}`);
+
+    // Handle "to taste" items - only keep one "to taste"
+    if (existingParsed.isToTaste && newParsed.isToTaste) {
+        return {
+            amount: 'to taste',
+            unit: existing.unit || newIngredient.unit || ''
+        };
+    }
+
+    // If one is "to taste" and other has measurement, combine them
+    if (existingParsed.isToTaste && !newParsed.isToTaste) {
+        return {
+            amount: `${newParsed.amount}${newParsed.unit ? ' ' + newParsed.unit : ''}, to taste`,
+            unit: newParsed.unit || existing.unit || ''
+        };
+    }
+
+    if (!existingParsed.isToTaste && newParsed.isToTaste) {
+        return {
+            amount: `${existingParsed.amount}${existingParsed.unit ? ' ' + existingParsed.unit : ''}, to taste`,
+            unit: existingParsed.unit || newIngredient.unit || ''
+        };
+    }
+
+    // Both have numeric values
+    if (existingParsed.numeric > 0 && newParsed.numeric > 0) {
+        // If units match or one is empty, combine
+        if (!existingParsed.unit || !newParsed.unit || existingParsed.unit === newParsed.unit) {
+            const combinedAmount = existingParsed.numeric + newParsed.numeric;
+            const unit = existingParsed.unit || newParsed.unit || '';
+
+            console.log(`Combined numeric: ${existingParsed.numeric} + ${newParsed.numeric} = ${combinedAmount} ${unit}`);
+
+            return {
+                amount: combinedAmount.toString(),
+                unit: unit
+            };
+        } else {
+            // Different units - list them separately
+            const existingStr = `${existingParsed.amount}${existingParsed.unit ? ' ' + existingParsed.unit : ''}`;
+            const newStr = `${newParsed.amount}${newParsed.unit ? ' ' + newParsed.unit : ''}`;
+
+            return {
+                amount: `${existingStr}, ${newStr}`,
+                unit: '' // Clear unit since we have mixed units
+            };
+        }
+    }
+
+    // Fallback - just concatenate
+    const existingStr = existing.amount + (existing.unit ? ' ' + existing.unit : '');
+    const newStr = newIngredient.amount + (newIngredient.unit ? ' ' + newIngredient.unit : '');
+
+    return {
+        amount: `${existingStr}, ${newStr}`,
+        unit: ''
+    };
 }
 
 // Get all variations of an ingredient - more conservative approach
@@ -385,6 +489,9 @@ function getStandardPackageInfo(ingredient) {
     if (normalized.includes('tomato sauce') || normalized.includes('marinara')) {
         return STANDARD_PACKAGE_SIZES['tomato sauce'];
     }
+    if (normalized.includes('sesame seeds')) {
+        return STANDARD_PACKAGE_SIZES['sesame seeds'];
+    }
 
     // Only check very specific partial matches to avoid contamination
     const specificPackageMatches = {
@@ -494,7 +601,7 @@ export async function POST(request) {
 
         console.log(`Found ${inventory.length} items in user inventory`);
 
-        // Enhanced ingredient aggregation with better combination logic
+        // Enhanced ingredient aggregation with improved combination logic
         const ingredientMap = new Map();
 
         recipes.forEach(recipe => {
@@ -509,52 +616,38 @@ export async function POST(request) {
                 const ingredientKey = createIngredientKey(ingredient.name);
 
                 console.log(`Processing ingredient: "${ingredient.name}" -> key: "${ingredientKey}"`);
+                console.log(`Amount: "${ingredient.amount}", Unit: "${ingredient.unit}"`);
 
                 if (ingredientMap.has(ingredientKey)) {
                     const existing = ingredientMap.get(ingredientKey);
                     existing.recipes.push(recipe.title);
 
-                    // Combine amounts intelligently
-                    if (ingredient.amount && existing.amount) {
-                        // Try to parse and combine numeric amounts
-                        const existingMatch = existing.amount.match(/(\d+(?:\.\d+)?)/);
-                        const newMatch = ingredient.amount.match(/(\d+(?:\.\d+)?)/);
-
-                        if (existingMatch && newMatch) {
-                            const existingNum = parseFloat(existingMatch[1]);
-                            const newNum = parseFloat(newMatch[1]);
-                            const combined = existingNum + newNum;
-
-                            // Use the unit from the existing ingredient
-                            const unit = existing.unit || ingredient.unit || '';
-                            existing.amount = `${combined}`;
-                            existing.unit = unit;
-
-                            console.log(`Combined amounts: ${existingMatch[1]} + ${newMatch[1]} = ${combined} ${unit}`);
-                        } else {
-                            // If can't parse, just append
-                            existing.amount += `, ${ingredient.amount}`;
-                        }
-                    } else if (ingredient.amount && !existing.amount) {
-                        existing.amount = ingredient.amount;
-                        existing.unit = ingredient.unit || existing.unit;
-                    }
+                    // Smart amount combination
+                    const combinedAmounts = combineIngredientAmounts(existing, ingredient);
+                    existing.amount = combinedAmounts.amount;
+                    existing.unit = combinedAmounts.unit;
 
                     // Keep the most descriptive name
                     if (ingredient.name.length > existing.name.length) {
                         existing.name = ingredient.name;
                         existing.originalName = ingredient.name;
                     }
+
+                    console.log(`Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
                 } else {
                     const category = categorizeIngredient(ingredient.name);
                     const packageInfo = getStandardPackageInfo(ingredient.name);
+
+                    // Ensure we preserve the unit from the ingredient
+                    const finalAmount = ingredient.amount || '';
+                    const finalUnit = ingredient.unit || '';
 
                     ingredientMap.set(ingredientKey, {
                         name: ingredient.name,
                         originalName: ingredient.name,
                         normalizedName: normalizeIngredient(ingredient.name),
-                        amount: ingredient.amount || '',
-                        unit: ingredient.unit || '',
+                        amount: finalAmount,
+                        unit: finalUnit,
                         category: category,
                         recipes: [recipe.title],
                         optional: ingredient.optional || false,
@@ -563,6 +656,8 @@ export async function POST(request) {
                         variations: getIngredientVariations(ingredient.name),
                         ingredientKey: ingredientKey
                     });
+
+                    console.log(`New ingredient: ${ingredient.name} - ${finalAmount} ${finalUnit}`);
                 }
             });
         });
@@ -590,11 +685,20 @@ export async function POST(request) {
             const hasEnoughInInventory = inventoryMatch &&
                 checkInventoryCoverage(ingredient.amount, inventoryMatch, ingredient.packageInfo);
 
+            // Create the display amount with unit
+            let displayAmount = ingredient.amount || '';
+            if (ingredient.unit && displayAmount && !displayAmount.includes(ingredient.unit)) {
+                // Only add unit if it's not already included in the amount
+                if (displayAmount !== 'to taste') {
+                    displayAmount = `${displayAmount} ${ingredient.unit}`.trim();
+                }
+            }
+
             const item = {
                 name: ingredient.name,
                 ingredient: ingredient.name,
                 originalName: ingredient.originalName,
-                amount: ingredient.amount,
+                amount: displayAmount, // Use display amount with unit
                 unit: ingredient.unit,
                 category: normalizedCategory,
                 recipes: ingredient.recipes,
@@ -608,7 +712,7 @@ export async function POST(request) {
                     expirationDate: inventoryMatch.expirationDate,
                     brand: inventoryMatch.brand
                 } : null,
-                needAmount: ingredient.amount || '1',
+                needAmount: displayAmount || '1',
                 haveAmount: inventoryMatch ? `${inventoryMatch.quantity} ${inventoryMatch.unit}` : '0',
                 packageInfo: ingredient.packageInfo,
                 alternatives: ingredient.alternatives,
