@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v6
+// file: /src/lib/models.js - v7
 
 import mongoose from 'mongoose';
 
@@ -815,6 +815,296 @@ SavedShoppingListSchema.methods.completeShoppingSession = function(itemsPurchase
     return this.save();
 };
 
+// Meal Prep Suggestion Schema
+const MealPrepSuggestionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    mealPlanId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MealPlan',
+        required: true
+    },
+
+    // Batch cooking opportunities
+    batchCookingSuggestions: [{
+        ingredient: { type: String, required: true },
+        totalAmount: { type: String, required: true },
+        unit: { type: String },
+        recipes: [String], // Recipe names using this ingredient
+        cookingMethod: { type: String }, // 'bake', 'grill', 'saute', etc.
+        prepInstructions: { type: String },
+        storageInstructions: { type: String },
+        shelfLife: { type: String }, // "3-4 days refrigerated"
+        estimatedPrepTime: { type: Number }, // minutes
+        difficulty: {
+            type: String,
+            enum: ['easy', 'medium', 'hard'],
+            default: 'easy'
+        }
+    }],
+
+    // Ingredient prep consolidation
+    ingredientPrepSuggestions: [{
+        ingredient: { type: String, required: true },
+        totalAmount: { type: String },
+        prepType: { type: String }, // 'chop', 'dice', 'slice', 'mince'
+        recipes: [String],
+        prepInstructions: { type: String },
+        storageMethod: { type: String },
+        estimatedPrepTime: { type: Number } // minutes
+    }],
+
+    // Recommended prep schedule
+    prepSchedule: [{
+        day: {
+            type: String,
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            required: true
+        },
+        tasks: [{
+            taskType: {
+                type: String,
+                enum: ['batch_cook', 'ingredient_prep', 'portion', 'marinate'],
+                required: true
+            },
+            description: { type: String, required: true },
+            estimatedTime: { type: Number }, // minutes
+            priority: {
+                type: String,
+                enum: ['high', 'medium', 'low'],
+                default: 'medium'
+            },
+            ingredients: [String],
+            equipment: [String] // 'large pot', 'baking sheet', etc.
+        }]
+    }],
+
+    // Time and efficiency metrics
+    metrics: {
+        totalPrepTime: { type: Number, default: 0 }, // total minutes
+        timeSaved: { type: Number, default: 0 }, // estimated minutes saved during week
+        efficiency: { type: Number, default: 0 }, // percentage efficiency gain
+        recipesAffected: { type: Number, default: 0 },
+        ingredientsConsolidated: { type: Number, default: 0 }
+    },
+
+    // User preferences and customization
+    preferences: {
+        maxPrepTime: { type: Number, default: 180 }, // max minutes willing to spend on prep
+        preferredPrepDays: [{
+            type: String,
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        }],
+        avoidedTasks: [String], // tasks user doesn't want to do
+        skillLevel: {
+            type: String,
+            enum: ['beginner', 'intermediate', 'advanced'],
+            default: 'beginner'
+        }
+    },
+
+    // Implementation tracking
+    implementation: {
+        tasksCompleted: [String], // task IDs that were completed
+        completionRate: { type: Number, default: 0 }, // percentage
+        feedback: {
+            difficulty: { type: Number, min: 1, max: 5 },
+            timeAccuracy: { type: Number, min: 1, max: 5 },
+            usefulness: { type: Number, min: 1, max: 5 },
+            comments: String
+        },
+        actualTimeSpent: { type: Number }, // actual minutes spent on prep
+        wouldUseAgain: { type: Boolean }
+    },
+
+    // Status and metadata
+    status: {
+        type: String,
+        enum: ['generated', 'in_progress', 'completed', 'abandoned'],
+        default: 'generated'
+    },
+    weekStartDate: { type: Date, required: true },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Meal Prep Template Schema (reusable prep strategies)
+const MealPrepTemplateSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    category: {
+        type: String,
+        enum: ['protein_prep', 'vegetable_prep', 'grain_prep', 'sauce_prep', 'full_meal_prep'],
+        required: true
+    },
+
+    // Template instructions
+    instructions: [{
+        step: { type: Number, required: true },
+        instruction: { type: String, required: true },
+        estimatedTime: { type: Number }, // minutes
+        equipment: [String],
+        tips: [String]
+    }],
+
+    // Applicable ingredients/recipes
+    applicableIngredients: [String],
+    recipeTypes: [String], // 'chicken dishes', 'pasta recipes', etc.
+
+    // Template metrics
+    estimatedTime: { type: Number, required: true }, // total minutes
+    difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard'],
+        default: 'easy'
+    },
+    yield: { type: String }, // "Serves 4-6 meals"
+    shelfLife: { type: String },
+
+    // Usage statistics
+    usage: {
+        timesUsed: { type: Number, default: 0 },
+        averageRating: { type: Number, default: 0 },
+        lastUsed: Date
+    },
+
+    // Community features
+    isPublic: { type: Boolean, default: false },
+    tags: [String],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Meal Prep Knowledge Base - cooking methods and techniques
+const MealPrepKnowledgeSchema = new mongoose.Schema({
+    ingredient: { type: String, required: true },
+    category: { type: String, required: true }, // 'protein', 'vegetable', 'grain', etc.
+
+    // Batch cooking methods
+    batchMethods: [{
+        method: { type: String, required: true }, // 'oven_roast', 'slow_cook', 'grill', etc.
+        description: { type: String },
+        temperature: { type: String }, // "375°F"
+        timePerPound: { type: String }, // "20-25 minutes per lb"
+        maxBatchSize: { type: String }, // "5-6 lbs"
+        equipment: [String],
+        benefits: [String], // "Even cooking", "hands-off", etc.
+        tips: [String]
+    }],
+
+    // Storage recommendations
+    storage: {
+        refrigerator: {
+            maxDays: { type: Number },
+            containerType: { type: String },
+            tips: [String]
+        },
+        freezer: {
+            maxMonths: { type: Number },
+            packagingMethod: { type: String },
+            thawingInstructions: { type: String }
+        }
+    },
+
+    // Prep techniques
+    prepTechniques: [{
+        technique: { type: String }, // 'dice', 'julienne', 'rough chop'
+        timePerCup: { type: Number }, // minutes
+        shelfLife: { type: String },
+        storageMethod: { type: String }
+    }],
+
+    // Reheating guidelines
+    reheating: [{
+        method: { type: String }, // 'microwave', 'oven', 'stovetop'
+        instructions: { type: String },
+        timeGuideline: { type: String },
+        qualityNotes: { type: String } // "Best texture", "May dry out", etc.
+    }]
+});
+
+// Pre-save middleware for meal prep suggestions
+MealPrepSuggestionSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+
+    // Calculate metrics
+    if (this.batchCookingSuggestions && this.ingredientPrepSuggestions) {
+        this.metrics.recipesAffected = new Set([
+            ...this.batchCookingSuggestions.flatMap(s => s.recipes),
+            ...this.ingredientPrepSuggestions.flatMap(s => s.recipes)
+        ]).size;
+
+        this.metrics.ingredientsConsolidated = this.batchCookingSuggestions.length +
+            this.ingredientPrepSuggestions.length;
+
+        this.metrics.totalPrepTime = this.prepSchedule.reduce((total, day) =>
+            total + day.tasks.reduce((dayTotal, task) => dayTotal + (task.estimatedTime || 0), 0), 0
+        );
+
+        // Estimate time saved (rough calculation)
+        this.metrics.timeSaved = Math.floor(this.metrics.totalPrepTime * 0.3); // 30% time savings estimate
+        this.metrics.efficiency = this.metrics.timeSaved > 0 ?
+            Math.min(Math.floor((this.metrics.timeSaved / this.metrics.totalPrepTime) * 100), 100) : 0;
+    }
+
+    next();
+});
+
+// Methods for meal prep suggestions
+MealPrepSuggestionSchema.methods.markTaskCompleted = function(taskId) {
+    if (!this.implementation.tasksCompleted.includes(taskId)) {
+        this.implementation.tasksCompleted.push(taskId);
+
+        // Recalculate completion rate
+        const totalTasks = this.prepSchedule.reduce((total, day) => total + day.tasks.length, 0);
+        this.implementation.completionRate = totalTasks > 0 ?
+            Math.floor((this.implementation.tasksCompleted.length / totalTasks) * 100) : 0;
+
+        // Update status based on completion
+        if (this.implementation.completionRate === 100) {
+            this.status = 'completed';
+        } else if (this.implementation.completionRate > 0) {
+            this.status = 'in_progress';
+        }
+    }
+
+    return this.save();
+};
+
+MealPrepSuggestionSchema.methods.addFeedback = function(feedback) {
+    this.implementation.feedback = {
+        ...this.implementation.feedback,
+        ...feedback
+    };
+
+    return this.save();
+};
+
+// Template usage tracking
+MealPrepTemplateSchema.methods.recordUsage = function(rating) {
+    this.usage.timesUsed += 1;
+    this.usage.lastUsed = new Date();
+
+    if (rating && rating >= 1 && rating <= 5) {
+        const currentRating = this.usage.averageRating || 0;
+        const currentCount = this.usage.timesUsed - 1;
+        this.usage.averageRating = ((currentRating * currentCount) + rating) / this.usage.timesUsed;
+    }
+
+    return this.save();
+};
+
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
@@ -869,7 +1159,18 @@ ShoppingListTemplateSchema.index({ userId: 1, category: 1 });
 ShoppingListTemplateSchema.index({ isPublic: 1, timesUsed: -1 });
 ShoppingListTemplateSchema.index({ userId: 1, timesUsed: -1 });
 
+MealPrepSuggestionSchema.index({ userId: 1, weekStartDate: -1 });
+MealPrepSuggestionSchema.index({ mealPlanId: 1 });
+MealPrepSuggestionSchema.index({ status: 1, userId: 1 });
+MealPrepSuggestionSchema.index({ 'preferences.preferredPrepDays': 1 });
 
+MealPrepTemplateSchema.index({ userId: 1, category: 1 });
+MealPrepTemplateSchema.index({ isPublic: 1, category: 1 });
+MealPrepTemplateSchema.index({ tags: 1 });
+MealPrepTemplateSchema.index({ 'usage.averageRating': -1 });
+
+MealPrepKnowledgeSchema.index({ ingredient: 1 });
+MealPrepKnowledgeSchema.index({ category: 1 });
 
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
@@ -883,3 +1184,6 @@ export const Contact = mongoose.models.Contact || mongoose.model('Contact', Cont
 export const EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
 export const SavedShoppingList = mongoose.models.SavedShoppingList || mongoose.model('SavedShoppingList', SavedShoppingListSchema);
 export const ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mongoose.model('ShoppingListTemplate', ShoppingListTemplateSchema);
+export const MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
+export const MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
+export const MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
