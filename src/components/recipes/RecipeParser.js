@@ -164,38 +164,130 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         if (!cleanLine) return null;
 
-        // Try to extract amount and unit using regex
-        const amountPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(\w+)?\s+(.+)/;
-        const fractionPattern = /^(\d+\/\d+)\s*(\w+)?\s+(.+)/;
-        const rangePattern = /^(\d+\-\d+)\s*(\w+)?\s+(.+)/;
+        console.log('Parsing ingredient line:', cleanLine);
 
-        let match = cleanLine.match(amountPattern) ||
-            cleanLine.match(fractionPattern) ||
-            cleanLine.match(rangePattern);
+        // Enhanced patterns for better parsing
 
+        // Pattern 1: Handle fractions with units (e.g., "½ lb Italian sausage", "8 oz pappardelle")
+        const fractionWithUnitPattern = /^([½¼¾\d]+(?:\/\d+)?(?:\.\d+)?)\s*(oz|ounces|lb|lbs|pound|pounds|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|clove|cloves|g|gram|grams)\s+(.+)$/i;
+
+        // Pattern 2: Handle numbers with units (e.g., "2 cloves garlic, minced")
+        const numberWithUnitPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(clove|cloves|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounces|lb|lbs|pound|pounds|slice|slices|piece|pieces|g|gram|grams)\s+(.+)$/i;
+
+        // Pattern 3: Handle "to taste" ingredients (e.g., "Salt & pepper to taste")
+        const toTastePattern = /^(.+?)\s+to\s+taste$/i;
+
+        // Pattern 4: Handle standalone amounts with units (e.g., "1 bell pepper", "1 small onion")
+        const standaloneAmountPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(small|medium|large)?\s*(.+)$/i;
+
+        // Pattern 5: Handle measurement conversions (e.g., "½ cup" = "1/2 cup")
+        const convertFractions = (text) => {
+            return text
+                .replace(/½/g, '1/2')
+                .replace(/¼/g, '1/4')
+                .replace(/¾/g, '3/4')
+                .replace(/⅓/g, '1/3')
+                .replace(/⅔/g, '2/3')
+                .replace(/⅛/g, '1/8')
+                .replace(/⅜/g, '3/8')
+                .replace(/⅝/g, '5/8')
+                .replace(/⅞/g, '7/8');
+        };
+
+        cleanLine = convertFractions(cleanLine);
+
+        // Try fraction with unit pattern first
+        let match = cleanLine.match(fractionWithUnitPattern);
         if (match) {
+            console.log('Matched fraction with unit:', match);
             return {
                 name: match[3].trim(),
                 amount: match[1],
-                unit: match[2] || '',
+                unit: match[2],
                 optional: cleanLine.toLowerCase().includes('optional')
             };
         }
 
-        // Try common unit patterns
-        const unitPattern = /^(.+?)\s+(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|pound|pounds|lb|lbs|ounce|ounces|oz|gram|grams|g|kilogram|kg|clove|cloves|piece|pieces|slice|slices)\s*(.*)$/i;
-        const unitMatch = cleanLine.match(unitPattern);
-
-        if (unitMatch) {
+        // Try number with unit pattern
+        match = cleanLine.match(numberWithUnitPattern);
+        if (match) {
+            console.log('Matched number with unit:', match);
             return {
-                name: unitMatch[3] || unitMatch[1],
-                amount: unitMatch[1].match(/\d/) ? unitMatch[1] : '1',
-                unit: unitMatch[2],
+                name: match[3].trim(),
+                amount: match[1],
+                unit: match[2],
                 optional: cleanLine.toLowerCase().includes('optional')
             };
         }
 
-        // Fallback: treat entire line as ingredient name
+        // Try "to taste" pattern
+        match = cleanLine.match(toTastePattern);
+        if (match) {
+            console.log('Matched to taste:', match);
+            return {
+                name: match[1].trim(),
+                amount: 'to taste',
+                unit: '',
+                optional: false
+            };
+        }
+
+        // Try standalone amount pattern (for items like "1 bell pepper")
+        match = cleanLine.match(standaloneAmountPattern);
+        if (match) {
+            console.log('Matched standalone amount:', match);
+            const size = match[2] ? match[2] + ' ' : '';
+            return {
+                name: (size + match[3]).trim(),
+                amount: match[1],
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Enhanced unit detection for common cooking units
+        const enhancedUnitPattern = /^(.+?)\s+(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|pound|pounds|lb|lbs|ounce|ounces|oz|gram|grams|g|kilogram|kg|clove|cloves|piece|pieces|slice|slices|can|cans|jar|jars|bottle|bottles|package|packages|bunch|bunches)\s*(.*)$/i;
+
+        const unitMatch = cleanLine.match(enhancedUnitPattern);
+        if (unitMatch) {
+            console.log('Matched enhanced unit:', unitMatch);
+            // Extract amount from the first part
+            const firstPart = unitMatch[1].trim();
+            const amountMatch = firstPart.match(/(\d+(?:\/\d+)?(?:\.\d+)?)(?:\s+(.*))?$/);
+
+            if (amountMatch) {
+                return {
+                    name: (amountMatch[2] || '') + ' ' + (unitMatch[3] || '').trim(),
+                    amount: amountMatch[1],
+                    unit: unitMatch[2],
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            } else {
+                return {
+                    name: unitMatch[3] || firstPart,
+                    amount: '1',
+                    unit: unitMatch[2],
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            }
+        }
+
+        // If no pattern matches, try to extract any number from the beginning
+        const fallbackPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(.+)$/;
+        const fallbackMatch = cleanLine.match(fallbackPattern);
+
+        if (fallbackMatch) {
+            console.log('Matched fallback pattern:', fallbackMatch);
+            return {
+                name: fallbackMatch[2].trim(),
+                amount: fallbackMatch[1],
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Final fallback: treat entire line as ingredient name
+        console.log('No pattern matched, using entire line as name');
         return {
             name: cleanLine,
             amount: '',
@@ -229,17 +321,28 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
     const isIngredientLine = (line) => {
         const lowerLine = line.toLowerCase();
 
+        // Skip obviously non-ingredient lines
+        if (lowerLine.includes('serve') || lowerLine.includes('enjoy') || lowerLine.includes('garnish with basil and serve')) {
+            return false;
+        }
+
         // Has bullet point or number
         if (/^[•\-\*\d+\.\)]/.test(line)) return true;
 
-        // Contains measurement units
-        if (/\b(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|pound|pounds|lb|lbs|ounce|ounces|oz|gram|grams|g|clove|cloves)\b/i.test(line)) return true;
+        // Contains measurement units (enhanced list)
+        if (/\b(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|pound|pounds|lb|lbs|ounce|ounces|oz|gram|grams|g|clove|cloves|slice|slices|piece|pieces|can|cans|jar|jars|bottle|bottles|small|medium|large)\b/i.test(line)) return true;
 
-        // Has number at start
-        if (/^\d/.test(line)) return true;
+        // Has fraction characters
+        if (/[½¼¾⅓⅔⅛⅜⅝⅞]/.test(line)) return true;
+
+        // Has number at start followed by space
+        if (/^\d+(?:\/\d+)?\s/.test(line)) return true;
 
         // Common ingredient patterns
-        if (/\b(salt|pepper|oil|butter|flour|sugar|milk|cheese|onion|garlic|tomato)\b/i.test(line)) return true;
+        if (/\b(salt|pepper|oil|butter|flour|sugar|milk|cheese|onion|garlic|tomato|wine|basil|sausage|pasta|bell pepper|red pepper)\b/i.test(line)) return true;
+
+        // Contains "to taste"
+        if (/to taste/i.test(line)) return true;
 
         return false;
     };
