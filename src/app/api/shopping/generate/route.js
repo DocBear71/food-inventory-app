@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v37
+// file: /src/app/api/shopping/generate/route.js v38
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -15,7 +15,8 @@ const INGREDIENT_CATEGORIES = {
         'eggplant', 'mushroom', 'avocado', 'lemon', 'lime', 'orange', 'apple', 'banana', 'berry',
         'strawberry', 'blueberry', 'raspberry', 'grape', 'pineapple', 'mango', 'cilantro', 'parsley',
         'basil', 'mint', 'rosemary', 'thyme', 'oregano', 'sage', 'dill', 'chive', 'scallion',
-        'green onion', 'shallot', 'leek', 'jalapeño', 'serrano', 'habanero', 'poblano', 'anaheim'
+        'green onion', 'shallot', 'leek', 'jalapeño', 'serrano', 'habanero', 'poblano', 'anaheim',
+        'red pepper flakes', 'chives'
     ],
 
     // Pantry staples
@@ -26,7 +27,7 @@ const INGREDIENT_CATEGORIES = {
         'quinoa', 'oats', 'bread', 'tortilla', 'beans', 'lentils', 'chickpeas', 'broth', 'stock',
         'tomato sauce', 'tomato paste', 'coconut milk', 'peanut butter', 'almond butter', 'nuts',
         'almonds', 'walnuts', 'pecans', 'cashews', 'peanuts', 'pine nuts', 'sesame seeds', 'chia seeds',
-        'enchilada sauce', 'pasta sauce', 'marinara sauce', 'alfredo sauce', 'pizza sauce'
+        'enchilada sauce', 'pasta sauce', 'marinara sauce', 'alfredo sauce', 'pizza sauce', 'cornstarch'
     ],
 
     // Dairy products
@@ -43,7 +44,8 @@ const INGREDIENT_CATEGORIES = {
         'chicken', 'beef', 'pork', 'turkey', 'lamb', 'duck', 'bacon', 'ham', 'sausage', 'ground beef',
         'ground turkey', 'ground chicken', 'ground pork', 'steak', 'roast', 'chop', 'tenderloin',
         'brisket', 'ribs', 'wings', 'thigh', 'breast', 'leg', 'salmon', 'tuna', 'cod', 'halibut',
-        'shrimp', 'crab', 'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'fish', 'seafood'
+        'shrimp', 'crab', 'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'fish', 'seafood',
+        'italian sausage', 'chicken breast', 'beef sirloin'
     ],
 
     // Frozen foods
@@ -56,7 +58,8 @@ const INGREDIENT_CATEGORIES = {
     // Beverages
     'beverages': [
         'water', 'sparkling water', 'juice', 'coffee', 'tea', 'wine', 'beer', 'soda', 'kombucha',
-        'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'energy drink', 'sports drink'
+        'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'energy drink', 'sports drink',
+        'white wine'
     ],
 
     // Bakery
@@ -69,6 +72,11 @@ const INGREDIENT_CATEGORIES = {
     'deli': [
         'turkey', 'ham', 'salami', 'pepperoni', 'prosciutto', 'roast beef', 'pastrami', 'bologna',
         'deli meat', 'lunch meat', 'sliced cheese', 'hummus', 'olives', 'pickles'
+    ],
+
+    // Other (catch-all for items that don't fit elsewhere)
+    'other': [
+        'pappardelle', 'fettuccine', 'lasagna noodles', 'diced tomatoes'
     ]
 };
 
@@ -81,15 +89,22 @@ const INGREDIENT_VARIATIONS = {
     'red bell pepper': ['red bell peppers', 'red pepper'],
     'green bell pepper': ['green bell peppers', 'green pepper'],
     'tomato': ['tomatoes', 'cherry tomatoes', 'grape tomatoes', 'roma tomatoes', 'beefsteak tomatoes'],
+    'diced tomatoes': ['diced tomato', 'chopped tomatoes', 'crushed tomatoes'],
     'tomato sauce': ['marinara sauce', 'pasta sauce', 'pizza sauce', 'tomato pasta sauce'],
     'mushroom': ['mushrooms', 'button mushrooms', 'cremini mushrooms', 'portobello mushrooms', 'shiitake mushrooms'],
     'chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings', 'whole chicken'],
+    'chicken breast': ['chicken breasts', 'boneless chicken breast', 'skinless chicken breast'],
     'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef'],
+    'beef sirloin': ['sirloin steak', 'beef sirloin steak', 'sirloin'],
+    'italian sausage': ['italian turkey sausage', 'sweet italian sausage', 'spicy italian sausage'],
     'mozzarella': ['mozzarella cheese', 'fresh mozzarella', 'part skim mozzarella'],
     'shredded mozzarella': ['shredded mozzarella cheese', 'grated mozzarella'],
     'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
     'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
     'pasta': ['spaghetti', 'penne', 'fusilli', 'rigatoni', 'linguine', 'fettuccine', 'angel hair'],
+    'pappardelle': ['pappardelle pasta', 'fresh pappardelle'],
+    'fettuccine': ['fettuccine pasta', 'fresh fettuccine'],
+    'lasagna noodles': ['lasagna sheets', 'lasagna pasta'],
     'rice': ['white rice', 'brown rice', 'jasmine rice', 'basmati rice', 'wild rice', 'arborio rice'],
     'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil'],
     'vegetable oil': ['canola oil', 'sunflower oil', 'corn oil'],
@@ -97,9 +112,14 @@ const INGREDIENT_VARIATIONS = {
     'sugar': ['white sugar', 'granulated sugar', 'cane sugar'],
     'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
     'butter': ['unsalted butter', 'salted butter', 'sweet cream butter'],
-    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk'], // Keep milk separate from cheese
+    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk'],
     'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'coarse salt'],
-    'sesame seeds': ['toasted sesame seeds', 'white sesame seeds', 'black sesame seeds']
+    'pepper': ['black pepper', 'ground pepper', 'cracked pepper', 'white pepper'],
+    'sesame seeds': ['toasted sesame seeds', 'white sesame seeds', 'black sesame seeds'],
+    'white wine': ['dry white wine', 'cooking wine', 'white cooking wine'],
+    'cornstarch': ['corn starch', 'potato starch'],
+    'red pepper flakes': ['crushed red pepper', 'red chili flakes'],
+    'chives': ['fresh chives', 'chopped chives']
 };
 
 // Standard package sizes for inventory matching
@@ -157,6 +177,7 @@ const STANDARD_PACKAGE_SIZES = {
     // Spices (in oz)
     'salt': { size: 26, unit: 'oz', type: 'spice' },
     'black pepper': { size: 3, unit: 'oz', type: 'spice' },
+    'pepper': { size: 3, unit: 'oz', type: 'spice' },
     'garlic powder': { size: 3.12, unit: 'oz', type: 'spice' },
     'onion powder': { size: 2.33, unit: 'oz', type: 'spice' },
     'paprika': { size: 2.37, unit: 'oz', type: 'spice' },
@@ -165,6 +186,7 @@ const STANDARD_PACKAGE_SIZES = {
     'basil': { size: 1, unit: 'oz', type: 'spice' },
     'thyme': { size: 1, unit: 'oz', type: 'spice' },
     'rosemary': { size: 1, unit: 'oz', type: 'spice' },
+    'red pepper flakes': { size: 1.5, unit: 'oz', type: 'spice' },
 
     // Nuts and seeds (in oz or lbs)
     'almonds': { size: 16, unit: 'oz', type: 'nuts' },
@@ -174,6 +196,76 @@ const STANDARD_PACKAGE_SIZES = {
     'pine nuts': { size: 2, unit: 'oz', type: 'nuts' },
     'sesame seeds': { size: 4, unit: 'oz', type: 'nuts' }
 };
+
+// Unit conversion functions
+function convertGramsToOunces(grams) {
+    return grams * 0.03527396195;
+}
+
+function convertGramsToFluidOunces(grams, ingredient) {
+    // Basic density approximations for common ingredients
+    const densityMap = {
+        'soy sauce': 1.15, // g/ml (heavier than water)
+        'milk': 1.03,
+        'water': 1.0,
+        'oil': 0.92,
+        'honey': 1.4,
+        'syrup': 1.3
+    };
+
+    // Default to water density if not found
+    let density = 1.0;
+    const normalizedIngredient = ingredient.toLowerCase();
+
+    for (const [key, value] of Object.entries(densityMap)) {
+        if (normalizedIngredient.includes(key)) {
+            density = value;
+            break;
+        }
+    }
+
+    // Convert: grams / (237 ml/fl oz * density g/ml) = fl oz
+    return grams / (237 * density);
+}
+
+function formatConvertedAmount(originalAmount, originalUnit, ingredient) {
+    const amount = parseFloat(originalAmount);
+    if (isNaN(amount)) return `${originalAmount} ${originalUnit}`.trim();
+
+    const normalizedUnit = originalUnit.toLowerCase();
+    const normalizedIngredient = ingredient.toLowerCase();
+
+    // Convert grams to ounces for weight
+    if (normalizedUnit === 'grams' || normalizedUnit === 'gram' || normalizedUnit === 'g') {
+        // Determine if this should be fluid ounces or weight ounces
+        const isLiquid = normalizedIngredient.includes('sauce') ||
+            normalizedIngredient.includes('oil') ||
+            normalizedIngredient.includes('milk') ||
+            normalizedIngredient.includes('broth') ||
+            normalizedIngredient.includes('stock');
+
+        if (isLiquid) {
+            const flOz = convertGramsToFluidOunces(amount, ingredient);
+            if (flOz < 0.5) {
+                return `${originalAmount} ${originalUnit}`.trim(); // Keep small amounts in grams
+            } else {
+                return `${Math.round(flOz * 100) / 100} fl oz (${originalAmount}g)`;
+            }
+        } else {
+            const oz = convertGramsToOunces(amount);
+            if (oz < 0.5) {
+                return `${originalAmount} ${originalUnit}`.trim(); // Keep small amounts in grams
+            } else if (oz >= 16) {
+                const lbs = oz / 16;
+                return `${Math.round(lbs * 100) / 100} lb (${originalAmount}g)`;
+            } else {
+                return `${Math.round(oz * 100) / 100} oz (${originalAmount}g)`;
+            }
+        }
+    }
+
+    return `${originalAmount} ${originalUnit}`.trim();
+}
 
 // Function to extract recipe IDs from meal plan
 async function getRecipeIdsFromMealPlan(mealPlanId) {
@@ -217,52 +309,70 @@ function normalizeIngredient(ingredient) {
         .trim();
 }
 
-// Create a standardized key for ingredient combination
+// Create a more specific standardized key for ingredient combination
 function createIngredientKey(ingredient) {
     const normalized = normalizeIngredient(ingredient);
 
     // Remove common descriptors that shouldn't prevent combination
     const cleaned = normalized
-        .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|toasted)\b/g, '')
+        .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|toasted|crumbled|cooked)\b/g, '')
         .replace(/\b(small|medium|large|extra large)\b/g, '')
         .replace(/\b(can|jar|bottle|bag|box|package)\b/g, '')
-        .replace(/\b(of|the|and|or)\b/g, '')
+        .replace(/\b(of|the|and|or|into|cut)\b/g, '')
+        .replace(/\b(matchsticks|strips|florets)\b/g, '') // Remove preparation descriptions
         .replace(/\s+/g, ' ')
         .trim();
 
-    // Handle specific cases for better combination
-    if (cleaned.includes('garlic')) return 'garlic';
-    if (cleaned.includes('onion') && !cleaned.includes('green')) return 'onion';
+    // Handle specific cases for better combination - be more specific to avoid wrong combinations
+    if (cleaned.includes('red bell pepper')) return 'red-bell-pepper';
+    if (cleaned.includes('green bell pepper')) return 'green-bell-pepper';
+    if (cleaned.includes('bell pepper') && !cleaned.includes('red') && !cleaned.includes('green')) return 'bell-pepper'; // Assume green if no color
     if (cleaned.includes('green onion') || cleaned.includes('scallion')) return 'green-onion';
-    if (cleaned.includes('bell pepper')) return 'bell-pepper';
-    if (cleaned.includes('red bell pepper') || cleaned.includes('red pepper')) return 'red-bell-pepper';
-    if (cleaned.includes('green bell pepper') || cleaned.includes('green pepper')) return 'green-bell-pepper';
+    if (cleaned.includes('red pepper flakes')) return 'red-pepper-flakes';
+    if (cleaned.includes('garlic')) return 'garlic';
+    if (cleaned.includes('onion') && !cleaned.includes('green') && !cleaned.includes('red')) return 'onion';
     if (cleaned.includes('tomato sauce') || cleaned.includes('marinara')) return 'tomato-sauce';
-    if (cleaned.includes('mozzarella')) return 'mozzarella';
+    if (cleaned.includes('diced tomatoes')) return 'diced-tomatoes';
+    if (cleaned.includes('shredded mozzarella')) return 'shredded-mozzarella';
+    if (cleaned.includes('mozzarella') && !cleaned.includes('shredded')) return 'mozzarella';
     if (cleaned.includes('cheddar')) return 'cheddar';
     if (cleaned.includes('sesame seeds')) return 'sesame-seeds';
     if (cleaned.includes('vegetable oil')) return 'vegetable-oil';
     if (cleaned.includes('olive oil')) return 'olive-oil';
     if (cleaned.includes('soy sauce')) return 'soy-sauce';
-    if (cleaned.includes('salt')) return 'salt';
+    if (cleaned.includes('white wine')) return 'white-wine';
+    if (cleaned.includes('italian sausage')) return 'italian-sausage';
+    if (cleaned.includes('chicken breast')) return 'chicken-breast';
+    if (cleaned.includes('beef sirloin')) return 'beef-sirloin';
+    if (cleaned.includes('lasagna noodles')) return 'lasagna-noodles';
+    if (cleaned.includes('pappardelle')) return 'pappardelle';
+    if (cleaned.includes('fettuccine')) return 'fettuccine';
+    if (cleaned.includes('salt') && cleaned.includes('pepper')) return 'salt-and-pepper';
+    if (cleaned.includes('salt') && !cleaned.includes('pepper')) return 'salt';
+    if (cleaned.includes('pepper') && !cleaned.includes('salt') && !cleaned.includes('bell')) return 'pepper';
+    if (cleaned.includes('cornstarch') || cleaned.includes('corn starch')) return 'cornstarch';
+    if (cleaned.includes('chives')) return 'chives';
+    if (cleaned.includes('broccoli')) return 'broccoli';
+    if (cleaned.includes('pineapple')) return 'pineapple';
+    if (cleaned.includes('carrots')) return 'carrots';
 
     return cleaned;
 }
 
-// Parse amount and unit from ingredient amount string
+// Parse amount and unit from ingredient amount string with better handling
 function parseAmountAndUnit(amountStr) {
     if (!amountStr || typeof amountStr !== 'string') {
-        return { amount: '', unit: '', numeric: 0, isToTaste: false };
+        return { amount: '', unit: '', numeric: 0, isToTaste: false, originalAmount: amountStr };
     }
 
     const str = amountStr.trim().toLowerCase();
 
     // Handle "to taste" specially
     if (str.includes('to taste')) {
-        return { amount: 'to taste', unit: '', numeric: 0, isToTaste: true };
+        return { amount: 'to taste', unit: '', numeric: 0, isToTaste: true, originalAmount: amountStr };
     }
 
-    // Extract numeric value and unit
+    // Extract numeric value and unit with better regex
     const match = str.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*(.*)$/);
     if (match) {
         const numericValue = parseFloat(match[1]);
@@ -271,20 +381,36 @@ function parseAmountAndUnit(amountStr) {
             amount: match[1],
             unit: unit,
             numeric: numericValue,
-            isToTaste: false
+            isToTaste: false,
+            originalAmount: amountStr
+        };
+    }
+
+    // Handle fractions and special cases
+    const fractionMatch = str.match(/^(\d+\/\d+)\s*(.*)$/);
+    if (fractionMatch) {
+        const [numerator, denominator] = fractionMatch[1].split('/').map(Number);
+        const numericValue = numerator / denominator;
+        const unit = fractionMatch[2].trim();
+        return {
+            amount: fractionMatch[1],
+            unit: unit,
+            numeric: numericValue,
+            isToTaste: false,
+            originalAmount: amountStr
         };
     }
 
     // If no numeric match, return as-is
-    return { amount: str, unit: '', numeric: 0, isToTaste: false };
+    return { amount: str, unit: '', numeric: 0, isToTaste: false, originalAmount: amountStr };
 }
 
-// Smart combination of ingredient amounts
+// Smart combination of ingredient amounts with better unit handling
 function combineIngredientAmounts(existing, newIngredient) {
     const existingParsed = parseAmountAndUnit(existing.amount);
     const newParsed = parseAmountAndUnit(newIngredient.amount);
 
-    console.log(`Combining amounts: "${existing.amount}" + "${newIngredient.amount}"`);
+    console.log(`Combining amounts: "${existing.amount}" (${existing.unit}) + "${newIngredient.amount}" (${newIngredient.unit})`);
     console.log(`Parsed - Existing: ${JSON.stringify(existingParsed)}, New: ${JSON.stringify(newParsed)}`);
 
     // Handle "to taste" items - only keep one "to taste"
@@ -295,27 +421,34 @@ function combineIngredientAmounts(existing, newIngredient) {
         };
     }
 
-    // If one is "to taste" and other has measurement, combine them
+    // If one is "to taste" and other has measurement, combine them properly
     if (existingParsed.isToTaste && !newParsed.isToTaste) {
+        const newUnit = newIngredient.unit || newParsed.unit || '';
+        const newAmountStr = newUnit ? `${newParsed.amount} ${newUnit}` : newParsed.amount;
         return {
-            amount: `${newParsed.amount}${newParsed.unit ? ' ' + newParsed.unit : ''}, to taste`,
-            unit: newParsed.unit || existing.unit || ''
+            amount: `${newAmountStr}, to taste`,
+            unit: ''
         };
     }
 
     if (!existingParsed.isToTaste && newParsed.isToTaste) {
+        const existingUnit = existing.unit || existingParsed.unit || '';
+        const existingAmountStr = existingUnit ? `${existingParsed.amount} ${existingUnit}` : existingParsed.amount;
         return {
-            amount: `${existingParsed.amount}${existingParsed.unit ? ' ' + existingParsed.unit : ''}, to taste`,
-            unit: existingParsed.unit || newIngredient.unit || ''
+            amount: `${existingAmountStr}, to taste`,
+            unit: ''
         };
     }
 
     // Both have numeric values
     if (existingParsed.numeric > 0 && newParsed.numeric > 0) {
-        // If units match or one is empty, combine
-        if (!existingParsed.unit || !newParsed.unit || existingParsed.unit === newParsed.unit) {
+        const existingUnit = existing.unit || existingParsed.unit || '';
+        const newUnit = newIngredient.unit || newParsed.unit || '';
+
+        // If units match or are compatible, combine
+        if (existingUnit === newUnit || (!existingUnit && !newUnit)) {
             const combinedAmount = existingParsed.numeric + newParsed.numeric;
-            const unit = existingParsed.unit || newParsed.unit || '';
+            const unit = existingUnit || newUnit;
 
             console.log(`Combined numeric: ${existingParsed.numeric} + ${newParsed.numeric} = ${combinedAmount} ${unit}`);
 
@@ -324,9 +457,9 @@ function combineIngredientAmounts(existing, newIngredient) {
                 unit: unit
             };
         } else {
-            // Different units - list them separately
-            const existingStr = `${existingParsed.amount}${existingParsed.unit ? ' ' + existingParsed.unit : ''}`;
-            const newStr = `${newParsed.amount}${newParsed.unit ? ' ' + newParsed.unit : ''}`;
+            // Different units - list them separately with proper formatting
+            const existingStr = existingUnit ? `${existingParsed.amount} ${existingUnit}` : existingParsed.amount;
+            const newStr = newUnit ? `${newParsed.amount} ${newUnit}` : newParsed.amount;
 
             return {
                 amount: `${existingStr}, ${newStr}`,
@@ -335,9 +468,11 @@ function combineIngredientAmounts(existing, newIngredient) {
         }
     }
 
-    // Fallback - just concatenate
-    const existingStr = existing.amount + (existing.unit ? ' ' + existing.unit : '');
-    const newStr = newIngredient.amount + (newIngredient.unit ? ' ' + newIngredient.unit : '');
+    // Fallback - just concatenate with proper formatting
+    const existingUnit = existing.unit || existingParsed.unit || '';
+    const newUnit = newIngredient.unit || newParsed.unit || '';
+    const existingStr = existingUnit ? `${existingParsed.amount} ${existingUnit}` : existingParsed.amount;
+    const newStr = newUnit ? `${newParsed.amount} ${newUnit}` : newParsed.amount;
 
     return {
         amount: `${existingStr}, ${newStr}`,
@@ -685,12 +820,20 @@ export async function POST(request) {
             const hasEnoughInInventory = inventoryMatch &&
                 checkInventoryCoverage(ingredient.amount, inventoryMatch, ingredient.packageInfo);
 
-            // Create the display amount with unit
+            // Create the display amount with unit and conversion
             let displayAmount = ingredient.amount || '';
-            if (ingredient.unit && displayAmount && !displayAmount.includes(ingredient.unit)) {
+            let displayUnit = ingredient.unit || '';
+
+            // Apply gram conversion if needed
+            if (displayUnit && (displayUnit.toLowerCase() === 'grams' || displayUnit.toLowerCase() === 'gram' || displayUnit.toLowerCase() === 'g')) {
+                const convertedAmount = formatConvertedAmount(displayAmount, displayUnit, ingredient.name);
+                displayAmount = convertedAmount;
+                displayUnit = ''; // Clear unit since it's now included in the amount
+            } else if (displayUnit && displayAmount && !displayAmount.includes(displayUnit)) {
                 // Only add unit if it's not already included in the amount
                 if (displayAmount !== 'to taste') {
-                    displayAmount = `${displayAmount} ${ingredient.unit}`.trim();
+                    displayAmount = `${displayAmount} ${displayUnit}`.trim();
+                    displayUnit = ''; // Clear unit since it's now in the amount
                 }
             }
 
@@ -698,8 +841,8 @@ export async function POST(request) {
                 name: ingredient.name,
                 ingredient: ingredient.name,
                 originalName: ingredient.originalName,
-                amount: displayAmount, // Use display amount with unit
-                unit: ingredient.unit,
+                amount: displayAmount, // Use display amount with unit and conversions
+                unit: displayUnit,
                 category: normalizedCategory,
                 recipes: ingredient.recipes,
                 inInventory: hasEnoughInInventory,
@@ -764,6 +907,9 @@ export async function POST(request) {
                     packageSizesApplied: shoppingListItems.filter(item => item.packageInfo).length,
                     variationsMatched: shoppingListItems.filter(item => item.variations.length > 1).length,
                     ingredientsCombined: summary.ingredientsCombined,
+                    gramsConverted: shoppingListItems.filter(item =>
+                        item.amount && item.amount.includes('(') && item.amount.includes('g)')
+                    ).length,
                     matchingStats: {
                         exactMatches: shoppingListItems.filter(item => item.inventoryItem).length,
                         noMatches: shoppingListItems.filter(item => !item.inventoryItem).length
@@ -779,6 +925,7 @@ export async function POST(request) {
             packagesApplied: response.shoppingList.metadata.packageSizesApplied,
             variationsMatched: response.shoppingList.metadata.variationsMatched,
             ingredientsCombined: summary.ingredientsCombined,
+            gramsConverted: response.shoppingList.metadata.gramsConverted,
             exactMatches: response.shoppingList.metadata.matchingStats.exactMatches
         });
 
