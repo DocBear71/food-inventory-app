@@ -1,4 +1,4 @@
-// file: /src/components/recipes/RecipeShoppingList.js v5
+// file: /src/components/recipes/RecipeShoppingList.js v6
 
 'use client';
 
@@ -12,6 +12,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('category');
     const [showEmailModal, setShowEmailModal] = useState(false);
+    const [purchasedItems, setPurchasedItems] = useState(new Set()); // Track purchased items locally
 
     useEffect(() => {
         generateShoppingList();
@@ -31,30 +32,37 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
             Object.entries(apiResponse.items).forEach(([category, categoryItems]) => {
                 if (Array.isArray(categoryItems)) {
                     categoryItems.forEach(item => {
+                        const itemKey = `${item.name || item.ingredient}-${category}`;
                         normalizedItems.push({
                             ingredient: item.name || item.ingredient,
                             amount: item.name || '',  // API puts full description in 'name'
                             category: category.toLowerCase(),
                             recipes: [recipeName],  // Single recipe context
                             inInventory: item.haveAmount > 0,
-                            purchased: false,
+                            purchased: purchasedItems.has(itemKey), // Check if purchased
                             originalName: item.originalName,
                             needAmount: item.needAmount,
-                            haveAmount: item.haveAmount
+                            haveAmount: item.haveAmount,
+                            itemKey: itemKey // Add unique key for tracking
                         });
                     });
                 }
             });
         } else if (Array.isArray(apiResponse.items)) {
             // Already in expected format
-            normalizedItems = apiResponse.items;
+            normalizedItems = apiResponse.items.map(item => ({
+                ...item,
+                itemKey: `${item.ingredient}-${item.category || 'other'}`,
+                purchased: purchasedItems.has(`${item.ingredient}-${item.category || 'other'}`)
+            }));
         }
 
         // Create stats from summary or calculate them
         const stats = {
             totalItems: apiResponse.summary?.totalItems || normalizedItems.length,
-            needToBuy: apiResponse.summary?.needToBuy || normalizedItems.filter(item => !item.inInventory).length,
-            inInventory: apiResponse.summary?.alreadyHave || normalizedItems.filter(item => item.inInventory).length
+            needToBuy: apiResponse.summary?.needToBuy || normalizedItems.filter(item => !item.inInventory && !item.purchased).length,
+            inInventory: apiResponse.summary?.alreadyHave || normalizedItems.filter(item => item.inInventory).length,
+            purchased: normalizedItems.filter(item => item.purchased).length
         };
 
         console.log('Normalized shopping list:', {
@@ -67,6 +75,33 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
             stats: stats,
             recipes: [recipeName]
         };
+    };
+
+    // Toggle purchased status
+    const togglePurchased = (itemKey) => {
+        setPurchasedItems(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(itemKey)) {
+                newSet.delete(itemKey);
+            } else {
+                newSet.add(itemKey);
+            }
+            return newSet;
+        });
+    };
+
+    // Clear all purchased items
+    const clearAllPurchased = () => {
+        setPurchasedItems(new Set());
+    };
+
+    // Mark all as purchased
+    const markAllPurchased = () => {
+        const normalizedList = normalizeShoppingList(shoppingList);
+        const allKeys = normalizedList.items
+            .filter(item => !item.inInventory) // Only items that need to be bought
+            .map(item => item.itemKey);
+        setPurchasedItems(new Set(allKeys));
     };
 
     const generateShoppingList = async () => {
@@ -164,6 +199,10 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         padding: 4px 0;
                         border-bottom: 1px dotted #ccc;
                     }
+                    .item.purchased { 
+                        opacity: 0.6; 
+                        text-decoration: line-through; 
+                    }
                     .checkbox { 
                         width: 15px; 
                         height: 15px; 
@@ -171,6 +210,18 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         margin-right: 12px; 
                         margin-top: 2px;
                         flex-shrink: 0;
+                    }
+                    .checkbox.checked { 
+                        background: #333; 
+                        position: relative; 
+                    }
+                    .checkbox.checked::after { 
+                        content: '✓'; 
+                        color: white; 
+                        position: absolute; 
+                        left: 1px; 
+                        top: -2px; 
+                        font-size: 10pt; 
                     }
                     .item-content { flex: 1; }
                     .item-name { font-weight: bold; font-size: 11pt; }
@@ -208,8 +259,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     <div class="category">
                         <h2>${getCategoryName(category)} (${items.length} items)</h2>
                         ${items.map(item => `
-                            <div class="item">
-                                <div class="checkbox"></div>
+                            <div class="item${item.purchased ? ' purchased' : ''}">
+                                <div class="checkbox${item.purchased ? ' checked' : ''}"></div>
                                 <div class="item-content">
                                     <span class="item-name">${item.ingredient}</span>
                                     <span class="item-amount">${item.amount || ''}</span>
@@ -224,11 +275,12 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     <strong>Shopping Summary:</strong><br>
                     Total Items: ${normalizedList.stats.totalItems} • 
                     Need to Buy: ${normalizedList.stats.needToBuy} • 
-                    In Inventory: ${normalizedList.stats.inInventory}
+                    In Inventory: ${normalizedList.stats.inInventory} • 
+                    Purchased: ${normalizedList.stats.purchased}
                 </div>
                 
                 <div class="footer">
-                    Generated by Food Inventory App • ${new Date().toLocaleString()}
+                    Generated by Doc Bear's Comfort Kitchen • ${new Date().toLocaleString()}
                 </div>
             </body>
             </html>
@@ -251,12 +303,16 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
             textContent += `${'-'.repeat(30)}\n`;
 
             items.forEach(item => {
-                textContent += `☐ ${item.ingredient}`;
+                const checkbox = item.purchased ? '☑' : '☐';
+                textContent += `${checkbox} ${item.ingredient}`;
                 if (item.amount) {
                     textContent += ` - ${item.amount}`;
                 }
                 if (item.inInventory) {
                     textContent += ` [IN INVENTORY]`;
+                }
+                if (item.purchased) {
+                    textContent += ` [PURCHASED]`;
                 }
                 textContent += `\n`;
             });
@@ -267,6 +323,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         textContent += `Total Items: ${normalizedList.stats.totalItems}\n`;
         textContent += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
         textContent += `In Inventory: ${normalizedList.stats.inInventory}\n`;
+        textContent += `Purchased: ${normalizedList.stats.purchased}\n`;
 
         // Download as text file
         const blob = new Blob([textContent], { type: 'text/plain' });
@@ -320,10 +377,13 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
 
         switch (filter) {
             case 'needed':
-                filtered = filtered.filter(item => !item.inInventory);
+                filtered = filtered.filter(item => !item.inInventory && !item.purchased);
                 break;
             case 'inventory':
                 filtered = filtered.filter(item => item.inInventory);
+                break;
+            case 'purchased':
+                filtered = filtered.filter(item => item.purchased);
                 break;
             default:
                 break;
@@ -575,7 +635,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             </button>
                         </div>
 
-                        {/* Stats */}
+                        {/* Stats - Including Purchased Count */}
                         {normalizedShoppingList?.stats && (
                             <div style={{
                                 marginTop: '1rem',
@@ -643,6 +703,26 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         Need to Buy
                                     </div>
                                 </div>
+                                <div style={{
+                                    backgroundColor: '#f3e8ff',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: '#9333ea'
+                                    }}>
+                                        {normalizedShoppingList.stats.purchased}
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        color: '#7c3aed'
+                                    }}>
+                                        Purchased
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -683,6 +763,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
                                         <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
                                         <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
+                                        <option value="purchased">Purchased ({normalizedShoppingList.stats.purchased})</option>
                                     </select>
                                 </div>
 
@@ -710,38 +791,18 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                 </div>
                             </div>
 
-                            {/* Print/Export/Share Buttons */}
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {/* Action Buttons */}
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 <button
-                                    onClick={refreshShoppingList}
+                                    onClick={markAllPurchased}
                                     style={{
-                                        backgroundColor: '#6b7280',
+                                        backgroundColor: '#7c3aed',
                                         color: 'white',
                                         padding: '0.5rem 0.75rem',
                                         borderRadius: '6px',
                                         border: 'none',
                                         fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }}
-                                >
-                                    🔄 Refresh
-                                </button>
-                                <button
-                                    onClick={() => setShowEmailModal(true)}
-                                    style={{
-                                        backgroundColor: '#16a34a',
-                                        color: 'white',
-                                        padding: '0.5rem 0.75rem',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     📧 Share
@@ -755,10 +816,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         borderRadius: '6px',
                                         border: 'none',
                                         fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     🖨️ Print
@@ -772,10 +830,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         borderRadius: '6px',
                                         border: 'none',
                                         fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     📄 PDF
@@ -789,10 +844,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                         borderRadius: '6px',
                                         border: 'none',
                                         fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     📝 Text
@@ -845,8 +897,17 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                                         padding: '0.75rem',
                                                         border: '1px solid #e5e7eb',
                                                         borderRadius: '8px',
-                                                        backgroundColor: item.inInventory ? '#eff6ff' : 'white',
-                                                        borderColor: item.inInventory ? '#bfdbfe' : '#e5e7eb'
+                                                        backgroundColor: item.purchased
+                                                            ? '#f0fdf4'
+                                                            : item.inInventory
+                                                                ? '#eff6ff'
+                                                                : 'white',
+                                                        borderColor: item.purchased
+                                                            ? '#bbf7d0'
+                                                            : item.inInventory
+                                                                ? '#bfdbfe'
+                                                                : '#e5e7eb',
+                                                        opacity: item.purchased ? 0.7 : 1
                                                     }}
                                                 >
                                                     <div style={{
@@ -854,47 +915,70 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                                         justifyContent: 'space-between',
                                                         alignItems: 'flex-start'
                                                     }}>
-                                                        <div style={{ flex: 1 }}>
-                                                            <div style={{
-                                                                fontWeight: '500',
-                                                                color: '#111827'
-                                                            }}>
-                                                                {item.ingredient}
-                                                            </div>
+                                                        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                                            {/* Checkbox */}
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={item.purchased || false}
+                                                                onChange={() => togglePurchased(item.itemKey)}
+                                                                style={{
+                                                                    width: '18px',
+                                                                    height: '18px',
+                                                                    marginTop: '2px',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            />
 
-                                                            {item.amount && (
+                                                            <div style={{ flex: 1 }}>
                                                                 <div style={{
-                                                                    fontSize: '0.875rem',
-                                                                    color: '#6b7280',
-                                                                    marginTop: '0.25rem'
+                                                                    fontWeight: '500',
+                                                                    color: item.purchased ? '#6b7280' : '#111827',
+                                                                    textDecoration: item.purchased ? 'line-through' : 'none'
                                                                 }}>
-                                                                    {item.amount}
+                                                                    {item.ingredient}
+                                                                </div>
+
+                                                                {item.amount && (
+                                                                    <div style={{
+                                                                        fontSize: '0.875rem',
+                                                                        color: '#6b7280',
+                                                                        marginTop: '0.25rem'
+                                                                    }}>
+                                                                        {item.amount}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Show inventory details */}
+                                                                {item.inInventory && item.haveAmount && (
+                                                                    <div style={{
+                                                                        fontSize: '0.75rem',
+                                                                        color: '#2563eb',
+                                                                        marginTop: '0.25rem'
+                                                                    }}>
+                                                                        In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            {item.purchased && (
+                                                                <div style={{
+                                                                    color: '#16a34a',
+                                                                    fontSize: '0.75rem'
+                                                                }}>
+                                                                    ✓ Purchased
                                                                 </div>
                                                             )}
-
-                                                            {/* Show inventory details */}
-                                                            {item.inInventory && item.haveAmount && (
+                                                            {item.inInventory && !item.purchased && (
                                                                 <div style={{
-                                                                    fontSize: '0.75rem',
                                                                     color: '#2563eb',
-                                                                    marginTop: '0.25rem'
+                                                                    fontSize: '0.75rem'
                                                                 }}>
-                                                                    In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                                    ✓ In Inventory
                                                                 </div>
                                                             )}
                                                         </div>
-
-                                                        {item.inInventory && (
-                                                            <div style={{
-                                                                color: '#2563eb',
-                                                                fontSize: '0.75rem',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem'
-                                                            }}>
-                                                                ✓ In Inventory
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

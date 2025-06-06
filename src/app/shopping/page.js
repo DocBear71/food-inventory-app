@@ -1,4 +1,4 @@
-// file: /src/app/shopping/page.js v2
+// file: /src/app/shopping/page.js v3
 
 'use client';
 
@@ -74,6 +74,16 @@ export default function ShoppingList() {
                 ? prev.filter(id => id !== recipeId)
                 : [...prev, recipeId]
         );
+    };
+
+    // NEW: Clear all selected recipes
+    const clearAllSelections = () => {
+        setSelectedRecipes([]);
+    };
+
+    // NEW: Select all recipes
+    const selectAllRecipes = () => {
+        setSelectedRecipes(filteredRecipes.map(recipe => recipe._id));
     };
 
     const generateShoppingList = async () => {
@@ -158,7 +168,7 @@ export default function ShoppingList() {
 
     const clearShoppingList = () => {
         setShoppingList(null);
-        // Keep selectedRecipes - don't clear them
+        // Keep selectedRecipes - don't clear them when closing shopping list
     };
 
     if (loading) {
@@ -210,6 +220,29 @@ export default function ShoppingList() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                                 />
+                            </div>
+
+                            {/* Selection Controls */}
+                            <div className="mb-4 flex gap-2 flex-wrap">
+                                <button
+                                    onClick={selectAllRecipes}
+                                    disabled={filteredRecipes.length === 0}
+                                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Select All ({filteredRecipes.length})
+                                </button>
+                                <button
+                                    onClick={clearAllSelections}
+                                    disabled={selectedRecipes.length === 0}
+                                    className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Clear All ({selectedRecipes.length})
+                                </button>
+                                {selectedRecipes.length > 0 && (
+                                    <div className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md">
+                                        ✓ {selectedRecipes.length} recipe{selectedRecipes.length !== 1 ? 's' : ''} ready for shopping list
+                                    </div>
+                                )}
                             </div>
 
                             {/* Recipe List */}
@@ -287,12 +320,37 @@ export default function ShoppingList() {
                         </div>
                     </>
                 ) : (
-                    /* Shopping List Display WITH REFRESH FUNCTION */
-                    <ShoppingListDisplay
-                        shoppingList={shoppingList}
-                        onClose={clearShoppingList}
-                        onRefresh={refreshShoppingList}
-                    />
+                    /* Shopping List Display WITH REFRESH FUNCTION AND CLEAR BUTTON */
+                    <div className="space-y-4">
+                        {/* Action Bar Above Shopping List */}
+                        <div className="bg-white shadow rounded-lg p-4">
+                            <div className="flex justify-between items-center">
+                                <div className="text-sm text-gray-600">
+                                    Shopping list generated from {selectedRecipes.length} recipe{selectedRecipes.length !== 1 ? 's' : ''}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={clearAllSelections}
+                                        className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                                    >
+                                        🗑️ Clear All Selections
+                                    </button>
+                                    <button
+                                        onClick={clearShoppingList}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                                    >
+                                        📝 Select Different Recipes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <ShoppingListDisplay
+                            shoppingList={shoppingList}
+                            onClose={clearShoppingList}
+                            onRefresh={refreshShoppingList}
+                        />
+                    </div>
                 )}
 
                 {/* Instructions */}
@@ -300,12 +358,14 @@ export default function ShoppingList() {
                     <h3 className="text-lg font-medium text-blue-900 mb-2">📋 How to Use Shopping Lists</h3>
                     <ul className="text-blue-800 space-y-1 text-sm">
                         <li>1. Select one or more recipes you want to cook</li>
-                        <li>2. Click "Generate Shopping List" to analyze missing ingredients</li>
-                        <li>3. The system compares recipe needs with your current inventory</li>
-                        <li>4. Shopping list shows only what you need to buy</li>
-                        <li>5. Items are organized by store category for easy shopping</li>
-                        <li>6. Use the Refresh button to update the list with latest inventory changes</li>
-                        <li>7. Print or save the list to take to the store</li>
+                        <li>2. Use "Select All" or "Clear All" to quickly manage selections</li>
+                        <li>3. Click "Generate Shopping List" to analyze missing ingredients</li>
+                        <li>4. The system compares recipe needs with your current inventory</li>
+                        <li>5. Shopping list shows only what you need to buy</li>
+                        <li>6. Items are organized by store category for easy shopping</li>
+                        <li>7. Use the Refresh button to update the list with latest inventory changes</li>
+                        <li>8. Share via email, print, or save the list to take to the store</li>
+                        <li>9. Use "Clear All Selections" to start over with different recipes</li>
                     </ul>
                 </div>
             </div>
