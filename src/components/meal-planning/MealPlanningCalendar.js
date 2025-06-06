@@ -1,10 +1,11 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v4
+// file: /src/components/meal-planning/MealPlanningCalendar.js v5
 
 'use client';
 
 import {useState, useEffect} from 'react';
 import {useSession} from 'next-auth/react';
 import ShoppingListGenerator from './ShoppingListGenerator';
+import MealPrepButton from './MealPrepButton';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSession();
@@ -305,19 +306,31 @@ export default function MealPlanningCalendar() {
                             <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
                         </div>
 
-                        {/* Shopping List Button */}
-                        {mealsPlanned && (
-                            <button
-                                onClick={() => setShowShoppingList(true)}
-                                className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
-                                </svg>
-                                <span>Generate Shopping List</span>
-                            </button>
-                        )}
+                        {/* Action Buttons - Mobile */}
+                        <div className="flex flex-col space-y-3">
+                            {/* Shopping List Button */}
+                            {mealsPlanned && (
+                                <button
+                                    onClick={() => setShowShoppingList(true)}
+                                    className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
+                                    </svg>
+                                    <span>Generate Shopping List</span>
+                                </button>
+                            )}
+
+                            {/* Meal Prep Button */}
+                            {mealPlan && (
+                                <MealPrepButton
+                                    mealPlanId={mealPlan._id}
+                                    mealPlanName={mealPlan.name}
+                                    disabled={!mealsPlanned}
+                                />
+                            )}
+                        </div>
                     </div>
 
                     {/* Week Navigation */}
@@ -599,12 +612,13 @@ export default function MealPlanningCalendar() {
                         <p className="text-gray-600 mt-1">Plan your meals for the week</p>
                     </div>
 
-                    {/* Shopping List Button */}
+                    {/* Action Buttons - Desktop */}
                     <div className="flex items-center space-x-4">
                         <div className="text-sm text-gray-500">
                             Meals: {mealsPlanned ? 'Yes' : 'No'}
                         </div>
 
+                        {/* Shopping List Button */}
                         {(mealsPlanned || true) && (
                             <button
                                 onClick={() => setShowShoppingList(true)}
@@ -616,6 +630,15 @@ export default function MealPlanningCalendar() {
                                 </svg>
                                 <span>Generate Shopping List</span>
                             </button>
+                        )}
+
+                        {/* Meal Prep Button */}
+                        {mealPlan && (
+                            <MealPrepButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                disabled={!mealsPlanned}
+                            />
                         )}
                     </div>
                 </div>
