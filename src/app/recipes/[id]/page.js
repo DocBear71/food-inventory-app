@@ -9,6 +9,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
+import NutritionDebug from '@/components/debug/NutritionDebug';
 
 export default function RecipeDetailPage() {
     const { data: session } = useSession();
@@ -295,6 +296,9 @@ export default function RecipeDetailPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Debug Nutrition Data - Remove this after fixing */}
+                <NutritionDebug recipe={recipe} />
 
                 {/* Nutrition Panel */}
                 {showNutrition && hasNutritionData && (

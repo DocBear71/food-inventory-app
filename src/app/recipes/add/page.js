@@ -1,4 +1,4 @@
-// file: /src/app/recipes/add/page.js v2
+// file: /src/app/recipes/add/page.js v3
 
 'use client';
 
@@ -31,14 +31,44 @@ export default function AddRecipePage() {
                 difficulty: recipeData.difficulty,
                 tags: recipeData.tags || [],
                 source: recipeData.source || '',
-                isPublic: false, // Default to private
-                // Add nutrition data if provided
-                nutrition: recipeData.nutrition && Object.values(recipeData.nutrition).some(val => val)
-                    ? recipeData.nutrition
-                    : undefined
+                isPublic: recipeData.isPublic || false, // Use the actual checkbox value
+                // Transform nutrition data to structured format if provided
+                nutrition: recipeData.nutrition && Object.values(recipeData.nutrition).some(val => val) ? {
+                    calories: {
+                        value: parseFloat(recipeData.nutrition.calories) || 0,
+                        unit: 'kcal',
+                        name: 'Calories'
+                    },
+                    protein: {
+                        value: parseFloat(recipeData.nutrition.protein) || 0,
+                        unit: 'g',
+                        name: 'Protein'
+                    },
+                    fat: {
+                        value: parseFloat(recipeData.nutrition.fat) || 0,
+                        unit: 'g',
+                        name: 'Fat'
+                    },
+                    carbs: {
+                        value: parseFloat(recipeData.nutrition.carbs) || 0,
+                        unit: 'g',
+                        name: 'Carbohydrates'
+                    },
+                    fiber: {
+                        value: parseFloat(recipeData.nutrition.fiber) || 0,
+                        unit: 'g',
+                        name: 'Fiber'
+                    }
+                } : undefined
             };
 
             console.log('Transformed API data:', apiData);
+            console.log('Original recipe data isPublic:', recipeData.isPublic);
+            console.log('API data isPublic:', apiData.isPublic);
+            console.log('Nutrition transformation:', {
+                original: recipeData.nutrition,
+                transformed: apiData.nutrition
+            });
 
             const response = await fetch('/api/recipes', {
                 method: 'POST',
