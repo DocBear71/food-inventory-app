@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/route.js - v2
+// file: /src/app/api/recipes/route.js - v3
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -84,7 +84,20 @@ export async function POST(request) {
         const body = await request.json();
         console.log('Request body:', JSON.stringify(body, null, 2));
 
-        const { title, description, ingredients, instructions, cookTime, prepTime, servings, difficulty, tags, source, isPublic } = body;
+        const {
+            title,
+            description,
+            ingredients,
+            instructions,
+            cookTime,
+            prepTime,
+            servings,
+            difficulty,
+            tags,
+            source,
+            isPublic,
+            nutrition // Make sure to extract nutrition from body
+        } = body;
 
         if (!title || !ingredients || ingredients.length === 0) {
             console.log('Validation failed - missing title or ingredients');
@@ -97,6 +110,8 @@ export async function POST(request) {
         console.log('Connecting to database...');
         await connectDB();
         console.log('Database connected successfully');
+
+        console.log('Nutrition data received:', nutrition);
 
         const recipeData = {
             title,
@@ -112,7 +127,13 @@ export async function POST(request) {
             isPublic: isPublic || false,
             createdBy: session.user.id,
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            // Include nutrition data if provided
+            ...(nutrition && Object.keys(nutrition).length > 0 && {
+                nutrition: nutrition,
+                nutritionManuallySet: true,
+                nutritionCalculatedAt: new Date()
+            })
         };
 
         console.log('Creating recipe with data:', JSON.stringify(recipeData, null, 2));
@@ -122,6 +143,7 @@ export async function POST(request) {
 
         await recipe.save();
         console.log('Recipe saved successfully:', recipe._id);
+        console.log('Saved recipe nutrition:', recipe.nutrition);
 
         return NextResponse.json({
             success: true,
@@ -181,15 +203,25 @@ export async function PUT(request) {
             );
         }
 
+        // Prepare update data
+        const updateFields = {
+            ...updateData,
+            ingredients: updateData.ingredients?.filter(ing => ing.name && ing.name.trim() !== ''),
+            instructions: updateData.instructions?.filter(inst => inst && inst.trim() !== ''),
+            updatedAt: new Date()
+        };
+
+        // Handle nutrition data if provided
+        if (updateData.nutrition && Object.keys(updateData.nutrition).length > 0) {
+            updateFields.nutrition = updateData.nutrition;
+            updateFields.nutritionManuallySet = true;
+            updateFields.nutritionCalculatedAt = new Date();
+        }
+
         // Update the recipe
         const updatedRecipe = await Recipe.findByIdAndUpdate(
             recipeId,
-            {
-                ...updateData,
-                ingredients: updateData.ingredients?.filter(ing => ing.name && ing.name.trim() !== ''),
-                instructions: updateData.instructions?.filter(inst => inst && inst.trim() !== ''),
-                updatedAt: new Date()
-            },
+            updateFields,
             { new: true }
         );
 
