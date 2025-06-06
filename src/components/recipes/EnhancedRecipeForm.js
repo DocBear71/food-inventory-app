@@ -1,4 +1,4 @@
-// file: /src/components/recipes/EnhancedRecipeForm.js v1
+// file: /src/components/recipes/EnhancedRecipeForm.js v2
 
 'use client';
 
@@ -35,6 +35,11 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [tagInput, setTagInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // URL import state
+    const [urlInput, setUrlInput] = useState('');
+    const [isImporting, setIsImporting] = useState(false);
+    const [importError, setImportError] = useState('');
+
     // Handle parsed recipe data
     const handleParsedRecipe = (parsedData) => {
         setRecipe(prevRecipe => ({
@@ -47,17 +52,76 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             cookTime: parsedData.cookTime || prevRecipe.cookTime,
             servings: parsedData.servings || prevRecipe.servings,
             tags: [...new Set([...prevRecipe.tags, ...parsedData.tags])], // Merge tags
-            source: parsedData.source || prevRecipe.source
+            source: parsedData.source || prevRecipe.source,
+            nutrition: parsedData.nutrition || prevRecipe.nutrition
         }));
         setShowParser(false);
         setInputMethod('manual'); // Switch back to manual editing
     };
 
-    // Handle URL import (placeholder for future implementation)
+    // Handle URL import
     const handleUrlImport = async (url) => {
-        // TODO: Implement URL scraping functionality
-        alert('URL import feature coming soon! For now, please copy and paste the recipe text.');
-        setShowUrlImport(false);
+        if (!url || !url.trim()) {
+            setImportError('Please enter a valid URL');
+            return;
+        }
+
+        setIsImporting(true);
+        setImportError('');
+
+        try {
+            console.log('Importing recipe from URL:', url);
+
+            const response = await fetch('/api/recipes/scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: url.trim() })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('Successfully imported recipe:', data.recipe);
+
+                // Transform scraped data to match our form structure
+                const importedRecipe = {
+                    title: data.recipe.title || '',
+                    description: data.recipe.description || '',
+                    ingredients: data.recipe.ingredients.length > 0 ? data.recipe.ingredients : [{ name: '', amount: '', unit: '', optional: false }],
+                    instructions: data.recipe.instructions.length > 0
+                        ? data.recipe.instructions.map((inst, index) => ({ step: index + 1, instruction: inst }))
+                        : [{ step: 1, instruction: '' }],
+                    prepTime: data.recipe.prepTime || '',
+                    cookTime: data.recipe.cookTime || '',
+                    servings: data.recipe.servings || '',
+                    difficulty: data.recipe.difficulty || 'medium',
+                    tags: data.recipe.tags || [],
+                    source: data.recipe.source || url,
+                    nutrition: data.recipe.nutrition || {
+                        calories: '',
+                        protein: '',
+                        carbs: '',
+                        fat: '',
+                        fiber: ''
+                    }
+                };
+
+                setRecipe(importedRecipe);
+                setShowUrlImport(false);
+                setInputMethod('manual'); // Switch to manual editing
+                setUrlInput(''); // Clear the URL input
+            } else {
+                console.error('Import failed:', data.error);
+                setImportError(data.error || 'Failed to import recipe from URL');
+            }
+        } catch (error) {
+            console.error('URL import error:', error);
+            setImportError('Network error. Please check your connection and try again.');
+        } finally {
+            setIsImporting(false);
+        }
     };
 
     // Original manual form handlers
@@ -160,7 +224,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         );
     }
 
-    // Show URL import component (placeholder)
+    // Show URL import component
     if (showUrlImport) {
         return (
             <div className="bg-white shadow rounded-lg p-6">
@@ -168,7 +232,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     🌐 Import from URL
                 </h2>
                 <p className="text-gray-600 mb-4">
-                    Import recipes directly from cooking websites like AllRecipes, Food Network, etc.
+                    Import recipes directly from cooking websites like AllRecipes, Food Network, Epicurious, and more.
                 </p>
 
                 <div className="space-y-4">
@@ -178,34 +242,74 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         </label>
                         <input
                             type="url"
+                            value={urlInput}
+                            onChange={(e) => {
+                                setUrlInput(e.target.value);
+                                setImportError(''); // Clear error when user types
+                            }}
                             placeholder="https://www.allrecipes.com/recipe/..."
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            disabled={isImporting}
                         />
                     </div>
 
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <div className="text-sm text-yellow-800">
-                            <strong>Coming Soon!</strong> URL import is under development.
-                            For now, please copy the recipe text and use the "Parse Recipe Text" option.
+                    {importError && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="text-sm text-red-800">
+                                <strong>Import Failed:</strong> {importError}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="text-sm text-blue-800">
+                            <strong>✨ Supported Sites:</strong> AllRecipes, Food Network, Epicurious, Simply Recipes,
+                            Cookist, Delish, Taste of Home, The Kitchn, Bon Appétit, and many more recipe websites.
                         </div>
                     </div>
 
                     <div className="flex justify-between">
                         <button
-                            onClick={() => setShowUrlImport(false)}
-                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                            Back
-                        </button>
-                        <button
                             onClick={() => {
                                 setShowUrlImport(false);
-                                setShowParser(true);
+                                setUrlInput('');
+                                setImportError('');
                             }}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                            disabled={isImporting}
                         >
-                            Use Text Parser Instead
+                            Cancel
                         </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowUrlImport(false);
+                                    setShowParser(true);
+                                    setUrlInput('');
+                                    setImportError('');
+                                }}
+                                className="px-4 py-2 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50"
+                                disabled={isImporting}
+                            >
+                                📝 Use Text Parser Instead
+                            </button>
+                            <button
+                                onClick={() => handleUrlImport(urlInput)}
+                                disabled={!urlInput.trim() || isImporting}
+                                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 flex items-center gap-2"
+                            >
+                                {isImporting ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Importing...
+                                    </>
+                                ) : (
+                                    <>
+                                        🌐 Import Recipe
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -250,12 +354,12 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
                         <button
                             onClick={() => setShowUrlImport(true)}
-                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors opacity-75"
+                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors"
                         >
                             <div className="text-2xl mb-2">🌐</div>
                             <h3 className="font-medium text-gray-900">Import from URL</h3>
                             <p className="text-sm text-gray-600 mt-1">
-                                Import from recipe websites (Coming Soon)
+                                Import from recipe websites automatically
                             </p>
                         </button>
                     </div>
@@ -263,7 +367,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     {inputMethod === 'manual' && (
                         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-sm text-blue-800">
-                                💡 <strong>Tip:</strong> You can always switch to the text parser later if you have a recipe to paste!
+                                💡 <strong>Tip:</strong> You can always switch to the text parser or URL import if you have a recipe to import!
                             </p>
                         </div>
                     )}
@@ -278,13 +382,23 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
                             {!isEditing && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowParser(true)}
-                                    className="text-sm text-indigo-600 hover:text-indigo-700"
-                                >
-                                    📝 Switch to Text Parser
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowParser(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-700"
+                                    >
+                                        📝 Text Parser
+                                    </button>
+                                    <span className="text-gray-300">|</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowUrlImport(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-700"
+                                    >
+                                        🌐 URL Import
+                                    </button>
+                                </div>
                             )}
                         </div>
 
