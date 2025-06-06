@@ -1,12 +1,14 @@
-// file: /src/components/shopping/ShoppingListDisplay.js v5
+// file: /src/components/shopping/ShoppingListDisplay.js v6
 
 'use client';
 
 import { useState } from 'react';
+import EmailShareModal from '@/components/shared/EmailShareModal';
 
 export default function ShoppingListDisplay({ shoppingList, onClose, onRefresh }) {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('category');
+    const [showEmailModal, setShowEmailModal] = useState(false);
 
     // Convert API response structure to component-expected structure
     const normalizeShoppingList = (apiResponse) => {
@@ -382,220 +384,239 @@ export default function ShoppingListDisplay({ shoppingList, onClose, onRefresh }
     }
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem'
-        }}>
+        <>
             <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                width: '100%',
-                maxWidth: '1200px',
-                height: '90vh',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
                 display: 'flex',
-                flexDirection: 'column'
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 50,
+                padding: '1rem'
             }}>
-                {/* Header */}
                 <div style={{
-                    padding: '1.5rem',
-                    borderBottom: '1px solid #e5e7eb',
-                    flexShrink: 0
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    width: '100%',
+                    maxWidth: '1200px',
+                    height: '90vh',
+                    display: 'flex',
+                    flexDirection: 'column'
                 }}>
+                    {/* Header */}
                     <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
+                        padding: '1.5rem',
+                        borderBottom: '1px solid #e5e7eb',
+                        flexShrink: 0
                     }}>
-                        <div>
-                            <h2 style={{
-                                margin: 0,
-                                fontSize: '1.5rem',
-                                fontWeight: '600',
-                                color: '#111827'
-                            }}>
-                                🛒 Your Shopping List
-                            </h2>
-                            <p style={{
-                                margin: '0.25rem 0 0 0',
-                                fontSize: '0.875rem',
-                                color: '#6b7280'
-                            }}>
-                                Items you need to buy based on selected recipes
-                            </p>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                <h2 style={{
+                                    margin: 0,
+                                    fontSize: '1.5rem',
+                                    fontWeight: '600',
+                                    color: '#111827'
+                                }}>
+                                    🛒 Your Shopping List
+                                </h2>
+                                <p style={{
+                                    margin: '0.25rem 0 0 0',
+                                    fontSize: '0.875rem',
+                                    color: '#6b7280'
+                                }}>
+                                    Items you need to buy based on selected recipes
+                                </p>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                style={{
+                                    color: '#9ca3af',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '1.5rem'
+                                }}
+                            >
+                                ×
+                            </button>
                         </div>
-                        <button
-                            onClick={onClose}
-                            style={{
-                                color: '#9ca3af',
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: '1.5rem'
-                            }}
-                        >
-                            ×
-                        </button>
+
+                        {/* Stats - Colorful Cards like "What Can I Make" */}
+                        {normalizedShoppingList?.stats && (
+                            <div style={{
+                                marginTop: '1rem',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                                gap: '1rem'
+                            }}>
+                                <div style={{
+                                    backgroundColor: '#dbeafe',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: '#2563eb'
+                                    }}>
+                                        {normalizedShoppingList.stats.totalItems}
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        color: '#1e40af'
+                                    }}>
+                                        Total Items
+                                    </div>
+                                </div>
+                                <div style={{
+                                    backgroundColor: '#dcfce7',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: '#16a34a'
+                                    }}>
+                                        {normalizedShoppingList.stats.inInventory}
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        color: '#15803d'
+                                    }}>
+                                        In Inventory
+                                    </div>
+                                </div>
+                                <div style={{
+                                    backgroundColor: '#fed7aa',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: '#ea580c'
+                                    }}>
+                                        {normalizedShoppingList.stats.needToBuy}
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        color: '#c2410c'
+                                    }}>
+                                        Need to Buy
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Stats - Colorful Cards like "What Can I Make" */}
-                    {normalizedShoppingList?.stats && (
-                        <div style={{
-                            marginTop: '1rem',
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                            gap: '1rem'
-                        }}>
-                            <div style={{
-                                backgroundColor: '#dbeafe',
-                                padding: '0.75rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: '#2563eb'
-                                }}>
-                                    {normalizedShoppingList.stats.totalItems}
-                                </div>
-                                <div style={{
-                                    fontSize: '0.875rem',
-                                    color: '#1e40af'
-                                }}>
-                                    Total Items
-                                </div>
-                            </div>
-                            <div style={{
-                                backgroundColor: '#dcfce7',
-                                padding: '0.75rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: '#16a34a'
-                                }}>
-                                    {normalizedShoppingList.stats.inInventory}
-                                </div>
-                                <div style={{
-                                    fontSize: '0.875rem',
-                                    color: '#15803d'
-                                }}>
-                                    In Inventory
-                                </div>
-                            </div>
-                            <div style={{
-                                backgroundColor: '#fed7aa',
-                                padding: '0.75rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: '#ea580c'
-                                }}>
-                                    {normalizedShoppingList.stats.needToBuy}
-                                </div>
-                                <div style={{
-                                    fontSize: '0.875rem',
-                                    color: '#c2410c'
-                                }}>
-                                    Need to Buy
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Controls - STANDARDIZED LAYOUT */}
-                <div style={{
-                    padding: '1rem 1.5rem',
-                    borderBottom: '1px solid #e5e7eb',
-                    backgroundColor: '#f9fafb',
-                    flexShrink: 0
-                }}>
+                    {/* Controls - STANDARDIZED LAYOUT */}
                     <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '1rem',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
+                        padding: '1rem 1.5rem',
+                        borderBottom: '1px solid #e5e7eb',
+                        backgroundColor: '#f9fafb',
+                        flexShrink: 0
                     }}>
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <label style={{
+                        <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '1rem',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <label style={{
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        color: '#374151'
+                                    }}>
+                                        Filter:
+                                    </label>
+                                    <select
+                                        value={filter}
+                                        onChange={(e) => setFilter(e.target.value)}
+                                        style={{
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '6px',
+                                            padding: '0.25rem 0.75rem',
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
+                                        <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
+                                        <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <label style={{
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        color: '#374151'
+                                    }}>
+                                        Sort by:
+                                    </label>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        style={{
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '6px',
+                                            padding: '0.25rem 0.75rem',
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        <option value="category">Category</option>
+                                        <option value="name">Name</option>
+                                        <option value="recipes">Recipe</option>
+                                    </select>
+                                </div>
+
+                                <div style={{
                                     fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    color: '#374151'
+                                    color: '#6b7280'
                                 }}>
-                                    Filter:
-                                </label>
-                                <select
-                                    value={filter}
-                                    onChange={(e) => setFilter(e.target.value)}
-                                    style={{
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '6px',
-                                        padding: '0.25rem 0.75rem',
-                                        fontSize: '0.875rem'
-                                    }}
-                                >
-                                    <option value="all">All Items ({normalizedShoppingList.stats.totalItems})</option>
-                                    <option value="needed">Need to Buy ({normalizedShoppingList.stats.needToBuy})</option>
-                                    <option value="inventory">In Inventory ({normalizedShoppingList.stats.inInventory})</option>
-                                </select>
+                                    Showing {filteredItems.length} items
+                                </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <label style={{
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    color: '#374151'
-                                }}>
-                                    Sort by:
-                                </label>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    style={{
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '6px',
-                                        padding: '0.25rem 0.75rem',
-                                        fontSize: '0.875rem'
-                                    }}
-                                >
-                                    <option value="category">Category</option>
-                                    <option value="name">Name</option>
-                                    <option value="recipes">Recipe</option>
-                                </select>
-                            </div>
-
-                            <div style={{
-                                fontSize: '0.875rem',
-                                color: '#6b7280'
-                            }}>
-                                Showing {filteredItems.length} items
-                            </div>
-                        </div>
-
-                        {/* STANDARDIZED BUTTONS - Match "What Can I Make" layout */}
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {onRefresh && (
+                            {/* STANDARDIZED BUTTONS - Match "What Can I Make" layout + EMAIL SHARE */}
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                {onRefresh && (
+                                    <button
+                                        onClick={refreshShoppingList}
+                                        style={{
+                                            backgroundColor: '#6b7280',
+                                            color: 'white',
+                                            padding: '0.5rem 0.75rem',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem'
+                                        }}
+                                    >
+                                        🔄 Refresh
+                                    </button>
+                                )}
                                 <button
-                                    onClick={refreshShoppingList}
+                                    onClick={() => setShowEmailModal(true)}
                                     style={{
-                                        backgroundColor: '#6b7280',
+                                        backgroundColor: '#16a34a',
                                         color: 'white',
                                         padding: '0.5rem 0.75rem',
                                         borderRadius: '6px',
@@ -607,206 +628,215 @@ export default function ShoppingListDisplay({ shoppingList, onClose, onRefresh }
                                         gap: '0.5rem'
                                     }}
                                 >
-                                    🔄 Refresh
+                                    📧 Share
                                 </button>
-                            )}
-                            <button
-                                onClick={printShoppingList}
-                                style={{
-                                    backgroundColor: '#4f46e5',
-                                    color: 'white',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}
-                            >
-                                🖨️ Print
-                            </button>
-                            <button
-                                onClick={exportToPDF}
-                                style={{
-                                    backgroundColor: '#dc2626',
-                                    color: 'white',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}
-                            >
-                                📄 PDF
-                            </button>
-                            <button
-                                onClick={exportToText}
-                                style={{
-                                    backgroundColor: '#059669',
-                                    color: 'white',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}
-                            >
-                                📝 Text
-                            </button>
+                                <button
+                                    onClick={printShoppingList}
+                                    style={{
+                                        backgroundColor: '#4f46e5',
+                                        color: 'white',
+                                        padding: '0.5rem 0.75rem',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    🖨️ Print
+                                </button>
+                                <button
+                                    onClick={exportToPDF}
+                                    style={{
+                                        backgroundColor: '#dc2626',
+                                        color: 'white',
+                                        padding: '0.5rem 0.75rem',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    📄 PDF
+                                </button>
+                                <button
+                                    onClick={exportToText}
+                                    style={{
+                                        backgroundColor: '#059669',
+                                        color: 'white',
+                                        padding: '0.5rem 0.75rem',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    📝 Text
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Content */}
-                <div style={{
-                    flex: 1,
-                    minHeight: 0,
-                    overflowY: 'auto',
-                    padding: '1.5rem'
-                }}>
-                    {Object.keys(groupedItems).length === 0 ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '2rem',
-                            color: '#6b7280'
-                        }}>
-                            No items match your current filter.
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            {Object.entries(groupedItems).map(([category, items]) => (
-                                <div key={category}>
-                                    <h3 style={{
-                                        fontSize: '1.125rem',
-                                        fontWeight: '600',
-                                        color: '#111827',
-                                        marginBottom: '0.75rem'
-                                    }}>
-                                        {getCategoryName(category)} ({items.length})
-                                    </h3>
+                    {/* Content */}
+                    <div style={{
+                        flex: 1,
+                        minHeight: 0,
+                        overflowY: 'auto',
+                        padding: '1.5rem'
+                    }}>
+                        {Object.keys(groupedItems).length === 0 ? (
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '2rem',
+                                color: '#6b7280'
+                            }}>
+                                No items match your current filter.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                {Object.entries(groupedItems).map(([category, items]) => (
+                                    <div key={category}>
+                                        <h3 style={{
+                                            fontSize: '1.125rem',
+                                            fontWeight: '600',
+                                            color: '#111827',
+                                            marginBottom: '0.75rem'
+                                        }}>
+                                            {getCategoryName(category)} ({items.length})
+                                        </h3>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        {items.map((item, index) => (
-                                            <div
-                                                key={`${item.ingredient}-${index}`}
-                                                style={{
-                                                    padding: '0.75rem',
-                                                    border: '1px solid #e5e7eb',
-                                                    borderRadius: '8px',
-                                                    backgroundColor: item.inInventory ? '#eff6ff' : 'white',
-                                                    borderColor: item.inInventory ? '#bfdbfe' : '#e5e7eb'
-                                                }}
-                                            >
-                                                <div style={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'flex-start'
-                                                }}>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{
-                                                            fontWeight: '500',
-                                                            color: '#111827'
-                                                        }}>
-                                                            {item.ingredient}
-                                                        </div>
-
-                                                        {item.amount && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {items.map((item, index) => (
+                                                <div
+                                                    key={`${item.ingredient}-${index}`}
+                                                    style={{
+                                                        padding: '0.75rem',
+                                                        border: '1px solid #e5e7eb',
+                                                        borderRadius: '8px',
+                                                        backgroundColor: item.inInventory ? '#eff6ff' : 'white',
+                                                        borderColor: item.inInventory ? '#bfdbfe' : '#e5e7eb'
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'flex-start'
+                                                    }}>
+                                                        <div style={{ flex: 1 }}>
                                                             <div style={{
-                                                                fontSize: '0.875rem',
-                                                                color: '#6b7280',
-                                                                marginTop: '0.25rem'
+                                                                fontWeight: '500',
+                                                                color: '#111827'
                                                             }}>
-                                                                {item.amount}
+                                                                {item.ingredient}
                                                             </div>
-                                                        )}
 
-                                                        <div style={{
-                                                            fontSize: '0.75rem',
-                                                            color: '#9ca3af',
-                                                            marginTop: '0.25rem'
-                                                        }}>
-                                                            Used in: {item.recipes.join(', ')}
-                                                        </div>
+                                                            {item.amount && (
+                                                                <div style={{
+                                                                    fontSize: '0.875rem',
+                                                                    color: '#6b7280',
+                                                                    marginTop: '0.25rem'
+                                                                }}>
+                                                                    {item.amount}
+                                                                </div>
+                                                            )}
 
-                                                        {/* Show inventory details */}
-                                                        {item.inInventory && item.haveAmount && (
                                                             <div style={{
                                                                 fontSize: '0.75rem',
-                                                                color: '#2563eb',
+                                                                color: '#9ca3af',
                                                                 marginTop: '0.25rem'
                                                             }}>
-                                                                In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                                Used in: {item.recipes.join(', ')}
+                                                            </div>
+
+                                                            {/* Show inventory details */}
+                                                            {item.inInventory && item.haveAmount && (
+                                                                <div style={{
+                                                                    fontSize: '0.75rem',
+                                                                    color: '#2563eb',
+                                                                    marginTop: '0.25rem'
+                                                                }}>
+                                                                    In inventory: {item.haveAmount} (need: {item.needAmount})
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {item.inInventory && (
+                                                            <div style={{
+                                                                color: '#2563eb',
+                                                                fontSize: '0.75rem',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem'
+                                                            }}>
+                                                                ✓ In Inventory
                                                             </div>
                                                         )}
                                                     </div>
-
-                                                    {item.inInventory && (
-                                                        <div style={{
-                                                            color: '#2563eb',
-                                                            fontSize: '0.75rem',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem'
-                                                        }}>
-                                                            ✓ In Inventory
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* STANDARDIZED FOOTER - Match "What Can I Make" layout */}
+                    <div style={{
+                        padding: '1rem 1.5rem',
+                        borderTop: '1px solid #e5e7eb',
+                        backgroundColor: '#f9fafb',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexShrink: 0
+                    }}>
+                        <div style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280'
+                        }}>
+                            Generated on {new Date().toLocaleDateString()}
                         </div>
-                    )}
+                        <button
+                            onClick={onClose}
+                            style={{
+                                backgroundColor: '#6b7280',
+                                color: 'white',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '6px',
+                                border: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
 
-                {/* STANDARDIZED FOOTER - Match "What Can I Make" layout */}
-                <div style={{
-                    padding: '1rem 1.5rem',
-                    borderTop: '1px solid #e5e7eb',
-                    backgroundColor: '#f9fafb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexShrink: 0
-                }}>
-                    <div style={{
-                        fontSize: '0.875rem',
-                        color: '#6b7280'
-                    }}>
-                        Generated on {new Date().toLocaleDateString()}
-                    </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            backgroundColor: '#6b7280',
-                            color: 'white',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Close
-                    </button>
-                </div>
+                <style jsx>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
             </div>
 
-            <style jsx>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
-        </div>
+            {/* Email Share Modal */}
+            <EmailShareModal
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                shoppingList={shoppingList}
+                context="recipes"
+                contextName="Selected Recipes"
+            />
+        </>
     );
 }

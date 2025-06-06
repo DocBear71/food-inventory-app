@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v4
+// file: /src/lib/models.js - v5
 
 import mongoose from 'mongoose';
 
@@ -506,6 +506,113 @@ const UserMealPlanningPreferencesSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
+// Contact Schema for managing email recipients
+const ContactSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    email: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        validate: {
+            validator: function(email) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            },
+            message: 'Invalid email format'
+        }
+    },
+    relationship: {
+        type: String,
+        enum: ['family', 'friend', 'roommate', 'colleague', 'other'],
+        default: 'other'
+    },
+    // Optional grouping for contacts
+    groups: [String],
+
+    // Email preferences
+    preferences: {
+        receiveShoppingLists: { type: Boolean, default: true },
+        receiveRecipeShares: { type: Boolean, default: true },
+        preferredFormat: {
+            type: String,
+            enum: ['html', 'text'],
+            default: 'html'
+        }
+    },
+
+    // Track email activity
+    stats: {
+        emailsSent: { type: Number, default: 0 },
+        lastEmailSent: Date,
+        lastEmailOpened: Date
+    },
+
+    isActive: { type: Boolean, default: true },
+    notes: { type: String, maxlength: 200 },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Email Log Schema for tracking sent emails
+const EmailLogSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Email details
+    recipients: [{
+        email: String,
+        name: String,
+        contactId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }
+    }],
+
+    subject: { type: String, required: true },
+    emailType: {
+        type: String,
+        enum: ['shopping-list', 'recipe-share', 'meal-plan'],
+        required: true
+    },
+
+    // Content details
+    content: {
+        shoppingListId: String, // For future reference
+        recipeIds: [String],
+        mealPlanId: String,
+        personalMessage: String,
+        contextName: String
+    },
+
+    // Email service details
+    messageId: String, // From email provider
+    status: {
+        type: String,
+        enum: ['sent', 'delivered', 'failed', 'bounced'],
+        default: 'sent'
+    },
+
+    // Tracking
+    sentAt: { type: Date, default: Date.now },
+    deliveredAt: Date,
+    openedAt: Date,
+    clickedAt: Date,
+
+    error: String, // If failed
+
+    createdAt: { type: Date, default: Date.now }
+});
 
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
@@ -540,7 +647,15 @@ MealPlanSchema.index({ weekStartDate: 1 });
 
 MealPlanTemplateSchema.index({ userId: 1 });
 MealPlanTemplateSchema.index({ isPublic: 1, category: 1 });
-MealPlanTemplateSchema.index({ timesUsed: -1 }); // For popular templates
+MealPlanTemplateSchema.index({ timesUsed: -1 });
+
+ContactSchema.index({ userId: 1, email: 1 }, { unique: true });
+ContactSchema.index({ userId: 1, isActive: 1 });
+ContactSchema.index({ 'stats.lastEmailSent': 1 });
+
+EmailLogSchema.index({ userId: 1, sentAt: -1 });
+EmailLogSchema.index({ 'recipients.email': 1 });
+EmailLogSchema.index({ emailType: 1, sentAt: -1 });
 
 
 // Export models (prevent re-compilation in development)
@@ -551,3 +666,5 @@ export const DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.m
 export const RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
 export const MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
 export const MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
+export const Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
+export const EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
