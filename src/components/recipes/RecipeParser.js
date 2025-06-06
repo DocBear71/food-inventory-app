@@ -156,9 +156,9 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
     const parseIngredient = (line) => {
         if (!line || line.length < 2) return null;
 
-        // Remove bullets, numbers, and common prefixes
+        // Remove bullets, numbers, and common prefixes more carefully
         let cleanLine = line
-            .replace(/^[•\-\*\d+\.\)\s]+/, '')
+            .replace(/^[•\-\*]+\s*/, '') // Remove bullets but preserve leading numbers
             .replace(/^ingredients?:?\s*/i, '')
             .trim();
 
@@ -166,21 +166,15 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         console.log('Parsing ingredient line:', cleanLine);
 
+        // Skip lines that are clearly instructions or serving suggestions
+        if (/garnish|serve|enjoy|bold|spicy|delicious/i.test(cleanLine)) {
+            console.log('Skipping instruction/serving line:', cleanLine);
+            return null;
+        }
+
         // Enhanced patterns for better parsing
 
-        // Pattern 1: Handle fractions with units (e.g., "½ lb Italian sausage", "8 oz pappardelle")
-        const fractionWithUnitPattern = /^([½¼¾\d]+(?:\/\d+)?(?:\.\d+)?)\s*(oz|ounces|lb|lbs|pound|pounds|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|clove|cloves|g|gram|grams)\s+(.+)$/i;
-
-        // Pattern 2: Handle numbers with units (e.g., "2 cloves garlic, minced")
-        const numberWithUnitPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(clove|cloves|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounces|lb|lbs|pound|pounds|slice|slices|piece|pieces|g|gram|grams)\s+(.+)$/i;
-
-        // Pattern 3: Handle "to taste" ingredients (e.g., "Salt & pepper to taste")
-        const toTastePattern = /^(.+?)\s+to\s+taste$/i;
-
-        // Pattern 4: Handle standalone amounts with units (e.g., "1 bell pepper", "1 small onion")
-        const standaloneAmountPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(small|medium|large)?\s*(.+)$/i;
-
-        // Pattern 5: Handle measurement conversions (e.g., "½ cup" = "1/2 cup")
+        // Convert fraction characters first
         const convertFractions = (text) => {
             return text
                 .replace(/½/g, '1/2')
@@ -196,32 +190,29 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         cleanLine = convertFractions(cleanLine);
 
-        // Try fraction with unit pattern first
-        let match = cleanLine.match(fractionWithUnitPattern);
-        if (match) {
-            console.log('Matched fraction with unit:', match);
-            return {
-                name: match[3].trim(),
-                amount: match[1],
-                unit: match[2],
-                optional: cleanLine.toLowerCase().includes('optional')
-            };
+        // Pattern 1: Amount + Unit + Description (e.g., "8 oz pappardelle or fettuccine", "1/2 lb Italian sausage")
+        const amountUnitDescPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(oz|ounces|lb|lbs|pound|pounds|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|clove|cloves|g|gram|grams)\s+(.+)$/i;
+
+        // Pattern 2: Amount + Size + Item (e.g., "1 bell pepper, sliced", "1 small onion")
+        const amountSizeItemPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(small|medium|large|bell)?\s*(pepper|onion|clove|cloves|garlic)(?:\s*,?\s*(.*))?$/i;
+
+        // Pattern 3: Amount + General Item (e.g., "1 cup diced tomatoes")
+        const amountItemPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(.+)$/;
+
+        // Pattern 4: "to taste" ingredients
+        const toTastePattern = /^(.+?)\s+to\s+taste$/i;
+
+        // Pattern 5: Items with "for garnish" - these should be skipped
+        const garnishPattern = /for\s+garnish/i;
+
+        // Skip garnish items
+        if (garnishPattern.test(cleanLine)) {
+            console.log('Skipping garnish item:', cleanLine);
+            return null;
         }
 
-        // Try number with unit pattern
-        match = cleanLine.match(numberWithUnitPattern);
-        if (match) {
-            console.log('Matched number with unit:', match);
-            return {
-                name: match[3].trim(),
-                amount: match[1],
-                unit: match[2],
-                optional: cleanLine.toLowerCase().includes('optional')
-            };
-        }
-
-        // Try "to taste" pattern
-        match = cleanLine.match(toTastePattern);
+        // Try "to taste" pattern first
+        let match = cleanLine.match(toTastePattern);
         if (match) {
             console.log('Matched to taste:', match);
             return {
@@ -232,55 +223,85 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
             };
         }
 
-        // Try standalone amount pattern (for items like "1 bell pepper")
-        match = cleanLine.match(standaloneAmountPattern);
+        // Try amount + unit + description pattern
+        match = cleanLine.match(amountUnitDescPattern);
         if (match) {
-            console.log('Matched standalone amount:', match);
-            const size = match[2] ? match[2] + ' ' : '';
+            console.log('Matched amount+unit+description:', match);
             return {
-                name: (size + match[3]).trim(),
+                name: match[3].trim(),
+                amount: match[1],
+                unit: match[2],
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Try amount + size + item pattern for vegetables
+        match = cleanLine.match(amountSizeItemPattern);
+        if (match) {
+            console.log('Matched amount+size+item:', match);
+            const size = match[2] ? match[2] + ' ' : '';
+            const additional = match[4] ? ', ' + match[4] : '';
+            return {
+                name: (size + match[3] + additional).trim(),
                 amount: match[1],
                 unit: '',
                 optional: cleanLine.toLowerCase().includes('optional')
             };
         }
 
-        // Enhanced unit detection for common cooking units
-        const enhancedUnitPattern = /^(.+?)\s+(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|pound|pounds|lb|lbs|ounce|ounces|oz|gram|grams|g|kilogram|kg|clove|cloves|piece|pieces|slice|slices|can|cans|jar|jars|bottle|bottles|package|packages|bunch|bunches)\s*(.*)$/i;
-
-        const unitMatch = cleanLine.match(enhancedUnitPattern);
-        if (unitMatch) {
-            console.log('Matched enhanced unit:', unitMatch);
-            // Extract amount from the first part
-            const firstPart = unitMatch[1].trim();
-            const amountMatch = firstPart.match(/(\d+(?:\/\d+)?(?:\.\d+)?)(?:\s+(.*))?$/);
-
-            if (amountMatch) {
+        // Special handling for specific problematic patterns
+        // Handle "2 cloves garlic, minced" specifically
+        if (/(\d+(?:\/\d+)?)\s+cloves?\s+garlic/i.test(cleanLine)) {
+            const garlicMatch = cleanLine.match(/(\d+(?:\/\d+)?)\s+cloves?\s+(garlic.*)/i);
+            if (garlicMatch) {
+                console.log('Matched garlic specifically:', garlicMatch);
                 return {
-                    name: (amountMatch[2] || '') + ' ' + (unitMatch[3] || '').trim(),
-                    amount: amountMatch[1],
-                    unit: unitMatch[2],
-                    optional: cleanLine.toLowerCase().includes('optional')
-                };
-            } else {
-                return {
-                    name: unitMatch[3] || firstPart,
-                    amount: '1',
-                    unit: unitMatch[2],
-                    optional: cleanLine.toLowerCase().includes('optional')
+                    name: garlicMatch[2].trim(),
+                    amount: garlicMatch[1],
+                    unit: 'cloves',
+                    optional: false
                 };
             }
         }
 
-        // If no pattern matches, try to extract any number from the beginning
-        const fallbackPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(.+)$/;
-        const fallbackMatch = cleanLine.match(fallbackPattern);
-
-        if (fallbackMatch) {
-            console.log('Matched fallback pattern:', fallbackMatch);
+        // Handle "1 cup diced tomatoes" - look for measurement words
+        const measurementPattern = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s+(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp)\s+(.+)$/i;
+        match = cleanLine.match(measurementPattern);
+        if (match) {
+            console.log('Matched measurement pattern:', match);
             return {
-                name: fallbackMatch[2].trim(),
-                amount: fallbackMatch[1],
+                name: match[3].trim(),
+                amount: match[1],
+                unit: match[2],
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Try general amount + item pattern
+        match = cleanLine.match(amountItemPattern);
+        if (match) {
+            console.log('Matched general amount+item:', match);
+
+            // Check if the second part starts with a unit word
+            const secondPart = match[2].trim();
+            const unitWords = ['cup', 'cups', 'tbsp', 'tsp', 'tablespoon', 'tablespoons', 'teaspoon', 'teaspoons', 'oz', 'ounces', 'lb', 'lbs', 'pound', 'pounds', 'clove', 'cloves', 'slice', 'slices'];
+
+            for (const unit of unitWords) {
+                if (secondPart.toLowerCase().startsWith(unit.toLowerCase() + ' ')) {
+                    const remainder = secondPart.substring(unit.length).trim();
+                    return {
+                        name: remainder,
+                        amount: match[1],
+                        unit: unit,
+                        optional: cleanLine.toLowerCase().includes('optional')
+                    };
+                }
+            }
+
+            // No unit found, treat as item name
+            return {
+                name: secondPart,
+                amount: match[1],
                 unit: '',
                 optional: cleanLine.toLowerCase().includes('optional')
             };
