@@ -22,6 +22,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         difficulty: 'medium',
         tags: [],
         source: '',
+        isPublic: false, // Add public option
         nutrition: {
             calories: '',
             protein: '',
@@ -109,6 +110,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     difficulty: data.recipe.difficulty || 'medium',
                     tags: data.recipe.tags || [],
                     source: data.recipe.source || url,
+                    isPublic: false, // Default to private, user can change
                     nutrition: {
                         // Convert from structured format to simple values for form
                         calories: data.recipe.nutrition?.calories?.value || '',
@@ -329,6 +331,24 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     return (
         <div className="space-y-6">
+            {/* Back to Recipes Button */}
+            <div className="flex justify-between items-center">
+                <button
+                    type="button"
+                    onClick={() => window.location.href = '/recipes'}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Back to Recipes</span>
+                </button>
+                {!isEditing && (
+                    <span className="text-sm text-gray-500">
+                        {inputMethod === 'manual' ? 'Manual Entry' : inputMethod === 'parser' ? 'Text Parser' : 'URL Import'}
+                    </span>
+                )}
+            </div>
             {/* Input Method Selection */}
             {!isEditing && (
                 <div className="bg-white shadow rounded-lg p-6">
@@ -722,14 +742,42 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
                     {/* Source */}
                     <div className="bg-white shadow rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Source (Optional)</h3>
-                        <input
-                            type="text"
-                            value={recipe.source}
-                            onChange={(e) => updateRecipe('source', e.target.value)}
-                            placeholder="Recipe source or URL..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                        />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Settings</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Source (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={recipe.source}
+                                    onChange={(e) => updateRecipe('source', e.target.value)}
+                                    placeholder="Recipe source or URL..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+
+                            <div className="flex items-start">
+                                <div className="flex items-center h-5">
+                                    <input
+                                        id="isPublic"
+                                        type="checkbox"
+                                        checked={recipe.isPublic}
+                                        onChange={(e) => updateRecipe('isPublic', e.target.checked)}
+                                        className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                                    />
+                                </div>
+                                <div className="ml-3 text-sm">
+                                    <label htmlFor="isPublic" className="font-medium text-gray-700">
+                                        Make this recipe public
+                                    </label>
+                                    <p className="text-gray-500">
+                                        Public recipes can be viewed and rated by other users
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Submit Buttons */}

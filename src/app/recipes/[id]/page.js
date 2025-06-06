@@ -84,13 +84,63 @@ export default function RecipeDetailPage() {
         return amount;
     };
 
-    // Check if recipe has nutrition data
+    // Check if recipe has nutrition data - handle both structured and simple formats
     const hasNutritionData = recipe?.nutrition && (
-        (recipe.nutrition.calories && recipe.nutrition.calories.value > 0) ||
-        (recipe.nutrition.protein && recipe.nutrition.protein.value > 0) ||
-        (recipe.nutrition.fat && recipe.nutrition.fat.value > 0) ||
-        (recipe.nutrition.carbs && recipe.nutrition.carbs.value > 0)
+        // Structured format: { calories: { value: 203 } }
+        (recipe.nutrition.calories && (recipe.nutrition.calories.value > 0 || recipe.nutrition.calories > 0)) ||
+        (recipe.nutrition.protein && (recipe.nutrition.protein.value > 0 || recipe.nutrition.protein > 0)) ||
+        (recipe.nutrition.fat && (recipe.nutrition.fat.value > 0 || recipe.nutrition.fat > 0)) ||
+        (recipe.nutrition.carbs && (recipe.nutrition.carbs.value > 0 || recipe.nutrition.carbs > 0)) ||
+        // Simple format: { calories: 203 }
+        (typeof recipe.nutrition.calories === 'number' && recipe.nutrition.calories > 0) ||
+        (typeof recipe.nutrition.protein === 'number' && recipe.nutrition.protein > 0) ||
+        (typeof recipe.nutrition.fat === 'number' && recipe.nutrition.fat > 0) ||
+        (typeof recipe.nutrition.carbs === 'number' && recipe.nutrition.carbs > 0)
     );
+
+    // Convert simple nutrition format to structured format for the component
+    const getNormalizedNutrition = () => {
+        if (!recipe?.nutrition) return null;
+
+        // If already in structured format, return as-is
+        if (recipe.nutrition.calories && typeof recipe.nutrition.calories === 'object') {
+            return recipe.nutrition;
+        }
+
+        // Convert simple format to structured format
+        return {
+            calories: {
+                value: parseFloat(recipe.nutrition.calories) || 0,
+                unit: 'kcal',
+                name: 'Calories'
+            },
+            protein: {
+                value: parseFloat(recipe.nutrition.protein) || 0,
+                unit: 'g',
+                name: 'Protein'
+            },
+            fat: {
+                value: parseFloat(recipe.nutrition.fat) || 0,
+                unit: 'g',
+                name: 'Fat'
+            },
+            carbs: {
+                value: parseFloat(recipe.nutrition.carbs) || 0,
+                unit: 'g',
+                name: 'Carbohydrates'
+            },
+            fiber: {
+                value: parseFloat(recipe.nutrition.fiber) || 0,
+                unit: 'g',
+                name: 'Fiber'
+            },
+            sodium: {
+                value: parseFloat(recipe.nutrition.sodium) || 0,
+                unit: 'mg',
+                name: 'Sodium'
+            }
+        };
+    };
 
     if (loading) {
         return (
@@ -135,6 +185,21 @@ export default function RecipeDetailPage() {
             <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
+                    <div className="flex items-center justify-between mb-6">
+                        <button
+                            onClick={() => router.push('/recipes')}
+                            className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            <span>Back to Recipes</span>
+                        </button>
+                        <div className="text-sm text-gray-500">
+                            {recipe.isPublic ? '🌍 Public Recipe' : '🔒 Private Recipe'}
+                        </div>
+                    </div>
+
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
@@ -235,7 +300,7 @@ export default function RecipeDetailPage() {
                 {showNutrition && hasNutritionData && (
                     <div className="mb-8">
                         <NutritionFacts
-                            nutrition={recipe.nutrition}
+                            nutrition={getNormalizedNutrition()}
                             servings={recipe.servings || 1}
                             showPerServing={true}
                         />
@@ -348,7 +413,7 @@ export default function RecipeDetailPage() {
                             <div className="bg-white rounded-lg border p-6">
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutrition Summary</h3>
                                 <NutritionFacts
-                                    nutrition={recipe.nutrition}
+                                    nutrition={getNormalizedNutrition()}
                                     servings={recipe.servings || 1}
                                     showPerServing={true}
                                     compact={true}
