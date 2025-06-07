@@ -17,6 +17,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const detectionHandlerRef = useRef(null);
     const scanCountRef = useRef(0);
 
+    console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
+
+    console.log('🆕 BarcodeScanner v4 loaded - NEW VERSION');
+
     // Detect mobile device and orientation
     useEffect(() => {
         const checkMobile = () => {
