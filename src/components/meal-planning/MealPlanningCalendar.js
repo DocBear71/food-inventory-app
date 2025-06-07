@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v5
+// file: /src/components/meal-planning/MealPlanningCalendar.js v6
 
 'use client';
 
@@ -6,6 +6,7 @@ import {useState, useEffect} from 'react';
 import {useSession} from 'next-auth/react';
 import ShoppingListGenerator from './ShoppingListGenerator';
 import MealPrepButton from './MealPrepButton';
+import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSession();
@@ -330,6 +331,15 @@ export default function MealPlanningCalendar() {
                                     disabled={!mealsPlanned}
                                 />
                             )}
+
+                            {/* Nutrition Analysis Button */}
+                            {mealPlan && (
+                                <NutritionAnalysisButton
+                                    mealPlanId={mealPlan._id}
+                                    mealPlanName={mealPlan.name}
+                                    disabled={!mealsPlanned}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -380,6 +390,7 @@ export default function MealPlanningCalendar() {
                     </div>
                 </div>
 
+                {/* Rest of mobile layout remains the same... */}
                 {/* Mobile Day Cards */}
                 <div className="space-y-4">
                     {weekDays.map((day, dayIndex) => (
@@ -437,7 +448,7 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
-                {/* Mobile Recipe Selection Modal - FIXED */}
+                {/* Mobile Recipe Selection Modal */}
                 {showRecipeModal && (
                     <div style={{
                         position: 'fixed',
@@ -601,7 +612,7 @@ export default function MealPlanningCalendar() {
         );
     }
 
-    // Desktop Layout (original)
+    // Desktop Layout
     return (
         <div className="max-w-7xl mx-auto p-6">
             {/* Header */}
@@ -635,6 +646,15 @@ export default function MealPlanningCalendar() {
                         {/* Meal Prep Button */}
                         {mealPlan && (
                             <MealPrepButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                disabled={!mealsPlanned}
+                            />
+                        )}
+
+                        {/* Nutrition Analysis Button */}
+                        {mealPlan && (
+                            <NutritionAnalysisButton
                                 mealPlanId={mealPlan._id}
                                 mealPlanName={mealPlan.name}
                                 disabled={!mealsPlanned}
@@ -690,7 +710,7 @@ export default function MealPlanningCalendar() {
                 </div>
             </div>
 
-            {/* Desktop Calendar Grid */}
+            {/* Desktop Calendar Grid - Rest remains the same */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Header Row */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
