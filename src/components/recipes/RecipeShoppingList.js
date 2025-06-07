@@ -451,7 +451,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                 fontWeight: '500'
                             }}
                         >
-                            ⋯ More
+                            {showActions ? '⌄ Less' : '⋯ More'}
                         </button>
                     </div>
 

@@ -483,7 +483,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 fontWeight: '500'
                             }}
                         >
-                            ⋯ More
+                            {showActions ? '⌄ Less' : '⋯ More'}
                         </button>
                     </div>
 

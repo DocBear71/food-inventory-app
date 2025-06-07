@@ -368,7 +368,7 @@ export default function ShoppingListDisplay({
                                 fontWeight: '500'
                             }}
                         >
-                            ⋯ More
+                            {showActions ? '⌄ Less' : '⋯ More'}
                         </button>
                     </div>
 
