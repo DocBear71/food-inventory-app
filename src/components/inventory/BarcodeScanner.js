@@ -159,8 +159,38 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 cooldownRef.current = false;
                 scanCountRef.current = 0;
 
+                // Enhanced camera availability check
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Camera not supported on this device');
+                    throw new Error('Camera API not supported on this device or browser');
+                }
+
+                // Test camera access before initializing Quagga
+                console.log('🔍 Testing camera access...');
+                try {
+                    const testStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" }
+                    });
+                    console.log('✅ Camera access test successful');
+
+                    // Stop test stream immediately
+                    testStream.getTracks().forEach(track => track.stop());
+                } catch (permissionError) {
+                    console.error('❌ Camera permission test failed:', permissionError);
+
+                    let errorMessage = 'Camera access denied';
+                    if (permissionError.name === 'NotAllowedError') {
+                        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+                    } else if (permissionError.name === 'NotFoundError') {
+                        errorMessage = 'No camera found. Please ensure your device has a camera.';
+                    } else if (permissionError.name === 'NotSupportedError') {
+                        errorMessage = 'Camera not supported by this browser.';
+                    } else if (permissionError.name === 'NotReadableError') {
+                        errorMessage = 'Camera is being used by another application.';
+                    }
+
+                    setError(errorMessage);
+                    setIsLoading(false);
+                    return;
                 }
 
                 const QuaggaModule = await import('@ericblade/quagga2');
@@ -171,36 +201,27 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     return;
                 }
 
-                // Mobile-optimized configuration
-                const config = {
+                // Mobile-optimized configuration with fallbacks
+                const baseConfig = {
                     inputStream: {
                         name: "Live",
                         type: "LiveStream",
                         target: scannerRef.current,
                         constraints: {
-                            width: isMobile ?
-                                { min: 320, ideal: 640, max: 1280 } :
-                                { min: 640, ideal: 1280, max: 1920 },
-                            height: isMobile ?
-                                { min: 240, ideal: 480, max: 720 } :
-                                { min: 480, ideal: 720, max: 1080 },
-                            facingMode: "environment",
-                            aspectRatio: isMobile ? { min: 0.75, max: 1.5 } : { min: 1, max: 2 }
+                            facingMode: "environment"
                         }
                     },
                     locator: {
-                        patchSize: isMobile ? "medium" : "large",
-                        halfSample: isMobile ? true : false
+                        patchSize: "large",
+                        halfSample: false
                     },
-                    numOfWorkers: isMobile ? 1 : Math.min(navigator.hardwareConcurrency || 2, 4),
-                    frequency: isMobile ? 8 : 10,
+                    numOfWorkers: 1, // Conservative for mobile
+                    frequency: 5, // More conservative frequency
                     decoder: {
                         readers: [
                             "ean_reader",
                             "upc_reader",
-                            "upc_e_reader",
-                            "code_128_reader",
-                            "ean_8_reader"
+                            "upc_e_reader"
                         ],
                         multiple: false
                     },
@@ -221,47 +242,113 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     }
                 };
 
-                console.log('📋 Mobile Quagga config:', config);
-
-                Quagga.init(config, (err) => {
-                    if (!mountedRef.current) return;
-
-                    if (err) {
-                        console.error('❌ Quagga initialization error:', err);
-                        let errorMessage = 'Failed to initialize camera scanner';
-
-                        if (err.name === 'NotAllowedError') {
-                            errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-                        } else if (err.name === 'NotFoundError') {
-                            errorMessage = 'No camera found. Please ensure your device has a camera.';
-                        } else if (err.name === 'NotSupportedError') {
-                            errorMessage = 'Camera not supported by this browser.';
-                        } else if (err.name === 'NotReadableError') {
-                            errorMessage = 'Camera is being used by another application.';
+                // Try different constraint configurations for mobile
+                const mobileConfigs = [
+                    // Config 1: Simple constraints (most compatible)
+                    {
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                facingMode: "environment"
+                            }
                         }
+                    },
+                    // Config 2: Basic resolution constraints
+                    {
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                facingMode: "environment"
+                            }
+                        }
+                    },
+                    // Config 3: Fallback to any camera
+                    {
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                video: true
+                            }
+                        }
+                    }
+                ];
 
-                        setError(errorMessage);
+                const desktopConfig = {
+                    ...baseConfig,
+                    inputStream: {
+                        ...baseConfig.inputStream,
+                        constraints: {
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment",
+                            aspectRatio: { min: 1, max: 2 }
+                        }
+                    },
+                    numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
+                    frequency: 10
+                };
+
+                const configsToTry = isMobile ? mobileConfigs : [desktopConfig];
+
+                console.log('📋 Trying configs for mobile:', isMobile, 'Total configs:', configsToTry.length);
+
+                // Try each configuration until one works
+                let configIndex = 0;
+                const tryNextConfig = () => {
+                    if (configIndex >= configsToTry.length) {
+                        console.error('❌ All configurations failed');
+                        setError('Camera initialization failed. Please try refreshing the page or check camera permissions.');
                         setIsLoading(false);
                         return;
                     }
 
-                    console.log('✅ Mobile Quagga initialized successfully');
+                    const currentConfig = configsToTry[configIndex];
+                    console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
 
-                    try {
-                        Quagga.start();
-                        setIsInitialized(true);
-                        setIsLoading(false);
+                    Quagga.init(currentConfig, (err) => {
+                        if (!mountedRef.current) return;
 
-                        detectionHandlerRef.current = handleBarcodeDetection;
-                        Quagga.onDetected(detectionHandlerRef.current);
+                        if (err) {
+                            console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message);
 
-                        console.log('🎯 Mobile detection handler registered');
-                    } catch (startError) {
-                        console.error('❌ Error starting Quagga:', startError);
-                        setError('Failed to start camera');
-                        setIsLoading(false);
-                    }
-                });
+                            // Try next configuration
+                            configIndex++;
+
+                            // Small delay before trying next config
+                            setTimeout(() => {
+                                if (mountedRef.current) {
+                                    tryNextConfig();
+                                }
+                            }, 500);
+                            return;
+                        }
+
+                        console.log(`✅ Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
+
+                        try {
+                            Quagga.start();
+                            setIsInitialized(true);
+                            setIsLoading(false);
+
+                            detectionHandlerRef.current = handleBarcodeDetection;
+                            Quagga.onDetected(detectionHandlerRef.current);
+
+                            console.log('🎯 Mobile detection handler registered');
+                        } catch (startError) {
+                            console.error('❌ Error starting Quagga:', startError);
+                            setError('Failed to start camera');
+                            setIsLoading(false);
+                        }
+                    });
+                };
+
+                // Start trying configurations
+                tryNextConfig();
 
             } catch (error) {
                 console.error('❌ Mobile scanner setup error:', error);
@@ -339,15 +426,46 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             <div className="text-sm text-gray-500 mb-4">
                                 Please ensure camera permissions are enabled.
                             </div>
-                            <button
-                                onClick={() => {
-                                    cleanupScanner();
-                                    onClose();
-                                }}
-                                className="px-4 py-2 bg-gray-600 text-white rounded-md"
-                            >
-                                Close Scanner
-                            </button>
+
+                            {/* Debug button for mobile */}
+                            <div className="space-y-3">
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            console.log('🔍 Testing camera permissions...');
+                                            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                            console.log('✅ Camera permission granted');
+                                            stream.getTracks().forEach(track => track.stop());
+
+                                            // Try to reinitialize
+                                            setError(null);
+                                            setIsLoading(true);
+                                            setTimeout(() => {
+                                                if (mountedRef.current) {
+                                                    // Trigger re-initialization
+                                                    setIsInitialized(false);
+                                                }
+                                            }, 100);
+                                        } catch (testError) {
+                                            console.error('❌ Camera test failed:', testError);
+                                            setError(`Camera test failed: ${testError.message}`);
+                                        }
+                                    }}
+                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md mb-2"
+                                >
+                                    🔍 Test Camera Access
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        cleanupScanner();
+                                        onClose();
+                                    }}
+                                    className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
+                                >
+                                    Close Scanner
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ) : (
