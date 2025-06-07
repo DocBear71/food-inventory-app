@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js - v4 (With Consumption Integration)
+// file: /src/app/inventory/page.js - v5 (Fixed Add Form)
 
 'use client';
 
@@ -430,10 +430,6 @@ function InventoryContent() {
                     </div>
                 </div>
 
-                {/* Rest of your existing inventory page code... */}
-                {/* I'll skip the form and table sections since they're the same */}
-                {/* Just add the action column with the Use button */}
-
                 {/* Filters and Sorting */}
                 <div className="bg-white shadow rounded-lg p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -472,6 +468,183 @@ function InventoryContent() {
                         </div>
                     </div>
                 </div>
+
+                {/* 🔧 FIXED: Add/Edit Form - This was missing! */}
+                {showAddForm && (
+                    <div className="bg-white shadow rounded-lg">
+                        <div className="px-4 py-5 sm:p-6">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                                {editingItem ? 'Edit Item' : 'Add New Item'}
+                            </h3>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                {/* UPC Lookup Section */}
+                                <UPCLookup
+                                    onProductFound={handleProductFound}
+                                    onUPCChange={handleUPCChange}
+                                    currentUPC={formData.upc}
+                                />
+
+                                {/* Divider */}
+                                <div className="border-t border-gray-200 pt-6">
+                                    <h4 className="text-md font-medium text-gray-900 mb-4">
+                                        Item Details
+                                    </h4>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                            Item Name *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="name"
+                                            name="name"
+                                            required
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
+                                            Brand
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="brand"
+                                            name="brand"
+                                            value={formData.brand}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                                            Category
+                                        </label>
+                                        <select
+                                            id="category"
+                                            name="category"
+                                            value={formData.category}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="">Select category</option>
+                                            <option value="Dairy">Dairy</option>
+                                            <option value="Meat">Meat</option>
+                                            <option value="Produce">Produce</option>
+                                            <option value="Grains">Grains</option>
+                                            <option value="Canned">Canned</option>
+                                            <option value="Frozen">Frozen</option>
+                                            <option value="Beverages">Beverages</option>
+                                            <option value="Snacks">Snacks</option>
+                                            <option value="Condiments">Condiments</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                                            Storage Location
+                                        </label>
+                                        <select
+                                            id="location"
+                                            name="location"
+                                            value={formData.location}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="pantry">Pantry</option>
+                                            <option value="fridge">Refrigerator</option>
+                                            <option value="freezer">Freezer</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                                            Quantity
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="quantity"
+                                            name="quantity"
+                                            min="0"
+                                            step="0.1"
+                                            value={formData.quantity}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
+                                            Unit
+                                        </label>
+                                        <select
+                                            id="unit"
+                                            name="unit"
+                                            value={formData.unit}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="item">Item(s)</option>
+                                            <option value="lbs">Pounds</option>
+                                            <option value="oz">Ounces</option>
+                                            <option value="kg">Kilograms</option>
+                                            <option value="g">Grams</option>
+                                            <option value="cup">Cup(s)</option>
+                                            <option value="tbsp">Tablespoon(s)</option>
+                                            <option value="tsp">Teaspoon(s)</option>
+                                            <option value="ml">Milliliters</option>
+                                            <option value="l">Liters</option>
+                                            <option value="can">Can(s)</option>
+                                            <option value="package">Package(s)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
+                                            Expiration Date
+                                            <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
+                                        </label>
+                                        <input
+                                            type="date"
+                                            id="expirationDate"
+                                            name="expirationDate"
+                                            value={formData.expirationDate}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Setting expiration dates helps track freshness and prevents food waste
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end space-x-3">
+                                    <button
+                                        type="button"
+                                        onClick={resetForm}
+                                        className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+                                    >
+                                        {loading ? 'Saving...' : editingItem ? 'Update Item' : 'Add Item'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
                 {/* Inventory Table with Use Button */}
                 <div className="bg-white shadow rounded-lg">
