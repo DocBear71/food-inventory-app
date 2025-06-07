@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v4
+// file: /src/components/inventory/BarcodeScanner.js v5
 
 'use client';
 
@@ -17,9 +17,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const detectionHandlerRef = useRef(null);
     const scanCountRef = useRef(0);
 
-    console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
-
-    console.log('🆕 BarcodeScanner v4 loaded - NEW VERSION');
+    console.log('🆕 BarcodeScanner v5 loaded - FIXED VERSION');
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -197,16 +195,26 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     return;
                 }
 
+                console.log('📦 Loading Quagga module...');
                 const QuaggaModule = await import('@ericblade/quagga2');
                 Quagga = QuaggaModule.default;
                 quaggaRef.current = Quagga;
+                console.log('✅ Quagga module loaded successfully');
 
                 if (!scannerRef.current || !mountedRef.current) {
+                    console.log('❌ Scanner ref or component unmounted');
                     return;
                 }
 
                 // Wait for DOM element to be properly sized
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                console.log('📐 Scanner container dimensions:', {
+                    width: scannerRef.current.offsetWidth,
+                    height: scannerRef.current.offsetHeight,
+                    clientWidth: scannerRef.current.clientWidth,
+                    clientHeight: scannerRef.current.clientHeight
+                });
 
                 // Mobile-optimized configuration with fallbacks
                 const baseConfig = {
@@ -302,51 +310,44 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 const configsToTry = isMobile ? mobileConfigs : [desktopConfig];
 
-                console.log('📋 Trying configs for mobile:', isMobile, 'Total configs:', configsToTry.length);
+                console.log('📋 Will try configs for mobile:', isMobile, 'Total configs:', configsToTry.length);
 
-                // Try each configuration until one works
-                let configIndex = 0;
-                const tryNextConfig = () => {
-                    if (configIndex >= configsToTry.length) {
-                        console.error('❌ All configurations failed');
-                        setError('Camera initialization failed. Please try refreshing the page or check camera permissions.');
-                        setIsLoading(false);
-                        return;
-                    }
-
-                    const currentConfig = configsToTry[configIndex];
-                    console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
-                    console.log('📐 Scanner ref dimensions:', scannerRef.current?.offsetWidth, 'x', scannerRef.current?.offsetHeight);
-
-                    Quagga.init(currentConfig, (err) => {
-                        console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
-
+                // 🔧 FIXED: Properly scoped tryNextConfig function
+                const tryConfigs = async () => {
+                    for (let configIndex = 0; configIndex < configsToTry.length; configIndex++) {
                         if (!mountedRef.current) {
-                            console.log('⚠️ Component unmounted during init');
+                            console.log('⚠️ Component unmounted during config attempts');
                             return;
                         }
 
-                        if (err) {
-                            console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message, err);
-
-                            // Try next configuration
-                            configIndex++;
-
-                            // Small delay before trying next config
-                            setTimeout(() => {
-                                if (mountedRef.current) {
-                                    tryNextConfig();
-                                }
-                            }, 500);
-                            return;
-                        }
-
-                        console.log(`✅ Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
+                        const currentConfig = configsToTry[configIndex];
+                        console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
 
                         try {
+                            // Wrap Quagga.init in a Promise for better control
+                            const initResult = await new Promise((resolve, reject) => {
+                                const timeoutId = setTimeout(() => {
+                                    reject(new Error('Quagga init timeout'));
+                                }, 10000); // 10 second timeout
+
+                                Quagga.init(currentConfig, (err) => {
+                                    clearTimeout(timeoutId);
+                                    console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
+
+                                    if (err) {
+                                        console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message);
+                                        reject(err);
+                                    } else {
+                                        console.log(`✅ Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
+                                        resolve();
+                                    }
+                                });
+                            });
+
+                            // If we get here, initialization succeeded
                             console.log('🚀 Starting Quagga...');
                             Quagga.start();
-                            console.log('✅ Quagga.start() completed');
+                            console.log('✅ Quagga.start() completed successfully');
 
                             setIsInitialized(true);
                             setIsLoading(false);
@@ -354,33 +355,32 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             detectionHandlerRef.current = handleBarcodeDetection;
                             Quagga.onDetected(detectionHandlerRef.current);
 
-                            console.log('🎯 Mobile detection handler registered');
+                            console.log('🎯 Detection handler registered successfully');
 
-                            // 🔧 ENHANCED: More thorough video element detection and styling
-                            const checkVideoElements = () => {
+                            // Enhanced video element detection and styling
+                            const styleVideoElements = () => {
                                 if (scannerRef.current && mountedRef.current) {
                                     console.log('🔍 Searching for video/canvas elements...');
 
-                                    // Check all possible video elements
                                     const allVideos = scannerRef.current.querySelectorAll('video');
                                     const allCanvases = scannerRef.current.querySelectorAll('canvas');
 
                                     console.log(`📺 Found ${allVideos.length} video element(s)`);
                                     console.log(`🎨 Found ${allCanvases.length} canvas element(s)`);
 
-                                    // Log detailed info about each element
                                     allVideos.forEach((video, index) => {
-                                        console.log(`📺 Video ${index}:`, {
+                                        console.log(`📺 Video ${index} details:`, {
                                             width: video.offsetWidth,
                                             height: video.offsetHeight,
                                             videoWidth: video.videoWidth,
                                             videoHeight: video.videoHeight,
                                             readyState: video.readyState,
-                                            src: video.src || 'stream',
-                                            style: video.style.cssText
+                                            paused: video.paused,
+                                            muted: video.muted,
+                                            autoplay: video.autoplay
                                         });
 
-                                        // Force video styling
+                                        // Force comprehensive video styling
                                         video.style.width = '100%';
                                         video.style.height = '100%';
                                         video.style.objectFit = 'cover';
@@ -390,18 +390,26 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         video.style.left = '0';
                                         video.style.zIndex = '1';
                                         video.style.background = 'black';
+                                        video.style.opacity = '1';
+                                        video.style.visibility = 'visible';
 
-                                        console.log(`📺 Video ${index} styled for mobile`);
+                                        // Ensure video is playing
+                                        if (video.paused) {
+                                            video.play().catch(e => console.log('Video play failed:', e));
+                                        }
+
+                                        console.log(`📺 Video ${index} styled and play attempted`);
                                     });
 
                                     allCanvases.forEach((canvas, index) => {
-                                        console.log(`🎨 Canvas ${index}:`, {
+                                        console.log(`🎨 Canvas ${index} details:`, {
                                             width: canvas.offsetWidth,
                                             height: canvas.offsetHeight,
-                                            style: canvas.style.cssText
+                                            canvasWidth: canvas.width,
+                                            canvasHeight: canvas.height
                                         });
 
-                                        // Style canvas appropriately
+                                        // Style canvas but keep it visible for debugging
                                         canvas.style.position = 'absolute';
                                         canvas.style.top = '0';
                                         canvas.style.left = '0';
@@ -409,39 +417,50 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         canvas.style.height = '100%';
                                         canvas.style.zIndex = '2';
                                         canvas.style.pointerEvents = 'none';
-                                        canvas.style.opacity = '0.3'; // Make it semi-transparent so we can see the video
+                                        canvas.style.opacity = '0.1'; // Very transparent so we can see the video
 
                                         console.log(`🎨 Canvas ${index} styled`);
                                     });
 
-                                    // If no video elements found, there's a problem
                                     if (allVideos.length === 0) {
-                                        console.error('❌ No video elements found after Quagga start!');
-                                        console.log('📋 Scanner container contents:', scannerRef.current.innerHTML);
+                                        console.error('❌ CRITICAL: No video elements found after successful Quagga start!');
+                                        console.log('📋 Scanner container HTML:', scannerRef.current.innerHTML);
                                     }
                                 }
                             };
 
-                            // Check immediately
-                            checkVideoElements();
+                            // Style elements with multiple attempts
+                            styleVideoElements();
+                            setTimeout(styleVideoElements, 500);
+                            setTimeout(styleVideoElements, 1000);
+                            setTimeout(styleVideoElements, 2000);
 
-                            // Check again after a delay to catch late-loading elements
-                            setTimeout(checkVideoElements, 1000);
-                            setTimeout(checkVideoElements, 2000);
+                            // Success - exit the loop
+                            return;
 
-                        } catch (startError) {
-                            console.error('❌ Error starting Quagga:', startError);
-                            setError('Failed to start camera');
-                            setIsLoading(false);
+                        } catch (error) {
+                            console.error(`❌ Config ${configIndex + 1} failed with error:`, error);
+
+                            // If this was the last config, show error
+                            if (configIndex === configsToTry.length - 1) {
+                                console.error('❌ All configurations failed');
+                                setError('Camera initialization failed. Please try refreshing the page.');
+                                setIsLoading(false);
+                                return;
+                            }
+
+                            // Otherwise, continue to next config
+                            console.log(`🔄 Trying next configuration...`);
+                            await new Promise(resolve => setTimeout(resolve, 500)); // Wait before next attempt
                         }
-                    });
+                    }
                 };
 
                 // Start trying configurations
-                tryNextConfig();
+                await tryConfigs();
 
             } catch (error) {
-                console.error('❌ Mobile scanner setup error:', error);
+                console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
                     setError('Camera scanner not supported on this device.');
                     setIsLoading(false);
@@ -570,10 +589,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             </div>
                         )}
 
-                        {/* 🔧 FIXED: Camera Container - Properly sized and positioned */}
+                        {/* Camera Container - Properly sized and positioned */}
                         {!isLoading && (
                             <div className="flex-1 relative bg-black">
-                                {/* 🔧 FIXED: Camera View - Full container with proper sizing */}
+                                {/* Camera View - Full container with proper sizing */}
                                 <div
                                     ref={scannerRef}
                                     className="absolute inset-0 w-full h-full bg-black"
