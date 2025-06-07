@@ -469,17 +469,58 @@ function categorizeIngredient(ingredient) {
 function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     if (!inventoryItem) return false;
 
-    // Simple heuristic: if we have any inventory, assume it covers typical recipe amounts
     const neededMatch = neededAmount?.match(/(\d+(?:\.\d+)?)/);
     const neededNumber = neededMatch ? parseFloat(neededMatch[1]) : 1;
     const inventoryQuantity = inventoryItem.quantity || 1;
+    const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
 
-    // For pasta: if we have any pasta and need reasonable amount, we're good
-    if (neededNumber <= 2 && inventoryQuantity >= 1) {
+    console.log(`[COVERAGE CHECK] Need: "${neededAmount}", Have: ${inventoryQuantity} ${inventoryUnit}, Item: "${inventoryItem.name}"`);
+
+    // Smart coverage rules for different ingredient types
+    const itemName = normalizeIngredient(inventoryItem.name);
+
+    // Rule 1: If we have any pasta and need pasta (regardless of weight vs count), we're good
+    if (itemName.includes('pasta') ||
+        ['spaghetti', 'penne', 'fettuccine', 'fusilli', 'rigatoni', 'linguine', 'macaroni', 'shells'].some(p => itemName.includes(p))) {
+        console.log(`[COVERAGE CHECK] ✅ Pasta rule: Have pasta item, covers pasta need`);
+        return inventoryQuantity >= 1; // Just need to have at least 1 package/box
+    }
+
+    // Rule 2: If we have oil and need tablespoons/teaspoons, we're good
+    if (itemName.includes('oil') && neededAmount && (neededAmount.includes('tbsp') || neededAmount.includes('tsp'))) {
+        console.log(`[COVERAGE CHECK] ✅ Oil rule: Have oil item, covers small oil need`);
+        return inventoryQuantity >= 1;
+    }
+
+    // Rule 3: If we have spices/seasonings and need "to taste", we're good
+    if (neededAmount === 'to taste' || neededAmount.includes('to taste')) {
+        const spiceKeywords = ['salt', 'pepper', 'garlic powder', 'onion powder', 'oregano', 'basil', 'thyme'];
+        if (spiceKeywords.some(spice => itemName.includes(spice))) {
+            console.log(`[COVERAGE CHECK] ✅ Spice rule: Have spice, covers "to taste" need`);
+            return inventoryQuantity >= 1;
+        }
+    }
+
+    // Rule 4: Same units - direct comparison
+    if (inventoryUnit !== 'item' && neededAmount && neededAmount.toLowerCase().includes(inventoryUnit)) {
+        console.log(`[COVERAGE CHECK] Unit match: comparing ${neededNumber} needed vs ${inventoryQuantity} have`);
+        return inventoryQuantity >= neededNumber;
+    }
+
+    // Rule 5: Small amounts - if we need 1-3 of something and have at least 1, probably OK
+    if (neededNumber <= 3 && inventoryQuantity >= 1) {
+        console.log(`[COVERAGE CHECK] ✅ Small amount rule: Need ${neededNumber}, have ${inventoryQuantity}`);
         return true;
     }
 
-    return inventoryQuantity >= neededNumber;
+    // Rule 6: Default for "items" - if we have the item, assume it covers reasonable recipe needs
+    if (inventoryUnit === 'item' && inventoryQuantity >= 1) {
+        console.log(`[COVERAGE CHECK] ✅ Item rule: Have 1+ items of "${inventoryItem.name}"`);
+        return true;
+    }
+
+    console.log(`[COVERAGE CHECK] ❌ No rule matched - need: ${neededNumber}, have: ${inventoryQuantity} ${inventoryUnit}`);
+    return false;
 }
 
 // Function to extract recipe IDs from meal plan
