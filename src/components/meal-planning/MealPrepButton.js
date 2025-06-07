@@ -1,16 +1,20 @@
-// file: /src/components/meal-planning/MealPrepButton.js v1
+// file: /src/components/meal-planning/MealPrepButton.js v2
 
 'use client';
 
 import { useState } from 'react';
 import MealPrepSuggestions from './MealPrepSuggestions';
 
-export default function MealPrepButton({ mealPlanId, mealPlanName, disabled = false }) {
-    const [showMealPrep, setShowMealPrep] = useState(false);
+export default function MealPrepButton({
+                                           mealPlanId,
+                                           mealPlanName,
+                                           disabled = false
+                                       }) {
+    const [showMealPrepSuggestions, setShowMealPrepSuggestions] = useState(false);
 
     const handleClick = () => {
         if (!disabled && mealPlanId) {
-            setShowMealPrep(true);
+            setShowMealPrepSuggestions(true);
         }
     };
 
@@ -44,16 +48,16 @@ export default function MealPrepButton({ mealPlanId, mealPlanName, disabled = fa
                         e.target.style.backgroundColor = '#8b5cf6';
                     }
                 }}
-                title={disabled ? 'Add some meals to your plan first' : 'Get meal prep suggestions for this week'}
+                title={disabled ? 'Add some meals to your plan first' : 'Get intelligent meal prep suggestions for batch cooking'}
             >
-                🍳 Meal Prep Suggestions
+                🍳 Meal Prep
             </button>
 
-            {showMealPrep && (
+            {showMealPrepSuggestions && (
                 <MealPrepSuggestions
                     mealPlanId={mealPlanId}
                     mealPlanName={mealPlanName}
-                    onClose={() => setShowMealPrep(false)}
+                    onClose={() => setShowMealPrepSuggestions(false)}
                 />
             )}
         </>

@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v6
+// file: /src/components/meal-planning/MealPlanningCalendar.js v8
 
 'use client';
 
@@ -7,6 +7,7 @@ import {useSession} from 'next-auth/react';
 import ShoppingListGenerator from './ShoppingListGenerator';
 import MealPrepButton from './MealPrepButton';
 import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
+import TemplateLibraryButton from './TemplateLibraryButton';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSession();
@@ -146,6 +147,12 @@ export default function MealPlanningCalendar() {
         }
     };
 
+    // Handle template applied
+    const handleTemplateApplied = (updatedMealPlan) => {
+        console.log('Template applied, updating meal plan:', updatedMealPlan);
+        setMealPlan(updatedMealPlan);
+    };
+
     // Add meal to slot
     const addMealToSlot = async (day, mealType, recipe) => {
         console.log('=== Adding meal to slot ===');
@@ -278,6 +285,7 @@ export default function MealPlanningCalendar() {
     const mealsPlanned = hasMealsPlanned();
     console.log('Meals planned check result:', mealsPlanned);
 
+    // Early returns for auth and loading
     if (!session) {
         return (
             <div className="text-center py-8">
@@ -309,6 +317,16 @@ export default function MealPlanningCalendar() {
 
                         {/* Action Buttons - Mobile */}
                         <div className="flex flex-col space-y-3">
+                            {/* Template Button - First for easy access */}
+                            {mealPlan && (
+                                <TemplateLibraryButton
+                                    mealPlanId={mealPlan._id}
+                                    mealPlanName={mealPlan.name}
+                                    onTemplateApplied={handleTemplateApplied}
+                                    disabled={false}
+                                />
+                            )}
+
                             {/* Shopping List Button */}
                             {mealsPlanned && (
                                 <button
@@ -354,21 +372,21 @@ export default function MealPlanningCalendar() {
                             </svg>
                         </button>
 
-                        <div className="text-center">
-                            <h2 className="text-lg font-semibold text-gray-900">
-                                {getWeekStart(currentWeek).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                })} - {(() => {
-                                const weekEnd = new Date(getWeekStart(currentWeek));
-                                weekEnd.setDate(weekEnd.getDate() + 6);
-                                return weekEnd.toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                });
-                            })()}
-                            </h2>
-                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            {getWeekStart(currentWeek).toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                            })} - {(() => {
+                            const weekEnd = new Date(getWeekStart(currentWeek));
+                            weekEnd.setDate(weekEnd.getDate() + 6);
+                            return weekEnd.toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                            });
+                        })()}
+                        </h2>
 
                         <button
                             onClick={goToNextWeek}
@@ -379,19 +397,15 @@ export default function MealPlanningCalendar() {
                             </svg>
                         </button>
                     </div>
-
-                    <div className="mt-2 text-center">
-                        <button
-                            onClick={goToToday}
-                            className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
-                        >
-                            Today
-                        </button>
-                    </div>
+                    <button
+                        onClick={goToToday}
+                        className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                        Today
+                    </button>
                 </div>
 
-                {/* Rest of mobile layout remains the same... */}
-                {/* Mobile Day Cards */}
+                {/* Mobile Day-by-Day Layout */}
                 <div className="space-y-4">
                     {weekDays.map((day, dayIndex) => (
                         <div key={day} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -450,134 +464,50 @@ export default function MealPlanningCalendar() {
 
                 {/* Mobile Recipe Selection Modal */}
                 {showRecipeModal && (
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 9999,
-                        padding: '16px'
-                    }}>
-                        <div style={{
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            maxWidth: '500px',
-                            width: '100%',
-                            maxHeight: '80vh',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                        }}>
-                            {/* Header */}
-                            <div style={{
-                                padding: '16px',
-                                borderBottom: '1px solid #e5e7eb',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                flexShrink: 0
-                            }}>
-                                <h3 style={{
-                                    fontSize: '18px',
-                                    fontWeight: '600',
-                                    color: '#111827',
-                                    margin: 0
-                                }}>
-                                    Add to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
-                                </h3>
-                                <button
-                                    onClick={() => {
-                                        setShowRecipeModal(false);
-                                        setSelectedSlot(null);
-                                    }}
-                                    style={{
-                                        color: '#9ca3af',
-                                        fontSize: '20px',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        padding: '4px'
-                                    }}
-                                >
-                                    ×
-                                </button>
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden">
+                            <div className="p-4 border-b border-gray-200">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        Add to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                    </h3>
+                                    <button
+                                        onClick={() => {
+                                            setShowRecipeModal(false);
+                                            setSelectedSlot(null);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600 text-xl"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Content */}
-                            <div style={{
-                                flex: '1',
-                                overflow: 'auto',
-                                padding: '16px'
-                            }}>
+                            <div className="p-4 max-h-80 overflow-y-auto">
                                 {recipes.length === 0 ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '32px'
-                                    }}>
-                                        <p style={{ color: '#6b7280' }}>No recipes found. Add some recipes first!</p>
+                                    <div className="text-center py-8">
+                                        <p className="text-gray-500">No recipes found. Add some recipes first!</p>
                                     </div>
                                 ) : (
-                                    <div style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '12px'
-                                    }}>
+                                    <div className="space-y-3">
                                         {recipes.map(recipe => (
                                             <button
                                                 key={recipe._id}
                                                 onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
-                                                style={{
-                                                    width: '100%',
-                                                    textAlign: 'left',
-                                                    padding: '16px',
-                                                    border: '1px solid #e5e7eb',
-                                                    borderRadius: '8px',
-                                                    backgroundColor: 'white',
-                                                    cursor: 'pointer',
-                                                    transition: 'background-color 0.15s'
-                                                }}
-                                                onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                                                onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                             >
-                                                <div style={{
-                                                    fontWeight: '500',
-                                                    color: '#111827',
-                                                    marginBottom: '4px'
-                                                }}>
-                                                    {recipe.title}
-                                                </div>
-                                                <div style={{
-                                                    fontSize: '14px',
-                                                    color: '#6b7280',
-                                                    marginBottom: '8px'
-                                                }}>
-                                                    {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min • {recipe.difficulty}
+                                                <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
+                                                <div className="text-sm text-gray-600 mb-2">
+                                                    {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
+                                                    • {recipe.difficulty}
                                                 </div>
                                                 {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        flexWrap: 'wrap',
-                                                        gap: '4px'
-                                                    }}>
+                                                    <div className="flex flex-wrap gap-1">
                                                         {recipe.tags.slice(0, 3).map(tag => (
-                                                            <span
-                                                                key={tag}
-                                                                style={{
-                                                                    padding: '2px 8px',
-                                                                    backgroundColor: '#f3f4f6',
-                                                                    color: '#6b7280',
-                                                                    fontSize: '12px',
-                                                                    borderRadius: '4px'
-                                                                }}
-                                                            >
-                                                                {tag}
-                                                            </span>
+                                                            <span key={tag}
+                                                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                            {tag}
+                                                        </span>
                                                         ))}
                                                     </div>
                                                 )}
@@ -604,8 +534,19 @@ export default function MealPlanningCalendar() {
                     <div className="text-center py-12 bg-gray-50 rounded-lg mt-6">
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
-                        <p className="text-gray-600">Start by clicking the + buttons to add recipes to your meal
-                            plan.</p>
+                        <div className="space-y-2">
+                            <p className="text-gray-600">Start by using a template or adding recipes manually.</p>
+                            {mealPlan && (
+                                <div className="mt-4">
+                                    <TemplateLibraryButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        onTemplateApplied={handleTemplateApplied}
+                                        disabled={false}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -624,13 +565,23 @@ export default function MealPlanningCalendar() {
                     </div>
 
                     {/* Action Buttons - Desktop */}
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-3">
                         <div className="text-sm text-gray-500">
                             Meals: {mealsPlanned ? 'Yes' : 'No'}
                         </div>
 
+                        {/* Template Button - First for prominence */}
+                        {mealPlan && (
+                            <TemplateLibraryButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                onTemplateApplied={handleTemplateApplied}
+                                disabled={false}
+                            />
+                        )}
+
                         {/* Shopping List Button */}
-                        {(mealsPlanned || true) && (
+                        {mealsPlanned && (
                             <button
                                 onClick={() => setShowShoppingList(true)}
                                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
@@ -639,7 +590,7 @@ export default function MealPlanningCalendar() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                           d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
                                 </svg>
-                                <span>Generate Shopping List</span>
+                                <span>Shopping List</span>
                             </button>
                         )}
 
@@ -671,7 +622,8 @@ export default function MealPlanningCalendar() {
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M15 19l-7-7 7-7"/>
                             </svg>
                         </button>
 
@@ -696,7 +648,8 @@ export default function MealPlanningCalendar() {
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M9 5l7 7-7 7"/>
                             </svg>
                         </button>
                     </div>
@@ -710,7 +663,7 @@ export default function MealPlanningCalendar() {
                 </div>
             </div>
 
-            {/* Desktop Calendar Grid - Rest remains the same */}
+            {/* Desktop Calendar Grid */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Header Row */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
@@ -778,13 +731,12 @@ export default function MealPlanningCalendar() {
 
             {/* Desktop Recipe Selection Modal */}
             {showRecipeModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
                         <div className="p-4 border-b border-gray-200">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    Select Recipe
-                                    for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                    Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
                                 <button
                                     onClick={() => {
@@ -821,8 +773,8 @@ export default function MealPlanningCalendar() {
                                                     {recipe.tags.slice(0, 3).map(tag => (
                                                         <span key={tag}
                                                               className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                            {tag}
-                                                        </span>
+                                                        {tag}
+                                                    </span>
                                                     ))}
                                                 </div>
                                             )}
@@ -849,7 +801,17 @@ export default function MealPlanningCalendar() {
                 <div className="text-center py-12 bg-gray-50 rounded-lg mt-6">
                     <div className="text-6xl mb-4">🍽️</div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
-                    <p className="text-gray-600">Start by clicking the + buttons to add recipes to your meal plan.</p>
+                    <div className="space-y-4">
+                        <p className="text-gray-600">Start by using a template or adding recipes manually.</p>
+                        {mealPlan && (
+                            <TemplateLibraryButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                onTemplateApplied={handleTemplateApplied}
+                                disabled={false}
+                            />
+                        )}
+                    </div>
                 </div>
             )}
         </div>
