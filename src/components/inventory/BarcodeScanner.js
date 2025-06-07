@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v5
+// file: /src/components/inventory/BarcodeScanner.js v6
 
 'use client';
 
@@ -17,7 +17,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const detectionHandlerRef = useRef(null);
     const scanCountRef = useRef(0);
 
-    console.log('🆕 BarcodeScanner v5 loaded - FIXED VERSION');
+    console.log('🆕 BarcodeScanner v6 loaded - SYNTAX FIXED VERSION');
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -145,17 +145,19 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         }, 600);
     }, [isScanning, cleanupScanner, onBarcodeDetected]);
 
+    // Main scanner initialization effect
     useEffect(() => {
         let Quagga;
+        let initTimeoutId;
 
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current) {
+                console.log('🚫 Skipping init - not active, already initialized, or unmounted');
                 return;
             }
 
             try {
                 console.log('🚀 Initializing mobile-optimized barcode scanner...');
-                setIsLoading(true);
                 setError(null);
                 setIsScanning(true);
                 cooldownRef.current = false;
@@ -333,7 +335,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 console.log('📋 Will try configs for mobile:', isMobile, 'Total configs:', configsToTry.length);
 
-                // 🔧 FIXED: Properly scoped tryNextConfig function
+                // Try configurations sequentially
                 const tryConfigs = async () => {
                     for (let configIndex = 0; configIndex < configsToTry.length; configIndex++) {
                         if (!mountedRef.current) {
@@ -346,7 +348,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                         try {
                             // Wrap Quagga.init in a Promise for better control
-                            const initResult = await new Promise((resolve, reject) => {
+                            await new Promise((resolve, reject) => {
                                 const timeoutId = setTimeout(() => {
                                     reject(new Error('Quagga init timeout'));
                                 }, 10000); // 10 second timeout
@@ -489,26 +491,30 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         };
 
-        if (isActive && mountedRef.current) {
-            // Delay initialization to ensure component is fully mounted
+        // Wait for the camera container to be rendered before initializing
+        if (isActive && mountedRef.current && !isLoading) {
             console.log('🕐 Scheduling scanner initialization...');
-            const timeoutId = setTimeout(() => {
+            initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
                     console.log('🚀 Starting delayed initialization...');
                     initializeScanner();
                 } else {
                     console.log('❌ Component or ref not ready for delayed init');
+                    console.log('Component mounted:', !!mountedRef.current);
+                    console.log('Scanner ref exists:', !!scannerRef.current);
                 }
-            }, 200);
-
-            return () => {
-                clearTimeout(timeoutId);
-                if (!isActive || !mountedRef.current) {
-                    cleanupScanner();
-                }
-            };
+            }, 300);
         }
-    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]);
+
+        return () => {
+            if (initTimeoutId) {
+                clearTimeout(initTimeoutId);
+            }
+            if (!isActive || !mountedRef.current) {
+                cleanupScanner();
+            }
+        };
+    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner, isLoading]);
 
     useEffect(() => {
         return () => {
