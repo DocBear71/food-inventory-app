@@ -44,6 +44,19 @@ function InventoryContent() {
         }
     }, [session]);
 
+    useEffect(() => {
+        // Only load on mobile for debugging
+        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+            script.onload = () => {
+                window.eruda.init();
+                console.log('📱 Mobile console loaded - look for floating button!');
+            };
+            document.head.appendChild(script);
+        }
+    }, []);
+
     const fetchInventory = async () => {
         try {
             const response = await fetch('/api/inventory');

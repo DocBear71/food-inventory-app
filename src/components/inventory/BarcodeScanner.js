@@ -404,16 +404,16 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     // Mobile-optimized layout
     if (isMobile) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-95 flex flex-col z-50">
-                {/* Mobile Header - Minimal */}
-                <div className="flex-shrink-0 bg-black text-white p-3 flex justify-between items-center">
+            <div className="fixed inset-0 bg-black z-50 flex flex-col">
+                {/* Mobile Header - Fixed at top */}
+                <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
                     <button
                         onClick={() => {
                             cleanupScanner();
                             onClose();
                         }}
-                        className="text-white text-2xl font-bold p-1"
+                        className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
                     >
                         ×
                     </button>
@@ -421,13 +421,12 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 {error ? (
                     <div className="flex-1 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg p-6 text-center max-w-sm">
+                        <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
                             <div className="text-red-600 mb-4">❌ {error}</div>
                             <div className="text-sm text-gray-500 mb-4">
                                 Please ensure camera permissions are enabled.
                             </div>
 
-                            {/* Debug button for mobile */}
                             <div className="space-y-3">
                                 <button
                                     onClick={async () => {
@@ -437,12 +436,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                             console.log('✅ Camera permission granted');
                                             stream.getTracks().forEach(track => track.stop());
 
-                                            // Try to reinitialize
                                             setError(null);
                                             setIsLoading(true);
                                             setTimeout(() => {
                                                 if (mountedRef.current) {
-                                                    // Trigger re-initialization
                                                     setIsInitialized(false);
                                                 }
                                             }, 100);
@@ -451,7 +448,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                             setError(`Camera test failed: ${testError.message}`);
                                         }
                                     }}
-                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md mb-2"
+                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md"
                                 >
                                     🔍 Test Camera Access
                                 </button>
@@ -470,104 +467,153 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     </div>
                 ) : (
                     <>
-                        {/* Mobile Camera Area - Full screen minus header/footer */}
-                        <div className="flex-1 relative overflow-hidden">
-                            {isLoading && (
-                                <div className="absolute inset-0 bg-black flex items-center justify-center">
-                                    <div className="text-center text-white">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-                                        <div>Starting camera...</div>
-                                        <div className="text-sm mt-2 opacity-75">
-                                            Scan #{scanCountRef.current + 1}
-                                        </div>
+                        {/* Loading State */}
+                        {isLoading && (
+                            <div className="flex-1 flex items-center justify-center bg-black">
+                                <div className="text-center text-white">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                    <div className="text-lg">Starting camera...</div>
+                                    <div className="text-sm mt-2 opacity-75">
+                                        Scan #{scanCountRef.current + 1}
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {/* Camera View - Full area */}
-                            <div
-                                ref={scannerRef}
-                                className="w-full h-full bg-black"
-                                style={{ display: isLoading ? 'none' : 'block' }}
-                            />
+                        {/* Camera Container - Takes remaining space */}
+                        {!isLoading && (
+                            <div className="flex-1 relative bg-black overflow-hidden">
+                                {/* Camera View - Full container */}
+                                <div
+                                    ref={scannerRef}
+                                    className="absolute inset-0 w-full h-full"
+                                    style={{
+                                        objectFit: 'cover',
+                                        background: 'black'
+                                    }}
+                                />
 
-                            {/* Enhanced Mobile Reticle Overlay */}
-                            {!isLoading && (
+                                {/* Enhanced Reticle Overlay - Always visible */}
                                 <div className="absolute inset-0 pointer-events-none">
-                                    {/* Semi-transparent overlay with cutout */}
-                                    <div className="absolute inset-0 bg-black bg-opacity-40">
-                                        {/* Scanning target area - centered rectangle */}
-                                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-32 sm:w-80 sm:h-36">
-                                            {/* Clear area for barcode */}
-                                            <div className="w-full h-full bg-transparent border-2 border-red-500 rounded-lg relative overflow-hidden">
-                                                {/* Scanning line animation */}
-                                                {isScanning && (
-                                                    <div className="absolute inset-x-0 top-0 h-0.5 bg-red-500 animate-pulse"
-                                                         style={{
-                                                             animation: 'scanline 2s ease-in-out infinite'
-                                                         }}>
-                                                    </div>
-                                                )}
+                                    {/* Dark overlay with transparent center */}
+                                    <div className="absolute inset-0">
+                                        {/* Top overlay */}
+                                        <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-60"
+                                             style={{ height: 'calc(50% - 80px)' }}></div>
 
-                                                {/* Corner brackets - enhanced for mobile */}
-                                                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
-                                                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
-                                                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
-                                                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
+                                        {/* Bottom overlay */}
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60"
+                                             style={{ height: 'calc(50% - 80px)' }}></div>
 
-                                                {/* Center crosshair */}
-                                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4">
-                                                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
-                                                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
-                                                </div>
+                                        {/* Left overlay */}
+                                        <div className="absolute left-0 bg-black bg-opacity-60"
+                                             style={{
+                                                 top: 'calc(50% - 80px)',
+                                                 height: '160px',
+                                                 width: 'calc(50% - 140px)'
+                                             }}></div>
+
+                                        {/* Right overlay */}
+                                        <div className="absolute right-0 bg-black bg-opacity-60"
+                                             style={{
+                                                 top: 'calc(50% - 80px)',
+                                                 height: '160px',
+                                                 width: 'calc(50% - 140px)'
+                                             }}></div>
+                                    </div>
+
+                                    {/* Scanning Target Area - Centered */}
+                                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-40">
+                                        {/* Main scanning frame */}
+                                        <div className="w-full h-full border-2 border-red-500 rounded-lg relative bg-transparent">
+                                            {/* Animated scanning line */}
+                                            {isScanning && (
+                                                <div
+                                                    className="absolute left-0 right-0 h-1 bg-red-500 shadow-lg"
+                                                    style={{
+                                                        animation: 'scanline 2s ease-in-out infinite',
+                                                        boxShadow: '0 0 10px rgba(239, 68, 68, 0.8)'
+                                                    }}
+                                                />
+                                            )}
+
+                                            {/* Enhanced corner brackets */}
+                                            <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
+                                            <div className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
+                                            <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
+                                            <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
+
+                                            {/* Center crosshair */}
+                                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6">
+                                                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
+                                                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
                                             </div>
+
+                                            {/* Helper dots in corners of scan area */}
+                                            <div className="absolute top-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div className="absolute bottom-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div className="absolute bottom-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
                                         </div>
                                     </div>
 
-                                    {/* Instructions overlay */}
-                                    <div className="absolute top-16 left-4 right-4 bg-black bg-opacity-75 text-white text-sm p-3 rounded-lg text-center">
-                                        {isScanning ? (
-                                            <div>
-                                                <div className="font-medium">📱 Position barcode in the red frame</div>
-                                                <div className="text-xs mt-1 opacity-75">Hold steady • Good lighting helps</div>
-                                            </div>
-                                        ) : (
-                                            <div className="font-medium text-green-400">✅ Barcode detected! Processing...</div>
-                                        )}
+                                    {/* Instructions - Positioned at top */}
+                                    <div className="absolute top-16 left-4 right-4 z-10">
+                                        <div className="bg-black bg-opacity-80 text-white text-sm p-4 rounded-lg text-center">
+                                            {isScanning ? (
+                                                <div>
+                                                    <div className="font-semibold text-lg mb-1">📱 Position barcode in the red frame</div>
+                                                    <div className="text-xs opacity-90">Hold steady • Ensure good lighting • Keep barcode flat</div>
+                                                </div>
+                                            ) : (
+                                                <div className="font-semibold text-green-400 text-lg">✅ Barcode detected! Processing...</div>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    {/* Bottom status */}
-                                    <div className="absolute bottom-4 left-4 right-4 text-center text-white text-xs">
-                                        <div className="bg-black bg-opacity-50 rounded-lg p-2">
-                                            Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
+                                    {/* Status indicator - Bottom */}
+                                    <div className="absolute bottom-4 left-4 right-4 z-10">
+                                        <div className="bg-black bg-opacity-80 text-white text-center py-2 px-4 rounded-lg">
+                                            <div className="text-sm">
+                                                Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
-                        {/* Mobile Footer - Minimal */}
-                        <div className="flex-shrink-0 bg-black text-white p-3 text-center">
+                        {/* Mobile Footer - Always visible */}
+                        <div className="flex-shrink-0 bg-black px-4 py-3">
                             <button
                                 onClick={() => {
                                     cleanupScanner();
                                     onClose();
                                 }}
-                                className="bg-gray-600 text-white px-6 py-2 rounded-lg text-sm"
+                                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
                                 disabled={!isScanning}
                             >
-                                {isScanning ? 'Cancel' : 'Processing...'}
+                                {isScanning ? 'Cancel Scan' : 'Processing...'}
                             </button>
                         </div>
                     </>
                 )}
 
-                {/* CSS for scanning animation */}
+                {/* Enhanced CSS animations */}
                 <style jsx>{`
                     @keyframes scanline {
-                        0% { top: 0; opacity: 1; }
-                        50% { top: 50%; opacity: 0.8; }
-                        100% { top: 100%; opacity: 1; }
+                        0% {
+                            top: 0;
+                            opacity: 1;
+                        }
+                        50% {
+                            top: calc(50% - 2px);
+                            opacity: 0.7;
+                        }
+                        100% {
+                            top: calc(100% - 4px);
+                            opacity: 1;
+                        }
                     }
                 `}</style>
             </div>
