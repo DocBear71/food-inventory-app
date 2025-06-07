@@ -201,19 +201,40 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 quaggaRef.current = Quagga;
                 console.log('✅ Quagga module loaded successfully');
 
-                if (!scannerRef.current || !mountedRef.current) {
-                    console.log('❌ Scanner ref or component unmounted');
+                if (!mountedRef.current) {
+                    console.log('❌ Component unmounted during init');
                     return;
                 }
 
-                // Wait for DOM element to be properly sized
-                await new Promise(resolve => setTimeout(resolve, 200));
+                if (!scannerRef.current) {
+                    console.log('❌ Scanner ref is null, waiting...');
+                    // Wait a bit and try again
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    if (!scannerRef.current) {
+                        console.log('❌ Scanner ref still null after wait');
+                        setError('Scanner container initialization failed');
+                        setIsLoading(false);
+                        return;
+                    }
+                    console.log('✅ Scanner ref found after wait');
+                }
+
+                // Wait for DOM element to be properly sized and ensure it's stable
+                console.log('⏳ Waiting for DOM element to stabilize...');
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // Double-check the scanner ref is still available
+                if (!scannerRef.current || !mountedRef.current) {
+                    console.log('❌ Scanner ref lost during DOM wait');
+                    return;
+                }
 
                 console.log('📐 Scanner container dimensions:', {
                     width: scannerRef.current.offsetWidth,
                     height: scannerRef.current.offsetHeight,
                     clientWidth: scannerRef.current.clientWidth,
-                    clientHeight: scannerRef.current.clientHeight
+                    clientHeight: scannerRef.current.clientHeight,
+                    parent: scannerRef.current.parentElement ? 'exists' : 'missing'
                 });
 
                 // Mobile-optimized configuration with fallbacks
@@ -469,16 +490,24 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         };
 
         if (isActive && mountedRef.current) {
-            setTimeout(() => {
-                initializeScanner();
-            }, 100);
-        }
+            // Delay initialization to ensure component is fully mounted
+            console.log('🕐 Scheduling scanner initialization...');
+            const timeoutId = setTimeout(() => {
+                if (mountedRef.current && scannerRef.current) {
+                    console.log('🚀 Starting delayed initialization...');
+                    initializeScanner();
+                } else {
+                    console.log('❌ Component or ref not ready for delayed init');
+                }
+            }, 200);
 
-        return () => {
-            if (!isActive || !mountedRef.current) {
-                cleanupScanner();
-            }
-        };
+            return () => {
+                clearTimeout(timeoutId);
+                if (!isActive || !mountedRef.current) {
+                    cleanupScanner();
+                }
+            };
+        }
     }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]);
 
     useEffect(() => {
@@ -602,7 +631,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         position: 'absolute',
                                         top: 0,
                                         left: 0,
-                                        zIndex: 1
+                                        zIndex: 1,
+                                        minHeight: '400px' // Ensure minimum height
                                     }}
                                 />
 
