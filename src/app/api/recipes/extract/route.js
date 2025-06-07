@@ -194,12 +194,22 @@ function parseRecipesFromText(text, volume) {
 
 // COMPLETELY REWRITTEN PARSER - Much more accurate
 function parseRecipeWithImprovedStructure(section, volume) {
+    console.log('\n=== PARSING RECIPE SECTION ===');
+    console.log('Raw section:', section.substring(0, 300) + '...');
+
+    // First, try to separate concatenated ingredients by looking for patterns
+    const preprocessedSection = preprocessConcatenatedIngredients(section);
+    console.log('After preprocessing:', preprocessedSection.substring(0, 300) + '...');
+
     // Split into lines and clean them up
-    const allLines = section.split('\n')
+    const allLines = preprocessedSection.split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
 
-    if (allLines.length < 2) return null;
+    if (allLines.length < 2) {
+        console.log('❌ Section too short');
+        return null;
+    }
 
     const recipe = {
         title: '',
@@ -215,7 +225,7 @@ function parseRecipeWithImprovedStructure(section, volume) {
         isPublic: false
     };
 
-    // STEP 1: Find the title (first line that looks like a title)
+    // STEP 1: Find the title (first meaningful line)
     let titleIndex = -1;
     for (let i = 0; i < Math.min(allLines.length, 3); i++) {
         const line = allLines[i];
@@ -225,16 +235,16 @@ function parseRecipeWithImprovedStructure(section, volume) {
         if (isValidRecipeTitle(cleanTitle)) {
             recipe.title = cleanTitle;
             titleIndex = i;
-            console.log(`Found title at line ${i}: "${recipe.title}"`);
+            console.log(`✅ Found title at line ${i}: "${recipe.title}"`);
             break;
         }
     }
 
     // If no title found, use first line and clean it
     if (titleIndex === -1 && allLines.length > 0) {
-        recipe.title = allLines[0].replace(/^\*\*|\*\*$/g, '').replace(/[^\w\s'-]/g, '').trim();
+        recipe.title = allLines[0].replace(/^\*\*|\*\*$/g, '').replace(/[^\w\s'&-]/g, '').trim();
         titleIndex = 0;
-        console.log(`Using first line as title: "${recipe.title}"`);
+        console.log(`⚠️ Using first line as title: "${recipe.title}"`);
     }
 
     if (!recipe.title) {
@@ -244,6 +254,7 @@ function parseRecipeWithImprovedStructure(section, volume) {
 
     // STEP 2: Process remaining lines after title
     const contentLines = allLines.slice(titleIndex + 1);
+    console.log(`Processing ${contentLines.length} content lines after title`);
 
     // STEP 3: Separate ingredients from instructions using better logic
     const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
@@ -252,15 +263,37 @@ function parseRecipeWithImprovedStructure(section, volume) {
     recipe.instructions = instructions;
     recipe.description = description;
 
-    // Validation: recipe should have meaningful content
+    // More lenient validation
     if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
         console.log('❌ No ingredients or instructions found');
+        console.log('Content lines were:', contentLines);
         return null;
     }
 
-    console.log(`✅ Parsed recipe with ${recipe.ingredients.length} ingredients and ${recipe.instructions.length} instructions`);
+    console.log(`✅ Successfully parsed recipe with ${recipe.ingredients.length} ingredients and ${recipe.instructions.length} instructions`);
 
     return recipe;
+}
+
+// NEW: Preprocess concatenated ingredients
+function preprocessConcatenatedIngredients(text) {
+    // Look for patterns where ingredients are concatenated like "2 cups flour1 cup sugar"
+    // Insert line breaks before numbers that follow letters/units
+    let processed = text;
+
+    // Pattern: number + unit + ingredient + number (next ingredient starts)
+    // Example: "2 cups flour1 cup" -> "2 cups flour\n1 cup"
+    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon)/gi, '$1\n$2 $3');
+
+    // Pattern: ingredient name + number (next ingredient starts)
+    // Example: "olive oil1 cup" -> "olive oil\n1 cup"
+    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+([a-zA-Z])/g, '$1\n$2 $3');
+
+    // Pattern: unit + ingredient + number
+    // Example: "butter1 qt heavy" -> "butter\n1 qt heavy"
+    processed = processed.replace(/(butter|oil|cream|cheese|sauce|flour|sugar|salt|pepper)\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/gi, '$1\n$2 ');
+
+    return processed;
 }
 
 // NEW: Better separation of ingredients vs instructions
@@ -273,6 +306,8 @@ function parseIngredientsAndInstructions(lines) {
     let foundFirstIngredient = false;
     let foundFirstInstruction = false;
 
+    console.log(`\n--- PARSING ${lines.length} CONTENT LINES ---`);
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
@@ -283,45 +318,62 @@ function parseIngredientsAndInstructions(lines) {
         const isIngredient = looksLikeIngredient(line);
         const isInstruction = looksLikeInstruction(line);
 
-        console.log(`Line ${i}: "${line.substring(0, 50)}..." - Ingredient: ${isIngredient}, Instruction: ${isInstruction}`);
+        console.log(`Line ${i}: "${line.substring(0, 60)}..." - Ingredient: ${isIngredient}, Instruction: ${isInstruction}`);
 
+        // Try to parse as ingredient first (unless we're clearly in instructions section)
         if (isIngredient && !foundFirstInstruction) {
-            // This is an ingredient
             const parsed = parseIngredientLine(line);
             if (parsed) {
                 ingredients.push(parsed);
                 foundFirstIngredient = true;
                 currentSection = 'ingredients';
-                console.log(`  → Added ingredient: ${parsed.amount} ${parsed.unit} ${parsed.name}`);
+                console.log(`  ✅ Added ingredient: ${parsed.amount} ${parsed.unit} ${parsed.name}`);
+                continue;
             }
-        } else if (isInstruction || (foundFirstIngredient && !isIngredient)) {
-            // This is an instruction
+        }
+
+        // Check if this is clearly an instruction
+        if (isInstruction) {
             instructions.push(line.trim());
             foundFirstInstruction = true;
             currentSection = 'instructions';
-            console.log(`  → Added instruction: ${line.substring(0, 50)}...`);
-        } else if (!foundFirstIngredient && !foundFirstInstruction && line.length < 200) {
-            // This might be a description (before we find ingredients or instructions)
-            if (!description) {
-                description = line;
-                console.log(`  → Set as description: ${line}`);
-            }
-        } else {
-            // If we're not sure, and we haven't found instructions yet, try as ingredient
-            if (!foundFirstInstruction) {
-                const parsed = parseIngredientLine(line);
-                if (parsed) {
-                    ingredients.push(parsed);
-                    foundFirstIngredient = true;
-                    console.log(`  → Added as ingredient (fallback): ${parsed.amount} ${parsed.unit} ${parsed.name}`);
-                }
-            } else {
-                // Default to instruction if we're already in instructions section
-                instructions.push(line.trim());
-                console.log(`  → Added as instruction (fallback): ${line.substring(0, 50)}...`);
+            console.log(`  ✅ Added instruction: ${line.substring(0, 50)}...`);
+            continue;
+        }
+
+        // If we've found ingredients but this doesn't look like either, it might be an instruction
+        if (foundFirstIngredient && !isIngredient) {
+            instructions.push(line.trim());
+            foundFirstInstruction = true;
+            currentSection = 'instructions';
+            console.log(`  ⚠️ Added as instruction (after ingredients): ${line.substring(0, 50)}...`);
+            continue;
+        }
+
+        // If we haven't found anything yet, check if this could be a description
+        if (!foundFirstIngredient && !foundFirstInstruction && line.length < 200 && !description) {
+            description = line;
+            console.log(`  📝 Set as description: ${line}`);
+            continue;
+        }
+
+        // Last resort: try to parse as ingredient even if it doesn't look perfect
+        if (!foundFirstInstruction) {
+            const parsed = parseIngredientLine(line);
+            if (parsed && parsed.name.length > 2) {
+                ingredients.push(parsed);
+                foundFirstIngredient = true;
+                console.log(`  ⚠️ Added as ingredient (last resort): ${parsed.amount} ${parsed.unit} ${parsed.name}`);
+                continue;
             }
         }
+
+        // If all else fails, add to instructions
+        instructions.push(line.trim());
+        console.log(`  ⚠️ Added as instruction (fallback): ${line.substring(0, 50)}...`);
     }
+
+    console.log(`--- PARSING COMPLETE: ${ingredients.length} ingredients, ${instructions.length} instructions ---\n`);
 
     return { ingredients, instructions, description };
 }
@@ -333,35 +385,39 @@ function looksLikeIngredient(line) {
 
     // Patterns that indicate this is an ingredient
     const ingredientPatterns = [
-        // Starts with number + unit
+        // Starts with number + unit (more flexible)
         /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tsp\.|tbsp|tbsp\.|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|quarts|gallon|gallons|stick|sticks|clove|cloves|can|jar)\b/i,
 
-        // Just starts with a measurement
+        // Just starts with a measurement (more flexible)
         /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+\w/,
 
-        // Ends with common ingredient words
-        /\b(flour|butter|milk|cream|cheese|tomato|tomatoes|onion|onions|garlic|oil|salt|pepper|sugar|eggs?|chicken|beef|pork)\b$/i,
+        // Contains common ingredient words anywhere in the line
+        /\b(flour|butter|milk|cream|cheese|tomato|tomatoes|onion|onions|garlic|oil|olive oil|salt|pepper|sugar|egg|eggs|chicken|beef|pork|wine|water|sauce|powder|seasoning|basil|oregano|parmesan)\b/i,
+
+        // Looks like "X of Y" pattern (e.g., "2 Cups of flour")
+        /^\d+.*\s+(of\s+)?\w+$/i
     ];
 
-    // Patterns that indicate this is NOT an ingredient
+    // Patterns that indicate this is NOT an ingredient (more restrictive)
     const notIngredientPatterns = [
-        // Starts with instruction verbs
-        /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|set to|continue|repeat|pour|crush|strain|grate|slowly|next|wash|dip|slip|trim|cut|transfer|being|until)/i,
+        // Clearly instruction sentences (more specific)
+        /^(combine all ingredients|heat oil|cook over|in a .*saucepan|add the|melt the|stir until|bring to|used as ingredient)/i,
 
-        // Contains instruction timing/temperature
-        /\b(\d+\s*(minutes?|hours?|degrees?|°F|°C))\b/i,
+        // Contains clear instruction timing/temperature
+        /\b(for \d+\s*(minutes?|hours?)|at \d+\s*degrees?|°F|°C|until hot|until tender)\b/i,
 
-        // Too long to be an ingredient
-        line.length > 100,
+        // Way too long to be an ingredient
+        line.length > 80,
 
-        // Contains instruction phrases
-        /\b(then|and then|to avoid|being careful|approximately|at a time)\b/i
+        // Contains multiple sentences
+        /[.!?].*[.!?]/,
     ];
 
-    // Check if it matches ingredient patterns and doesn't match non-ingredient patterns
+    // Check patterns
     const matchesIngredient = ingredientPatterns.some(pattern => pattern.test(cleanLine));
     const matchesNonIngredient = notIngredientPatterns.some(pattern => pattern.test(line));
 
+    // More lenient: if it matches ingredient pattern and doesn't clearly match non-ingredient, consider it an ingredient
     return matchesIngredient && !matchesNonIngredient;
 }
 
