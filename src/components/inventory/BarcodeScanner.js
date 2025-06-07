@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v3
+// file: /src/components/inventory/BarcodeScanner.js v4
 
 'use client';
 
@@ -201,6 +201,9 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     return;
                 }
 
+                // Wait for DOM element to be properly sized
+                await new Promise(resolve => setTimeout(resolve, 100));
+
                 // Mobile-optimized configuration with fallbacks
                 const baseConfig = {
                     inputStream: {
@@ -339,6 +342,30 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             Quagga.onDetected(detectionHandlerRef.current);
 
                             console.log('🎯 Mobile detection handler registered');
+
+                            // 🔧 FIXED: Force video element to be visible
+                            setTimeout(() => {
+                                if (scannerRef.current && mountedRef.current) {
+                                    const videoElement = scannerRef.current.querySelector('video');
+                                    const canvasElement = scannerRef.current.querySelector('canvas');
+
+                                    console.log('📺 Video element found:', !!videoElement);
+                                    console.log('🎨 Canvas element found:', !!canvasElement);
+
+                                    if (videoElement) {
+                                        videoElement.style.width = '100%';
+                                        videoElement.style.height = '100%';
+                                        videoElement.style.objectFit = 'cover';
+                                        videoElement.style.display = 'block';
+                                        console.log('📺 Video element styled for mobile');
+                                    }
+
+                                    if (canvasElement) {
+                                        canvasElement.style.display = 'none'; // Hide canvas overlay for cleaner look
+                                    }
+                                }
+                            }, 500);
+
                         } catch (startError) {
                             console.error('❌ Error starting Quagga:', startError);
                             setError('Failed to start camera');
@@ -480,21 +507,25 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             </div>
                         )}
 
-                        {/* Camera Container - Takes remaining space */}
+                        {/* 🔧 FIXED: Camera Container - Properly sized and positioned */}
                         {!isLoading && (
-                            <div className="flex-1 relative bg-black overflow-hidden">
-                                {/* Camera View - Full container */}
+                            <div className="flex-1 relative bg-black">
+                                {/* 🔧 FIXED: Camera View - Full container with proper sizing */}
                                 <div
                                     ref={scannerRef}
-                                    className="absolute inset-0 w-full h-full"
+                                    className="absolute inset-0 w-full h-full bg-black"
                                     style={{
-                                        objectFit: 'cover',
-                                        background: 'black'
+                                        width: '100%',
+                                        height: '100%',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        zIndex: 1
                                     }}
                                 />
 
-                                {/* Enhanced Reticle Overlay - Always visible */}
-                                <div className="absolute inset-0 pointer-events-none">
+                                {/* Enhanced Reticle Overlay - Higher z-index */}
+                                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                                     {/* Dark overlay with transparent center */}
                                     <div className="absolute inset-0">
                                         {/* Top overlay */}
@@ -558,7 +589,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     </div>
 
                                     {/* Instructions - Positioned at top */}
-                                    <div className="absolute top-16 left-4 right-4 z-10">
+                                    <div className="absolute top-16 left-4 right-4 z-20">
                                         <div className="bg-black bg-opacity-80 text-white text-sm p-4 rounded-lg text-center">
                                             {isScanning ? (
                                                 <div>
@@ -572,7 +603,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     </div>
 
                                     {/* Status indicator - Bottom */}
-                                    <div className="absolute bottom-4 left-4 right-4 z-10">
+                                    <div className="absolute bottom-4 left-4 right-4 z-20">
                                         <div className="bg-black bg-opacity-80 text-white text-center py-2 px-4 rounded-lg">
                                             <div className="text-sm">
                                                 Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}

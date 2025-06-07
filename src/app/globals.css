@@ -1,4 +1,4 @@
-/* file: /src/app/globals.css - FIXED FOR TAILWIND V4 */
+/* file: /src/app/globals.css - FIXED FOR TAILWIND V4 + BARCODE SCANNER */
 
 @import "tailwindcss/preflight";
 @import "tailwindcss/utilities";
@@ -7,7 +7,7 @@
 .w-4 { width: 1rem !important; }
 .h-4 { height: 1rem !important; }
 .w-5 { width: 1.25rem !important; }
-.h-5 { height: 1.25rem !important; }
+.h-5 { height: 1.5rem !important; }
 .w-6 { width: 1.5rem !important; }
 .h-6 { height: 1.5rem !important; }
 .w-8 { width: 2rem !important; }
@@ -22,42 +22,263 @@
 .space-y-2 > * + * { margin-top: 0.5rem !important; }
 .space-y-3 > * + * { margin-top: 0.75rem !important; }
 .space-y-4 > * + * { margin-top: 1rem !important; }
+.space-y-6 > * + * { margin-top: 1.5rem !important; }
 .mt-1 { margin-top: 0.25rem !important; }
 .mt-2 { margin-top: 0.5rem !important; }
+.mt-4 { margin-top: 1rem !important; }
 .mb-1 { margin-bottom: 0.25rem !important; }
 .mb-2 { margin-bottom: 0.5rem !important; }
+.mb-3 { margin-bottom: 0.75rem !important; }
+.mb-4 { margin-bottom: 1rem !important; }
+.ml-1 { margin-left: 0.25rem !important; }
+.ml-2 { margin-left: 0.5rem !important; }
+.mr-2 { margin-right: 0.5rem !important; }
+.mr-3 { margin-right: 0.75rem !important; }
+
+/* ADD MISSING PADDING UTILITIES */
+.px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+.px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.py-5 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
+.py-6 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
+.py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
 
 /* ADD MISSING GRID UTILITIES */
 .grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
 
 /* ADD MISSING HOVER UTILITIES */
 .hover\:bg-gray-50:hover { background-color: #f9fafb !important; }
+.hover\:bg-gray-600:hover { background-color: #4b5563 !important; }
+.hover\:bg-gray-700:hover { background-color: #374151 !important; }
+.hover\:bg-blue-700:hover { background-color: #1d4ed8 !important; }
+.hover\:bg-green-700:hover { background-color: #15803d !important; }
 .hover\:text-indigo-800:hover { color: #3730a3 !important; }
+.hover\:text-indigo-900:hover { color: #312e81 !important; }
+.hover\:text-red-900:hover { color: #7f1d1d !important; }
+.hover\:text-gray-600:hover { color: #4b5563 !important; }
 
 /* ADD MISSING COLOR UTILITIES */
 .text-gray-300 { color: #d1d5db !important; }
+.text-gray-400 { color: #9ca3af !important; }
 .text-gray-500 { color: #6b7280 !important; }
 .text-gray-600 { color: #4b5563 !important; }
 .text-gray-700 { color: #374151 !important; }
+.text-gray-800 { color: #1f2937 !important; }
+.text-gray-900 { color: #111827 !important; }
+.text-white { color: #ffffff !important; }
+.text-red-600 { color: #dc2626 !important; }
+.text-green-600 { color: #16a34a !important; }
+.text-green-700 { color: #15803d !important; }
+.text-green-800 { color: #166534 !important; }
+.text-green-400 { color: #4ade80 !important; }
+.text-blue-600 { color: #2563eb !important; }
+.text-blue-700 { color: #1d4ed8 !important; }
+.text-blue-800 { color: #1e40af !important; }
 .text-yellow-400 { color: #fbbf24 !important; }
+.text-yellow-600 { color: #ca8a04 !important; }
+.text-orange-600 { color: #ea580c !important; }
+.text-orange-700 { color: #c2410c !important; }
+.text-orange-900 { color: #9a3412 !important; }
 .hover\:text-yellow-400:hover { color: #fbbf24 !important; }
+
+/* ADD MISSING BACKGROUND COLORS */
+.bg-black { background-color: #000000 !important; }
+.bg-gray-50 { background-color: #f9fafb !important; }
+.bg-gray-100 { background-color: #f3f4f6 !important; }
+.bg-gray-200 { background-color: #e5e7eb !important; }
+.bg-gray-400 { background-color: #9ca3af !important; }
+.bg-gray-600 { background-color: #4b5563 !important; }
+.bg-gray-700 { background-color: #374151 !important; }
+.bg-white { background-color: #ffffff !important; }
+.bg-red-50 { background-color: #fef2f2 !important; }
+.bg-blue-50 { background-color: #eff6ff !important; }
+.bg-blue-100 { background-color: #dbeafe !important; }
+.bg-blue-600 { background-color: #2563eb !important; }
+.bg-green-50 { background-color: #f0fdf4 !important; }
+.bg-green-100 { background-color: #dcfce7 !important; }
+.bg-green-200 { background-color: #bbf7d0 !important; }
+.bg-green-600 { background-color: #16a34a !important; }
+.bg-yellow-50 { background-color: #fefce8 !important; }
+.bg-yellow-200 { background-color: #fef08a !important; }
+.bg-orange-50 { background-color: #fff7ed !important; }
+.bg-orange-100 { background-color: #ffedd5 !important; }
+.bg-indigo-50 { background-color: #eef2ff !important; }
+.bg-indigo-100 { background-color: #e0e7ff !important; }
+.bg-indigo-400 { background-color: #818cf8 !important; }
+.bg-indigo-500 { background-color: #6366f1 !important; }
+.bg-indigo-600 { background-color: #4f46e5 !important; }
+.bg-indigo-700 { background-color: #4338ca !important; }
+.bg-purple-50 { background-color: #faf5ff !important; }
+
+/* ADD MISSING OPACITY UTILITIES */
+.bg-opacity-60 { background-color: rgba(0, 0, 0, 0.6) !important; }
+.bg-opacity-75 { background-color: rgba(0, 0, 0, 0.75) !important; }
+.bg-opacity-80 { background-color: rgba(0, 0, 0, 0.8) !important; }
+.bg-opacity-90 { background-color: rgba(0, 0, 0, 0.9) !important; }
+.opacity-75 { opacity: 0.75 !important; }
+.opacity-90 { opacity: 0.9 !important; }
 
 /* ADD MISSING LAYOUT UTILITIES */
 .block { display: block !important; }
+.inline { display: inline !important; }
 .inline-flex { display: inline-flex !important; }
+.flex { display: flex !important; }
+.grid { display: grid !important; }
+.hidden { display: none !important; }
+.fixed { position: fixed !important; }
+.absolute { position: absolute !important; }
+.relative { position: relative !important; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.inset-4 { top: 1rem; right: 1rem; bottom: 1rem; left: 1rem; }
+.top-0 { top: 0 !important; }
+.left-0 { left: 0 !important; }
+.right-0 { right: 0 !important; }
+.bottom-0 { bottom: 0 !important; }
+.top-2 { top: 0.5rem !important; }
+.left-2 { left: 0.5rem !important; }
+.right-2 { right: 0.5rem !important; }
+.bottom-2 { bottom: 0.5rem !important; }
+.bottom-4 { bottom: 1rem !important; }
+.left-4 { left: 1rem !important; }
+.right-4 { right: 1rem !important; }
+.top-16 { top: 4rem !important; }
+.top-1\/2 { top: 50% !important; }
+.left-1\/2 { left: 50% !important; }
 .items-center { align-items: center !important; }
 .justify-center { justify-content: center !important; }
 .justify-between { justify-content: space-between !important; }
+.justify-end { justify-content: flex-end !important; }
+.flex-1 { flex: 1 1 0% !important; }
+.flex-shrink-0 { flex-shrink: 0 !important; }
+.flex-col { flex-direction: column !important; }
+
+/* ADD MISSING TRANSFORM UTILITIES */
+.transform { transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important; }
+.-translate-x-1\/2 { --tw-translate-x: -50% !important; transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important; }
+.-translate-y-1\/2 { --tw-translate-y: -50% !important; transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important; }
 
 /* ADD MISSING BORDER UTILITIES */
 .border { border-width: 1px !important; }
+.border-2 { border-width: 2px !important; }
+.border-4 { border-width: 4px !important; }
+.border-t-2 { border-top-width: 2px !important; }
+.border-t-4 { border-top-width: 4px !important; }
+.border-l-2 { border-left-width: 2px !important; }
+.border-l-4 { border-left-width: 4px !important; }
+.border-r-2 { border-right-width: 2px !important; }
+.border-r-4 { border-right-width: 4px !important; }
+.border-b-2 { border-bottom-width: 2px !important; }
+.border-b-4 { border-bottom-width: 4px !important; }
+.border-gray-200 { border-color: #e5e7eb !important; }
 .border-gray-300 { border-color: #d1d5db !important; }
+.border-green-200 { border-color: #bbf7d0 !important; }
+.border-yellow-200 { border-color: #fef08a !important; }
+.border-red-500 { border-color: #ef4444 !important; }
+.border-transparent { border-color: transparent !important; }
 .rounded { border-radius: 0.25rem !important; }
 .rounded-md { border-radius: 0.375rem !important; }
+.rounded-lg { border-radius: 0.5rem !important; }
+.rounded-full { border-radius: 9999px !important; }
+.rounded-tl-lg { border-top-left-radius: 0.5rem !important; }
+.rounded-tr-lg { border-top-right-radius: 0.5rem !important; }
+.rounded-bl-lg { border-bottom-left-radius: 0.5rem !important; }
+.rounded-br-lg { border-bottom-right-radius: 0.5rem !important; }
+
+/* ADD MISSING SIZE AND DIMENSION UTILITIES */
+.w-full { width: 100% !important; }
+.w-24 { width: 6rem !important; }
+.w-64 { width: 16rem !important; }
+.w-80 { width: 20rem !important; }
+.h-full { height: 100% !important; }
+.h-24 { height: 6rem !important; }
+.h-40 { height: 10rem !important; }
+.h-64 { height: 16rem !important; }
+.h-screen { height: 100vh !important; }
+.min-h-screen { min-height: 100vh !important; }
+.max-w-md { max-width: 28rem !important; }
+.max-w-sm { max-width: 24rem !important; }
+.max-w-7xl { max-width: 80rem !important; }
+.max-h-20 { max-height: 5rem !important; }
+.max-h-screen { max-height: 100vh !important; }
+
+/* ADD MISSING OVERFLOW UTILITIES */
+.overflow-hidden { overflow: hidden !important; }
+.overflow-x-auto { overflow-x: auto !important; }
+.overflow-y-auto { overflow-y: auto !important; }
+
+/* ADD MISSING TEXT UTILITIES */
+.text-xs { font-size: 0.75rem !important; line-height: 1rem !important; }
+.text-sm { font-size: 0.875rem !important; line-height: 1.25rem !important; }
+.text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+.text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+.text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+.text-center { text-align: center !important; }
+.text-left { text-align: left !important; }
+.uppercase { text-transform: uppercase !important; }
+.capitalize { text-transform: capitalize !important; }
+.tracking-wider { letter-spacing: 0.05em !important; }
+.whitespace-nowrap { white-space: nowrap !important; }
+
+/* ADD MISSING ANIMATION UTILITIES */
+.animate-spin {
+    animation: spin 1s linear infinite !important;
+}
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+}
+
+/* ADD MISSING SHADOW UTILITIES */
+.shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important; }
+.shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important; }
+
+/* ADD MISSING Z-INDEX UTILITIES */
+.z-1 { z-index: 1 !important; }
+.z-10 { z-index: 10 !important; }
+.z-20 { z-index: 20 !important; }
+.z-50 { z-index: 50 !important; }
+
+/* ADD MISSING FOCUS UTILITIES */
+.focus\:outline-none:focus { outline: none !important; }
+.focus\:ring-2:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important; }
+.focus\:ring-offset-2:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(59, 130, 246, 0.5) !important; }
+.focus\:ring-blue-500:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important; }
+.focus\:ring-indigo-500:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5) !important; }
+.focus\:ring-green-500:focus { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5) !important; }
+.focus\:border-indigo-500:focus { border-color: #6366f1 !important; }
+
+/* ADD MISSING DISABLED UTILITIES */
+.disabled\:bg-gray-400:disabled { background-color: #9ca3af !important; }
+.disabled\:bg-indigo-400:disabled { background-color: #818cf8 !important; }
 
 /* Custom styles */
 html {
     height: 100%;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    --tw-rotate: 0;
+    --tw-skew-x: 0;
+    --tw-skew-y: 0;
+    --tw-scale-x: 1;
+    --tw-scale-y: 1;
 }
 
 body {
@@ -66,33 +287,7 @@ body {
     padding: 0;
 }
 
-.px-4 {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-}
-
-.py-6 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
-}
-
-.flex {
-    display: flex !important;
-}
-
-.h-screen {
-    height: 100vh !important;
-}
-
-.w-64 {
-    width: 16rem !important;
-}
-
 /* Emergency layout fixes */
-.max-w-7xl {
-    max-width: 80rem !important;
-}
-
 .mx-auto {
     margin-left: auto !important;
     margin-right: auto !important;
@@ -124,19 +319,6 @@ body {
     }
 }
 
-.bg-gray-100 {
-    background-color: #f3f4f6 !important;
-}
-
-.bg-white {
-    background-color: #ffffff !important;
-}
-
-/* Grid fixes */
-.grid {
-    display: grid !important;
-}
-
 .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
 }
@@ -159,12 +341,22 @@ body {
     .md\:grid-cols-3 {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .md\:col-span-2 {
+        grid-column: span 2 / span 2 !important;
+    }
 }
 
 @media (min-width: 1024px) {
     .lg\:grid-cols-4 {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
 }
 
 .gap-4 {
@@ -176,6 +368,10 @@ body {
 }
 
 /* Padding and margin fixes */
+.p-2 {
+    padding: 0.5rem !important;
+}
+
 .p-4 {
     padding: 1rem !important;
 }
@@ -186,31 +382,6 @@ body {
 
 .p-6 {
     padding: 1.5rem !important;
-}
-
-.mb-4 {
-    margin-bottom: 1rem !important;
-}
-
-.mr-3 {
-    margin-right: 0.75rem !important;
-}
-
-/* Background colors */
-.bg-indigo-50 {
-    background-color: #eef2ff !important;
-}
-
-.bg-green-50 {
-    background-color: #f0fdf4 !important;
-}
-
-.bg-yellow-50 {
-    background-color: #fefce8 !important;
-}
-
-.bg-purple-50 {
-    background-color: #faf5ff !important;
 }
 
 /* Text colors */
@@ -224,10 +395,6 @@ body {
 
 .text-green-900 {
     color: #14532d !important;
-}
-
-.text-green-700 {
-    color: #15803d !important;
 }
 
 .text-yellow-900 {
@@ -244,11 +411,6 @@ body {
 
 .text-purple-700 {
     color: #7c3aed !important;
-}
-
-/* Border radius */
-.rounded-lg {
-    border-radius: 0.5rem !important;
 }
 
 /* Hover effects */
@@ -344,8 +506,6 @@ textarea:focus {
     background: #a1a1a1;
 }
 
-/* ADD THIS TO THE END OF YOUR /src/app/globals.css FILE */
-
 /* Force modal content to scroll properly */
 .modal-scroll-fix {
     height: 60vh !important;
@@ -393,4 +553,170 @@ textarea:focus {
     overflow-y: scroll !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
+}
+
+/* 🔧 BARCODE SCANNER SPECIFIC STYLES - NO CONFLICTS */
+/* These styles ensure the barcode scanner works properly with your existing CSS */
+
+/* Video element specific styling for barcode scanner */
+.barcode-scanner-container video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    background: black !important;
+    display: block !important;
+}
+
+/* Canvas element hiding for cleaner scanner look */
+.barcode-scanner-container canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none !important;
+    z-index: 2 !important;
+}
+
+/* Ensure scanner overlay doesn't interfere with existing modals */
+.barcode-scanner-overlay {
+    z-index: 9999 !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: black !important;
+}
+
+/* Scanner specific animation keyframes */
+@keyframes scanline {
+    0% {
+        top: 0;
+        opacity: 1;
+    }
+    50% {
+        top: calc(50% - 2px);
+        opacity: 0.7;
+    }
+    100% {
+        top: calc(100% - 4px);
+        opacity: 1;
+    }
+}
+
+/* Make sure scanner doesn't conflict with your modal styles */
+.barcode-scanner-overlay .modal-scroll-fix {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Additional utilities that might be missing for the scanner */
+.divide-y > * + * {
+    border-top-width: 1px !important;
+}
+
+.divide-gray-200 > * + * {
+    border-color: #e5e7eb !important;
+}
+
+.object-cover {
+    object-fit: cover !important;
+}
+
+.object-fit {
+    object-fit: fill !important;
+}
+
+/* Table utilities for inventory display */
+.min-w-full {
+    min-width: 100% !important;
+}
+
+.divide-y > * + * {
+    border-top-width: 1px !important;
+}
+
+.divide-gray-200 > * + * {
+    border-color: #e5e7eb !important;
+}
+
+/* Additional responsive utilities */
+@media (min-width: 640px) {
+    .sm\:text-sm {
+        font-size: 0.875rem !important;
+        line-height: 1.25rem !important;
+    }
+
+    .sm\:p-6 {
+        padding: 1.5rem !important;
+    }
+
+    .sm\:flex-row {
+        flex-direction: row !important;
+    }
+
+    .sm\:items-center {
+        align-items: center !important;
+    }
+
+    .sm\:justify-between {
+        justify-content: space-between !important;
+    }
+}
+
+/* Ensure no conflicts with existing styles */
+.barcode-scanner-container {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Override any potential conflicts with your modal styles */
+.barcode-scanner-overlay * {
+    box-sizing: border-box !important;
+}
+
+/* Additional missing utilities */
+.cursor-not-allowed {
+    cursor: not-allowed !important;
+}
+
+.cursor-pointer {
+    cursor: pointer !important;
+}
+
+.pointer-events-none {
+    pointer-events: none !important;
+}
+
+.select-none {
+    user-select: none !important;
+}
+
+.leading-6 {
+    line-height: 1.5rem !important;
+}
+
+.leading-5 {
+    line-height: 1.25rem !important;
+}
+
+/* Final barcode scanner integration */
+.scanner-active {
+    overflow: hidden !important;
+}
+
+.scanner-active body {
+    overflow: hidden !important;
+}
+
+/* Make sure scanner works with your existing responsive classes */
+@media (max-width: 767px) {
+    .barcode-scanner-mobile {
+        width: 100vw !important;
+        height: 100vh !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 9999 !important;
+    }
 }
