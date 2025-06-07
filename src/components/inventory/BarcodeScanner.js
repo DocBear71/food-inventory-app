@@ -312,12 +312,18 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                     const currentConfig = configsToTry[configIndex];
                     console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
+                    console.log('📐 Scanner ref dimensions:', scannerRef.current?.offsetWidth, 'x', scannerRef.current?.offsetHeight);
 
                     Quagga.init(currentConfig, (err) => {
-                        if (!mountedRef.current) return;
+                        console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
+
+                        if (!mountedRef.current) {
+                            console.log('⚠️ Component unmounted during init');
+                            return;
+                        }
 
                         if (err) {
-                            console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message);
+                            console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message, err);
 
                             // Try next configuration
                             configIndex++;
@@ -334,7 +340,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         console.log(`✅ Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
 
                         try {
+                            console.log('🚀 Starting Quagga...');
                             Quagga.start();
+                            console.log('✅ Quagga.start() completed');
+
                             setIsInitialized(true);
                             setIsLoading(false);
 
@@ -343,28 +352,78 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                             console.log('🎯 Mobile detection handler registered');
 
-                            // 🔧 FIXED: Force video element to be visible
-                            setTimeout(() => {
+                            // 🔧 ENHANCED: More thorough video element detection and styling
+                            const checkVideoElements = () => {
                                 if (scannerRef.current && mountedRef.current) {
-                                    const videoElement = scannerRef.current.querySelector('video');
-                                    const canvasElement = scannerRef.current.querySelector('canvas');
+                                    console.log('🔍 Searching for video/canvas elements...');
 
-                                    console.log('📺 Video element found:', !!videoElement);
-                                    console.log('🎨 Canvas element found:', !!canvasElement);
+                                    // Check all possible video elements
+                                    const allVideos = scannerRef.current.querySelectorAll('video');
+                                    const allCanvases = scannerRef.current.querySelectorAll('canvas');
 
-                                    if (videoElement) {
-                                        videoElement.style.width = '100%';
-                                        videoElement.style.height = '100%';
-                                        videoElement.style.objectFit = 'cover';
-                                        videoElement.style.display = 'block';
-                                        console.log('📺 Video element styled for mobile');
-                                    }
+                                    console.log(`📺 Found ${allVideos.length} video element(s)`);
+                                    console.log(`🎨 Found ${allCanvases.length} canvas element(s)`);
 
-                                    if (canvasElement) {
-                                        canvasElement.style.display = 'none'; // Hide canvas overlay for cleaner look
+                                    // Log detailed info about each element
+                                    allVideos.forEach((video, index) => {
+                                        console.log(`📺 Video ${index}:`, {
+                                            width: video.offsetWidth,
+                                            height: video.offsetHeight,
+                                            videoWidth: video.videoWidth,
+                                            videoHeight: video.videoHeight,
+                                            readyState: video.readyState,
+                                            src: video.src || 'stream',
+                                            style: video.style.cssText
+                                        });
+
+                                        // Force video styling
+                                        video.style.width = '100%';
+                                        video.style.height = '100%';
+                                        video.style.objectFit = 'cover';
+                                        video.style.display = 'block';
+                                        video.style.position = 'absolute';
+                                        video.style.top = '0';
+                                        video.style.left = '0';
+                                        video.style.zIndex = '1';
+                                        video.style.background = 'black';
+
+                                        console.log(`📺 Video ${index} styled for mobile`);
+                                    });
+
+                                    allCanvases.forEach((canvas, index) => {
+                                        console.log(`🎨 Canvas ${index}:`, {
+                                            width: canvas.offsetWidth,
+                                            height: canvas.offsetHeight,
+                                            style: canvas.style.cssText
+                                        });
+
+                                        // Style canvas appropriately
+                                        canvas.style.position = 'absolute';
+                                        canvas.style.top = '0';
+                                        canvas.style.left = '0';
+                                        canvas.style.width = '100%';
+                                        canvas.style.height = '100%';
+                                        canvas.style.zIndex = '2';
+                                        canvas.style.pointerEvents = 'none';
+                                        canvas.style.opacity = '0.3'; // Make it semi-transparent so we can see the video
+
+                                        console.log(`🎨 Canvas ${index} styled`);
+                                    });
+
+                                    // If no video elements found, there's a problem
+                                    if (allVideos.length === 0) {
+                                        console.error('❌ No video elements found after Quagga start!');
+                                        console.log('📋 Scanner container contents:', scannerRef.current.innerHTML);
                                     }
                                 }
-                            }, 500);
+                            };
+
+                            // Check immediately
+                            checkVideoElements();
+
+                            // Check again after a delay to catch late-loading elements
+                            setTimeout(checkVideoElements, 1000);
+                            setTimeout(checkVideoElements, 2000);
 
                         } catch (startError) {
                             console.error('❌ Error starting Quagga:', startError);
