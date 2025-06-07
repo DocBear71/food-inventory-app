@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v9 (Add Meal Planning Models Back)
+// file: /src/lib/models.js - v7
 
 import mongoose from 'mongoose';
 
@@ -61,23 +61,51 @@ const NutritionSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// Consumption Log Schema
-const ConsumptionLogSchema = new mongoose.Schema({
-    itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
-    itemName: { type: String, required: true },
-    ingredient: { type: String }, // For recipe mode
-    quantityConsumed: { type: Number, required: true },
-    unitConsumed: { type: String, required: true },
-    reason: {
-        type: String,
-        enum: ['consumed', 'recipe', 'expired', 'donated', 'spilled', 'other'],
+// NEW: Recipe Review Schema
+const RecipeReviewSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
-    notes: { type: String, maxlength: 500 },
-    recipeName: { type: String },
-    dateConsumed: { type: Date, default: Date.now },
-    remainingQuantity: { type: Number, default: 0 }
-}, { _id: false });
+    userName: { type: String, required: true }, // Cache user name for performance
+    rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5
+    },
+    comment: {
+        type: String,
+        maxlength: 1000,
+        trim: true
+    },
+    // Optional: What the user thought about specific aspects
+    aspects: {
+        taste: { type: Number, min: 1, max: 5 },
+        difficulty: { type: Number, min: 1, max: 5 },
+        instructions: { type: Number, min: 1, max: 5 }
+    },
+    // Did they modify the recipe?
+    modifications: {
+        type: String,
+        maxlength: 500,
+        trim: true
+    },
+    // Would they make it again?
+    wouldMakeAgain: { type: Boolean },
+
+    // Helpful voting system
+    helpfulVotes: { type: Number, default: 0 },
+    unhelpfulVotes: { type: Number, default: 0 },
+    votedBy: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        vote: { type: String, enum: ['helpful', 'unhelpful'] }
+    }],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
 
 // Notification Settings Schema
 const NotificationSettingsSchema = new mongoose.Schema({
@@ -98,7 +126,7 @@ const NotificationSettingsSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// User Schema
+// User Schema - Updated
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -123,14 +151,16 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
+    // Nutrition tracking preferences
     nutritionGoals: {
         dailyCalories: { type: Number, default: 2000 },
-        protein: { type: Number, default: 150 },
-        fat: { type: Number, default: 65 },
-        carbs: { type: Number, default: 250 },
-        fiber: { type: Number, default: 25 },
-        sodium: { type: Number, default: 2300 }
+        protein: { type: Number, default: 150 }, // grams
+        fat: { type: Number, default: 65 }, // grams
+        carbs: { type: Number, default: 250 }, // grams
+        fiber: { type: Number, default: 25 }, // grams
+        sodium: { type: Number, default: 2300 } // mg
     },
+    // NEW: User profile for reviews
     profile: {
         bio: { type: String, maxlength: 200 },
         cookingLevel: {
@@ -163,13 +193,15 @@ const InventoryItemSchema = new mongoose.Schema({
         default: 'pantry'
     },
     notes: String,
+    // Nutrition data for individual items
     nutrition: NutritionSchema,
-    fdcId: String,
+    fdcId: String, // USDA Food Data Central ID for nutrition lookup
+    // Expiration tracking fields
     notificationSent: { type: Boolean, default: false },
     lastNotifiedDate: Date
 });
 
-// User Inventory Schema - Updated with consumption tracking
+// User Inventory Schema
 const UserInventorySchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -177,69 +209,10 @@ const UserInventorySchema = new mongoose.Schema({
         required: true
     },
     items: [InventoryItemSchema],
-    // Consumption tracking
-    consumptionHistory: [ConsumptionLogSchema],
-    consumptionStats: {
-        totalItemsConsumed: { type: Number, default: 0 },
-        topConsumedItems: [{
-            itemName: String,
-            totalConsumed: Number,
-            unit: String
-        }],
-        consumptionByReason: {
-            consumed: { type: Number, default: 0 },
-            recipe: { type: Number, default: 0 },
-            expired: { type: Number, default: 0 },
-            donated: { type: Number, default: 0 },
-            spilled: { type: Number, default: 0 },
-            other: { type: Number, default: 0 }
-        },
-        lastUpdated: { type: Date, default: Date.now }
-    },
     lastUpdated: { type: Date, default: Date.now }
 });
 
-// Recipe Review Schema
-const RecipeReviewSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    userName: { type: String, required: true },
-    rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5
-    },
-    comment: {
-        type: String,
-        maxlength: 1000,
-        trim: true
-    },
-    aspects: {
-        taste: { type: Number, min: 1, max: 5 },
-        difficulty: { type: Number, min: 1, max: 5 },
-        instructions: { type: Number, min: 1, max: 5 }
-    },
-    modifications: {
-        type: String,
-        maxlength: 500,
-        trim: true
-    },
-    wouldMakeAgain: { type: Boolean },
-    helpfulVotes: { type: Number, default: 0 },
-    unhelpfulVotes: { type: Number, default: 0 },
-    votedBy: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        vote: { type: String, enum: ['helpful', 'unhelpful'] }
-    }],
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
-// Recipe Ingredient Schema
+// Recipe Ingredient Schema - Enhanced with nutrition
 const RecipeIngredientSchema = new mongoose.Schema({
     name: { type: String, required: true },
     amount: String,
@@ -247,18 +220,19 @@ const RecipeIngredientSchema = new mongoose.Schema({
     category: String,
     alternatives: [String],
     optional: { type: Boolean, default: false },
-    fdcId: String,
+    // Nutrition data for this ingredient
+    fdcId: String, // USDA Food Data Central ID
     nutrition: NutritionSchema
 });
 
-// Recipe Schema
+// Recipe Schema - Enhanced with rating and review system
 const RecipeSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: String,
     ingredients: [RecipeIngredientSchema],
     instructions: [String],
-    cookTime: Number,
-    prepTime: Number,
+    cookTime: Number, // in minutes
+    prepTime: Number, // in minutes
     servings: Number,
     difficulty: {
         type: String,
@@ -273,11 +247,17 @@ const RecipeSchema = new mongoose.Schema({
         required: true
     },
     isPublic: { type: Boolean, default: false },
+
+    // Nutrition information
     nutrition: NutritionSchema,
     nutritionCalculatedAt: Date,
-    nutritionCoverage: Number,
+    nutritionCoverage: Number, // Percentage of ingredients with nutrition data
     nutritionManuallySet: { type: Boolean, default: false },
+
+    // NEW: Rating and Review System
     reviews: [RecipeReviewSchema],
+
+    // Cached rating statistics for performance
     ratingStats: {
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         totalRatings: { type: Number, default: 0 },
@@ -289,17 +269,20 @@ const RecipeSchema = new mongoose.Schema({
             star1: { type: Number, default: 0 }
         }
     },
+
+    // Recipe engagement metrics
     metrics: {
         viewCount: { type: Number, default: 0 },
-        saveCount: { type: Number, default: 0 },
+        saveCount: { type: Number, default: 0 }, // Future: users can save recipes
         shareCount: { type: Number, default: 0 },
         lastViewed: Date
     },
+
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Daily Nutrition Log Schema
+// Daily Nutrition Log Schema - Track user's daily nutrition intake
 const DailyNutritionLogSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -335,14 +318,31 @@ const DailyNutritionLogSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Meal Plan Entry Schema
+// NEW: Recipe Collection Schema - Users can create collections of recipes
+const RecipeCollectionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    recipes: [{
+        recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
+        addedAt: { type: Date, default: Date.now }
+    }],
+    isPublic: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
 const MealPlanEntrySchema = new mongoose.Schema({
     recipeId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Recipe',
         required: true
     },
-    recipeName: { type: String, required: true },
+    recipeName: { type: String, required: true }, // Cache for performance
     mealType: {
         type: String,
         enum: ['breakfast', 'lunch', 'dinner', 'snack'],
@@ -350,12 +350,12 @@ const MealPlanEntrySchema = new mongoose.Schema({
     },
     servings: { type: Number, default: 1, min: 1 },
     notes: { type: String, maxlength: 200 },
-    prepTime: Number,
-    cookTime: Number,
+    prepTime: Number, // Cached from recipe
+    cookTime: Number, // Cached from recipe
     createdAt: { type: Date, default: Date.now }
 });
 
-// Meal Plan Schema
+// NEW: Meal Plan Schema
 const MealPlanSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -366,7 +366,7 @@ const MealPlanSchema = new mongoose.Schema({
     description: { type: String, maxlength: 500 },
 
     // Week-based planning (Monday = 0, Sunday = 6)
-    weekStartDate: { type: Date, required: true },
+    weekStartDate: { type: Date, required: true }, // Start of the planning week
 
     // Meals organized by day and meal type
     meals: {
@@ -400,10 +400,25 @@ const MealPlanSchema = new mongoose.Schema({
             amount: String,
             unit: String,
             category: { type: String, default: 'other' },
-            recipes: [String],
+            recipes: [String], // Which recipes need this ingredient
             inInventory: { type: Boolean, default: false },
             purchased: { type: Boolean, default: false }
         }]
+    },
+
+    // Meal prep suggestions
+    mealPrep: {
+        batchCookingSuggestions: [{
+            ingredient: String,
+            recipes: [String],
+            prepMethod: String,
+            storageTime: String
+        }],
+        prepDays: {
+            type: [String],
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            default: ['sunday']
+        }
     },
 
     // Nutrition tracking for the week
@@ -416,15 +431,15 @@ const MealPlanSchema = new mongoose.Schema({
         fiber: { type: Number, default: 0 }
     },
 
-    isTemplate: { type: Boolean, default: false },
+    isTemplate: { type: Boolean, default: false }, // Can be saved as a reusable template
     isActive: { type: Boolean, default: true },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Recipe Collection Schema
-const RecipeCollectionSchema = new mongoose.Schema({
+// NEW: Meal Plan Template Schema (for saving favorite meal plans)
+const MealPlanTemplateSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -432,53 +447,743 @@ const RecipeCollectionSchema = new mongoose.Schema({
     },
     name: { type: String, required: true, maxlength: 100 },
     description: { type: String, maxlength: 500 },
-    recipes: [{
-        recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
-        addedAt: { type: Date, default: Date.now }
-    }],
-    isPublic: { type: Boolean, default: false },
+    category: {
+        type: String,
+        enum: ['family', 'healthy', 'quick', 'budget', 'vegetarian', 'keto', 'custom'],
+        default: 'custom'
+    },
+
+    // Template meals (same structure as MealPlan)
+    templateMeals: {
+        monday: [MealPlanEntrySchema],
+        tuesday: [MealPlanEntrySchema],
+        wednesday: [MealPlanEntrySchema],
+        thursday: [MealPlanEntrySchema],
+        friday: [MealPlanEntrySchema],
+        saturday: [MealPlanEntrySchema],
+        sunday: [MealPlanEntrySchema]
+    },
+
+    // Usage statistics
+    timesUsed: { type: Number, default: 0 },
+    rating: { type: Number, min: 1, max: 5 },
+
+    isPublic: { type: Boolean, default: false }, // Share with other users
+
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Create indexes
+// Add meal planning preferences to User schema
+const UserMealPlanningPreferencesSchema = new mongoose.Schema({
+    defaultMealTypes: {
+        type: [String],
+        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        default: ['breakfast', 'lunch', 'dinner']
+    },
+    planningHorizon: {
+        type: String,
+        enum: ['week', '2weeks', 'month'],
+        default: 'week'
+    },
+    shoppingDay: {
+        type: String,
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: 'sunday'
+    },
+    mealPrepDays: {
+        type: [String],
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: ['sunday']
+    },
+    dietaryRestrictions: [String],
+    avoidIngredients: [String],
+    preferredCuisines: [String],
+    cookingTimePreference: {
+        type: String,
+        enum: ['quick', 'moderate', 'any'],
+        default: 'any'
+    }
+}, { _id: false });
+
+// Contact Schema for managing email recipients
+const ContactSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    email: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        validate: {
+            validator: function(email) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            },
+            message: 'Invalid email format'
+        }
+    },
+    relationship: {
+        type: String,
+        enum: ['family', 'friend', 'roommate', 'colleague', 'other'],
+        default: 'other'
+    },
+    // Optional grouping for contacts
+    groups: [String],
+
+    // Email preferences
+    preferences: {
+        receiveShoppingLists: { type: Boolean, default: true },
+        receiveRecipeShares: { type: Boolean, default: true },
+        preferredFormat: {
+            type: String,
+            enum: ['html', 'text'],
+            default: 'html'
+        }
+    },
+
+    // Track email activity
+    stats: {
+        emailsSent: { type: Number, default: 0 },
+        lastEmailSent: Date,
+        lastEmailOpened: Date
+    },
+
+    isActive: { type: Boolean, default: true },
+    notes: { type: String, maxlength: 200 },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Email Log Schema for tracking sent emails
+const EmailLogSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Email details
+    recipients: [{
+        email: String,
+        name: String,
+        contactId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }
+    }],
+
+    subject: { type: String, required: true },
+    emailType: {
+        type: String,
+        enum: ['shopping-list', 'recipe-share', 'meal-plan'],
+        required: true
+    },
+
+    // Content details
+    content: {
+        shoppingListId: String, // For future reference
+        recipeIds: [String],
+        mealPlanId: String,
+        personalMessage: String,
+        contextName: String
+    },
+
+    // Email service details
+    messageId: String, // From email provider
+    status: {
+        type: String,
+        enum: ['sent', 'delivered', 'failed', 'bounced'],
+        default: 'sent'
+    },
+
+    // Tracking
+    sentAt: { type: Date, default: Date.now },
+    deliveredAt: Date,
+    openedAt: Date,
+    clickedAt: Date,
+
+    error: String, // If failed
+
+    createdAt: { type: Date, default: Date.now }
+});
+
+// Saved Shopping List Schema
+const SavedShoppingListSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Basic Information
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    description: {
+        type: String,
+        maxlength: 500,
+        trim: true
+    },
+
+    // List Type and Context
+    listType: {
+        type: String,
+        enum: ['recipe', 'recipes', 'meal-plan', 'custom'],
+        required: true
+    },
+    contextName: String, // Recipe name, meal plan name, etc.
+
+    // Source Information
+    sourceRecipeIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe'
+    }],
+    sourceMealPlanId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MealPlan'
+    },
+
+    // Shopping List Data
+    items: [{
+        ingredient: { type: String, required: true },
+        amount: String,
+        category: { type: String, default: 'other' },
+        inInventory: { type: Boolean, default: false },
+        purchased: { type: Boolean, default: false },
+        recipes: [String], // Recipe names using this ingredient
+        originalName: String,
+        needAmount: String,
+        haveAmount: String,
+        itemKey: String, // For checkbox tracking
+        notes: String // User can add notes to specific items
+    }],
+
+    // Statistics (cached for performance)
+    stats: {
+        totalItems: { type: Number, default: 0 },
+        needToBuy: { type: Number, default: 0 },
+        inInventory: { type: Number, default: 0 },
+        purchased: { type: Number, default: 0 },
+        estimatedCost: Number, // Future: price estimation
+        categories: { type: Number, default: 0 }
+    },
+
+    // Usage and Management
+    tags: [String], // User-defined tags for organization
+    color: {
+        type: String,
+        default: '#3b82f6' // Hex color for visual organization
+    },
+
+    // Status and Visibility
+    isTemplate: { type: Boolean, default: false }, // Can be reused as template
+    isShared: { type: Boolean, default: false }, // Shared with family/friends
+    isArchived: { type: Boolean, default: false }, // Archived but not deleted
+
+    // Usage Statistics
+    usage: {
+        timesLoaded: { type: Number, default: 0 },
+        lastLoaded: Date,
+        lastModified: Date,
+        averageCompletionTime: Number, // How long shopping took
+        completionRate: Number // % of items typically purchased
+    },
+
+    // Shopping Session Data
+    shoppingSessions: [{
+        startedAt: { type: Date, default: Date.now },
+        completedAt: Date,
+        itemsPurchased: Number,
+        totalItems: Number,
+        duration: Number, // in minutes
+        notes: String
+    }],
+
+    // Sharing and Collaboration
+    sharedWith: [{
+        email: String,
+        name: String,
+        permissions: {
+            type: String,
+            enum: ['view', 'edit'],
+            default: 'view'
+        },
+        sharedAt: { type: Date, default: Date.now }
+    }],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Shopping List Template Schema (for commonly used lists)
+const ShoppingListTemplateSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    name: {
+        type: String,
+        required: true,
+        maxlength: 100
+    },
+    description: String,
+    category: {
+        type: String,
+        enum: ['weekly-staples', 'meal-prep', 'party', 'holiday', 'bulk-shopping', 'custom'],
+        default: 'custom'
+    },
+
+    // Template Items (without purchased status)
+    templateItems: [{
+        ingredient: { type: String, required: true },
+        defaultAmount: String,
+        category: { type: String, default: 'other' },
+        isOptional: { type: Boolean, default: false },
+        notes: String
+    }],
+
+    // Usage Statistics
+    timesUsed: { type: Number, default: 0 },
+    isPublic: { type: Boolean, default: false }, // Share with community
+    rating: { type: Number, min: 1, max: 5 },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Pre-save middleware to update timestamps and stats
+SavedShoppingListSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+
+    // Recalculate stats
+    this.stats.totalItems = this.items.length;
+    this.stats.needToBuy = this.items.filter(item => !item.inInventory && !item.purchased).length;
+    this.stats.inInventory = this.items.filter(item => item.inInventory).length;
+    this.stats.purchased = this.items.filter(item => item.purchased).length;
+    this.stats.categories = [...new Set(this.items.map(item => item.category))].length;
+
+    next();
+});
+
+// Methods for SavedShoppingList
+SavedShoppingListSchema.methods.markAsLoaded = function() {
+    this.usage.timesLoaded += 1;
+    this.usage.lastLoaded = new Date();
+    return this.save();
+};
+
+SavedShoppingListSchema.methods.startShoppingSession = function() {
+    this.shoppingSessions.push({
+        startedAt: new Date(),
+        totalItems: this.stats.totalItems
+    });
+    return this.save();
+};
+
+SavedShoppingListSchema.methods.completeShoppingSession = function(itemsPurchased, notes = '') {
+    const currentSession = this.shoppingSessions[this.shoppingSessions.length - 1];
+    if (currentSession && !currentSession.completedAt) {
+        const now = new Date();
+        currentSession.completedAt = now;
+        currentSession.itemsPurchased = itemsPurchased;
+        currentSession.duration = Math.round((now - currentSession.startedAt) / (1000 * 60)); // minutes
+        currentSession.notes = notes;
+
+        // Update completion rate
+        const completedSessions = this.shoppingSessions.filter(s => s.completedAt);
+        if (completedSessions.length > 0) {
+            const avgCompletion = completedSessions.reduce((sum, s) =>
+                sum + (s.itemsPurchased / s.totalItems), 0) / completedSessions.length;
+            this.usage.completionRate = Math.round(avgCompletion * 100);
+
+            const avgDuration = completedSessions.reduce((sum, s) => sum + s.duration, 0) / completedSessions.length;
+            this.usage.averageCompletionTime = Math.round(avgDuration);
+        }
+    }
+    return this.save();
+};
+
+// Meal Prep Suggestion Schema
+const MealPrepSuggestionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    mealPlanId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MealPlan',
+        required: true
+    },
+
+    // Batch cooking opportunities
+    batchCookingSuggestions: [{
+        ingredient: { type: String, required: true },
+        totalAmount: { type: String, required: true },
+        unit: { type: String },
+        recipes: [String], // Recipe names using this ingredient
+        cookingMethod: { type: String }, // 'bake', 'grill', 'saute', etc.
+        prepInstructions: { type: String },
+        storageInstructions: { type: String },
+        shelfLife: { type: String }, // "3-4 days refrigerated"
+        estimatedPrepTime: { type: Number }, // minutes
+        difficulty: {
+            type: String,
+            enum: ['easy', 'medium', 'hard'],
+            default: 'easy'
+        }
+    }],
+
+    // Ingredient prep consolidation
+    ingredientPrepSuggestions: [{
+        ingredient: { type: String, required: true },
+        totalAmount: { type: String },
+        prepType: { type: String }, // 'chop', 'dice', 'slice', 'mince'
+        recipes: [String],
+        prepInstructions: { type: String },
+        storageMethod: { type: String },
+        estimatedPrepTime: { type: Number } // minutes
+    }],
+
+    // Recommended prep schedule
+    prepSchedule: [{
+        day: {
+            type: String,
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            required: true
+        },
+        tasks: [{
+            taskType: {
+                type: String,
+                enum: ['batch_cook', 'ingredient_prep', 'portion', 'marinate'],
+                required: true
+            },
+            description: { type: String, required: true },
+            estimatedTime: { type: Number }, // minutes
+            priority: {
+                type: String,
+                enum: ['high', 'medium', 'low'],
+                default: 'medium'
+            },
+            ingredients: [String],
+            equipment: [String] // 'large pot', 'baking sheet', etc.
+        }]
+    }],
+
+    // Time and efficiency metrics
+    metrics: {
+        totalPrepTime: { type: Number, default: 0 }, // total minutes
+        timeSaved: { type: Number, default: 0 }, // estimated minutes saved during week
+        efficiency: { type: Number, default: 0 }, // percentage efficiency gain
+        recipesAffected: { type: Number, default: 0 },
+        ingredientsConsolidated: { type: Number, default: 0 }
+    },
+
+    // User preferences and customization
+    preferences: {
+        maxPrepTime: { type: Number, default: 180 }, // max minutes willing to spend on prep
+        preferredPrepDays: [{
+            type: String,
+            enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        }],
+        avoidedTasks: [String], // tasks user doesn't want to do
+        skillLevel: {
+            type: String,
+            enum: ['beginner', 'intermediate', 'advanced'],
+            default: 'beginner'
+        }
+    },
+
+    // Implementation tracking
+    implementation: {
+        tasksCompleted: [String], // task IDs that were completed
+        completionRate: { type: Number, default: 0 }, // percentage
+        feedback: {
+            difficulty: { type: Number, min: 1, max: 5 },
+            timeAccuracy: { type: Number, min: 1, max: 5 },
+            usefulness: { type: Number, min: 1, max: 5 },
+            comments: String
+        },
+        actualTimeSpent: { type: Number }, // actual minutes spent on prep
+        wouldUseAgain: { type: Boolean }
+    },
+
+    // Status and metadata
+    status: {
+        type: String,
+        enum: ['generated', 'in_progress', 'completed', 'abandoned'],
+        default: 'generated'
+    },
+    weekStartDate: { type: Date, required: true },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Meal Prep Template Schema (reusable prep strategies)
+const MealPrepTemplateSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    category: {
+        type: String,
+        enum: ['protein_prep', 'vegetable_prep', 'grain_prep', 'sauce_prep', 'full_meal_prep'],
+        required: true
+    },
+
+    // Template instructions
+    instructions: [{
+        step: { type: Number, required: true },
+        instruction: { type: String, required: true },
+        estimatedTime: { type: Number }, // minutes
+        equipment: [String],
+        tips: [String]
+    }],
+
+    // Applicable ingredients/recipes
+    applicableIngredients: [String],
+    recipeTypes: [String], // 'chicken dishes', 'pasta recipes', etc.
+
+    // Template metrics
+    estimatedTime: { type: Number, required: true }, // total minutes
+    difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard'],
+        default: 'easy'
+    },
+    yield: { type: String }, // "Serves 4-6 meals"
+    shelfLife: { type: String },
+
+    // Usage statistics
+    usage: {
+        timesUsed: { type: Number, default: 0 },
+        averageRating: { type: Number, default: 0 },
+        lastUsed: Date
+    },
+
+    // Community features
+    isPublic: { type: Boolean, default: false },
+    tags: [String],
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Meal Prep Knowledge Base - cooking methods and techniques
+const MealPrepKnowledgeSchema = new mongoose.Schema({
+    ingredient: { type: String, required: true },
+    category: { type: String, required: true }, // 'protein', 'vegetable', 'grain', etc.
+
+    // Batch cooking methods
+    batchMethods: [{
+        method: { type: String, required: true }, // 'oven_roast', 'slow_cook', 'grill', etc.
+        description: { type: String },
+        temperature: { type: String }, // "375°F"
+        timePerPound: { type: String }, // "20-25 minutes per lb"
+        maxBatchSize: { type: String }, // "5-6 lbs"
+        equipment: [String],
+        benefits: [String], // "Even cooking", "hands-off", etc.
+        tips: [String]
+    }],
+
+    // Storage recommendations
+    storage: {
+        refrigerator: {
+            maxDays: { type: Number },
+            containerType: { type: String },
+            tips: [String]
+        },
+        freezer: {
+            maxMonths: { type: Number },
+            packagingMethod: { type: String },
+            thawingInstructions: { type: String }
+        }
+    },
+
+    // Prep techniques
+    prepTechniques: [{
+        technique: { type: String }, // 'dice', 'julienne', 'rough chop'
+        timePerCup: { type: Number }, // minutes
+        shelfLife: { type: String },
+        storageMethod: { type: String }
+    }],
+
+    // Reheating guidelines
+    reheating: [{
+        method: { type: String }, // 'microwave', 'oven', 'stovetop'
+        instructions: { type: String },
+        timeGuideline: { type: String },
+        qualityNotes: { type: String } // "Best texture", "May dry out", etc.
+    }]
+});
+
+// Pre-save middleware for meal prep suggestions
+MealPrepSuggestionSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+
+    // Calculate metrics
+    if (this.batchCookingSuggestions && this.ingredientPrepSuggestions) {
+        this.metrics.recipesAffected = new Set([
+            ...this.batchCookingSuggestions.flatMap(s => s.recipes),
+            ...this.ingredientPrepSuggestions.flatMap(s => s.recipes)
+        ]).size;
+
+        this.metrics.ingredientsConsolidated = this.batchCookingSuggestions.length +
+            this.ingredientPrepSuggestions.length;
+
+        this.metrics.totalPrepTime = this.prepSchedule.reduce((total, day) =>
+            total + day.tasks.reduce((dayTotal, task) => dayTotal + (task.estimatedTime || 0), 0), 0
+        );
+
+        // Estimate time saved (rough calculation)
+        this.metrics.timeSaved = Math.floor(this.metrics.totalPrepTime * 0.3); // 30% time savings estimate
+        this.metrics.efficiency = this.metrics.timeSaved > 0 ?
+            Math.min(Math.floor((this.metrics.timeSaved / this.metrics.totalPrepTime) * 100), 100) : 0;
+    }
+
+    next();
+});
+
+// Methods for meal prep suggestions
+MealPrepSuggestionSchema.methods.markTaskCompleted = function(taskId) {
+    if (!this.implementation.tasksCompleted.includes(taskId)) {
+        this.implementation.tasksCompleted.push(taskId);
+
+        // Recalculate completion rate
+        const totalTasks = this.prepSchedule.reduce((total, day) => total + day.tasks.length, 0);
+        this.implementation.completionRate = totalTasks > 0 ?
+            Math.floor((this.implementation.tasksCompleted.length / totalTasks) * 100) : 0;
+
+        // Update status based on completion
+        if (this.implementation.completionRate === 100) {
+            this.status = 'completed';
+        } else if (this.implementation.completionRate > 0) {
+            this.status = 'in_progress';
+        }
+    }
+
+    return this.save();
+};
+
+MealPrepSuggestionSchema.methods.addFeedback = function(feedback) {
+    this.implementation.feedback = {
+        ...this.implementation.feedback,
+        ...feedback
+    };
+
+    return this.save();
+};
+
+// Template usage tracking
+MealPrepTemplateSchema.methods.recordUsage = function(rating) {
+    this.usage.timesUsed += 1;
+    this.usage.lastUsed = new Date();
+
+    if (rating && rating >= 1 && rating <= 5) {
+        const currentRating = this.usage.averageRating || 0;
+        const currentCount = this.usage.timesUsed - 1;
+        this.usage.averageRating = ((currentRating * currentCount) + rating) / this.usage.timesUsed;
+    }
+
+    return this.save();
+};
+
+// Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
 RecipeSchema.index({ tags: 1 });
 RecipeSchema.index({ isPublic: 1 });
 RecipeSchema.index({ createdBy: 1 });
-RecipeSchema.index({ 'ratingStats.averageRating': -1 });
-RecipeSchema.index({ 'ratingStats.totalRatings': -1 });
-InventoryItemSchema.index({ expirationDate: 1 });
-DailyNutritionLogSchema.index({ userId: 1, date: 1 }, { unique: true });
+RecipeSchema.index({ 'nutrition.calories.value': 1 }); // For nutrition-based filtering
+RecipeSchema.index({ nutritionCalculatedAt: 1 });
 
-// Meal Planning indexes
+// NEW: Rating and review indexes
+RecipeSchema.index({ 'ratingStats.averageRating': -1 }); // For sorting by rating
+RecipeSchema.index({ 'ratingStats.totalRatings': -1 }); // For sorting by popularity
+RecipeSchema.index({ 'reviews.userId': 1 }); // For finding user's reviews
+RecipeSchema.index({ 'metrics.viewCount': -1 }); // For trending recipes
+
+// Add expiration date index for efficient expiration queries
+InventoryItemSchema.index({ expirationDate: 1 });
+
+// Add nutrition tracking indexes
+DailyNutritionLogSchema.index({ userId: 1, date: 1 }, { unique: true });
+DailyNutritionLogSchema.index({ userId: 1, 'meals.recipeId': 1 });
+
+// Recipe collection indexes
+RecipeCollectionSchema.index({ userId: 1 });
+RecipeCollectionSchema.index({ isPublic: 1 });
+
+// Create indexes for meal planning
 MealPlanSchema.index({ userId: 1, weekStartDate: 1 });
 MealPlanSchema.index({ userId: 1, isActive: 1 });
 MealPlanSchema.index({ weekStartDate: 1 });
 
-RecipeCollectionSchema.index({ userId: 1 });
-RecipeCollectionSchema.index({ isPublic: 1 });
+MealPlanTemplateSchema.index({ userId: 1 });
+MealPlanTemplateSchema.index({ isPublic: 1, category: 1 });
+MealPlanTemplateSchema.index({ timesUsed: -1 });
 
-// Export models with proper error handling
-let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, RecipeCollection;
+ContactSchema.index({ userId: 1, email: 1 }, { unique: true });
+ContactSchema.index({ userId: 1, isActive: 1 });
+ContactSchema.index({ 'stats.lastEmailSent': 1 });
 
-try {
-    User = mongoose.models.User || mongoose.model('User', UserSchema);
-    UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
-    Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
-    DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
-    MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
-    RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
-} catch (error) {
-    console.error('Model compilation error:', error);
-    // Fallback exports
-    User = mongoose.models.User;
-    UserInventory = mongoose.models.UserInventory;
-    Recipe = mongoose.models.Recipe;
-    DailyNutritionLog = mongoose.models.DailyNutritionLog;
-    MealPlan = mongoose.models.MealPlan;
-    RecipeCollection = mongoose.models.RecipeCollection;
-}
+EmailLogSchema.index({ userId: 1, sentAt: -1 });
+EmailLogSchema.index({ 'recipients.email': 1 });
+EmailLogSchema.index({ emailType: 1, sentAt: -1 });
 
-export { User, UserInventory, Recipe, DailyNutritionLog, MealPlan, RecipeCollection };
+SavedShoppingListSchema.index({ userId: 1, createdAt: -1 });
+SavedShoppingListSchema.index({ userId: 1, isArchived: 1 });
+SavedShoppingListSchema.index({ userId: 1, listType: 1 });
+SavedShoppingListSchema.index({ userId: 1, tags: 1 });
+SavedShoppingListSchema.index({ 'usage.lastLoaded': -1 });
+SavedShoppingListSchema.index({ 'stats.totalItems': 1 });
+
+ShoppingListTemplateSchema.index({ userId: 1, category: 1 });
+ShoppingListTemplateSchema.index({ isPublic: 1, timesUsed: -1 });
+ShoppingListTemplateSchema.index({ userId: 1, timesUsed: -1 });
+
+MealPrepSuggestionSchema.index({ userId: 1, weekStartDate: -1 });
+MealPrepSuggestionSchema.index({ mealPlanId: 1 });
+MealPrepSuggestionSchema.index({ status: 1, userId: 1 });
+MealPrepSuggestionSchema.index({ 'preferences.preferredPrepDays': 1 });
+
+MealPrepTemplateSchema.index({ userId: 1, category: 1 });
+MealPrepTemplateSchema.index({ isPublic: 1, category: 1 });
+MealPrepTemplateSchema.index({ tags: 1 });
+MealPrepTemplateSchema.index({ 'usage.averageRating': -1 });
+
+MealPrepKnowledgeSchema.index({ ingredient: 1 });
+MealPrepKnowledgeSchema.index({ category: 1 });
+
+// Export models (prevent re-compilation in development)
+export const User = mongoose.models.User || mongoose.model('User', UserSchema);
+export const UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
+export const Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
+export const DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
+export const RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
+export const MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
+export const MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
+export const Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
+export const EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
+export const SavedShoppingList = mongoose.models.SavedShoppingList || mongoose.model('SavedShoppingList', SavedShoppingListSchema);
+export const ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mongoose.model('ShoppingListTemplate', ShoppingListTemplateSchema);
+export const MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
+export const MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
+export const MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
