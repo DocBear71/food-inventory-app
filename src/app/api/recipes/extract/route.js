@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/extract/route.js - v8
+// file: /src/app/api/recipes/extract/route.js - v8 FIXED
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -286,45 +286,55 @@ function parseRecipeAggressively(section, volume) {
 
 // Helper: Check if line has any measurement at all
 function hasAnyMeasurement(line) {
-    return /(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s*(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon|clove|cloves|can|jar|\w+)/i.test(line);
+    try {
+        return /(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s*(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon|clove|cloves|can|jar|\w+)/i.test(line);
+    } catch (error) {
+        console.error('Error in hasAnyMeasurement:', error);
+        return /\d+\s*(cup|cups|tsp|tbsp|oz|lb)/i.test(line);
+    }
 }
 
 // Helper: Very liberal ingredient parsing
 function parseIngredientAggressively(line) {
-    const cleanLine = line.replace(/^\d+\s+/, '').trim();
+    try {
+        const cleanLine = line.replace(/^\d+\s+/, '').trim();
 
-    // Just look for any number followed by anything
-    const match = cleanLine.match(/^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s*(.*)$/);
+        // Just look for any number followed by anything
+        const match = cleanLine.match(/^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s*(.*)$/);
 
-    if (match) {
-        const amount = convertFractionToDecimal(match[1]);
-        const rest = match[2].trim();
+        if (match) {
+            const amount = convertFractionToDecimal(match[1]);
+            const rest = match[2].trim();
 
-        // Try to separate unit from name
-        const unitMatch = rest.match(/^(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon|clove|cloves|can|jar)\s+(.+)$/i);
+            // Try to separate unit from name
+            const unitMatch = rest.match(/^(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon|clove|cloves|can|jar)\s+(.+)$/i);
 
-        if (unitMatch) {
-            return {
-                amount: amount,
-                unit: unitMatch[1],
-                name: unitMatch[2],
-                category: '',
-                alternatives: [],
-                optional: false
-            };
-        } else {
-            return {
-                amount: amount,
-                unit: '',
-                name: rest,
-                category: '',
-                alternatives: [],
-                optional: false
-            };
+            if (unitMatch) {
+                return {
+                    amount: amount,
+                    unit: unitMatch[1],
+                    name: unitMatch[2],
+                    category: '',
+                    alternatives: [],
+                    optional: false
+                };
+            } else {
+                return {
+                    amount: amount,
+                    unit: '',
+                    name: rest,
+                    category: '',
+                    alternatives: [],
+                    optional: false
+                };
+            }
         }
-    }
 
-    return null;
+        return null;
+    } catch (error) {
+        console.error('Error in parseIngredientAggressively:', error);
+        return null;
+    }
 }
 
 // COMPLETELY REWRITTEN PARSER - Much more accurate
@@ -515,154 +525,179 @@ function parseIngredientsAndInstructions(lines) {
 
 // IMPROVED: Better ingredient detection
 function looksLikeIngredient(line) {
-    // Remove common prefixes that might confuse the parser
-    const cleanLine = line.replace(/^\d+\s*/, '').trim();
+    try {
+        // Remove common prefixes that might confuse the parser
+        const cleanLine = line.replace(/^\d+\s*/, '').trim();
 
-    // Patterns that indicate this is an ingredient
-    const ingredientPatterns = [
-        // Starts with number + unit (more flexible)
-        /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tsp\.|tbsp|tbsp\.|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|quarts|gallon|gallons|stick|sticks|clove|cloves|can|jar)\b/i,
+        // Patterns that indicate this is an ingredient
+        const ingredientPatterns = [
+            // Starts with number + unit (more flexible)
+            /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tsp\.|tbsp|tbsp\.|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|quarts|gallon|gallons|stick|sticks|clove|cloves|can|jar)\b/i,
 
-        // Just starts with a measurement (more flexible)
-        /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+\w/,
+            // Just starts with a measurement (more flexible)
+            /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+\w/i,
 
-        // Contains common ingredient words anywhere in the line
-        /\b(flour|butter|milk|cream|cheese|tomato|tomatoes|onion|onions|garlic|oil|olive oil|salt|pepper|sugar|egg|eggs|chicken|beef|pork|wine|water|sauce|powder|seasoning|basil|oregano|parmesan)\b/i,
+            // Contains common ingredient words anywhere in the line
+            /\b(flour|butter|milk|cream|cheese|tomato|tomatoes|onion|onions|garlic|oil|olive oil|salt|pepper|sugar|egg|eggs|chicken|beef|pork|wine|water|sauce|powder|seasoning|basil|oregano|parmesan)\b/i,
 
-        // Looks like "X of Y" pattern (e.g., "2 Cups of flour")
-        /^\d+.*\s+(of\s+)?\w+$/i
-    ];
+            // Looks like "X of Y" pattern (e.g., "2 Cups of flour")
+            /^\d+.*\s+(of\s+)?\w+$/i
+        ];
 
-    // Patterns that indicate this is NOT an ingredient (more restrictive)
-    const notIngredientPatterns = [
-        // Clearly instruction sentences (more specific)
-        /^(combine all ingredients|heat oil|cook over|in a .*saucepan|add the|melt the|stir until|bring to|used as ingredient)/i,
+        // Patterns that indicate this is NOT an ingredient (more restrictive)
+        const notIngredientPatterns = [
+            // Clearly instruction sentences (more specific)
+            /^(combine all ingredients|heat oil|cook over|in a .*saucepan|add the|melt the|stir until|bring to|used as ingredient)/i,
 
-        // Contains clear instruction timing/temperature
-        /\b(for \d+\s*(minutes?|hours?)|at \d+\s*degrees?|°F|°C|until hot|until tender)\b/i,
+            // Contains clear instruction timing/temperature
+            /\b(for \d+\s*(minutes?|hours?)|at \d+\s*degrees?|°F|°C|until hot|until tender)\b/i,
 
-        // Way too long to be an ingredient
-        line.length > 80,
+            // Contains multiple sentences
+            /[.!?].*[.!?]/
+        ];
 
-        // Contains multiple sentences
-        /[.!?].*[.!?]/,
-    ];
+        // Check if line is too long to be an ingredient
+        if (line.length > 80) {
+            return false;
+        }
 
-    // Check patterns
-    const matchesIngredient = ingredientPatterns.some(pattern => pattern.test(cleanLine));
-    const matchesNonIngredient = notIngredientPatterns.some(pattern => pattern.test(line));
+        // Check patterns
+        const matchesIngredient = ingredientPatterns.some(pattern => pattern.test(cleanLine));
+        const matchesNonIngredient = notIngredientPatterns.some(pattern => pattern.test(line));
 
-    // More lenient: if it matches ingredient pattern and doesn't clearly match non-ingredient, consider it an ingredient
-    return matchesIngredient && !matchesNonIngredient;
+        // More lenient: if it matches ingredient pattern and doesn't clearly match non-ingredient, consider it an ingredient
+        return matchesIngredient && !matchesNonIngredient;
+    } catch (error) {
+        console.error('Error in looksLikeIngredient:', error);
+        // Fallback: simple check for measurements at start of line
+        return /^\d+\s+(cup|cups|tsp|tbsp|oz|lb)\s+\w/i.test(line);
+    }
 }
 
 // IMPROVED: Better instruction detection
 function looksLikeInstruction(line) {
-    // Common instruction starters
-    const instructionStarters = /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|set to|continue|repeat|pour|crush|strain|grate|slowly|next|wash|dip|slip|trim|cut|transfer|being|until)/i;
+    try {
+        // Common instruction starters
+        const instructionStarters = /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|set to|continue|repeat|pour|crush|strain|grate|slowly|next|wash|dip|slip|trim|cut|transfer|being|until)/i;
 
-    // Contains instruction timing/process words
-    const instructionWords = /\b(minutes?|hours?|degrees?|°F|°C|then|until|to avoid|being careful|approximately|at a time|boil|simmer|medium-high|heat)\b/i;
+        // Contains instruction timing/process words
+        const instructionWords = /\b(minutes?|hours?|degrees?|°F|°C|then|until|to avoid|being careful|approximately|at a time|boil|simmer|medium-high|heat)\b/i;
 
-    // Should not start with measurements (those are likely ingredients)
-    const startsWithMeasurement = /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s/;
+        // Should not start with measurements (those are likely ingredients)
+        const startsWithMeasurement = /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s/;
 
-    return (instructionStarters.test(line) || instructionWords.test(line))
-        && !startsWithMeasurement.test(line)
-        && line.length > 10; // Instructions should be reasonably long
+        return (instructionStarters.test(line) || instructionWords.test(line))
+            && !startsWithMeasurement.test(line)
+            && line.length > 10; // Instructions should be reasonably long
+    } catch (error) {
+        console.error('Error in looksLikeInstruction:', error);
+        // Fallback: simple check for instruction words
+        return /^(combine|heat|cook|bake|mix|stir|add)/i.test(line) && line.length > 10;
+    }
 }
 
 // IMPROVED: Better title validation
 function isValidRecipeTitle(title) {
-    // Filter out obvious non-titles
-    const invalidPatterns = [
-        /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|in a|with a|set|allow)/i,
-        /\b(minutes?|hours?|degrees?)\b/i,
-        /^\d+\s*(cup|tsp|tbsp|oz|lb)/i, // Measurements
-        /\bcontinued on next page\b/i,
-    ];
+    try {
+        // Filter out obvious non-titles
+        const invalidPatterns = [
+            /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|in a|with a|set|allow)/i,
+            /\b(minutes?|hours?|degrees?)\b/i,
+            /^\d+\s*(cup|tsp|tbsp|oz|lb)/i, // Measurements
+            /\bcontinued on next page\b/i,
+        ];
 
-    // Must not match any invalid patterns
-    if (invalidPatterns.some(pattern => pattern.test(title))) {
-        return false;
+        // Must not match any invalid patterns
+        if (invalidPatterns.some(pattern => pattern.test(title))) {
+            return false;
+        }
+
+        // Should be reasonable length
+        if (title.length < 3 || title.length > 100) {
+            return false;
+        }
+
+        // Should contain at least one letter
+        if (!/[a-zA-Z]/.test(title)) {
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error in isValidRecipeTitle:', error);
+        // Fallback: basic validation
+        return title.length >= 3 && title.length <= 100 && /[a-zA-Z]/.test(title);
     }
-
-    // Should be reasonable length
-    if (title.length < 3 || title.length > 100) {
-        return false;
-    }
-
-    // Should contain at least one letter
-    if (!/[a-zA-Z]/.test(title)) {
-        return false;
-    }
-
-    return true;
 }
 
 // IMPROVED: Better ingredient parsing - handles the "1 1 1/2" issue
 function parseIngredientLine(line) {
-    // Remove list markers and leading numbers that might be line numbers
-    let cleanLine = line.replace(/^[-•*]\s*/, '').replace(/^\d+\s+/, '').trim();
+    try {
+        // Remove list markers and leading numbers that might be line numbers
+        let cleanLine = line.replace(/^[-•*]\s*/, '').replace(/^\d+\s+/, '').trim();
 
-    if (cleanLine.length < 2) return null;
+        if (cleanLine.length < 2) return null;
 
-    // Handle the "1 1 1/2 cups" pattern (remove the duplicate "1")
-    cleanLine = cleanLine.replace(/^1\s+(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/, '$1 ');
+        // Handle the "1 1 1/2 cups" pattern (remove the duplicate "1")
+        cleanLine = cleanLine.replace(/^1\s+(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/, '$1 ');
 
-    // Try to parse amount, unit, and name
-    const patterns = [
-        // Pattern 1: Number + Unit + Ingredient (e.g., "2 cups flour")
-        /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tsp\.|tbsp|tbsp\.|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|quarts|gallon|gallons|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
+        // Try to parse amount, unit, and name
+        const patterns = [
+            // Pattern 1: Number + Unit + Ingredient (e.g., "2 cups flour")
+            /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tsp\.|tbsp|tbsp\.|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|quarts|gallon|gallons|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
 
-        // Pattern 2: Number + Ingredient (no unit) (e.g., "3 eggs")
-        /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(.+)$/,
+            // Pattern 2: Number + Ingredient (no unit) (e.g., "3 eggs")
+            /^(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(.+)$/,
 
-        // Pattern 3: Just ingredient name (e.g., "Salt and pepper to taste")
-        /^(.+)$/
-    ];
+            // Pattern 3: Just ingredient name (e.g., "Salt and pepper to taste")
+            /^(.+)$/
+        ];
 
-    for (const pattern of patterns) {
-        const match = cleanLine.match(pattern);
-        if (match) {
-            let amount = 1;
-            let unit = '';
-            let name = '';
+        for (const pattern of patterns) {
+            const match = cleanLine.match(pattern);
+            if (match) {
+                let amount = 1;
+                let unit = '';
+                let name = '';
 
-            if (pattern === patterns[0]) {
-                // Pattern 1: amount + unit + name
-                amount = convertFractionToDecimal(match[1]);
-                unit = match[2];
-                name = match[3].trim();
-            } else if (pattern === patterns[1]) {
-                // Pattern 2: amount + name (no unit)
-                amount = convertFractionToDecimal(match[1]);
-                unit = '';
-                name = match[2].trim();
-            } else {
-                // Pattern 3: just name
-                amount = 1;
-                unit = '';
-                name = match[1].trim();
+                if (pattern === patterns[0]) {
+                    // Pattern 1: amount + unit + name
+                    amount = convertFractionToDecimal(match[1]);
+                    unit = match[2];
+                    name = match[3].trim();
+                } else if (pattern === patterns[1]) {
+                    // Pattern 2: amount + name (no unit)
+                    amount = convertFractionToDecimal(match[1]);
+                    unit = '';
+                    name = match[2].trim();
+                } else {
+                    // Pattern 3: just name
+                    amount = 1;
+                    unit = '';
+                    name = match[1].trim();
+                }
+
+                // Don't create ingredients for things that are clearly instructions
+                if (looksLikeInstruction(name)) {
+                    return null;
+                }
+
+                return {
+                    amount: amount,
+                    unit: unit,
+                    name: name,
+                    category: '',
+                    alternatives: [],
+                    optional: false
+                };
             }
-
-            // Don't create ingredients for things that are clearly instructions
-            if (looksLikeInstruction(name)) {
-                return null;
-            }
-
-            return {
-                amount: amount,
-                unit: unit,
-                name: name,
-                category: '',
-                alternatives: [],
-                optional: false
-            };
         }
-    }
 
-    return null;
+        return null;
+    } catch (error) {
+        console.error('Error in parseIngredientLine:', error);
+        return null;
+    }
 }
 
 // Helper function to convert fractions to decimals
