@@ -646,7 +646,7 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {/* Inventory Table with Use Button */}
+                {/* 🔧 MOBILE-FRIENDLY: Inventory Display - Cards on mobile, table on desktop */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -672,109 +672,204 @@ function InventoryContent() {
                                 )}
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Item
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Category
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Quantity
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Location
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Expiration
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                            <>
+                                {/* 📱 MOBILE VIEW: Card Layout */}
+                                <div className="block md:hidden space-y-4">
                                     {filteredInventory.map((item) => {
                                         const expirationInfo = getExpirationStatus(item.expirationDate);
 
                                         return (
-                                            <tr key={item._id} className={expirationInfo.bgColor}>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <span className="text-xl mr-2">{expirationInfo.icon || '📦'}</span>
-                                                        <div>
-                                                            <div className={`text-xs font-medium ${expirationInfo.textColor}`}>
-                                                                {expirationInfo.label}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                                            <div key={item._id} className={`border rounded-lg p-4 ${expirationInfo.bgColor} border-l-4`}
+                                                 style={{ borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
+                                                         expirationInfo.color === 'orange' ? '#f97316' :
+                                                             expirationInfo.color === 'yellow' ? '#eab308' :
+                                                                 expirationInfo.color === 'green' ? '#22c55e' : '#6b7280' }}>
+
+                                                {/* Mobile Card Header */}
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="flex-1">
+                                                        <h4 className="text-lg font-semibold text-gray-900">{item.name}</h4>
                                                         {item.brand && (
-                                                            <div className="text-sm text-gray-500">{item.brand}</div>
+                                                            <p className="text-sm text-gray-600">{item.brand}</p>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {item.category || 'No category'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {item.quantity} {item.unit}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
-                                                        {item.location}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                    {item.expirationDate ? (
-                                                        <div>
-                                                            <div className={expirationInfo.textColor}>
-                                                                {new Date(item.expirationDate).toLocaleDateString()}
-                                                            </div>
-                                                            <div className={`text-xs ${expirationInfo.textColor}`}>
-                                                                {expirationInfo.label}
-                                                            </div>
+                                                    <div className="flex items-center ml-3">
+                                                        <span className="text-2xl">{expirationInfo.icon || '📦'}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile Card Content */}
+                                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 uppercase tracking-wide">Quantity</div>
+                                                        <div className="text-sm font-medium text-gray-900">{item.quantity} {item.unit}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 uppercase tracking-wide">Location</div>
+                                                        <div className="text-sm">
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                                                                {item.location}
+                                                            </span>
                                                         </div>
-                                                    ) : (
-                                                        <span className="text-gray-400">No expiration set</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 uppercase tracking-wide">Category</div>
+                                                        <div className="text-sm text-gray-700">{item.category || 'No category'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 uppercase tracking-wide">Expiration</div>
+                                                        <div className="text-sm">
+                                                            {item.expirationDate ? (
+                                                                <div>
+                                                                    <div className={`font-medium ${expirationInfo.textColor}`}>
+                                                                        {new Date(item.expirationDate).toLocaleDateString()}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400">No expiration</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile Status Banner */}
+                                                <div className={`px-3 py-2 rounded-md mb-3 ${expirationInfo.bgColor}`}>
+                                                    <div className={`text-sm font-medium ${expirationInfo.textColor}`}>
+                                                        {expirationInfo.label}
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile Action Buttons */}
+                                                <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => setConsumingItem(item)}
-                                                        className="text-blue-600 hover:text-blue-900"
-                                                        title="Use/Consume Item"
+                                                        className="flex-1 min-w-0 bg-blue-50 text-blue-700 text-sm font-medium py-2 px-3 rounded-md hover:bg-blue-100 border border-blue-200"
                                                     >
                                                         📦 Use
                                                     </button>
                                                     <button
                                                         onClick={() => handleEdit(item)}
-                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                        className="flex-1 min-w-0 bg-indigo-50 text-indigo-700 text-sm font-medium py-2 px-3 rounded-md hover:bg-indigo-100 border border-indigo-200"
                                                     >
-                                                        Edit
+                                                        ✏️ Edit
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(item._id)}
-                                                        className="text-red-600 hover:text-red-900"
+                                                        className="bg-red-50 text-red-700 text-sm font-medium py-2 px-3 rounded-md hover:bg-red-100 border border-red-200"
                                                     >
-                                                        Delete
+                                                        🗑️
                                                     </button>
-                                                </td>
-                                            </tr>
+                                                </div>
+                                            </div>
                                         );
                                     })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                </div>
+
+                                {/* 💻 DESKTOP VIEW: Original Table Layout */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Item
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Category
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Quantity
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Location
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Expiration
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredInventory.map((item) => {
+                                            const expirationInfo = getExpirationStatus(item.expirationDate);
+
+                                            return (
+                                                <tr key={item._id} className={expirationInfo.bgColor}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <span className="text-xl mr-2">{expirationInfo.icon || '📦'}</span>
+                                                            <div>
+                                                                <div className={`text-xs font-medium ${expirationInfo.textColor}`}>
+                                                                    {expirationInfo.label}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                                                            {item.brand && (
+                                                                <div className="text-sm text-gray-500">{item.brand}</div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {item.category || 'No category'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {item.quantity} {item.unit}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                                                            {item.location}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                        {item.expirationDate ? (
+                                                            <div>
+                                                                <div className={expirationInfo.textColor}>
+                                                                    {new Date(item.expirationDate).toLocaleDateString()}
+                                                                </div>
+                                                                <div className={`text-xs ${expirationInfo.textColor}`}>
+                                                                    {expirationInfo.label}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-400">No expiration set</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                                        <button
+                                                            onClick={() => setConsumingItem(item)}
+                                                            className="text-blue-600 hover:text-blue-900"
+                                                            title="Use/Consume Item"
+                                                        >
+                                                            📦 Use
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleEdit(item)}
+                                                            className="text-indigo-600 hover:text-indigo-900"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(item._id)}
+                                                            className="text-red-600 hover:text-red-900"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
