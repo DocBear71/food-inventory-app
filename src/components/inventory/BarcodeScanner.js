@@ -59,12 +59,20 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 quaggaRef.current.offDetected();
                 console.log('Stopping Quagga');
                 quaggaRef.current.stop();
+
+                // Force clear the scanner container
+                if (scannerRef.current) {
+                    scannerRef.current.innerHTML = '';
+                    console.log('🧹 Cleared scanner container HTML');
+                }
+
                 quaggaRef.current = null;
             } catch (error) {
                 console.log('Error during cleanup:', error);
             }
         }
 
+        // Reset all state
         setIsInitialized(false);
         setIsScanning(false);
         setIsLoading(true);
@@ -139,7 +147,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         setTimeout(() => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
-                cleanupScanner();
+                // Don't cleanup here - let parent component handle closing
                 onBarcodeDetected(cleanCode);
             }
         }, 600);
