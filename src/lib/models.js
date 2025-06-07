@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v8 (Build-Safe Version)
+// file: /src/lib/models.js - v9 (Add Meal Planning Models Back)
 
 import mongoose from 'mongoose';
 
@@ -335,6 +335,112 @@ const DailyNutritionLogSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
+// Meal Plan Entry Schema
+const MealPlanEntrySchema = new mongoose.Schema({
+    recipeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe',
+        required: true
+    },
+    recipeName: { type: String, required: true },
+    mealType: {
+        type: String,
+        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        required: true
+    },
+    servings: { type: Number, default: 1, min: 1 },
+    notes: { type: String, maxlength: 200 },
+    prepTime: Number,
+    cookTime: Number,
+    createdAt: { type: Date, default: Date.now }
+});
+
+// Meal Plan Schema
+const MealPlanSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+
+    // Week-based planning (Monday = 0, Sunday = 6)
+    weekStartDate: { type: Date, required: true },
+
+    // Meals organized by day and meal type
+    meals: {
+        monday: [MealPlanEntrySchema],
+        tuesday: [MealPlanEntrySchema],
+        wednesday: [MealPlanEntrySchema],
+        thursday: [MealPlanEntrySchema],
+        friday: [MealPlanEntrySchema],
+        saturday: [MealPlanEntrySchema],
+        sunday: [MealPlanEntrySchema]
+    },
+
+    // Planning preferences
+    preferences: {
+        defaultServings: { type: Number, default: 4 },
+        mealTypes: {
+            type: [String],
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            default: ['breakfast', 'lunch', 'dinner']
+        },
+        dietaryRestrictions: [String],
+        avoidIngredients: [String]
+    },
+
+    // Shopping list generation
+    shoppingList: {
+        generated: { type: Boolean, default: false },
+        generatedAt: Date,
+        items: [{
+            ingredient: { type: String, required: true },
+            amount: String,
+            unit: String,
+            category: { type: String, default: 'other' },
+            recipes: [String],
+            inInventory: { type: Boolean, default: false },
+            purchased: { type: Boolean, default: false }
+        }]
+    },
+
+    // Nutrition tracking for the week
+    weeklyNutrition: {
+        totalCalories: { type: Number, default: 0 },
+        averageDailyCalories: { type: Number, default: 0 },
+        protein: { type: Number, default: 0 },
+        carbs: { type: Number, default: 0 },
+        fat: { type: Number, default: 0 },
+        fiber: { type: Number, default: 0 }
+    },
+
+    isTemplate: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Recipe Collection Schema
+const RecipeCollectionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: { type: String, required: true, maxlength: 100 },
+    description: { type: String, maxlength: 500 },
+    recipes: [{
+        recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
+        addedAt: { type: Date, default: Date.now }
+    }],
+    isPublic: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
 // Create indexes
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
@@ -346,14 +452,24 @@ RecipeSchema.index({ 'ratingStats.totalRatings': -1 });
 InventoryItemSchema.index({ expirationDate: 1 });
 DailyNutritionLogSchema.index({ userId: 1, date: 1 }, { unique: true });
 
+// Meal Planning indexes
+MealPlanSchema.index({ userId: 1, weekStartDate: 1 });
+MealPlanSchema.index({ userId: 1, isActive: 1 });
+MealPlanSchema.index({ weekStartDate: 1 });
+
+RecipeCollectionSchema.index({ userId: 1 });
+RecipeCollectionSchema.index({ isPublic: 1 });
+
 // Export models with proper error handling
-let User, UserInventory, Recipe, DailyNutritionLog;
+let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, RecipeCollection;
 
 try {
     User = mongoose.models.User || mongoose.model('User', UserSchema);
     UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
     Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
     DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
+    MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
+    RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
 } catch (error) {
     console.error('Model compilation error:', error);
     // Fallback exports
@@ -361,6 +477,8 @@ try {
     UserInventory = mongoose.models.UserInventory;
     Recipe = mongoose.models.Recipe;
     DailyNutritionLog = mongoose.models.DailyNutritionLog;
+    MealPlan = mongoose.models.MealPlan;
+    RecipeCollection = mongoose.models.RecipeCollection;
 }
 
-export { User, UserInventory, Recipe, DailyNutritionLog };
+export { User, UserInventory, Recipe, DailyNutritionLog, MealPlan, RecipeCollection };
