@@ -1,4 +1,4 @@
-// file: /src/app/auth/[...nextauth]/route.js
+// file: src/app/api/auth/[...nextauth]/route.js
 
 import NextAuth from 'next-auth';
 import { authOptions } from '@/lib/auth';
