@@ -616,9 +616,9 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     </div>
                 ) : (
                     <>
-                        {/* Loading State */}
+                        {/* Loading State - Overlay on top of camera container */}
                         {isLoading && (
-                            <div className="flex-1 flex items-center justify-center bg-black">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                 <div className="text-center text-white">
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                     <div className="text-lg">Starting camera...</div>
@@ -629,25 +629,25 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             </div>
                         )}
 
-                        {/* Camera Container - Properly sized and positioned */}
-                        {!isLoading && (
-                            <div className="flex-1 relative bg-black">
-                                {/* Camera View - Full container with proper sizing */}
-                                <div
-                                    ref={scannerRef}
-                                    className="absolute inset-0 w-full h-full bg-black"
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        zIndex: 1,
-                                        minHeight: '400px' // Ensure minimum height
-                                    }}
-                                />
+                        {/* Camera Container - ALWAYS rendered, hidden by loading overlay when needed */}
+                        <div className="flex-1 relative bg-black">
+                            {/* Camera View - Full container with proper sizing */}
+                            <div
+                                ref={scannerRef}
+                                className="absolute inset-0 w-full h-full bg-black"
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    zIndex: 1,
+                                    minHeight: '400px' // Ensure minimum height
+                                }}
+                            />
 
-                                {/* Enhanced Reticle Overlay - Higher z-index */}
+                            {/* Enhanced Reticle Overlay - Higher z-index - Only show when not loading */}
+                            {!isLoading && (
                                 <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                                     {/* Dark overlay with transparent center */}
                                     <div className="absolute inset-0">
@@ -734,8 +734,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {/* Mobile Footer - Always visible */}
                         <div className="flex-shrink-0 bg-black px-4 py-3">
