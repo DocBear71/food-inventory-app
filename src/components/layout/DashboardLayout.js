@@ -1,18 +1,29 @@
-// file: /src/components/layout/DashboardLayout.js
+// file: /src/components/layout/DashboardLayout.js - v2
 
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 export default function DashboardLayout({ children }) {
     const { data: session } = useSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [expandedMenus, setExpandedMenus] = useState({});
+    const pathname = usePathname();
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
-        { name: 'Inventory', href: '/inventory', icon: '📦' },
+        {
+            name: 'Inventory',
+            href: '/inventory',
+            icon: '📦',
+            submenu: [
+                { name: 'View Inventory', href: '/inventory', icon: '📋' },
+                { name: 'Usage History', href: '/inventory/history', icon: '📊' }
+            ]
+        },
         { name: 'Recipes', href: '/recipes', icon: '🍳' },
         { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅' },
@@ -22,6 +33,24 @@ export default function DashboardLayout({ children }) {
 
     const handleSignOut = () => {
         signOut({ callbackUrl: '/' });
+    };
+
+    const toggleSubmenu = (itemName) => {
+        setExpandedMenus(prev => ({
+            ...prev,
+            [itemName]: !prev[itemName]
+        }));
+    };
+
+    const isCurrentPage = (href) => {
+        return pathname === href;
+    };
+
+    const isParentActive = (item) => {
+        if (item.submenu) {
+            return item.submenu.some(subItem => isCurrentPage(subItem.href)) || isCurrentPage(item.href);
+        }
+        return isCurrentPage(item.href);
     };
 
     return (
@@ -54,17 +83,65 @@ export default function DashboardLayout({ children }) {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-4 py-4 space-y-2">
+                    <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
                         {navigation.map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                                onClick={() => setSidebarOpen(false)} // Close sidebar on mobile after click
-                            >
-                                <span className="mr-3 text-lg">{item.icon}</span>
-                                {item.name}
-                            </Link>
+                            <div key={item.name}>
+                                {/* Main navigation item */}
+                                <div className="flex items-center">
+                                    <Link
+                                        href={item.href}
+                                        className={`flex items-center flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                                            isParentActive(item)
+                                                ? 'text-indigo-700 bg-indigo-100'
+                                                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}
+                                        onClick={() => setSidebarOpen(false)}
+                                    >
+                                        <span className="mr-3 text-lg">{item.icon}</span>
+                                        {item.name}
+                                    </Link>
+
+                                    {/* Submenu toggle button */}
+                                    {item.submenu && (
+                                        <button
+                                            onClick={() => toggleSubmenu(item.name)}
+                                            className="ml-1 p-1 text-gray-400 hover:text-gray-600"
+                                        >
+                                            <svg
+                                                className={`w-4 h-4 transform transition-transform ${
+                                                    expandedMenus[item.name] ? 'rotate-90' : ''
+                                                }`}
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Submenu items */}
+                                {item.submenu && (expandedMenus[item.name] || isParentActive(item)) && (
+                                    <div className="ml-6 mt-1 space-y-1">
+                                        {item.submenu.map((subItem) => (
+                                            <Link
+                                                key={subItem.name}
+                                                href={subItem.href}
+                                                className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                                                    isCurrentPage(subItem.href)
+                                                        ? 'text-indigo-700 bg-indigo-50 font-medium'
+                                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                                }`}
+                                                onClick={() => setSidebarOpen(false)}
+                                            >
+                                                <span className="mr-2 text-base">{subItem.icon}</span>
+                                                {subItem.name}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         ))}
                     </nav>
 
@@ -107,6 +184,17 @@ export default function DashboardLayout({ children }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
+
+                        {/* Breadcrumb for current page */}
+                        <div className="hidden sm:flex items-center text-sm text-gray-500">
+                            {pathname === '/inventory/history' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>📦 Inventory</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📊 Usage History</span>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Desktop user info */}
                         <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
