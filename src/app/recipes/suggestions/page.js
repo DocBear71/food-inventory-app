@@ -1,4 +1,4 @@
-// file: /src/app/recipes/suggestions/page.js
+// file: /src/app/recipes/suggestions/page.js v2
 
 'use client';
 
@@ -14,9 +14,10 @@ export default function RecipeSuggestions() {
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [matchThreshold, setMatchThreshold] = useState(0.4); // Lower default threshold
-    const [sortBy, setSortBy] = useState('match'); // 'match', 'time', 'difficulty'
-    const [showShoppingList, setShowShoppingList] = useState(null); // {recipeId, recipeName}
+    const [matchThreshold, setMatchThreshold] = useState(0.4);
+    const [sortBy, setSortBy] = useState('match');
+    const [showShoppingList, setShowShoppingList] = useState(null);
+    const [debugMode, setDebugMode] = useState(false); // For debugging matches
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -39,7 +40,6 @@ export default function RecipeSuggestions() {
     const loadData = async () => {
         setLoading(true);
         try {
-            // Load inventory and recipes in parallel
             const [inventoryResponse, recipesResponse] = await Promise.all([
                 fetch('/api/inventory'),
                 fetch('/api/recipes')
@@ -50,10 +50,19 @@ export default function RecipeSuggestions() {
 
             if (inventoryData.success) {
                 setInventory(inventoryData.inventory);
+                console.log('Loaded inventory items:', inventoryData.inventory.map(item => ({
+                    name: item.name,
+                    category: item.category,
+                    quantity: item.quantity
+                })));
             }
 
             if (recipesData.success) {
                 setRecipes(recipesData.recipes);
+                console.log('Loaded recipes:', recipesData.recipes.map(r => ({
+                    title: r.title,
+                    ingredientCount: r.ingredients?.length || 0
+                })));
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -63,6 +72,11 @@ export default function RecipeSuggestions() {
     };
 
     const generateSuggestions = () => {
+        console.log('=== GENERATING SUGGESTIONS ===');
+        console.log('Inventory count:', inventory.length);
+        console.log('Recipe count:', recipes.length);
+        console.log('Match threshold:', matchThreshold);
+
         const suggestions = recipes
             .map(recipe => {
                 const analysis = analyzeRecipe(recipe, inventory);
@@ -88,44 +102,43 @@ export default function RecipeSuggestions() {
                 }
             });
 
+        console.log('Generated suggestions:', suggestions.length);
         setSuggestions(suggestions);
     };
 
     const analyzeRecipe = (recipe, inventory) => {
+        console.log(`\n=== ANALYZING RECIPE: ${recipe.title} ===`);
+
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
+            console.log('Recipe has no ingredients');
             return {
                 matchPercentage: 0,
                 availableIngredients: [],
-                missingIngredients: recipe.ingredients || [],
-                canMake: false
+                missingIngredients: [],
+                canMake: false,
+                matches: []
             };
         }
 
-        // Basic pantry staples that most people have
-        const pantryStaples = ['salt', 'pepper', 'black pepper', 'garlic powder', 'onion powder', 'oil', 'butter'];
+        console.log('Recipe ingredients:', recipe.ingredients.map(ing => ing.name));
 
         const availableIngredients = [];
         const missingIngredients = [];
+        const matches = []; // For debugging
 
         recipe.ingredients.forEach(recipeIngredient => {
-            const found = findIngredientInInventory(recipeIngredient, inventory);
+            const matchResult = findIngredientInInventory(recipeIngredient, inventory);
 
-            // Check if it's a basic pantry staple
-            const isPantryStaple = pantryStaples.some(staple =>
-                recipeIngredient.name.toLowerCase().includes(staple)
-            );
-
-            if (found) {
+            if (matchResult.found) {
                 availableIngredients.push({
                     ...recipeIngredient,
-                    inventoryItem: found
+                    inventoryItem: matchResult.inventoryItem,
+                    matchType: matchResult.matchType
                 });
-            } else if (isPantryStaple) {
-                // Assume pantry staples are available
-                availableIngredients.push({
-                    ...recipeIngredient,
-                    inventoryItem: { name: `${recipeIngredient.name} (pantry staple)`, category: 'pantry' },
-                    isPantryStaple: true
+                matches.push({
+                    recipeIngredient: recipeIngredient.name,
+                    inventoryItem: matchResult.inventoryItem.name,
+                    matchType: matchResult.matchType
                 });
             } else {
                 missingIngredients.push(recipeIngredient);
@@ -137,118 +150,146 @@ export default function RecipeSuggestions() {
         const requiredIngredients = totalIngredients - optionalCount;
         const availableRequired = availableIngredients.filter(ing => !ing.optional).length;
 
-        // Calculate match percentage
-        const matchPercentage = totalIngredients > 0 ?
-            (availableIngredients.length / totalIngredients) : 0;
-
-        // Can make if all required ingredients are available
+        const matchPercentage = totalIngredients > 0 ? (availableIngredients.length / totalIngredients) : 0;
         const canMake = availableRequired >= requiredIngredients;
 
-        console.log(`Recipe "${recipe.title}": ${availableIngredients.length}/${totalIngredients} ingredients (${Math.round(matchPercentage * 100)}%)`);
+        console.log(`Results: ${availableIngredients.length}/${totalIngredients} ingredients (${Math.round(matchPercentage * 100)}%)`);
+        console.log('Matches found:', matches);
 
         return {
             matchPercentage,
             availableIngredients,
             missingIngredients,
             canMake,
-            requiredMissing: missingIngredients.filter(ing => !ing.optional).length
+            requiredMissing: missingIngredients.filter(ing => !ing.optional).length,
+            matches // For debugging
         };
     };
 
+    // Normalize ingredient names for better comparison
+    const normalizeIngredientName = (name) => {
+        return name
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
+            .replace(/\s+/g, ' ')      // Replace multiple spaces with single space
+            .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|cooked|raw)\b/g, '')
+            .replace(/\b(small|medium|large|extra)\b/g, '')
+            .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
+            .replace(/\b(of|the|and|or)\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
+
+    // Much more conservative ingredient matching
     const findIngredientInInventory = (recipeIngredient, inventory) => {
-        const recipeName = recipeIngredient.name.toLowerCase().trim();
+        const recipeName = normalizeIngredientName(recipeIngredient.name);
 
-        console.log(`Looking for recipe ingredient: "${recipeName}"`);
-        console.log('Available inventory:', inventory.map(item => ({ name: item.name, category: item.category })));
+        console.log(`\n--- Looking for: "${recipeIngredient.name}" (normalized: "${recipeName}") ---`);
 
-        // Enhanced keyword matching for common ingredient variations
-        const ingredientVariations = {
-            'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni', 'fusilli', 'linguine', 'angel hair', 'bow tie', 'rotini'],
-            'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil', 'pure olive oil', 'evoo'],
-            'garlic': ['garlic cloves', 'fresh garlic', 'garlic bulb', 'minced garlic'],
+        // 1. EXACT MATCH (highest priority)
+        for (const item of inventory) {
+            const itemName = normalizeIngredientName(item.name);
+            if (itemName === recipeName && recipeName.length > 2) {
+                console.log(`✅ EXACT MATCH: "${item.name}"`);
+                return {
+                    found: true,
+                    inventoryItem: item,
+                    matchType: 'exact'
+                };
+            }
+        }
+
+        // 2. EXACT INGREDIENT VARIATIONS (very specific)
+        const specificVariations = {
+            // Only very specific, well-defined variations
+            'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'evoo'],
+            'garlic': ['garlic cloves', 'garlic bulb'],
             'onion': ['yellow onion', 'white onion', 'red onion', 'sweet onion'],
-            'tomato': ['roma tomato', 'cherry tomato', 'grape tomato', 'beefsteak tomato', 'diced tomato', 'crushed tomato'],
-            'cheese': ['cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese'],
-            'milk': ['whole milk', '2% milk', 'skim milk', 'low fat milk'],
-            'butter': ['unsalted butter', 'salted butter', 'sweet butter'],
-            'flour': ['all purpose flour', 'bread flour', 'cake flour', 'whole wheat flour'],
-            'sugar': ['white sugar', 'granulated sugar', 'brown sugar', 'raw sugar'],
-            'salt': ['table salt', 'sea salt', 'kosher salt', 'iodized salt'],
-            'pepper': ['black pepper', 'white pepper', 'ground pepper', 'cracked pepper']
+            'tomato': ['roma tomato', 'cherry tomato', 'grape tomato', 'beefsteak tomato'],
+            'cheese': ['cheddar cheese', 'mozzarella cheese', 'parmesan cheese'],
+            'milk': ['whole milk', '2% milk', 'skim milk', '1% milk'],
+            'butter': ['unsalted butter', 'salted butter'],
+            'flour': ['all purpose flour', 'bread flour', 'cake flour'],
+            'sugar': ['white sugar', 'granulated sugar', 'brown sugar'],
+            'salt': ['table salt', 'sea salt', 'kosher salt'],
+            'pepper': ['black pepper', 'white pepper', 'ground pepper'],
+            'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni'],
+            // Add bell pepper variations
+            'bell pepper': ['red bell pepper', 'green bell pepper', 'yellow bell pepper'],
+            'red bell pepper': ['bell pepper'],
+            'green bell pepper': ['bell pepper'],
+            'yellow bell pepper': ['bell pepper']
         };
 
-        // Direct name match
-        let found = inventory.find(item =>
-            item.name.toLowerCase().trim() === recipeName
-        );
-
-        if (found) {
-            console.log(`✅ Direct match found: ${found.name}`);
-            return found;
-        }
-
-        // Check if recipe ingredient matches any variation
-        for (const [baseIngredient, variations] of Object.entries(ingredientVariations)) {
-            if (recipeName.includes(baseIngredient) || variations.some(v => recipeName.includes(v))) {
-                found = inventory.find(item => {
-                    const itemName = item.name.toLowerCase();
-                    return variations.some(variation => itemName.includes(variation)) ||
-                        itemName.includes(baseIngredient) ||
-                        baseIngredient.includes(itemName);
-                });
-
-                if (found) {
-                    console.log(`✅ Variation match found: ${found.name} matches ${recipeName}`);
-                    return found;
+        // Check if recipe ingredient matches any specific variation
+        for (const [baseIngredient, variations] of Object.entries(specificVariations)) {
+            // Check if recipe ingredient is the base or a variation
+            if (recipeName === baseIngredient || variations.some(v => normalizeIngredientName(v) === recipeName)) {
+                // Look for base or any variation in inventory
+                for (const item of inventory) {
+                    const itemName = normalizeIngredientName(item.name);
+                    if (itemName === baseIngredient || variations.some(v => normalizeIngredientName(v) === itemName)) {
+                        console.log(`✅ VARIATION MATCH: "${item.name}" matches "${recipeIngredient.name}" via ${baseIngredient}`);
+                        return {
+                            found: true,
+                            inventoryItem: item,
+                            matchType: 'variation'
+                        };
+                    }
                 }
             }
         }
 
-        // Partial name match (contains)
-        found = inventory.find(item =>
-            item.name.toLowerCase().includes(recipeName) ||
-            recipeName.includes(item.name.toLowerCase())
-        );
+        // 3. CONSERVATIVE PARTIAL MATCH (only for longer ingredient names)
+        if (recipeName.length >= 5) { // Only for longer ingredient names
+            for (const item of inventory) {
+                const itemName = normalizeIngredientName(item.name);
 
-        if (found) {
-            console.log(`✅ Partial match found: ${found.name}`);
-            return found;
+                // Both must be reasonably long and one must contain the other as a significant portion
+                if (itemName.length >= 4 &&
+                    (itemName.includes(recipeName) || recipeName.includes(itemName))) {
+
+                    // Additional validation: the contained part must be at least 50% of the longer string
+                    const shorterLength = Math.min(itemName.length, recipeName.length);
+                    const longerLength = Math.max(itemName.length, recipeName.length);
+
+                    if (shorterLength / longerLength >= 0.6) {
+                        console.log(`✅ CONSERVATIVE PARTIAL MATCH: "${item.name}" <-> "${recipeIngredient.name}"`);
+                        return {
+                            found: true,
+                            inventoryItem: item,
+                            matchType: 'partial'
+                        };
+                    }
+                }
+            }
         }
 
-        // Check alternatives if they exist
-        if (recipeIngredient.alternatives) {
+        // 4. CHECK ALTERNATIVES (if recipe provides them)
+        if (recipeIngredient.alternatives && recipeIngredient.alternatives.length > 0) {
             for (const alternative of recipeIngredient.alternatives) {
-                found = inventory.find(item =>
-                    item.name.toLowerCase().includes(alternative.toLowerCase()) ||
-                    alternative.toLowerCase().includes(item.name.toLowerCase())
-                );
-                if (found) {
-                    console.log(`✅ Alternative match found: ${found.name}`);
-                    return found;
+                const altNormalized = normalizeIngredientName(alternative);
+                for (const item of inventory) {
+                    const itemName = normalizeIngredientName(item.name);
+                    if (itemName === altNormalized) {
+                        console.log(`✅ ALTERNATIVE MATCH: "${item.name}" matches alternative "${alternative}"`);
+                        return {
+                            found: true,
+                            inventoryItem: item,
+                            matchType: 'alternative'
+                        };
+                    }
                 }
             }
         }
 
-        // Fuzzy matching - check for similar words
-        found = inventory.find(item => {
-            const itemWords = item.name.toLowerCase().split(/\s+/);
-            const recipeWords = recipeName.split(/\s+/);
-
-            // If any word from recipe matches any word from inventory item
-            return recipeWords.some(recipeWord =>
-                itemWords.some(itemWord =>
-                    itemWord.includes(recipeWord) || recipeWord.includes(itemWord)
-                )
-            );
-        });
-
-        if (found) {
-            console.log(`✅ Fuzzy match found: ${found.name}`);
-            return found;
-        }
-
-        console.log(`❌ No match found for: ${recipeName}`);
-        return null;
+        console.log(`❌ NO MATCH found for: "${recipeIngredient.name}"`);
+        return {
+            found: false,
+            inventoryItem: null,
+            matchType: null
+        };
     };
 
     const getMatchColor = (percentage) => {
@@ -287,14 +328,37 @@ export default function RecipeSuggestions() {
                         <h1 className="text-2xl font-bold text-gray-900">What Can I Make?</h1>
                         <p className="text-gray-600">Recipe suggestions based on your current inventory</p>
                     </div>
-                    <button
-                        onClick={loadData}
-                        disabled={loading}
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-100"
-                    >
-                        {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
-                    </button>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={() => setDebugMode(!debugMode)}
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            {debugMode ? 'Hide Debug' : 'Show Debug'}
+                        </button>
+                        <button
+                            onClick={loadData}
+                            disabled={loading}
+                            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                        >
+                            {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
+                        </button>
+                    </div>
                 </div>
+
+                {/* Debug Info */}
+                {debugMode && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <h4 className="font-medium text-yellow-800 mb-2">Debug Information</h4>
+                        <div className="text-sm text-yellow-700 space-y-1">
+                            <div>Current inventory items ({inventory.length}):</div>
+                            <div className="pl-4 space-y-1">
+                                {inventory.map((item, index) => (
+                                    <div key={index}>• {item.name} (Category: {item.category || 'None'})</div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Stats and Controls */}
                 <div className="bg-white shadow rounded-lg p-4">
@@ -313,7 +377,7 @@ export default function RecipeSuggestions() {
                             </label>
                             <input
                                 type="range"
-                                min="0.5"
+                                min="0.1"
                                 max="1"
                                 step="0.1"
                                 value={matchThreshold}
@@ -373,10 +437,10 @@ export default function RecipeSuggestions() {
                                     No recipes match your current inventory at {Math.round(matchThreshold * 100)}% threshold
                                 </div>
                                 <button
-                                    onClick={() => setMatchThreshold(0.5)}
+                                    onClick={() => setMatchThreshold(0.1)}
                                     className="text-indigo-600 hover:text-indigo-900 text-sm"
                                 >
-                                    Try lowering the match threshold
+                                    Try lowering the match threshold to 10%
                                 </button>
                             </div>
                         ) : (
@@ -394,6 +458,20 @@ export default function RecipeSuggestions() {
                                                 {Math.round(recipe.analysis.matchPercentage * 100)}% Match
                                             </div>
                                         </div>
+
+                                        {/* Debug matches */}
+                                        {debugMode && recipe.analysis.matches && recipe.analysis.matches.length > 0 && (
+                                            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                                                <h6 className="font-medium text-blue-800 mb-2">Debug: Matches Found</h6>
+                                                <div className="text-sm text-blue-700 space-y-1">
+                                                    {recipe.analysis.matches.map((match, index) => (
+                                                        <div key={index}>
+                                                            • "{match.recipeIngredient}" → "{match.inventoryItem}" ({match.matchType})
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             {/* Recipe Info */}
@@ -429,6 +507,9 @@ export default function RecipeSuggestions() {
                                                         <div key={index} className="text-green-600">
                                                             • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                             {ingredient.optional && <span className="text-gray-500"> (optional)</span>}
+                                                            {debugMode && ingredient.matchType && (
+                                                                <span className="text-xs text-blue-600"> [{ingredient.matchType}]</span>
+                                                            )}
                                                         </div>
                                                     ))}
                                                     {recipe.analysis.availableIngredients.length > 5 && (
