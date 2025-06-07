@@ -1,8 +1,8 @@
-// file: /src/components/inventory/BarcodeScanner.js
+// file: /src/components/inventory/BarcodeScanner.js v3
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive }) {
     const scannerRef = useRef(null);
@@ -10,9 +10,30 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isScanning, setIsScanning] = useState(true);
+    const [isMobile, setIsMobile] = useState(false);
     const cooldownRef = useRef(false);
     const quaggaRef = useRef(null);
     const mountedRef = useRef(true);
+    const detectionHandlerRef = useRef(null);
+    const scanCountRef = useRef(0);
+
+    // Detect mobile device and orientation
+    useEffect(() => {
+        const checkMobile = () => {
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isSmallScreen = window.innerWidth <= 768;
+            setIsMobile(isMobileDevice || isSmallScreen);
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        window.addEventListener('orientationchange', checkMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('orientationchange', checkMobile);
+        };
+    }, []);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -21,56 +42,165 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         };
     }, []);
 
+    // Enhanced cleanup function
+    const cleanupScanner = useCallback(() => {
+        console.log('🧹 Starting scanner cleanup...');
+
+        if (quaggaRef.current) {
+            try {
+                if (detectionHandlerRef.current) {
+                    console.log('Removing detection handler');
+                    quaggaRef.current.offDetected(detectionHandlerRef.current);
+                    detectionHandlerRef.current = null;
+                }
+
+                quaggaRef.current.offDetected();
+                console.log('Stopping Quagga');
+                quaggaRef.current.stop();
+                quaggaRef.current = null;
+            } catch (error) {
+                console.log('Error during cleanup:', error);
+            }
+        }
+
+        setIsInitialized(false);
+        setIsScanning(false);
+        setIsLoading(true);
+        setError(null);
+        cooldownRef.current = false;
+        scanCountRef.current = 0;
+
+        console.log('✅ Scanner cleanup completed');
+    }, []);
+
+    // Enhanced barcode detection handler
+    const handleBarcodeDetection = useCallback((result) => {
+        console.log('🔍 Barcode detection triggered');
+
+        if (!mountedRef.current || cooldownRef.current || !isScanning) {
+            console.log('⏩ Scanner not ready, ignoring detection');
+            return;
+        }
+
+        const code = result.codeResult.code;
+        const format = result.codeResult.format;
+        scanCountRef.current += 1;
+
+        console.log(`📱 Raw barcode detected: "${code}" (format: ${format}, scan #${scanCountRef.current})`);
+
+        // Enhanced validation
+        const cleanCode = code.replace(/\D/g, '');
+        console.log(`🧹 Cleaned code: "${cleanCode}" (length: ${cleanCode.length})`);
+
+        const isValidLength = [8, 12, 13, 14].includes(cleanCode.length);
+        const isNotAllZeros = !cleanCode.match(/^0+$/);
+        const isNotAllSame = !/^(.)\1+$/.test(cleanCode);
+        const hasMinimumVariation = cleanCode.length < 8 || new Set(cleanCode).size >= 2;
+
+        if (!isValidLength || !isNotAllZeros || !isNotAllSame || !hasMinimumVariation) {
+            console.log('❌ Invalid UPC validation failed');
+            return;
+        }
+
+        // Check confidence
+        if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
+            const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
+            if (avgError > 0.15) {
+                console.log(`❌ High error rate: ${avgError}`);
+                return;
+            }
+        }
+
+        console.log(`✅ Valid UPC detected: "${cleanCode}"`);
+
+        // Set cooldown
+        cooldownRef.current = true;
+        setIsScanning(false);
+
+        // Enhanced visual feedback for mobile
+        playBeepSound();
+
+        if (scannerRef.current && mountedRef.current) {
+            // Flash the entire scanner area green
+            scannerRef.current.style.backgroundColor = '#10B981';
+            scannerRef.current.style.border = '4px solid #10B981';
+
+            setTimeout(() => {
+                if (scannerRef.current && mountedRef.current) {
+                    scannerRef.current.style.backgroundColor = '';
+                    scannerRef.current.style.border = '';
+                }
+            }, 500);
+        }
+
+        // Process result
+        setTimeout(() => {
+            if (mountedRef.current) {
+                console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
+                cleanupScanner();
+                onBarcodeDetected(cleanCode);
+            }
+        }, 600);
+    }, [isScanning, cleanupScanner, onBarcodeDetected]);
+
     useEffect(() => {
         let Quagga;
 
         const initializeScanner = async () => {
-            if (!isActive || isInitialized || !mountedRef.current) return;
+            if (!isActive || isInitialized || !mountedRef.current) {
+                return;
+            }
 
             try {
+                console.log('🚀 Initializing mobile-optimized barcode scanner...');
                 setIsLoading(true);
                 setError(null);
                 setIsScanning(true);
                 cooldownRef.current = false;
+                scanCountRef.current = 0;
 
-                // Check if camera is available
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    setError('Camera not supported on this device.');
-                    setIsLoading(false);
-                    return;
+                    throw new Error('Camera not supported on this device');
                 }
 
-                // Dynamic import of Quagga2 (only load when needed)
                 const QuaggaModule = await import('@ericblade/quagga2');
                 Quagga = QuaggaModule.default;
                 quaggaRef.current = Quagga;
 
-                if (!scannerRef.current || !mountedRef.current) return;
+                if (!scannerRef.current || !mountedRef.current) {
+                    return;
+                }
 
-                // Configure Quagga2 for barcode scanning
+                // Mobile-optimized configuration
                 const config = {
                     inputStream: {
                         name: "Live",
                         type: "LiveStream",
                         target: scannerRef.current,
                         constraints: {
-                            width: { min: 640, ideal: 1280 },
-                            height: { min: 480, ideal: 720 },
-                            facingMode: "environment", // Use back camera
-                            aspectRatio: { min: 1, max: 2 }
+                            width: isMobile ?
+                                { min: 320, ideal: 640, max: 1280 } :
+                                { min: 640, ideal: 1280, max: 1920 },
+                            height: isMobile ?
+                                { min: 240, ideal: 480, max: 720 } :
+                                { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment",
+                            aspectRatio: isMobile ? { min: 0.75, max: 1.5 } : { min: 1, max: 2 }
                         }
                     },
                     locator: {
-                        patchSize: "large",
-                        halfSample: false
+                        patchSize: isMobile ? "medium" : "large",
+                        halfSample: isMobile ? true : false
                     },
-                    numOfWorkers: 1, // Reduced to prevent conflicts
-                    frequency: 5, // Reduced frequency for better accuracy
+                    numOfWorkers: isMobile ? 1 : Math.min(navigator.hardwareConcurrency || 2, 4),
+                    frequency: isMobile ? 8 : 10,
                     decoder: {
                         readers: [
-                            "ean_reader",     // Best for grocery items
-                            "upc_reader",     // Standard UPC
-                            "upc_e_reader"    // Compact UPC
+                            "ean_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "code_128_reader",
+                            "ean_8_reader"
                         ],
                         multiple: false
                     },
@@ -91,96 +221,50 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     }
                 };
 
-                // Initialize Quagga
+                console.log('📋 Mobile Quagga config:', config);
+
                 Quagga.init(config, (err) => {
                     if (!mountedRef.current) return;
 
                     if (err) {
-                        console.error('Quagga initialization error:', err);
+                        console.error('❌ Quagga initialization error:', err);
+                        let errorMessage = 'Failed to initialize camera scanner';
+
                         if (err.name === 'NotAllowedError') {
-                            setError('Camera permission denied. Please allow camera access and try again.');
+                            errorMessage = 'Camera permission denied. Please allow camera access and try again.';
                         } else if (err.name === 'NotFoundError') {
-                            setError('No camera found. Please ensure your device has a camera.');
+                            errorMessage = 'No camera found. Please ensure your device has a camera.';
                         } else if (err.name === 'NotSupportedError') {
-                            setError('Camera not supported by this browser.');
-                        } else {
-                            setError('Failed to initialize camera scanner. Please check camera permissions.');
+                            errorMessage = 'Camera not supported by this browser.';
+                        } else if (err.name === 'NotReadableError') {
+                            errorMessage = 'Camera is being used by another application.';
                         }
+
+                        setError(errorMessage);
                         setIsLoading(false);
                         return;
                     }
 
-                    console.log('Quagga initialized successfully');
-                    Quagga.start();
-                    setIsInitialized(true);
-                    setIsLoading(false);
-                });
+                    console.log('✅ Mobile Quagga initialized successfully');
 
-                // Set up barcode detection handler
-                Quagga.onDetected((result) => {
-                    if (!mountedRef.current || cooldownRef.current || !isScanning) {
-                        console.log('Scanner not ready, ignoring detection');
-                        return;
+                    try {
+                        Quagga.start();
+                        setIsInitialized(true);
+                        setIsLoading(false);
+
+                        detectionHandlerRef.current = handleBarcodeDetection;
+                        Quagga.onDetected(detectionHandlerRef.current);
+
+                        console.log('🎯 Mobile detection handler registered');
+                    } catch (startError) {
+                        console.error('❌ Error starting Quagga:', startError);
+                        setError('Failed to start camera');
+                        setIsLoading(false);
                     }
-
-                    const code = result.codeResult.code;
-                    const format = result.codeResult.format;
-                    console.log(`Barcode detected: ${code} (format: ${format})`);
-
-                    // Strict validation for UPC codes
-                    const cleanCode = code.replace(/\D/g, ''); // Remove non-digits
-
-                    // Validate UPC length (must be exactly 12 digits for UPC-A or 8 for UPC-E)
-                    if (cleanCode.length !== 12 && cleanCode.length !== 8 && cleanCode.length !== 13 && cleanCode.length !== 14) {
-                        console.log('Invalid UPC length, ignoring:', cleanCode, 'Length:', cleanCode.length);
-                        return;
-                    }
-
-                    // Additional validation - check if it looks like a real UPC
-                    if (cleanCode.length < 8 || cleanCode.startsWith('00000') || cleanCode === '0'.repeat(cleanCode.length)) {
-                        console.log('Invalid UPC pattern, ignoring:', cleanCode);
-                        return;
-                    }
-
-                    // Check result confidence (if available)
-                    if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
-                        const avgConfidence = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
-                        if (avgConfidence > 0.1) { // Too many errors
-                            console.log('Low confidence detection, ignoring. Confidence:', avgConfidence);
-                            return;
-                        }
-                    }
-
-                    console.log('Valid UPC detected:', cleanCode);
-
-                    // Set cooldown to prevent multiple detections
-                    cooldownRef.current = true;
-                    setIsScanning(false);
-
-                    // Play beep sound
-                    playBeepSound();
-
-                    // Visual feedback
-                    if (scannerRef.current && mountedRef.current) {
-                        scannerRef.current.style.border = '4px solid #10B981';
-                        setTimeout(() => {
-                            if (scannerRef.current && mountedRef.current) {
-                                scannerRef.current.style.border = '';
-                            }
-                        }, 500);
-                    }
-
-                    // Stop scanner and call callback
-                    setTimeout(() => {
-                        if (mountedRef.current) {
-                            cleanupScanner();
-                            onBarcodeDetected(cleanCode);
-                        }
-                    }, 600);
                 });
 
             } catch (error) {
-                console.error('Scanner setup error:', error);
+                console.error('❌ Mobile scanner setup error:', error);
                 if (mountedRef.current) {
                     setError('Camera scanner not supported on this device.');
                     setIsLoading(false);
@@ -188,51 +272,201 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         };
 
-        const cleanupScanner = () => {
-            if (quaggaRef.current && isInitialized) {
-                console.log('Stopping Quagga scanner');
-                try {
-                    quaggaRef.current.stop();
-                    quaggaRef.current.offDetected();
-                } catch (error) {
-                    console.log('Error stopping Quagga:', error);
-                }
-                setIsInitialized(false);
-                setIsScanning(false);
-            }
-        };
-
         if (isActive && mountedRef.current) {
-            initializeScanner();
+            setTimeout(() => {
+                initializeScanner();
+            }, 100);
         }
 
-        // Cleanup on unmount or when scanner becomes inactive
         return () => {
+            if (!isActive || !mountedRef.current) {
+                cleanupScanner();
+            }
+        };
+    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]);
+
+    useEffect(() => {
+        return () => {
+            console.log('🧹 Component unmounting, cleaning up scanner...');
             cleanupScanner();
         };
-    }, [isActive, onBarcodeDetected]);
+    }, [cleanupScanner]);
 
-    // Play a beep sound when barcode is detected
     const playBeepSound = () => {
         try {
-            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmgfCkCW3PH');
-            audio.play().catch(() => {
-                // Ignore audio play errors (some browsers block autoplay)
-            });
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 800;
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
         } catch (error) {
-            // Ignore audio errors
+            console.log('Audio feedback not available');
         }
     };
 
     if (!isActive) return null;
 
+    // Mobile-optimized layout
+    if (isMobile) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-95 flex flex-col z-50">
+                {/* Mobile Header - Minimal */}
+                <div className="flex-shrink-0 bg-black text-white p-3 flex justify-between items-center">
+                    <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
+                    <button
+                        onClick={() => {
+                            cleanupScanner();
+                            onClose();
+                        }}
+                        className="text-white text-2xl font-bold p-1"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                {error ? (
+                    <div className="flex-1 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg p-6 text-center max-w-sm">
+                            <div className="text-red-600 mb-4">❌ {error}</div>
+                            <div className="text-sm text-gray-500 mb-4">
+                                Please ensure camera permissions are enabled.
+                            </div>
+                            <button
+                                onClick={() => {
+                                    cleanupScanner();
+                                    onClose();
+                                }}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-md"
+                            >
+                                Close Scanner
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile Camera Area - Full screen minus header/footer */}
+                        <div className="flex-1 relative overflow-hidden">
+                            {isLoading && (
+                                <div className="absolute inset-0 bg-black flex items-center justify-center">
+                                    <div className="text-center text-white">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div>Starting camera...</div>
+                                        <div className="text-sm mt-2 opacity-75">
+                                            Scan #{scanCountRef.current + 1}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Camera View - Full area */}
+                            <div
+                                ref={scannerRef}
+                                className="w-full h-full bg-black"
+                                style={{ display: isLoading ? 'none' : 'block' }}
+                            />
+
+                            {/* Enhanced Mobile Reticle Overlay */}
+                            {!isLoading && (
+                                <div className="absolute inset-0 pointer-events-none">
+                                    {/* Semi-transparent overlay with cutout */}
+                                    <div className="absolute inset-0 bg-black bg-opacity-40">
+                                        {/* Scanning target area - centered rectangle */}
+                                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-32 sm:w-80 sm:h-36">
+                                            {/* Clear area for barcode */}
+                                            <div className="w-full h-full bg-transparent border-2 border-red-500 rounded-lg relative overflow-hidden">
+                                                {/* Scanning line animation */}
+                                                {isScanning && (
+                                                    <div className="absolute inset-x-0 top-0 h-0.5 bg-red-500 animate-pulse"
+                                                         style={{
+                                                             animation: 'scanline 2s ease-in-out infinite'
+                                                         }}>
+                                                    </div>
+                                                )}
+
+                                                {/* Corner brackets - enhanced for mobile */}
+                                                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
+                                                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
+                                                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
+                                                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
+
+                                                {/* Center crosshair */}
+                                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4">
+                                                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
+                                                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Instructions overlay */}
+                                    <div className="absolute top-16 left-4 right-4 bg-black bg-opacity-75 text-white text-sm p-3 rounded-lg text-center">
+                                        {isScanning ? (
+                                            <div>
+                                                <div className="font-medium">📱 Position barcode in the red frame</div>
+                                                <div className="text-xs mt-1 opacity-75">Hold steady • Good lighting helps</div>
+                                            </div>
+                                        ) : (
+                                            <div className="font-medium text-green-400">✅ Barcode detected! Processing...</div>
+                                        )}
+                                    </div>
+
+                                    {/* Bottom status */}
+                                    <div className="absolute bottom-4 left-4 right-4 text-center text-white text-xs">
+                                        <div className="bg-black bg-opacity-50 rounded-lg p-2">
+                                            Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Mobile Footer - Minimal */}
+                        <div className="flex-shrink-0 bg-black text-white p-3 text-center">
+                            <button
+                                onClick={() => {
+                                    cleanupScanner();
+                                    onClose();
+                                }}
+                                className="bg-gray-600 text-white px-6 py-2 rounded-lg text-sm"
+                                disabled={!isScanning}
+                            >
+                                {isScanning ? 'Cancel' : 'Processing...'}
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {/* CSS for scanning animation */}
+                <style jsx>{`
+                    @keyframes scanline {
+                        0% { top: 0; opacity: 1; }
+                        50% { top: 50%; opacity: 0.8; }
+                        100% { top: 100%; opacity: 1; }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
+    // Desktop layout (unchanged)
     return (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
                     <button
-                        onClick={onClose}
+                        onClick={() => {
+                            cleanupScanner();
+                            onClose();
+                        }}
                         className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                     >
                         ×
@@ -246,7 +480,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             Please ensure your browser has camera permissions enabled and try again.
                         </div>
                         <button
-                            onClick={onClose}
+                            onClick={() => {
+                                cleanupScanner();
+                                onClose();
+                            }}
                             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                         >
                             Close Scanner
@@ -261,7 +498,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             </div>
                         )}
 
-                        {/* Camera view */}
                         <div className="relative">
                             <div
                                 ref={scannerRef}
@@ -271,16 +507,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                             {!isLoading && (
                                 <>
-                                    {/* Scanning overlay with targeting reticle */}
                                     <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
-                                        {/* Targeting box */}
                                         <div className="absolute inset-4 border-2 border-red-500 rounded-lg">
-                                            {/* Scanning line - only show when actively scanning */}
                                             {isScanning && (
                                                 <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
                                             )}
-
-                                            {/* Corner indicators */}
                                             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
                                             <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
                                             <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
@@ -288,7 +519,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         </div>
                                     </div>
 
-                                    {/* Instructions */}
                                     <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                                         {isScanning ? (
                                             <>📱 Position barcode within the red frame</>
@@ -301,37 +531,21 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         </div>
 
                         {!isLoading && (
-                            <div className="mt-4 space-y-2">
-                                <div className="text-sm text-gray-600 text-center">
-                                    {isScanning ? (
-                                        <>Hold your device steady and ensure good lighting</>
-                                    ) : (
-                                        <>Processing barcode...</>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-center space-x-2">
-                                    <button
-                                        onClick={onClose}
-                                        className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
-                                        disabled={!isScanning}
-                                    >
-                                        {isScanning ? 'Cancel' : 'Processing...'}
-                                    </button>
-                                </div>
+                            <div className="mt-4 text-center">
+                                <button
+                                    onClick={() => {
+                                        cleanupScanner();
+                                        onClose();
+                                    }}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+                                    disabled={!isScanning}
+                                >
+                                    {isScanning ? 'Cancel' : 'Processing...'}
+                                </button>
                             </div>
                         )}
                     </>
                 )}
-
-                {/* Tips */}
-                <div className="mt-4 text-xs text-gray-500 text-center space-y-1">
-                    <div>💡 <strong>Tips:</strong></div>
-                    <div>• Works best with good lighting</div>
-                    <div>• Hold device steady for 1-2 seconds</div>
-                    <div>• Try different angles if not detecting</div>
-                    <div>• Make sure barcode is clearly visible</div>
-                </div>
             </div>
         </div>
     );
