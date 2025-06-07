@@ -23,7 +23,12 @@ function InventoryContent() {
     const [editingItem, setEditingItem] = useState(null);
     const [consumingItem, setConsumingItem] = useState(null);
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
+
+    // 🔧 ENHANCED: Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterLocation, setFilterLocation] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('expiration');
     const [formData, setFormData] = useState({
         name: '',
@@ -163,9 +168,20 @@ function InventoryContent() {
         }
     };
 
-    // Filter and sort inventory
+    // 🔧 ENHANCED: Advanced filter and sort inventory with search
     const getFilteredAndSortedInventory = () => {
         let filtered = [...inventory];
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(item =>
+                item.name.toLowerCase().includes(query) ||
+                (item.brand && item.brand.toLowerCase().includes(query)) ||
+                (item.category && item.category.toLowerCase().includes(query)) ||
+                (item.upc && item.upc.includes(query))
+            );
+        }
 
         // Apply status filter
         if (filterStatus !== 'all') {
@@ -182,6 +198,20 @@ function InventoryContent() {
                         return true;
                 }
             });
+        }
+
+        // Apply location filter
+        if (filterLocation !== 'all') {
+            filtered = filtered.filter(item => item.location === filterLocation);
+        }
+
+        // Apply category filter
+        if (filterCategory !== 'all') {
+            filtered = filtered.filter(item =>
+                filterCategory === 'uncategorized'
+                    ? (!item.category || item.category === '')
+                    : item.category === filterCategory
+            );
         }
 
         // Apply sorting
@@ -211,12 +241,60 @@ function InventoryContent() {
                     return (a.category || 'Other').localeCompare(b.category || 'Other');
                 case 'location':
                     return a.location.localeCompare(b.location);
+                case 'quantity':
+                    return b.quantity - a.quantity; // Highest quantity first
+                case 'date-added':
+                    return new Date(b.addedDate || 0) - new Date(a.addedDate || 0); // Newest first
                 default:
                     return 0;
             }
         });
 
         return filtered;
+    };
+
+    // 🔧 NEW: Get unique values for filter dropdowns
+    const getUniqueLocations = () => {
+        const locations = [...new Set(inventory.map(item => item.location))].sort();
+        return locations;
+    };
+
+    const getUniqueCategories = () => {
+        const categories = [...new Set(inventory.map(item => item.category || '').filter(Boolean))].sort();
+        return categories;
+    };
+
+    // 🔧 NEW: Clear all filters
+    const clearAllFilters = () => {
+        setSearchQuery('');
+        setFilterStatus('all');
+        setFilterLocation('all');
+        setFilterCategory('all');
+        setSortBy('expiration');
+    };
+
+    // 🔧 NEW: Quick filter presets
+    const applyQuickFilter = (type) => {
+        clearAllFilters();
+        switch (type) {
+            case 'expired':
+                setFilterStatus('expired');
+                break;
+            case 'expiring-soon':
+                setFilterStatus('expiring');
+                break;
+            case 'pantry':
+                setFilterLocation('pantry');
+                break;
+            case 'fridge':
+                setFilterLocation('fridge');
+                break;
+            case 'freezer':
+                setFilterLocation('freezer');
+                break;
+            default:
+                break;
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -430,42 +508,199 @@ function InventoryContent() {
                     </div>
                 </div>
 
-                {/* Filters and Sorting */}
-                <div className="bg-white shadow rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-                                <select
-                                    value={filterStatus}
-                                    onChange={(e) => setFilterStatus(e.target.value)}
-                                    className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                >
-                                    <option value="all">All Items ({inventory.length})</option>
-                                    <option value="expired">Expired ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})</option>
-                                    <option value="expiring">Expiring Soon ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
-                                    <option value="fresh">Fresh ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
-                                </select>
+                {/* 🔧 ENHANCED: Advanced Search and Filtering */}
+                <div className="bg-white shadow rounded-lg p-4 space-y-4">
+                    {/* Search Bar */}
+                    <div>
+                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                            🔍 Search Inventory
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="search"
+                                placeholder="Search by name, brand, category, or UPC..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-gray-400">🔍</span>
                             </div>
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Sort by</label>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                >
-                                    <option value="expiration">Expiration Date</option>
-                                    <option value="name">Name</option>
-                                    <option value="category">Category</option>
-                                    <option value="location">Location</option>
-                                </select>
-                            </div>
+                    {/* Quick Filter Buttons */}
+                    <div>
+                        <div className="text-sm font-medium text-gray-700 mb-2">⚡ Quick Filters</div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => applyQuickFilter('expired')}
+                                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 border border-red-300"
+                            >
+                                🚨 Expired
+                            </button>
+                            <button
+                                onClick={() => applyQuickFilter('expiring-soon')}
+                                className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 border border-orange-300"
+                            >
+                                ⏰ Expiring Soon
+                            </button>
+                            <button
+                                onClick={() => applyQuickFilter('pantry')}
+                                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
+                            >
+                                🏠 Pantry
+                            </button>
+                            <button
+                                onClick={() => applyQuickFilter('fridge')}
+                                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
+                            >
+                                ❄️ Fridge
+                            </button>
+                            <button
+                                onClick={() => applyQuickFilter('freezer')}
+                                className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
+                            >
+                                🧊 Freezer
+                            </button>
+                            <button
+                                onClick={clearAllFilters}
+                                className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 border border-gray-300"
+                            >
+                                🔄 Clear All
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Advanced Filters */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">📊 Status</label>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                <option value="all">All Items ({inventory.length})</option>
+                                <option value="expired">Expired ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})</option>
+                                <option value="expiring">Expiring Soon ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                                <option value="fresh">Fresh ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                            </select>
                         </div>
 
-                        <div className="text-sm text-gray-500">
-                            Showing {filteredInventory.length} of {inventory.length} items
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">📍 Location</label>
+                            <select
+                                value={filterLocation}
+                                onChange={(e) => setFilterLocation(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                <option value="all">All Locations</option>
+                                {getUniqueLocations().map(location => (
+                                    <option key={location} value={location}>
+                                        {location.charAt(0).toUpperCase() + location.slice(1)} ({inventory.filter(item => item.location === location).length})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Category</label>
+                            <select
+                                value={filterCategory}
+                                onChange={(e) => setFilterCategory(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                <option value="all">All Categories</option>
+                                {getUniqueCategories().map(category => (
+                                    <option key={category} value={category}>
+                                        {category} ({inventory.filter(item => item.category === category).length})
+                                    </option>
+                                ))}
+                                {inventory.filter(item => !item.category || item.category === '').length > 0 && (
+                                    <option value="uncategorized">
+                                        Uncategorized ({inventory.filter(item => !item.category || item.category === '').length})
+                                    </option>
+                                )}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">⚡ Sort by</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                <option value="expiration">📅 Expiration Date</option>
+                                <option value="name">🔤 Name (A-Z)</option>
+                                <option value="category">🏷️ Category</option>
+                                <option value="location">📍 Location</option>
+                                <option value="quantity">📊 Quantity (High-Low)</option>
+                                <option value="date-added">📅 Date Added (Newest)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Active Filters Display */}
+                    {(searchQuery || filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
+                        <div className="border-t pt-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium text-gray-600">Active filters:</span>
+
+                                {searchQuery && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        Search: "{searchQuery}"
+                                        <button onClick={() => setSearchQuery('')} className="ml-1 text-indigo-600 hover:text-indigo-800">✕</button>
+                                    </span>
+                                )}
+
+                                {filterStatus !== 'all' && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Status: {filterStatus}
+                                        <button onClick={() => setFilterStatus('all')} className="ml-1 text-blue-600 hover:text-blue-800">✕</button>
+                                    </span>
+                                )}
+
+                                {filterLocation !== 'all' && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Location: {filterLocation}
+                                        <button onClick={() => setFilterLocation('all')} className="ml-1 text-green-600 hover:text-green-800">✕</button>
+                                    </span>
+                                )}
+
+                                {filterCategory !== 'all' && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        Category: {filterCategory}
+                                        <button onClick={() => setFilterCategory('all')} className="ml-1 text-purple-600 hover:text-purple-800">✕</button>
+                                    </span>
+                                )}
+
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                                >
+                                    Clear all
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Results Summary */}
+                    <div className="text-sm text-gray-500 border-t pt-3">
+                        Showing <span className="font-semibold text-gray-900">{filteredInventory.length}</span> of <span className="font-semibold text-gray-900">{inventory.length}</span> items
+                        {searchQuery && (
+                            <span> matching "{searchQuery}"</span>
+                        )}
                     </div>
                 </div>
 
