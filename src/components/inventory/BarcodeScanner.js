@@ -492,8 +492,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         };
 
         // Wait for the camera container to be rendered before initializing
-        if (isActive && mountedRef.current && !isLoading) {
+        if (isActive && mountedRef.current) {
             console.log('🕐 Scheduling scanner initialization...');
+            console.log('🔍 Debug state:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
+
             initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
                     console.log('🚀 Starting delayed initialization...');
@@ -502,8 +504,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     console.log('❌ Component or ref not ready for delayed init');
                     console.log('Component mounted:', !!mountedRef.current);
                     console.log('Scanner ref exists:', !!scannerRef.current);
+                    console.log('IsLoading:', isLoading);
                 }
-            }, 300);
+            }, 500); // Increased timeout to 500ms
+        } else {
+            console.log('🚫 Not scheduling init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
         }
 
         return () => {
@@ -514,7 +519,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 cleanupScanner();
             }
         };
-    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner, isLoading]);
+    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]); // 🔧 REMOVED isLoading dependency
 
     useEffect(() => {
         return () => {
