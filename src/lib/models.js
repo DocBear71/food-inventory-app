@@ -209,6 +209,29 @@ const UserInventorySchema = new mongoose.Schema({
         required: true
     },
     items: [InventoryItemSchema],
+
+    // NEW: Add consumption history tracking
+    consumptionHistory: [ConsumptionLogSchema],
+
+    // Statistics for consumption insights
+    consumptionStats: {
+        totalItemsConsumed: { type: Number, default: 0 },
+        topConsumedItems: [{
+            itemName: String,
+            totalConsumed: Number,
+            unit: String
+        }],
+        consumptionByReason: {
+            consumed: { type: Number, default: 0 },
+            recipe: { type: Number, default: 0 },
+            expired: { type: Number, default: 0 },
+            donated: { type: Number, default: 0 },
+            spilled: { type: Number, default: 0 },
+            other: { type: Number, default: 0 }
+        },
+        lastUpdated: { type: Date, default: Date.now }
+    },
+
     lastUpdated: { type: Date, default: Date.now }
 });
 
@@ -1105,6 +1128,364 @@ MealPrepTemplateSchema.methods.recordUsage = function(rating) {
     return this.save();
 };
 
+// Consumption Log Schema for tracking inventory usage
+const ConsumptionLogSchema = new mongoose.Schema({
+    itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    itemName: { type: String, required: true },
+    ingredient: { type: String }, // For recipe mode - the ingredient name from recipe
+    quantityConsumed: { type: Number, required: true },
+    unitConsumed: { type: String, required: true },
+    reason: {
+        type: String,
+        enum: ['consumed', 'recipe', 'expired', 'donated', 'spilled', 'other'],
+        required: true
+    },
+    notes: { type: String, maxlength: 500 },
+    recipeName: { type: String }, // If consumed for a recipe
+    dateConsumed: { type: Date, default: Date.now },
+    remainingQuantity: { type: Number, default: 0 } // Quantity left after consumption
+}, { _id: false });
+
+// Cooking Activity Schema for tracking recipe preparation
+const CookingActivitySchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    recipeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe',
+        required: true
+    },
+    recipeName: { type: String, required: true },
+
+    // Cooking details
+    servingsMade: { type: Number, default: 1 },
+    servingsMultiplier: { type: Number, default: 1 },
+
+    // Ingredient tracking
+    ingredientsUsed: [{
+        inventoryItemId: mongoose.Schema.Types.ObjectId,
+        inventoryItemName: String,
+        recipeIngredientName: String,
+        quantityUsed: Number,
+        unit: String,
+        hadEnoughInStock: Boolean
+    }],
+    ingredientsMissing: [{
+        ingredientName: String,
+        quantityNeeded: String,
+        unit: String
+    }],
+
+    // Cooking experience
+    cookingTime: { type: Number }, // Actual time taken in minutes
+    difficulty: {
+        type: String,
+        enum: ['easier', 'as_expected', 'harder'],
+        default: 'as_expected'
+    },
+    rating: { type: Number, min: 1, max: 5 },
+    notes: { type: String, maxlength: 1000 },
+
+    // Modifications made
+    modifications: [{
+        type: {
+            type: String,
+            enum: ['ingredient_substitution', 'quantity_change', 'method_change', 'time_change'],
+            required: true
+        },
+        description: String,
+        originalValue: String,
+        newValue: String
+    }],
+
+    // Results
+    wouldMakeAgain: { type: Boolean },
+    photoUrls: [String], // Future: photos of the finished dish
+
+    dateCooked: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// Food Waste Tracking Schema
+const FoodWasteLogSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Waste details
+    itemName: { type: String, required: true },
+    category: { type: String },
+    quantityWasted: { type: Number, required: true },
+    unit: { type: String, required: true },
+
+    // Waste reason
+    wasteReason: {
+        type: String,
+        enum: ['expired', 'spoiled', 'overcooked', 'burned', 'too_much_prepared', 'taste_bad', 'other'],
+        required: true
+    },
+
+    // Prevention insights
+    preventable: { type: Boolean, default: true },
+    preventionNotes: { type: String, maxlength: 500 },
+
+    // Financial impact
+    estimatedValue: { type: Number }, // Estimated cost of wasted food
+
+    // Learning
+    lessonsLearned: { type: String, maxlength: 500 },
+    futureActions: [String], // Actions to prevent similar waste
+
+    wasteDate: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// Inventory Insights Schema for analytics
+const InventoryInsightSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Time period for insights
+    periodStart: { type: Date, required: true },
+    periodEnd: { type: Date, required: true },
+    periodType: {
+        type: String,
+        enum: ['week', 'month', 'quarter', 'year'],
+        required: true
+    },
+
+    // Consumption insights
+    consumption: {
+        totalItems: { type: Number, default: 0 },
+        totalQuantity: { type: Number, default: 0 },
+        byCategory: [{
+            category: String,
+            itemCount: Number,
+            totalQuantity: Number
+        }],
+        byReason: [{
+            reason: String,
+            itemCount: Number,
+            totalQuantity: Number
+        }],
+        topConsumedItems: [{
+            itemName: String,
+            timesConsumed: Number,
+            totalQuantity: Number,
+            unit: String
+        }]
+    },
+
+    // Waste insights
+    waste: {
+        totalItems: { type: Number, default: 0 },
+        totalQuantity: { type: Number, default: 0 },
+        estimatedValue: { type: Number, default: 0 },
+        byReason: [{
+            reason: String,
+            itemCount: Number,
+            totalQuantity: Number,
+            estimatedValue: Number
+        }],
+        preventableWaste: {
+            items: Number,
+            quantity: Number,
+            estimatedValue: Number,
+            percentage: Number
+        }
+    },
+
+    // Shopping patterns
+    shopping: {
+        itemsAdded: { type: Number, default: 0 },
+        categoriesAdded: [String],
+        averageShelfLife: { type: Number }, // Days
+        stockRotation: { type: Number } // How often inventory turns over
+    },
+
+    // Cooking insights
+    cooking: {
+        recipesCooked: { type: Number, default: 0 },
+        ingredientsUsedFromInventory: { type: Number, default: 0 },
+        inventoryUtilizationRate: { type: Number, default: 0 }, // Percentage
+        averageRecipeRating: { type: Number, default: 0 }
+    },
+
+    // Recommendations
+    recommendations: [{
+        type: {
+            type: String,
+            enum: ['reduce_waste', 'stock_optimization', 'recipe_suggestion', 'shopping_adjustment'],
+            required: true
+        },
+        title: String,
+        description: String,
+        priority: {
+            type: String,
+            enum: ['low', 'medium', 'high'],
+            default: 'medium'
+        },
+        actionItems: [String]
+    }],
+
+    generatedAt: { type: Date, default: Date.now },
+    lastViewed: Date
+});
+
+// Methods for consumption tracking
+InventoryItemSchema.methods.consume = function(quantity, reason, notes = '') {
+    const consumedQuantity = Math.min(quantity, this.quantity);
+    this.quantity -= consumedQuantity;
+
+    return {
+        itemId: this._id,
+        itemName: this.name,
+        quantityConsumed: consumedQuantity,
+        unitConsumed: this.unit,
+        reason: reason,
+        notes: notes,
+        remainingQuantity: this.quantity,
+        dateConsumed: new Date()
+    };
+};
+
+// Methods for waste tracking
+UserInventorySchema.methods.logWaste = function(wasteData) {
+    // This would typically save to FoodWasteLog collection
+    console.log('Waste logged:', wasteData);
+};
+
+// Methods for generating insights
+UserInventorySchema.methods.generateInsights = async function(periodType = 'month') {
+    const now = new Date();
+    let periodStart;
+
+    switch (periodType) {
+        case 'week':
+            periodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case 'month':
+            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        case 'quarter':
+            const quarter = Math.floor(now.getMonth() / 3);
+            periodStart = new Date(now.getFullYear(), quarter * 3, 1);
+            break;
+        case 'year':
+            periodStart = new Date(now.getFullYear(), 0, 1);
+            break;
+        default:
+            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    // Analyze consumption history for the period
+    const periodConsumption = this.consumptionHistory.filter(log =>
+        log.dateConsumed >= periodStart && log.dateConsumed <= now
+    );
+
+    // Generate insights based on consumption patterns
+    const insights = {
+        userId: this.userId,
+        periodStart: periodStart,
+        periodEnd: now,
+        periodType: periodType,
+        consumption: {
+            totalItems: periodConsumption.length,
+            totalQuantity: periodConsumption.reduce((sum, log) => sum + log.quantityConsumed, 0),
+            byReason: this.analyzeConsumptionByReason(periodConsumption),
+            topConsumedItems: this.getTopConsumedItems(periodConsumption)
+        },
+        recommendations: this.generateRecommendations(periodConsumption)
+    };
+
+    return insights;
+};
+
+UserInventorySchema.methods.analyzeConsumptionByReason = function(consumptionLogs) {
+    const byReason = {};
+    consumptionLogs.forEach(log => {
+        if (!byReason[log.reason]) {
+            byReason[log.reason] = { itemCount: 0, totalQuantity: 0 };
+        }
+        byReason[log.reason].itemCount++;
+        byReason[log.reason].totalQuantity += log.quantityConsumed;
+    });
+    return Object.entries(byReason).map(([reason, data]) => ({
+        reason,
+        ...data
+    }));
+};
+
+UserInventorySchema.methods.getTopConsumedItems = function(consumptionLogs) {
+    const itemCounts = {};
+    consumptionLogs.forEach(log => {
+        if (!itemCounts[log.itemName]) {
+            itemCounts[log.itemName] = {
+                itemName: log.itemName,
+                timesConsumed: 0,
+                totalQuantity: 0,
+                unit: log.unitConsumed
+            };
+        }
+        itemCounts[log.itemName].timesConsumed++;
+        itemCounts[log.itemName].totalQuantity += log.quantityConsumed;
+    });
+
+    return Object.values(itemCounts)
+        .sort((a, b) => b.totalQuantity - a.totalQuantity)
+        .slice(0, 10);
+};
+
+UserInventorySchema.methods.generateRecommendations = function(consumptionLogs) {
+    const recommendations = [];
+
+    // Check for high waste
+    const wasteItems = consumptionLogs.filter(log =>
+        ['expired', 'spoiled'].includes(log.reason)
+    );
+
+    if (wasteItems.length > 0) {
+        recommendations.push({
+            type: 'reduce_waste',
+            title: 'Reduce Food Waste',
+            description: `You've thrown away ${wasteItems.length} items this period. Consider meal planning and proper storage.`,
+            priority: 'high',
+            actionItems: [
+                'Plan meals based on expiration dates',
+                'Store items properly to extend shelf life',
+                'Use FIFO (First In, First Out) rotation'
+            ]
+        });
+    }
+
+    // Check for frequently used items
+    const topItems = this.getTopConsumedItems(consumptionLogs);
+    if (topItems.length > 0) {
+        recommendations.push({
+            type: 'stock_optimization',
+            title: 'Stock Optimization',
+            description: `Your most used items are: ${topItems.slice(0, 3).map(item => item.itemName).join(', ')}`,
+            priority: 'medium',
+            actionItems: [
+                'Keep these frequently used items well-stocked',
+                'Consider buying these items in bulk',
+                'Set up automatic reorder reminders'
+            ]
+        });
+    }
+
+    return recommendations;
+};
+
+
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
@@ -1172,6 +1553,18 @@ MealPrepTemplateSchema.index({ 'usage.averageRating': -1 });
 MealPrepKnowledgeSchema.index({ ingredient: 1 });
 MealPrepKnowledgeSchema.index({ category: 1 });
 
+CookingActivitySchema.index({ userId: 1, dateCooked: -1 });
+CookingActivitySchema.index({ recipeId: 1, dateCooked: -1 });
+CookingActivitySchema.index({ userId: 1, rating: -1 });
+
+FoodWasteLogSchema.index({ userId: 1, wasteDate: -1 });
+FoodWasteLogSchema.index({ userId: 1, wasteReason: 1 });
+FoodWasteLogSchema.index({ userId: 1, preventable: 1 });
+
+InventoryInsightSchema.index({ userId: 1, periodStart: -1 });
+InventoryInsightSchema.index({ userId: 1, periodType: 1, periodStart: -1 });
+
+
 // Export models (prevent re-compilation in development)
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
 export const UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
@@ -1187,3 +1580,8 @@ export const ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mong
 export const MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
 export const MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
 export const MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
+export const CookingActivity = mongoose.models.CookingActivity || mongoose.model('CookingActivity', CookingActivitySchema);
+export const FoodWasteLog = mongoose.models.FoodWasteLog || mongoose.model('FoodWasteLog', FoodWasteLogSchema);
+export const InventoryInsight = mongoose.models.InventoryInsight || mongoose.model('InventoryInsight', InventoryInsightSchema);
+
+

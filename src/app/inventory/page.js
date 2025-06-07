@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js - v2
+// file: /src/app/inventory/page.js - v3
 
 'use client';
 
@@ -7,6 +7,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import UPCLookup from '@/components/inventory/UPCLookup';
+import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import { redirect } from 'next/navigation';
 
 // Separate component for search params to wrap in Suspense
@@ -19,8 +20,11 @@ function InventoryContent() {
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(shouldShowAddForm);
     const [editingItem, setEditingItem] = useState(null);
+    const [consumingItem, setConsumingItem] = useState(null);
+    const [showBulkConsume, setShowBulkConsume] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all'); // all, expired, expiring, fresh
     const [sortBy, setSortBy] = useState('expiration'); // expiration, name, category, location
+    const [selectedItems, setSelectedItems] = useState(new Set());
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
@@ -69,6 +73,48 @@ function InventoryContent() {
             console.error('Error fetching inventory:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Handle consumption of items
+    const handleConsumption = async (consumptionData, mode = 'single') => {
+        try {
+            const response = await fetch('/api/inventory/consume', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    consumptions: consumptionData,
+                    mode: mode
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Refresh inventory
+                await fetchInventory();
+
+                // Show success message
+                const { summary } = result;
+                let message = 'Inventory updated successfully!';
+
+                if (summary.itemsRemoved.length > 0) {
+                    message += ` Removed: ${summary.itemsRemoved.join(', ')}.`;
+                }
+                if (summary.itemsUpdated.length > 0) {
+                    message += ` Updated quantities for ${summary.itemsUpdated.length} items.`;
+                }
+
+                alert(message);
+            } else {
+                throw new Error(result.error || 'Failed to update inventory');
+            }
+        } catch (error) {
+            console.error('Error consuming items:', error);
+            alert('Error updating inventory: ' + error.message);
+            throw error;
         }
     };
 
@@ -330,6 +376,38 @@ function InventoryContent() {
         setEditingItem(null);
     };
 
+    // Handle bulk consumption for expired items
+    const handleBulkConsumeExpired = () => {
+        const expiredItems = inventory.filter(item => {
+            const status = getExpirationStatus(item.expirationDate);
+            return status.status === 'expired';
+        });
+
+        if (expiredItems.length === 0) {
+            alert('No expired items found');
+            return;
+        }
+
+        if (confirm(`Remove ${expiredItems.length} expired items from inventory?`)) {
+            const consumptions = expiredItems.map(item => ({
+                itemId: item._id,
+                reason: 'expired',
+                quantity: item.quantity,
+                unit: item.unit,
+                notes: 'Bulk removal of expired items',
+                removeCompletely: true
+            }));
+
+            Promise.all(consumptions.map(consumption =>
+                handleConsumption(consumption, 'single')
+            )).then(() => {
+                alert(`Successfully removed ${expiredItems.length} expired items`);
+            }).catch(error => {
+                console.error('Error removing expired items:', error);
+            });
+        }
+    };
+
     if (status === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -343,6 +421,7 @@ function InventoryContent() {
     }
 
     const filteredInventory = getFilteredAndSortedInventory();
+    const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
 
     return (
         <DashboardLayout>
@@ -350,12 +429,22 @@ function InventoryContent() {
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <h1 className="text-2xl font-bold text-gray-900">Food Inventory</h1>
-                    <button
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                        {showAddForm ? 'Cancel' : 'Add Item'}
-                    </button>
+                    <div className="flex gap-2">
+                        {expiredCount > 0 && (
+                            <button
+                                onClick={handleBulkConsumeExpired}
+                                className="inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            >
+                                🗑️ Remove {expiredCount} Expired
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setShowAddForm(!showAddForm)}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            {showAddForm ? 'Cancel' : 'Add Item'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters and Sorting */}
@@ -678,6 +767,13 @@ function InventoryContent() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                                     <button
+                                                        onClick={() => setConsumingItem(item)}
+                                                        className="text-blue-600 hover:text-blue-900"
+                                                        title="Use/Consume Item"
+                                                    >
+                                                        📦 Use
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleEdit(item)}
                                                         className="text-indigo-600 hover:text-indigo-900"
                                                     >
@@ -699,6 +795,16 @@ function InventoryContent() {
                         )}
                     </div>
                 </div>
+
+                {/* Consumption Modal */}
+                {consumingItem && (
+                    <InventoryConsumption
+                        item={consumingItem}
+                        onConsume={handleConsumption}
+                        onClose={() => setConsumingItem(null)}
+                        mode="single"
+                    />
+                )}
             </div>
         </DashboardLayout>
     );
