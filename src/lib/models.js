@@ -151,6 +151,21 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
+    // Meal planning preferences
+    mealPlanningPreferences: {
+        type: UserMealPlanningPreferencesSchema,
+        default: () => ({
+            defaultMealTypes: ['breakfast', 'lunch', 'dinner'],
+            planningHorizon: 'week',
+            shoppingDay: 'sunday',
+            mealPrepDays: ['sunday'],
+            dietaryRestrictions: [],
+            avoidIngredients: [],
+            preferredCuisines: [],
+            cookingTimePreference: 'any',
+            weekStartDay: 'monday'  // ADD THIS LINE to the existing schema
+        })
+    },
     // Nutrition tracking preferences
     nutritionGoals: {
         dailyCalories: { type: Number, default: 2000 },
@@ -488,6 +503,11 @@ const MealPlanTemplateSchema = new mongoose.Schema({
 
 // Add meal planning preferences to User schema
 const UserMealPlanningPreferencesSchema = new mongoose.Schema({
+    weekStartDay: {
+        type: String,
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: 'monday'
+    },
     defaultMealTypes: {
         type: [String],
         enum: ['breakfast', 'lunch', 'dinner', 'snack'],

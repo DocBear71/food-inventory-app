@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v9
+// file: /src/components/meal-planning/MealPlanningCalendar.js v10
 
 'use client';
 
@@ -19,8 +19,17 @@ export default function MealPlanningCalendar() {
     const [showShoppingList, setShowShoppingList] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [weekStartDay, setWeekStartDay] = useState('monday'); // Default to Monday
+    const [showWeekSettings, setShowWeekSettings] = useState(false);
 
-    const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    // Week days configuration based on user preference
+    const getWeekDaysOrder = (startDay) => {
+        const allDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const startIndex = allDays.indexOf(startDay);
+        return [...allDays.slice(startIndex), ...allDays.slice(0, startIndex)];
+    };
+
+    const weekDays = getWeekDaysOrder(weekStartDay);
     const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
 
     // Check if mobile
@@ -34,14 +43,72 @@ export default function MealPlanningCalendar() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Get the start of the week (Monday)
+    // Load user preferences
+    useEffect(() => {
+        if (session?.user) {
+            loadUserPreferences();
+        }
+    }, [session]);
+
+    const loadUserPreferences = async () => {
+        try {
+            const response = await fetch('/api/user/preferences');
+            const data = await response.json();
+            if (data.success && data.preferences?.weekStartDay) {
+                setWeekStartDay(data.preferences.weekStartDay);
+            }
+        } catch (error) {
+            console.error('Error loading user preferences:', error);
+        }
+    };
+
+    const updateWeekStartPreference = async (newStartDay) => {
+        try {
+            const response = await fetch('/api/user/preferences', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    weekStartDay: newStartDay
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setWeekStartDay(newStartDay);
+                setShowWeekSettings(false);
+                // Refresh meal plan to use new week structure
+                await fetchMealPlan();
+            }
+        } catch (error) {
+            console.error('Error updating week start preference:', error);
+        }
+    };
+
+    // Get the start of the week based on user preference
     const getWeekStart = (date) => {
         const d = new Date(date);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(d.setDate(diff));
-        monday.setHours(0, 0, 0, 0);
-        return monday;
+        const currentDay = d.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+        // Convert weekStartDay to number
+        const dayNumbers = {
+            'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+            'thursday': 4, 'friday': 5, 'saturday': 6
+        };
+
+        const startDayNumber = dayNumbers[weekStartDay];
+
+        // Calculate days to subtract to get to start of week
+        let daysToSubtract = currentDay - startDayNumber;
+        if (daysToSubtract < 0) {
+            daysToSubtract += 7;
+        }
+
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - daysToSubtract);
+        weekStart.setHours(0, 0, 0, 0);
+        return weekStart;
     };
 
     const getFormattedWeekStart = (date) => {
@@ -101,6 +168,12 @@ export default function MealPlanningCalendar() {
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
 
+            // Create meals object with all days initialized
+            const mealsObject = {};
+            weekDays.forEach(day => {
+                mealsObject[day] = [];
+            });
+
             const response = await fetch('/api/meal-plans', {
                 method: 'POST',
                 headers: {
@@ -113,15 +186,7 @@ export default function MealPlanningCalendar() {
                         day: 'numeric'
                     })}`,
                     weekStartDate: weekStart.toISOString(),
-                    meals: {
-                        monday: [],
-                        tuesday: [],
-                        wednesday: [],
-                        thursday: [],
-                        friday: [],
-                        saturday: [],
-                        sunday: []
-                    }
+                    meals: mealsObject
                 })
             });
 
@@ -284,11 +349,11 @@ export default function MealPlanningCalendar() {
     };
 
     useEffect(() => {
-        if (session?.user) {
+        if (session?.user && weekStartDay) {
             fetchMealPlan();
             fetchRecipes();
         }
-    }, [session, currentWeek]);
+    }, [session, currentWeek, weekStartDay]);
 
     const mealsPlanned = hasMealsPlanned();
     console.log('Meals planned check result:', mealsPlanned);
@@ -318,9 +383,23 @@ export default function MealPlanningCalendar() {
                 {/* Mobile Header */}
                 <div className="mb-6">
                     <div className="flex flex-col space-y-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">📅 Meal Planning</h1>
-                            <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">📅 Meal Planning</h1>
+                                <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
+                            </div>
+
+                            {/* Week Settings Button */}
+                            <button
+                                onClick={() => setShowWeekSettings(true)}
+                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Week Settings"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </button>
                         </div>
 
                         {/* Action Buttons - Mobile */}
@@ -498,6 +577,53 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
+                {/* Week Settings Modal */}
+                {showWeekSettings && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
+                                <button
+                                    onClick={() => setShowWeekSettings(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Week starts on:
+                                    </label>
+                                    <div className="space-y-2">
+                                        {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => (
+                                            <button
+                                                key={day}
+                                                onClick={() => updateWeekStartPreference(day)}
+                                                className={`w-full text-left px-3 py-2 rounded-md border ${
+                                                    weekStartDay === day
+                                                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {day.charAt(0).toUpperCase() + day.slice(1)}
+                                                {weekStartDay === day && (
+                                                    <span className="ml-2 text-indigo-600">✓</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="text-xs text-gray-500">
+                                    This setting will apply to all your meal plans and will update the calendar layout.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Mobile Recipe Selection Modal */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -605,6 +731,18 @@ export default function MealPlanningCalendar() {
                         <div className="text-sm text-gray-500">
                             Meals: {mealsPlanned ? 'Yes' : 'No'}
                         </div>
+
+                        {/* Week Settings Button */}
+                        <button
+                            onClick={() => setShowWeekSettings(true)}
+                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Week Settings"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
 
                         {/* Template Button - First for prominence */}
                         {mealPlan && (
@@ -831,6 +969,53 @@ export default function MealPlanningCalendar() {
                     </div>
                 ))}
             </div>
+
+            {/* Week Settings Modal */}
+            {showWeekSettings && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
+                            <button
+                                onClick={() => setShowWeekSettings(false)}
+                                className="text-gray-400 hover:text-gray-600 text-xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Week starts on:
+                                </label>
+                                <div className="space-y-2">
+                                    {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => (
+                                        <button
+                                            key={day}
+                                            onClick={() => updateWeekStartPreference(day)}
+                                            className={`w-full text-left px-3 py-2 rounded-md border ${
+                                                weekStartDay === day
+                                                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {day.charAt(0).toUpperCase() + day.slice(1)}
+                                            {weekStartDay === day && (
+                                                <span className="ml-2 text-indigo-600">✓</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="text-xs text-gray-500">
+                                This setting will apply to all your meal plans and will update the calendar layout.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Desktop Recipe Selection Modal */}
             {showRecipeModal && (
