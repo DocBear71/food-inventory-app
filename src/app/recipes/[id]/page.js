@@ -9,6 +9,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
+import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 
 export default function RecipeDetailPage() {
     const { data: session } = useSession();
@@ -21,6 +22,10 @@ export default function RecipeDetailPage() {
     const [error, setError] = useState(null);
     const [showNutrition, setShowNutrition] = useState(false);
     const [servings, setServings] = useState(1);
+    const [showQuickShoppingList, setShowQuickShoppingList] = useState(false);
+    const [showMealPlanModal, setShowMealPlanModal] = useState(false);
+    const [mealPlans, setMealPlans] = useState([]);
+    const [loadingMealPlans, setLoadingMealPlans] = useState(false);
 
     useEffect(() => {
         if (recipeId) {
@@ -82,6 +87,74 @@ export default function RecipeDetailPage() {
             return amount.replace(match[1], scaledNumber.toString());
         }
         return amount;
+    };
+
+    const fetchMealPlans = async () => {
+        setLoadingMealPlans(true);
+        try {
+            const response = await fetch('/api/meal-plans');
+            const data = await response.json();
+            if (data.success) {
+                setMealPlans(data.mealPlans);
+            }
+        } catch (error) {
+            console.error('Error fetching meal plans:', error);
+        } finally {
+            setLoadingMealPlans(false);
+        }
+    };
+
+// 4. ADD FUNCTION to add recipe to meal plan:
+    const addToMealPlan = async (mealPlanId, day, mealType) => {
+        try {
+            const response = await fetch(`/api/meal-plans/${mealPlanId}`, {
+                method: 'GET'
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error('Failed to fetch meal plan');
+            }
+
+            const mealPlan = data.mealPlan;
+
+            const newMeal = {
+                recipeId: recipe._id,
+                recipeName: recipe.title,
+                mealType: mealType,
+                servings: recipe.servings || 4,
+                notes: '',
+                prepTime: recipe.prepTime || 0,
+                cookTime: recipe.cookTime || 0,
+                createdAt: new Date()
+            };
+
+            const updatedMeals = {
+                ...mealPlan.meals,
+                [day]: [...(mealPlan.meals[day] || []), newMeal]
+            };
+
+            const updateResponse = await fetch(`/api/meal-plans/${mealPlanId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    meals: updatedMeals
+                })
+            });
+
+            const updateData = await updateResponse.json();
+            if (updateData.success) {
+                alert(`Added "${recipe.title}" to your meal plan!`);
+                setShowMealPlanModal(false);
+            } else {
+                throw new Error(updateData.error);
+            }
+        } catch (error) {
+            console.error('Error adding to meal plan:', error);
+            alert('Failed to add recipe to meal plan');
+        }
     };
 
     // Check if recipe has nutrition data - handle both structured and simple formats
@@ -431,20 +504,121 @@ export default function RecipeDetailPage() {
                         <div className="bg-white rounded-lg border p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                             <div className="space-y-3">
-                                <button className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">
+                                <button
+                                    onClick={() => {
+                                        fetchMealPlans();
+                                        setShowMealPlanModal(true);
+                                    }}
+                                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                >
                                     Add to Meal Plan
                                 </button>
-                                <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                                <button
+                                    onClick={() => setShowQuickShoppingList(true)}
+                                    className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                                >
                                     Generate Shopping List
                                 </button>
-                                <button className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
-                                    Save to Collection
+                                <button
+                                    disabled
+                                    className="w-full bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50"
+                                    title="Collections feature coming soon"
+                                >
+                                    Save to Collection (Coming Soon)
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            {/* Quick Shopping List Modal */}
+            {showQuickShoppingList && (
+                <RecipeShoppingList
+                    recipeId={recipeId}
+                    recipeName={recipe.title}
+                    onClose={() => setShowQuickShoppingList(false)}
+                />
+            )}
+
+            {/* Add to Meal Plan Modal */}
+            {showMealPlanModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
+                        <div className="p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Add "{recipe.title}" to Meal Plan
+                                </h3>
+                                <button
+                                    onClick={() => setShowMealPlanModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 max-h-80 overflow-y-auto">
+                            {loadingMealPlans ? (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <p className="mt-2 text-gray-600">Loading meal plans...</p>
+                                </div>
+                            ) : mealPlans.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500 mb-4">No meal plans found. Create one first!</p>
+                                    <button
+                                        onClick={() => {
+                                            setShowMealPlanModal(false);
+                                            router.push('/meal-planning');
+                                        }}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                    >
+                                        Go to Meal Planning
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-gray-600 mb-4">
+                                        Select a meal plan and specify when you'd like to add this recipe:
+                                    </p>
+
+                                    {mealPlans.map(mealPlan => (
+                                        <div key={mealPlan._id} className="border border-gray-200 rounded-lg p-4">
+                                            <h4 className="font-medium text-gray-900 mb-2">{mealPlan.name}</h4>
+                                            <p className="text-sm text-gray-600 mb-3">
+                                                Week of {new Date(mealPlan.weekStartDate).toLocaleDateString()}
+                                            </p>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {/* Days and Meal Types */}
+                                                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                                                    <div key={day} className="space-y-1">
+                                                        <div className="text-xs font-medium text-gray-700 capitalize">
+                                                            {day}
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
+                                                                <button
+                                                                    key={`${day}-${mealType}`}
+                                                                    onClick={() => addToMealPlan(mealPlan._id, day, mealType)}
+                                                                    className="w-full text-left px-2 py-1 text-xs bg-gray-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
+                                                                >
+                                                                    {mealType}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 }
