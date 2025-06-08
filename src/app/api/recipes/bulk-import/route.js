@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/bulk-import/route.js
+// file: /src/app/api/recipes/bulk-import/route.js - v2
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -50,7 +50,7 @@ export async function POST(request) {
                     continue;
                 }
 
-                // Prepare recipe data
+                // Prepare recipe data - FIXED: Include category
                 const recipe = new Recipe({
                     title: recipeData.title.trim(),
                     description: recipeData.description || '',
@@ -62,11 +62,14 @@ export async function POST(request) {
                     difficulty: recipeData.difficulty || 'medium',
                     tags: [...(recipeData.tags || []), 'comfort-food', `volume-${volume}`],
                     source: recipeData.source || `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
+                    category: recipeData.category || 'entrees', // ADDED: Include category
                     createdBy: session.user.id,
                     isPublic: false,
                     createdAt: new Date(),
                     updatedAt: new Date()
                 });
+
+                console.log(`Importing recipe ${i + 1}: "${recipe.title}" with category: "${recipe.category}"`);
 
                 await recipe.save();
                 results.imported++;
@@ -76,6 +79,8 @@ export async function POST(request) {
                 results.errors.push(`Recipe ${i + 1} (${recipeData.title || 'Unknown'}): ${error.message}`);
             }
         }
+
+        console.log(`Bulk import completed: ${results.imported} imported, ${results.errors.length} errors, ${results.duplicates} duplicates`);
 
         return NextResponse.json({
             success: true,

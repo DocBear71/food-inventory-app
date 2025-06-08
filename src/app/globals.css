@@ -720,3 +720,41 @@ textarea:focus {
         z-index: 9999 !important;
     }
 }
+
+/* Fix for emoji visibility in buttons */
+button .emoji,
+button span[role="img"],
+.btn-emoji {
+    display: inline-block !important;
+    color: inherit !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols" !important;
+    vertical-align: middle !important;
+}
+
+/* Ensure delete buttons show emojis properly */
+.bg-red-600 .emoji,
+.bg-red-600 button .emoji,
+button.bg-red-600 .emoji {
+    color: white !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Force emoji to be visible in all button states */
+button:disabled .emoji {
+    opacity: 0.6 !important;
+    color: #9ca3af !important;
+}
+
+/* Alternative: Use Unicode escape if emoji doesn't work */
+.delete-icon::before {
+    content: "\1F5D1\FE0F"; /* 🗑️ */
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols";
+    display: inline-block;
+    color: inherit;
+}

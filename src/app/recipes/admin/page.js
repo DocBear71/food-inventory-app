@@ -517,9 +517,10 @@ export default function AdminRecipes() {
                             <button
                                 onClick={handleDeleteVolume}
                                 disabled={isProcessing}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 text-sm"
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 flex items-center space-x-2"
                             >
-                                🗑️ Delete All Volume {selectedVolume} Recipes
+                                <span className="emoji" role="img" aria-label="trash">🗑️</span>
+                                <span>Delete All Volume {selectedVolume} Recipes</span>
                             </button>
                         </div>
                     </div>
@@ -546,9 +547,10 @@ export default function AdminRecipes() {
                             <button
                                 onClick={handleDeleteVolume}
                                 disabled={isProcessing}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400"
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 flex items-center space-x-2"
                             >
-                                🗑️ Delete All Volume {selectedVolume} Recipes
+                                <span className="emoji" role="img" aria-label="trash">🗑️</span>
+                                <span>Delete All Volume {selectedVolume} Recipes</span>
                             </button>
                         </div>
                     </div>
