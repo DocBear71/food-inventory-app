@@ -364,10 +364,6 @@ export default function MealPlanningCalendar() {
                                     }}
                                     title="Generate shopping list from your meal plan"
                                 >
-                                    <svg style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
-                                    </svg>
                                     🛒 Shopping List
                                 </button>
                             )}
@@ -647,10 +643,6 @@ export default function MealPlanningCalendar() {
                                 }}
                                 title="Generate shopping list from your meal plan"
                             >
-                                <svg style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
-                                </svg>
                                 🛒 Shopping List
                             </button>
                         )}
