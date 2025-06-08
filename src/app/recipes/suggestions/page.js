@@ -2,14 +2,14 @@
 
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import {useSession} from 'next-auth/react';
+import {useEffect, useState} from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
-import { redirect } from 'next/navigation';
+import {redirect} from 'next/navigation';
 
 export default function RecipeSuggestions() {
-    const { data: session, status } = useSession();
+    const {data: session, status} = useSession();
     const [suggestions, setSuggestions] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
@@ -95,7 +95,7 @@ export default function RecipeSuggestions() {
                         const timeB = (b.prepTime || 0) + (b.cookTime || 0);
                         return timeA - timeB;
                     case 'difficulty':
-                        const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
+                        const difficultyOrder = {easy: 1, medium: 2, hard: 3};
                         return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
                     default:
                         return b.analysis.matchPercentage - a.analysis.matchPercentage;
@@ -300,10 +300,14 @@ export default function RecipeSuggestions() {
 
     const getDifficultyIcon = (difficulty) => {
         switch (difficulty) {
-            case 'easy': return '🟢';
-            case 'medium': return '🟡';
-            case 'hard': return '🔴';
-            default: return '⚪';
+            case 'easy':
+                return '🟢';
+            case 'medium':
+                return '🟡';
+            case 'hard':
+                return '🔴';
+            default:
+                return '⚪';
         }
     };
 
@@ -434,7 +438,8 @@ export default function RecipeSuggestions() {
                         ) : suggestions.length === 0 ? (
                             <div className="text-center py-8">
                                 <div className="text-gray-500 mb-4">
-                                    No recipes match your current inventory at {Math.round(matchThreshold * 100)}% threshold
+                                    No recipes match your current inventory at {Math.round(matchThreshold * 100)}%
+                                    threshold
                                 </div>
                                 <button
                                     onClick={() => setMatchThreshold(0.1)}
@@ -454,7 +459,8 @@ export default function RecipeSuggestions() {
                                                     <p className="text-gray-600 mt-1">{recipe.description}</p>
                                                 )}
                                             </div>
-                                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
+                                            <div
+                                                className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
                                                 {Math.round(recipe.analysis.matchPercentage * 100)}% Match
                                             </div>
                                         </div>
@@ -466,7 +472,8 @@ export default function RecipeSuggestions() {
                                                 <div className="text-sm text-blue-700 space-y-1">
                                                     {recipe.analysis.matches.map((match, index) => (
                                                         <div key={index}>
-                                                            • "{match.recipeIngredient}" → "{match.inventoryItem}" ({match.matchType})
+                                                            • "{match.recipeIngredient}" → "{match.inventoryItem}"
+                                                            ({match.matchType})
                                                         </div>
                                                     ))}
                                                 </div>
@@ -506,15 +513,18 @@ export default function RecipeSuggestions() {
                                                     {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
                                                         <div key={index} className="text-green-600">
                                                             • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                            {ingredient.optional && <span className="text-gray-500"> (optional)</span>}
+                                                            {ingredient.optional &&
+                                                                <span className="text-gray-500"> (optional)</span>}
                                                             {debugMode && ingredient.matchType && (
-                                                                <span className="text-xs text-blue-600"> [{ingredient.matchType}]</span>
+                                                                <span
+                                                                    className="text-xs text-blue-600"> [{ingredient.matchType}]</span>
                                                             )}
                                                         </div>
                                                     ))}
                                                     {recipe.analysis.availableIngredients.length > 5 && (
                                                         <div className="text-green-600 text-xs">
-                                                            +{recipe.analysis.availableIngredients.length - 5} more available
+                                                            +{recipe.analysis.availableIngredients.length - 5} more
+                                                            available
                                                         </div>
                                                     )}
                                                 </div>
@@ -529,7 +539,8 @@ export default function RecipeSuggestions() {
                                                     {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
                                                         <div key={index} className="text-red-600">
                                                             • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                            {ingredient.optional && <span className="text-gray-500"> (optional)</span>}
+                                                            {ingredient.optional &&
+                                                                <span className="text-gray-500"> (optional)</span>}
                                                         </div>
                                                     ))}
                                                     {recipe.analysis.missingIngredients.length > 5 && (
@@ -560,8 +571,8 @@ export default function RecipeSuggestions() {
                                             </div>
                                             <div className="flex space-x-2">
                                                 <a
-                                                    href={`/recipes?id=${recipe._id}`}
-                                                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                                                    href={`/recipes/${recipe._id}`}
+                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                                 >
                                                     View Recipe
                                                 </a>
@@ -571,7 +582,7 @@ export default function RecipeSuggestions() {
                                                             recipeId: recipe._id,
                                                             recipeName: recipe.title
                                                         })}
-                                                        className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                                     >
                                                         Shopping List
                                                     </button>
