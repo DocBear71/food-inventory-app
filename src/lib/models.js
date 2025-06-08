@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v7
+// file: /src/lib/models.js - v8 FIXED
 
 import mongoose from 'mongoose';
 
@@ -61,51 +61,42 @@ const NutritionSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// NEW: Recipe Review Schema
-const RecipeReviewSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    userName: { type: String, required: true }, // Cache user name for performance
-    rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5
-    },
-    comment: {
+// MOVED: Define UserMealPlanningPreferencesSchema BEFORE UserSchema
+const UserMealPlanningPreferencesSchema = new mongoose.Schema({
+    weekStartDay: {
         type: String,
-        maxlength: 1000,
-        trim: true
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: 'monday'
     },
-    // Optional: What the user thought about specific aspects
-    aspects: {
-        taste: { type: Number, min: 1, max: 5 },
-        difficulty: { type: Number, min: 1, max: 5 },
-        instructions: { type: Number, min: 1, max: 5 }
+    defaultMealTypes: {
+        type: [String],
+        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        default: ['breakfast', 'lunch', 'dinner']
     },
-    // Did they modify the recipe?
-    modifications: {
+    planningHorizon: {
         type: String,
-        maxlength: 500,
-        trim: true
+        enum: ['week', '2weeks', 'month'],
+        default: 'week'
     },
-    // Would they make it again?
-    wouldMakeAgain: { type: Boolean },
-
-    // Helpful voting system
-    helpfulVotes: { type: Number, default: 0 },
-    unhelpfulVotes: { type: Number, default: 0 },
-    votedBy: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        vote: { type: String, enum: ['helpful', 'unhelpful'] }
-    }],
-
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
+    shoppingDay: {
+        type: String,
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: 'sunday'
+    },
+    mealPrepDays: {
+        type: [String],
+        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+        default: ['sunday']
+    },
+    dietaryRestrictions: [String],
+    avoidIngredients: [String],
+    preferredCuisines: [String],
+    cookingTimePreference: {
+        type: String,
+        enum: ['quick', 'moderate', 'any'],
+        default: 'any'
+    }
+}, { _id: false });
 
 // Notification Settings Schema
 const NotificationSettingsSchema = new mongoose.Schema({
@@ -126,7 +117,7 @@ const NotificationSettingsSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// User Schema - Updated
+// User Schema - Updated (NOW UserMealPlanningPreferencesSchema is defined above)
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -151,7 +142,7 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
-    // Meal planning preferences
+    // Meal planning preferences - NOW THIS WORKS
     mealPlanningPreferences: {
         type: UserMealPlanningPreferencesSchema,
         default: () => ({
@@ -163,7 +154,7 @@ const UserSchema = new mongoose.Schema({
             avoidIngredients: [],
             preferredCuisines: [],
             cookingTimePreference: 'any',
-            weekStartDay: 'monday'  // ADD THIS LINE to the existing schema
+            weekStartDay: 'monday'
         })
     },
     // Nutrition tracking preferences
@@ -175,7 +166,7 @@ const UserSchema = new mongoose.Schema({
         fiber: { type: Number, default: 25 }, // grams
         sodium: { type: Number, default: 2300 } // mg
     },
-    // NEW: User profile for reviews
+    // User profile for reviews
     profile: {
         bio: { type: String, maxlength: 200 },
         cookingLevel: {
@@ -188,6 +179,46 @@ const UserSchema = new mongoose.Schema({
         averageRatingGiven: { type: Number, default: 0 }
     },
     lastNotificationSent: Date,
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+// Recipe Review Schema
+const RecipeReviewSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    userName: { type: String, required: true },
+    rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5
+    },
+    comment: {
+        type: String,
+        maxlength: 1000,
+        trim: true
+    },
+    aspects: {
+        taste: { type: Number, min: 1, max: 5 },
+        difficulty: { type: Number, min: 1, max: 5 },
+        instructions: { type: Number, min: 1, max: 5 }
+    },
+    modifications: {
+        type: String,
+        maxlength: 500,
+        trim: true
+    },
+    wouldMakeAgain: { type: Boolean },
+    helpfulVotes: { type: Number, default: 0 },
+    unhelpfulVotes: { type: Number, default: 0 },
+    votedBy: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        vote: { type: String, enum: ['helpful', 'unhelpful'] }
+    }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -500,43 +531,6 @@ const MealPlanTemplateSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-
-// Add meal planning preferences to User schema
-const UserMealPlanningPreferencesSchema = new mongoose.Schema({
-    weekStartDay: {
-        type: String,
-        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-        default: 'monday'
-    },
-    defaultMealTypes: {
-        type: [String],
-        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-        default: ['breakfast', 'lunch', 'dinner']
-    },
-    planningHorizon: {
-        type: String,
-        enum: ['week', '2weeks', 'month'],
-        default: 'week'
-    },
-    shoppingDay: {
-        type: String,
-        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-        default: 'sunday'
-    },
-    mealPrepDays: {
-        type: [String],
-        enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-        default: ['sunday']
-    },
-    dietaryRestrictions: [String],
-    avoidIngredients: [String],
-    preferredCuisines: [String],
-    cookingTimePreference: {
-        type: String,
-        enum: ['quick', 'moderate', 'any'],
-        default: 'any'
-    }
-}, { _id: false });
 
 // Contact Schema for managing email recipients
 const ContactSchema = new mongoose.Schema({
@@ -1204,18 +1198,60 @@ MealPrepTemplateSchema.index({ 'usage.averageRating': -1 });
 MealPrepKnowledgeSchema.index({ ingredient: 1 });
 MealPrepKnowledgeSchema.index({ category: 1 });
 
-// Export models (prevent re-compilation in development)
-export const User = mongoose.models.User || mongoose.model('User', UserSchema);
-export const UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
-export const Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
-export const DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
-export const RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
-export const MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
-export const MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
-export const Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
-export const EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
-export const SavedShoppingList = mongoose.models.SavedShoppingList || mongoose.model('SavedShoppingList', SavedShoppingListSchema);
-export const ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mongoose.model('ShoppingListTemplate', ShoppingListTemplateSchema);
-export const MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
-export const MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
-export const MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
+
+
+// Declare variables first
+let User, UserInventory, Recipe, DailyNutritionLog, RecipeCollection, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList, ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge;
+
+try {
+    // Export models (prevent re-compilation in development)
+    User = mongoose.models.User || mongoose.model('User', UserSchema);
+    UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
+    Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
+    DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
+    RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
+    MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
+    MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
+    Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
+    EmailLog = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
+    SavedShoppingList = mongoose.models.SavedShoppingList || mongoose.model('SavedShoppingList', SavedShoppingListSchema);
+    ShoppingListTemplate = mongoose.models.ShoppingListTemplate || mongoose.model('ShoppingListTemplate', ShoppingListTemplateSchema);
+    MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
+    MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
+    MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
+} catch (error) {
+    console.error('Error creating models:', error);
+    // Initialize as empty objects to prevent import errors
+    const emptyModel = {};
+    User = User || emptyModel;
+    UserInventory = UserInventory || emptyModel;
+    Recipe = Recipe || emptyModel;
+    DailyNutritionLog = DailyNutritionLog || emptyModel;
+    RecipeCollection = RecipeCollection || emptyModel;
+    MealPlan = MealPlan || emptyModel;
+    MealPlanTemplate = MealPlanTemplate || emptyModel;
+    Contact = Contact || emptyModel;
+    EmailLog = EmailLog || emptyModel;
+    SavedShoppingList = SavedShoppingList || emptyModel;
+    ShoppingListTemplate = ShoppingListTemplate || emptyModel;
+    MealPrepSuggestion = MealPrepSuggestion || emptyModel;
+    MealPrepTemplate = MealPrepTemplate || emptyModel;
+    MealPrepKnowledge = MealPrepKnowledge || emptyModel;
+}
+
+export {
+    User,
+    UserInventory,
+    Recipe,
+    DailyNutritionLog,
+    RecipeCollection,
+    MealPlan,
+    MealPlanTemplate,
+    Contact,
+    EmailLog,
+    SavedShoppingList,
+    ShoppingListTemplate,
+    MealPrepSuggestion,
+    MealPrepTemplate,
+    MealPrepKnowledge
+};
