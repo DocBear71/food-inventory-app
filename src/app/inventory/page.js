@@ -792,6 +792,8 @@ function InventoryContent() {
                                             <option value="Frozen Vegetables">Frozen Vegetables</option>
                                             <option value="Frozen Fruit">Frozen Fruit</option>
                                             <option value="Grains">Grains</option>
+                                            <option value="Pasta">Pasta</option>
+                                            <option value="Stuffing & Sides">Stuffing & Sides</option>
                                             <option value="Boxed Meals">Boxed Meals</option>
                                             <option value="Seasonings">Seasonings</option>
                                             <option value="Spices">Spices</option>

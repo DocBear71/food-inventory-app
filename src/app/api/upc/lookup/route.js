@@ -154,7 +154,9 @@ function mapCategory(categoriesTags) {
         'Frozen Fruit': ['en:frozen-fruits', 'en:frozen-berries', 'en:frozen-strawberries', 'en:frozen-mango'],
 
         // Pantry staples
-        'Grains': ['en:cereals', 'en:bread', 'en:pasta', 'en:rice', 'en:quinoa', 'en:oats', 'en:flour', 'en:noodles'],
+        'Grains': ['en:cereals', 'en:bread', 'en:rice', 'en:quinoa', 'en:oats', 'en:flour', 'en:barley', 'en:bulgur', 'en:rice-mixes', 'en:rice-a-roni'],
+        'Pasta': ['en:pasta', 'en:noodles', 'en:spaghetti', 'en:macaroni', 'en:penne', 'en:linguine', 'en:fettuccine', 'en:ravioli', 'en:lasagna'],
+        'Stuffing & Sides': ['en:stuffing', 'en:stuffing-mix', 'en:instant-mashed-potatoes', 'en:mashed-potato-mix', 'en:au-gratin-potatoes', 'en:scalloped-potatoes', 'en:cornbread-mix', 'en:biscuit-mix', 'en:gravy-mix', 'en:side-dishes'],
         'Boxed Meals': ['en:meal-kits', 'en:hamburger-helper', 'en:boxed-dinners', 'en:mac-and-cheese', 'en:instant-meals'],
         'Seasonings': ['en:seasonings', 'en:salt', 'en:pepper', 'en:garlic-powder', 'en:onion-powder', 'en:seasoning-mixes'],
         'Spices': ['en:spices', 'en:cinnamon', 'en:paprika', 'en:cumin', 'en:oregano', 'en:thyme', 'en:rosemary', 'en:bay-leaves'],
@@ -187,6 +189,8 @@ function mapCategory(categoriesTags) {
         'Fresh/Frozen Poultry': ['en:chicken'],
         'Fresh/Frozen Fish & Seafood': ['en:fish', 'en:seafood'],
         'Beans': ['en:beans', 'en:legumes'],
+        'Pasta': ['en:pasta', 'en:noodles'],
+        'Grains': ['en:grains', 'en:rice'],
         'Fresh Vegetables': ['en:vegetables'],
         'Fresh Fruits': ['en:fruits'],
         'Beverages': ['en:beverages'],
