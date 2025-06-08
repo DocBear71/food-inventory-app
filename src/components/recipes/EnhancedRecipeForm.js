@@ -447,7 +447,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                     placeholder="Enter recipe title..."
                                 />
                             </div>
-
+                            {/* Category */}
+                            <div>
+                                <div className="recipe-category">
+                                    Category: {recipe.category}
+                                </div>
+                            </div>
+                            {/* Description */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Description

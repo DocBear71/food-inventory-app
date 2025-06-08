@@ -2,13 +2,13 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import {useState} from 'react';
+import {useSession} from 'next-auth/react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { redirect } from 'next/navigation';
+import {redirect} from 'next/navigation';
 
 export default function AdminRecipes() {
-    const { data: session, status } = useSession();
+    const {data: session, status} = useSession();
     const [uploadedFile, setUploadedFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [extractedText, setExtractedText] = useState('');
@@ -198,7 +198,8 @@ export default function AdminRecipes() {
                                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                                💡 For best results, use DOCX files. PDF extraction may not work perfectly with all formats.
+                                💡 For best results, use DOCX files. PDF extraction may not work perfectly with all
+                                formats.
                             </p>
                         </div>
 
@@ -299,7 +300,8 @@ export default function AdminRecipes() {
 
                                         {/* Prep Time */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Prep Time (minutes)</label>
+                                            <label className="block text-sm font-medium text-gray-700">Prep Time
+                                                (minutes)</label>
                                             <input
                                                 type="number"
                                                 value={recipe.prepTime || ''}
@@ -310,7 +312,8 @@ export default function AdminRecipes() {
 
                                         {/* Cook Time */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Cook Time (minutes)</label>
+                                            <label className="block text-sm font-medium text-gray-700">Cook Time
+                                                (minutes)</label>
                                             <input
                                                 type="number"
                                                 value={recipe.cookTime || ''}
@@ -330,7 +333,12 @@ export default function AdminRecipes() {
                                             />
                                         </div>
                                     </div>
-
+                                    {/* Category */}
+                                    <div>
+                                        <div className="recipe-category">
+                                            Category: {recipe.category}
+                                        </div>
+                                    </div>
                                     {/* Description */}
                                     <div className="mt-4">
                                         <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -344,7 +352,8 @@ export default function AdminRecipes() {
 
                                     {/* Ingredients */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Ingredients (one per line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">Ingredients (one per
+                                            line)</label>
                                         <textarea
                                             value={recipe.ingredients?.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim()).join('\n') || ''}
                                             onChange={(e) => {
@@ -354,7 +363,7 @@ export default function AdminRecipes() {
                                                     const amount = parseFloat(parts[0]) || '';
                                                     const unit = parts[1] || '';
                                                     const name = parts.slice(2).join(' ') || parts.slice(1).join(' ') || line.trim();
-                                                    return { amount, unit, name };
+                                                    return {amount, unit, name};
                                                 });
                                                 editRecipe(index, 'ingredients', ingredients);
                                             }}
@@ -366,7 +375,8 @@ export default function AdminRecipes() {
 
                                     {/* Instructions */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Instructions (one step per line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">Instructions (one
+                                            step per line)</label>
                                         <textarea
                                             value={recipe.instructions?.join('\n') || ''}
                                             onChange={(e) => editRecipe(index, 'instructions', e.target.value.split('\n').filter(line => line.trim()))}
@@ -404,7 +414,8 @@ export default function AdminRecipes() {
                         {/* Delete Volume Button */}
                         <div className="mt-4 pt-4 border-t border-gray-200">
                             <p className="text-sm text-gray-600 mb-2">
-                                ⚠️ If the recipes didn't import correctly, you can delete all recipes from this volume and try again:
+                                ⚠️ If the recipes didn't import correctly, you can delete all recipes from this volume
+                                and try again:
                             </p>
                             <button
                                 onClick={handleDeleteVolume}
