@@ -8,7 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/route';
 import { connectToDatabase } from '@/lib/mongodb';
 import RecipeCollection from '@/models/RecipeCollection';
-import Recipe from '@/models/Recipe';
+import { Recipe } from '@/lib/models';
 import mongoose from 'mongoose';
 
 export async function POST(request, { params }) {
