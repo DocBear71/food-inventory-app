@@ -113,28 +113,91 @@ export async function GET(request) {
     }
 }
 
-// Helper function to map Open Food Facts categories to our simplified categories
+// Helper function to map Open Food Facts categories to our detailed categories
 function mapCategory(categoriesTags) {
     if (!categoriesTags || !Array.isArray(categoriesTags)) return 'Other';
 
     const categoryMap = {
-        'dairy': ['en:dairy', 'en:milk', 'en:cheese', 'en:yogurt', 'en:butter'],
-        'meat': ['en:meat', 'en:beef', 'en:pork', 'en:chicken', 'en:fish', 'en:seafood'],
-        'produce': ['en:fruits', 'en:vegetables', 'en:fresh-foods'],
-        'grains': ['en:cereals', 'en:bread', 'en:pasta', 'en:rice'],
-        'canned': ['en:canned', 'en:preserved', 'en:tinned'],
-        'frozen': ['en:frozen', 'en:frozen-foods'],
-        'beverages': ['en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:water'],
-        'snacks': ['en:snacks', 'en:chips', 'en:crackers', 'en:cookies'],
-        'condiments': ['en:condiments', 'en:sauces', 'en:dressings', 'en:spices'],
+        // Fresh produce
+        'Fresh Vegetables': ['en:vegetables', 'en:fresh-vegetables', 'en:leafy-vegetables', 'en:root-vegetables', 'en:tomatoes', 'en:onions', 'en:carrots', 'en:potatoes', 'en:peppers', 'en:lettuce', 'en:spinach', 'en:broccoli', 'en:cauliflower'],
+        'Fresh Fruits': ['en:fruits', 'en:fresh-fruits', 'en:apples', 'en:bananas', 'en:oranges', 'en:berries', 'en:citrus', 'en:tropical-fruits', 'en:stone-fruits'],
+        'Fresh Spices': ['en:fresh-herbs', 'en:fresh-spices', 'en:basil', 'en:cilantro', 'en:parsley', 'en:mint', 'en:ginger'],
+
+        // Dairy and eggs
+        'Dairy': ['en:dairy', 'en:milk', 'en:yogurt', 'en:butter', 'en:cream', 'en:sour-cream'],
+        'Cheese': ['en:cheese', 'en:cheeses', 'en:cheddar', 'en:mozzarella', 'en:parmesan', 'en:cream-cheese'],
+        'Eggs': ['en:eggs', 'en:chicken-eggs', 'en:egg-products'],
+
+        // Fresh/Frozen meats
+        'Fresh/Frozen Poultry': ['en:chicken', 'en:poultry', 'en:turkey', 'en:duck', 'en:chicken-meat', 'en:turkey-meat'],
+        'Fresh/Frozen Beef': ['en:beef', 'en:beef-meat', 'en:ground-beef', 'en:steaks', 'en:roasts'],
+        'Fresh/Frozen Pork': ['en:pork', 'en:pork-meat', 'en:bacon', 'en:ham', 'en:sausages', 'en:ground-pork'],
+        'Fresh/Frozen Lamb': ['en:lamb', 'en:lamb-meat', 'en:mutton'],
+        'Fresh/Frozen Rabbit': ['en:rabbit', 'en:rabbit-meat'],
+        'Fresh/Frozen Venison': ['en:venison', 'en:deer', 'en:game-meat'],
+        'Fresh/Frozen Fish & Seafood': ['en:fish', 'en:seafood', 'en:salmon', 'en:tuna', 'en:cod', 'en:tilapia', 'en:shrimp', 'en:crab', 'en:lobster', 'en:scallops', 'en:mussels', 'en:clams', 'en:fresh-fish', 'en:frozen-fish'],
+
+        // Dry goods
+        'Beans': ['en:beans', 'en:dried-beans', 'en:red-beans', 'en:pinto-beans', 'en:kidney-beans', 'en:black-beans', 'en:navy-beans', 'en:lima-beans', 'en:black-eyed-peas', 'en:chickpeas', 'en:lentils', 'en:split-peas'],
+
+        // Canned items
+        'Canned Meat': ['en:canned-meat', 'en:canned-chicken', 'en:canned-beef', 'en:canned-fish', 'en:tuna', 'en:salmon', 'en:sardines', 'en:spam'],
+        'Canned Vegetables': ['en:canned-vegetables', 'en:canned-corn', 'en:canned-peas', 'en:canned-carrots', 'en:canned-green-beans'],
+        'Canned Fruit': ['en:canned-fruits', 'en:canned-peaches', 'en:canned-pears', 'en:fruit-cocktail', 'en:canned-pineapple'],
+        'Canned Sauces': ['en:canned-sauces', 'en:pasta-sauces', 'en:marinara', 'en:alfredo'],
+        'Canned Tomatoes': ['en:canned-tomatoes', 'en:tomato-sauce', 'en:tomato-paste', 'en:diced-tomatoes', 'en:crushed-tomatoes', 'en:tomato-puree'],
+        'Canned Beans': ['en:canned-beans', 'en:black-beans', 'en:kidney-beans', 'en:chickpeas', 'en:pinto-beans', 'en:navy-beans', 'en:baked-beans'],
+        'Canned Meals': ['en:canned-meals', 'en:canned-soup', 'en:canned-chili', 'en:canned-stew', 'en:ravioli', 'en:spaghetti'],
+
+        // Frozen items
+        'Frozen Vegetables': ['en:frozen-vegetables', 'en:frozen-peas', 'en:frozen-corn', 'en:frozen-broccoli', 'en:frozen-spinach'],
+        'Frozen Fruit': ['en:frozen-fruits', 'en:frozen-berries', 'en:frozen-strawberries', 'en:frozen-mango'],
+
+        // Pantry staples
+        'Grains': ['en:cereals', 'en:bread', 'en:pasta', 'en:rice', 'en:quinoa', 'en:oats', 'en:flour', 'en:noodles'],
+        'Boxed Meals': ['en:meal-kits', 'en:hamburger-helper', 'en:boxed-dinners', 'en:mac-and-cheese', 'en:instant-meals'],
+        'Seasonings': ['en:seasonings', 'en:salt', 'en:pepper', 'en:garlic-powder', 'en:onion-powder', 'en:seasoning-mixes'],
+        'Spices': ['en:spices', 'en:cinnamon', 'en:paprika', 'en:cumin', 'en:oregano', 'en:thyme', 'en:rosemary', 'en:bay-leaves'],
+        'Bouillon': ['en:bouillon', 'en:bouillon-cubes', 'en:stock-cubes', 'en:broth-cubes'],
+        'Stock/Broth': ['en:broth', 'en:stock', 'en:chicken-broth', 'en:beef-broth', 'en:vegetable-broth', 'en:bone-broth'],
+
+        // Other categories
+        'Beverages': ['en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:water', 'en:coffee', 'en:tea', 'en:energy-drinks'],
+        'Snacks': ['en:snacks', 'en:chips', 'en:crackers', 'en:cookies', 'en:nuts', 'en:pretzels', 'en:popcorn'],
+        'Condiments': ['en:condiments', 'en:ketchup', 'en:mustard', 'en:mayonnaise', 'en:salad-dressings', 'en:vinegar', 'en:oils'],
     };
 
-    // Check each category mapping
-    for (const [ourCategory, tags] of Object.entries(categoryMap)) {
+    // Check each category mapping with priority order (most specific first)
+    const categoryKeys = Object.keys(categoryMap);
+
+    for (const ourCategory of categoryKeys) {
+        const tags = categoryMap[ourCategory];
         if (categoriesTags.some(tag =>
             tags.some(mappedTag => tag.toLowerCase().includes(mappedTag.replace('en:', '')))
         )) {
-            return ourCategory.charAt(0).toUpperCase() + ourCategory.slice(1);
+            return ourCategory;
+        }
+    }
+
+    // Fallback for generic categories if no specific match found
+    const fallbackMap = {
+        'Dairy': ['en:dairy'],
+        'Fresh/Frozen Beef': ['en:meat', 'en:beef'],
+        'Fresh/Frozen Pork': ['en:pork'],
+        'Fresh/Frozen Poultry': ['en:chicken'],
+        'Fresh/Frozen Fish & Seafood': ['en:fish', 'en:seafood'],
+        'Beans': ['en:beans', 'en:legumes'],
+        'Fresh Vegetables': ['en:vegetables'],
+        'Fresh Fruits': ['en:fruits'],
+        'Beverages': ['en:beverages'],
+        'Snacks': ['en:snacks'],
+    };
+
+    for (const [ourCategory, tags] of Object.entries(fallbackMap)) {
+        if (categoriesTags.some(tag =>
+            tags.some(mappedTag => tag.toLowerCase().includes(mappedTag.replace('en:', '')))
+        )) {
+            return ourCategory;
         }
     }
 
