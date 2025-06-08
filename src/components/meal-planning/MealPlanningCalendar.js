@@ -345,7 +345,7 @@ export default function MealPlanningCalendar() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                               d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
                                     </svg>
-                                    <span>Generate Shopping List</span>
+                                    <span>Shopping List</span>
                                 </button>
                             )}
 
@@ -720,15 +720,15 @@ export default function MealPlanningCalendar() {
                                                     key={`${meal.recipeId}-${mealTypeIndex}`}
                                                     className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-2 hover:bg-indigo-200 transition-colors"
                                                 >
-                                                    <div className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
+                                                    <div className="text-sm font-medium text-indigo-900 pr-8">{meal.recipeName}</div>
                                                     <div className="text-xs text-indigo-700">
                                                         {meal.servings} servings • {meal.prepTime + meal.cookTime} min
                                                     </div>
 
-                                                    {/* Remove Button */}
+                                                    {/* Remove Button - Always Visible */}
                                                     <button
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
-                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                                                         title="Remove meal"
                                                     >
                                                         ×
