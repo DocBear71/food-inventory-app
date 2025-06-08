@@ -17,7 +17,6 @@ export default function RecipeSuggestions() {
     const [matchThreshold, setMatchThreshold] = useState(0.4);
     const [sortBy, setSortBy] = useState('match');
     const [showShoppingList, setShowShoppingList] = useState(null);
-    const [debugMode, setDebugMode] = useState(false); // For debugging matches
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -124,7 +123,6 @@ export default function RecipeSuggestions() {
 
         const availableIngredients = [];
         const missingIngredients = [];
-        const matches = []; // For debugging
 
         recipe.ingredients.forEach(recipeIngredient => {
             const matchResult = findIngredientInInventory(recipeIngredient, inventory);
@@ -133,11 +131,6 @@ export default function RecipeSuggestions() {
                 availableIngredients.push({
                     ...recipeIngredient,
                     inventoryItem: matchResult.inventoryItem,
-                    matchType: matchResult.matchType
-                });
-                matches.push({
-                    recipeIngredient: recipeIngredient.name,
-                    inventoryItem: matchResult.inventoryItem.name,
                     matchType: matchResult.matchType
                 });
             } else {
@@ -154,15 +147,13 @@ export default function RecipeSuggestions() {
         const canMake = availableRequired >= requiredIngredients;
 
         console.log(`Results: ${availableIngredients.length}/${totalIngredients} ingredients (${Math.round(matchPercentage * 100)}%)`);
-        console.log('Matches found:', matches);
 
         return {
             matchPercentage,
             availableIngredients,
             missingIngredients,
             canMake,
-            requiredMissing: missingIngredients.filter(ing => !ing.optional).length,
-            matches // For debugging
+            requiredMissing: missingIngredients.filter(ing => !ing.optional).length
         };
     };
 
@@ -332,13 +323,7 @@ export default function RecipeSuggestions() {
                         <h1 className="text-2xl font-bold text-gray-900">What Can I Make?</h1>
                         <p className="text-gray-600">Recipe suggestions based on your current inventory</p>
                     </div>
-                    <div className="flex space-x-2">
-                        <button
-                            onClick={() => setDebugMode(!debugMode)}
-                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            {debugMode ? 'Hide Debug' : 'Show Debug'}
-                        </button>
+                    <div>
                         <button
                             onClick={loadData}
                             disabled={loading}
@@ -348,21 +333,6 @@ export default function RecipeSuggestions() {
                         </button>
                     </div>
                 </div>
-
-                {/* Debug Info */}
-                {debugMode && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <h4 className="font-medium text-yellow-800 mb-2">Debug Information</h4>
-                        <div className="text-sm text-yellow-700 space-y-1">
-                            <div>Current inventory items ({inventory.length}):</div>
-                            <div className="pl-4 space-y-1">
-                                {inventory.map((item, index) => (
-                                    <div key={index}>• {item.name} (Category: {item.category || 'None'})</div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* Stats and Controls */}
                 <div className="bg-white shadow rounded-lg p-4">
@@ -465,21 +435,6 @@ export default function RecipeSuggestions() {
                                             </div>
                                         </div>
 
-                                        {/* Debug matches */}
-                                        {debugMode && recipe.analysis.matches && recipe.analysis.matches.length > 0 && (
-                                            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                                                <h6 className="font-medium text-blue-800 mb-2">Debug: Matches Found</h6>
-                                                <div className="text-sm text-blue-700 space-y-1">
-                                                    {recipe.analysis.matches.map((match, index) => (
-                                                        <div key={index}>
-                                                            • "{match.recipeIngredient}" → "{match.inventoryItem}"
-                                                            ({match.matchType})
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             {/* Recipe Info */}
                                             <div>
@@ -515,10 +470,6 @@ export default function RecipeSuggestions() {
                                                             • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                             {ingredient.optional &&
                                                                 <span className="text-gray-500"> (optional)</span>}
-                                                            {debugMode && ingredient.matchType && (
-                                                                <span
-                                                                    className="text-xs text-blue-600"> [{ingredient.matchType}]</span>
-                                                            )}
                                                         </div>
                                                     ))}
                                                     {recipe.analysis.availableIngredients.length > 5 && (
