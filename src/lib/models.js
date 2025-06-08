@@ -376,24 +376,6 @@ const DailyNutritionLogSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-// NEW: Recipe Collection Schema - Users can create collections of recipes
-const RecipeCollectionSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    name: { type: String, required: true, maxlength: 100 },
-    description: { type: String, maxlength: 500 },
-    recipes: [{
-        recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
-        addedAt: { type: Date, default: Date.now }
-    }],
-    isPublic: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
 const MealPlanEntrySchema = new mongoose.Schema({
     recipeId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -1153,10 +1135,6 @@ InventoryItemSchema.index({ expirationDate: 1 });
 DailyNutritionLogSchema.index({ userId: 1, date: 1 }, { unique: true });
 DailyNutritionLogSchema.index({ userId: 1, 'meals.recipeId': 1 });
 
-// Recipe collection indexes
-RecipeCollectionSchema.index({ userId: 1 });
-RecipeCollectionSchema.index({ isPublic: 1 });
-
 // Create indexes for meal planning
 MealPlanSchema.index({ userId: 1, weekStartDate: 1 });
 MealPlanSchema.index({ userId: 1, isActive: 1 });
@@ -1201,7 +1179,7 @@ MealPrepKnowledgeSchema.index({ category: 1 });
 
 
 // Declare variables first
-let User, UserInventory, Recipe, DailyNutritionLog, RecipeCollection, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList, ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge;
+let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList, ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge;
 
 try {
     // Export models (prevent re-compilation in development)
@@ -1209,7 +1187,6 @@ try {
     UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
     Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
     DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
-    RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
     MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
     MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
     Contact = mongoose.models.Contact || mongoose.model('Contact', ContactSchema);
@@ -1227,7 +1204,6 @@ try {
     UserInventory = UserInventory || emptyModel;
     Recipe = Recipe || emptyModel;
     DailyNutritionLog = DailyNutritionLog || emptyModel;
-    RecipeCollection = RecipeCollection || emptyModel;
     MealPlan = MealPlan || emptyModel;
     MealPlanTemplate = MealPlanTemplate || emptyModel;
     Contact = Contact || emptyModel;
@@ -1244,7 +1220,6 @@ export {
     UserInventory,
     Recipe,
     DailyNutritionLog,
-    RecipeCollection,
     MealPlan,
     MealPlanTemplate,
     Contact,

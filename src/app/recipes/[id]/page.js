@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/page.js v7
+// file: /src/app/recipes/[id]/page.js v8 - Fixed duplicates and added collections
 
 'use client';
 
@@ -24,8 +24,11 @@ export default function RecipeDetailPage() {
     const [servings, setServings] = useState(1);
     const [showQuickShoppingList, setShowQuickShoppingList] = useState(false);
     const [showMealPlanModal, setShowMealPlanModal] = useState(false);
+    const [showCollectionsModal, setShowCollectionsModal] = useState(false);
     const [mealPlans, setMealPlans] = useState([]);
+    const [collections, setCollections] = useState([]);
     const [loadingMealPlans, setLoadingMealPlans] = useState(false);
+    const [loadingCollections, setLoadingCollections] = useState(false);
 
     useEffect(() => {
         if (recipeId) {
@@ -59,36 +62,6 @@ export default function RecipeDetailPage() {
         }
     };
 
-    const formatCookTime = (minutes) => {
-        if (!minutes) return 'Not specified';
-        if (minutes < 60) return `${minutes} min`;
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    };
-
-    const getDifficultyColor = (difficulty) => {
-        const colors = {
-            easy: 'bg-green-100 text-green-800',
-            medium: 'bg-yellow-100 text-yellow-800',
-            hard: 'bg-red-100 text-red-800'
-        };
-        return colors[difficulty] || colors.medium;
-    };
-
-    const getScaledAmount = (amount) => {
-        if (!amount || !recipe?.servings) return amount;
-
-        // Extract number from amount string
-        const match = amount.match(/^(\d+(?:\.\d+)?)/);
-        if (match) {
-            const number = parseFloat(match[1]);
-            const scaledNumber = (number * servings) / recipe.servings;
-            return amount.replace(match[1], scaledNumber.toString());
-        }
-        return amount;
-    };
-
     const fetchMealPlans = async () => {
         setLoadingMealPlans(true);
         try {
@@ -104,7 +77,76 @@ export default function RecipeDetailPage() {
         }
     };
 
-// 4. ADD FUNCTION to add recipe to meal plan:
+    // NEW: Fetch user's recipe collections
+    const fetchCollections = async () => {
+        setLoadingCollections(true);
+        try {
+            const response = await fetch('/api/collections');
+            const data = await response.json();
+            if (data.success) {
+                setCollections(data.collections);
+            }
+        } catch (error) {
+            console.error('Error fetching collections:', error);
+        } finally {
+            setLoadingCollections(false);
+        }
+    };
+
+    // NEW: Add recipe to collection
+    const addToCollection = async (collectionId) => {
+        try {
+            const response = await fetch(`/api/collections/${collectionId}/recipes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipeId: recipe._id
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert(`Added "${recipe.title}" to your collection!`);
+                setShowCollectionsModal(false);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error adding to collection:', error);
+            alert('Failed to add recipe to collection');
+        }
+    };
+
+    // NEW: Create new collection and add recipe
+    const createCollectionAndAdd = async (name, description = '') => {
+        try {
+            const response = await fetch('/api/collections', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    description,
+                    recipes: [{ recipeId: recipe._id }]
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert(`Created collection "${name}" and added "${recipe.title}"!`);
+                setShowCollectionsModal(false);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error creating collection:', error);
+            alert('Failed to create collection');
+        }
+    };
+
     const addToMealPlan = async (mealPlanId, day, mealType) => {
         try {
             const response = await fetch(`/api/meal-plans/${mealPlanId}`, {
@@ -155,6 +197,36 @@ export default function RecipeDetailPage() {
             console.error('Error adding to meal plan:', error);
             alert('Failed to add recipe to meal plan');
         }
+    };
+
+    const formatCookTime = (minutes) => {
+        if (!minutes) return 'Not specified';
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    };
+
+    const getDifficultyColor = (difficulty) => {
+        const colors = {
+            easy: 'bg-green-100 text-green-800',
+            medium: 'bg-yellow-100 text-yellow-800',
+            hard: 'bg-red-100 text-red-800'
+        };
+        return colors[difficulty] || colors.medium;
+    };
+
+    const getScaledAmount = (amount) => {
+        if (!amount || !recipe?.servings) return amount;
+
+        // Extract number from amount string
+        const match = amount.match(/^(\d+(?:\.\d+)?)/);
+        if (match) {
+            const number = parseFloat(match[1]);
+            const scaledNumber = (number * servings) / recipe.servings;
+            return amount.replace(match[1], scaledNumber.toString());
+        }
+        return amount;
     };
 
     // Check if recipe has nutrition data - handle both structured and simple formats
@@ -242,10 +314,10 @@ export default function RecipeDetailPage() {
                     <div className="text-center">
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
                         <button
-                            onClick={() => window.history.back()}
+                            onClick={() => router.push('/recipes')}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                         >
-                            Go Back
+                            Back to Recipes
                         </button>
                     </div>
                 </div>
@@ -256,7 +328,7 @@ export default function RecipeDetailPage() {
     return (
         <DashboardLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Header */}
+                {/* Header - FIXED: Only one back button now */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
                         <button
@@ -519,18 +591,22 @@ export default function RecipeDetailPage() {
                                 >
                                     Generate Shopping List
                                 </button>
+                                {/* UPDATED: Collections button now functional */}
                                 <button
-                                    disabled
-                                    className="w-full bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50"
-                                    title="Collections feature coming soon"
+                                    onClick={() => {
+                                        fetchCollections();
+                                        setShowCollectionsModal(true);
+                                    }}
+                                    className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
                                 >
-                                    Save to Collection (Coming Soon)
+                                    📚 Save to Collection
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
             {/* Quick Shopping List Modal */}
             {showQuickShoppingList && (
                 <RecipeShoppingList
@@ -613,6 +689,117 @@ export default function RecipeDetailPage() {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* NEW: Add to Collection Modal */}
+            {showCollectionsModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full max-h-96 overflow-hidden">
+                        <div className="p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    📚 Save "{recipe.title}" to Collection
+                                </h3>
+                                <button
+                                    onClick={() => setShowCollectionsModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 max-h-80 overflow-y-auto">
+                            {loadingCollections ? (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                                    <p className="mt-2 text-gray-600">Loading collections...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* Existing Collections */}
+                                    {collections.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-gray-900 mb-3">Add to existing collection:</h4>
+                                            <div className="space-y-2">
+                                                {collections.map(collection => (
+                                                    <button
+                                                        key={collection._id}
+                                                        onClick={() => addToCollection(collection._id)}
+                                                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                                                    >
+                                                        <div className="font-medium text-gray-900">{collection.name}</div>
+                                                        {collection.description && (
+                                                            <div className="text-sm text-gray-600 mt-1">{collection.description}</div>
+                                                        )}
+                                                        <div className="text-xs text-gray-500 mt-1">
+                                                            {collection.recipes?.length || 0} recipe{(collection.recipes?.length || 0) !== 1 ? 's' : ''}
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Create New Collection */}
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-900 mb-3">
+                                            {collections.length > 0 ? 'Or create a new collection:' : 'Create your first collection:'}
+                                        </h4>
+                                        <form
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                const formData = new FormData(e.target);
+                                                const name = formData.get('name');
+                                                const description = formData.get('description');
+                                                if (name.trim()) {
+                                                    createCollectionAndAdd(name.trim(), description.trim());
+                                                }
+                                            }}
+                                            className="space-y-3"
+                                        >
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Collection Name *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    required
+                                                    placeholder="e.g., Favorite Desserts, Quick Weeknight Meals"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Description (Optional)
+                                                </label>
+                                                <textarea
+                                                    name="description"
+                                                    rows={2}
+                                                    placeholder="Brief description of this collection..."
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+                                            >
+                                                ✨ Create Collection & Add Recipe
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {collections.length === 0 && (
+                                        <div className="text-center py-4 text-gray-500 text-sm">
+                                            Collections help you organize your favorite recipes by theme, occasion, or dietary preferences.
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
