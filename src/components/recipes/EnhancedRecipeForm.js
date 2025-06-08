@@ -10,6 +10,28 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [showParser, setShowParser] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
 
+    // Add category options at the top of the file (after the imports):
+
+    const CATEGORY_OPTIONS = [
+        { value: 'seasonings', label: 'Seasonings' },
+        { value: 'sauces', label: 'Sauces' },
+        { value: 'salad-dressings', label: 'Salad Dressings' },
+        { value: 'marinades', label: 'Marinades' },
+        { value: 'ingredients', label: 'Basic Ingredients' },
+        { value: 'entrees', label: 'Entrees' },
+        { value: 'side-dishes', label: 'Side Dishes' },
+        { value: 'soups', label: 'Soups' },
+        { value: 'sandwiches', label: 'Sandwiches' },
+        { value: 'appetizers', label: 'Appetizers' },
+        { value: 'desserts', label: 'Desserts' },
+        { value: 'breads', label: 'Breads' },
+        { value: 'pizza-dough', label: 'Pizza Dough' },
+        { value: 'specialty-items', label: 'Specialty Items' },
+        { value: 'beverages', label: 'Beverages' },
+        { value: 'breakfast', label: 'Breakfast' }
+    ];
+
+
     // Recipe form state
     const [recipe, setRecipe] = useState({
         title: '',
@@ -22,7 +44,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         difficulty: 'medium',
         tags: [],
         source: '',
-        isPublic: false, // Add public option
+        isPublic: false,
+        category: 'entrees',
         nutrition: {
             calories: '',
             protein: '',
@@ -447,12 +470,25 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                     placeholder="Enter recipe title..."
                                 />
                             </div>
-                            {/* Category */}
+
+                            {/* Category Dropdown - REPLACE THE OLD SECTION WITH THIS */}
                             <div>
-                                <div className="recipe-category">
-                                    Category: {recipe.category}
-                                </div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Category
+                                </label>
+                                <select
+                                    value={recipe.category || 'entrees'}
+                                    onChange={(e) => updateRecipe('category', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    {CATEGORY_OPTIONS.map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+
                             {/* Description */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -467,6 +503,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 />
                             </div>
 
+                            {/* Rest of the grid continues as before... */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Prep Time (minutes)
@@ -522,7 +559,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </div>
                         </div>
                     </div>
-
                     {/* Ingredients */}
                     <div className="bg-white shadow rounded-lg p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
