@@ -758,3 +758,26 @@ button:disabled .emoji {
     display: inline-block;
     color: inherit;
 }
+
+/* Add these missing purple color classes to your globals.css file */
+
+/* MISSING PURPLE BACKGROUND COLORS - Add after line 75 where you have bg-purple-50 */
+.bg-purple-100 { background-color: #f3e8ff !important; }
+.bg-purple-600 { background-color: #9333ea !important; }
+.bg-purple-700 { background-color: #7c3aed !important; }
+
+/* MISSING PURPLE TEXT COLORS - Add after your existing purple text colors */
+.text-purple-600 { color: #9333ea !important; }
+
+/* MISSING PURPLE HOVER EFFECTS - Add with your other hover effects */
+.hover\:bg-purple-700:hover { background-color: #7c3aed !important; }
+.hover\:text-purple-700:hover { color: #7c3aed !important; }
+.hover\:border-purple-300:hover { border-color: #d8b4fe !important; }
+
+/* MISSING PURPLE BORDER COLORS */
+.border-purple-300 { border-color: #d8b4fe !important; }
+.border-purple-600 { border-color: #9333ea !important; }
+
+/* MISSING PURPLE FOCUS UTILITIES */
+.focus\:ring-purple-500:focus { box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.5) !important; }
+.focus\:border-purple-500:focus { border-color: #a855f7 !important; }
