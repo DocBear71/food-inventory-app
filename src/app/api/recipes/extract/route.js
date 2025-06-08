@@ -1109,6 +1109,8 @@ function parseIngredientLine(line) {
     }
 }
 
+// Recipe Parser with Classification System
+
 // Recipe categories
 const RECIPE_CATEGORIES = {
     'seasonings': 'Seasonings',
@@ -1429,7 +1431,7 @@ function classifyRecipe(recipe) {
     console.log(`   Title: "${title}"`);
     console.log(`   Ingredients text: "${ingredientNames}"`);
 
-    // Classification rules in order of specificity
+    // Classification rules in order of specificity (FIXED ORDER)
     const classificationRules = [
         // Specialty Items - FIRST to catch Doc Bear's unique creations
         {
@@ -1449,68 +1451,78 @@ function classifyRecipe(recipe) {
             keywords: ['coca-cola chicken', 'dr pepper pork', 'jack daniels', 'whiskey fudge', 'cola tacos', 'bourbon', 'rum sauce']
         },
 
-        // Basic Ingredients - homemade components for other recipes (MORE SPECIFIC)
+        // Soups - Check BEFORE seasonings to catch "soup"
         {
-            category: 'ingredients',
+            category: 'soups',
             patterns: [
-                /\btomato paste\b/i,
-                /\bhomemade.*(?:butter|cheese|extract|stock|base)\b/i,
-                /\b(?:ricotta|riccata).*cheese\b/i,
-                /\bhamburger patties\b/i,
-                /\b(?:pinto|kidney|refried).*beans.*(?:from dry|dry)\b/i,
-                /\bbeans.*(?:from dry|dry)\b/i,
-                /\bmake.*(?:butter|cheese|extract|stock|base)\b/i,
-                /\b(?:butter|cheese|extract|stock|base).*from scratch\b/i,
-                /\bhomemade.*(?:vanilla|almond).*extract\b/i
+                /\b(soup|stew|chowder|bisque|broth|stock)\b/i,
+                /\begg drop soup\b/i
             ],
-            keywords: ['tomato paste', 'ricotta cheese', 'riccata cheese', 'hamburger patties', 'pinto beans from dry', 'kidney beans from dry', 'refried beans', 'homemade butter', 'homemade cheese', 'vanilla extract', 'almond extract']
-        },
-        // Seasonings - spice blends, rubs, seasoning mixes
-        {
-            category: 'seasonings',
-            patterns: [
-                /\b(seasoning|spice|rub|blend|mix)\b/,
-                /\b(salt|pepper|garlic powder|onion powder|paprika|cumin|oregano|basil|thyme|rosemary)\b/,
-                /\bDoc Bear.*seasoning\b/i
-            ],
-            keywords: ['seasoning', 'spice', 'rub', 'blend', 'salt', 'pepper blend']
+            keywords: ['soup', 'stew', 'chowder', 'broth', 'egg drop soup']
         },
 
-        // Sauces - cooking sauces, gravies, etc.
+        // Sauces - Check BEFORE seasonings to catch "sauce"
         {
             category: 'sauces',
             patterns: [
-                /\b(sauce|gravy|reduction|glaze)\b/,
-                /\b(tomato sauce|alfredo|cheese sauce|mushroom sauce|enchilada|marinara)\b/
+                /\b(sauce|gravy|reduction|glaze)\b/i,
+                /\b(tomato sauce|alfredo|cheese sauce|mushroom sauce|enchilada|marinara|salsa|pico de gallo)\b/i,
+                /\bDoc Bear.*sauce\b/i
             ],
-            keywords: ['sauce', 'gravy', 'alfredo', 'marinara', 'enchilada']
+            keywords: ['sauce', 'gravy', 'alfredo', 'marinara', 'enchilada', 'salsa', 'pico de gallo', 'cheese sauce']
         },
 
-        // Salad Dressings
+        // Salad Dressings - Check BEFORE seasonings
         {
             category: 'salad-dressings',
             patterns: [
-                /\b(dressing|vinaigrette)\b/,
-                /\bsalad.*dressing\b/
+                /\b(dressing|vinaigrette)\b/i,
+                /\bsalad.*dressing\b/i
             ],
-            keywords: ['dressing', 'vinaigrette']
+            keywords: ['dressing', 'vinaigrette', 'salad dressing']
         },
 
-        // Marinades
+        // Marinades - Check BEFORE seasonings
         {
             category: 'marinades',
             patterns: [
-                /\b(marinade|marinating)\b/
+                /\b(marinade|marinating)\b/i
             ],
-            keywords: ['marinade']
+            keywords: ['marinade', 'marinating']
+        },
+
+        // Entrees - Check BEFORE seasonings to catch main dishes
+        {
+            category: 'entrees',
+            patterns: [
+                /\b(chicken|beef|pork|fish|salmon|turkey|duck|lamb).*(?:parmigiana|parmesan|grilled|roasted|baked|fried)\b/i,
+                /\b(?:parmigiana|parmesan|grilled|roasted|baked|fried).*(?:chicken|beef|pork|fish|salmon|turkey|duck|lamb)\b/i,
+                /\bDoc Bear.*(?:chicken|beef|pork|fish|salmon|turkey|duck|lamb)\b/i,
+                /\b(pasta|spaghetti|lasagna|casserole|meatloaf|steak|chops|roast)\b/i,
+                /\bDoc Bear.*(?:pasta|casserole|meatloaf)\b/i,
+                /\bchicken parmigiana\b/i
+            ],
+            keywords: ['chicken parmigiana', 'pasta', 'casserole', 'meatloaf', 'steak', 'roast', 'grilled chicken', 'baked fish']
+        },
+
+        // Side Dishes - Check BEFORE seasonings
+        {
+            category: 'side-dishes',
+            patterns: [
+                /\b(mashed potatoes|roasted vegetables|rice pilaf|garlic.*potatoes|red.*potatoes)\b/i,
+                /\bDoc Bear.*(?:mashed potatoes|potatoes|rice|vegetables)\b/i,
+                /\bside.*dish\b/i,
+                /\b(potato|rice|vegetable).*side\b/i
+            ],
+            keywords: ['mashed potatoes', 'garlic potatoes', 'red potatoes', 'rice pilaf', 'roasted vegetables', 'side dish']
         },
 
         // Pizza Dough
         {
             category: 'pizza-dough',
             patterns: [
-                /\bpizza.*dough\b/,
-                /\bdough.*pizza\b/
+                /\bpizza.*dough\b/i,
+                /\bdough.*pizza\b/i
             ],
             keywords: ['pizza dough']
         },
@@ -1519,8 +1531,8 @@ function classifyRecipe(recipe) {
         {
             category: 'breads',
             patterns: [
-                /\b(bread|biscuit|roll|loaf|bun)\b/,
-                /\b(yeast|flour.*bread|bread.*flour)\b/
+                /\b(bread|biscuit|roll|loaf|bun)\b/i,
+                /\b(yeast|flour.*bread|bread.*flour)\b/i
             ],
             keywords: ['bread', 'biscuit', 'roll', 'loaf']
         },
@@ -1529,27 +1541,18 @@ function classifyRecipe(recipe) {
         {
             category: 'desserts',
             patterns: [
-                /\b(cake|cookie|pie|tart|pudding|ice cream|chocolate|dessert|sweet|sugar|frosting|icing)\b/,
-                /\bfruit.*sauce\b/
+                /\b(cake|cookie|pie|tart|pudding|ice cream|chocolate|dessert|sweet|sugar|frosting|icing)\b/i,
+                /\bfruit.*sauce\b/i
             ],
             keywords: ['cake', 'cookie', 'pie', 'dessert', 'chocolate', 'sweet']
-        },
-
-        // Soups
-        {
-            category: 'soups',
-            patterns: [
-                /\b(soup|stew|chowder|bisque|broth|stock)\b/
-            ],
-            keywords: ['soup', 'stew', 'chowder', 'broth']
         },
 
         // Appetizers
         {
             category: 'appetizers',
             patterns: [
-                /\b(appetizer|starter|dip|spread|finger food)\b/,
-                /\b(chips|crackers|bite|canapé)\b/
+                /\b(appetizer|starter|dip|spread|finger food)\b/i,
+                /\b(chips|crackers|bite|canapé)\b/i
             ],
             keywords: ['appetizer', 'dip', 'spread', 'finger']
         },
@@ -1558,7 +1561,7 @@ function classifyRecipe(recipe) {
         {
             category: 'sandwiches',
             patterns: [
-                /\b(sandwich|burger|wrap|sub|hoagie|panini)\b/
+                /\b(sandwich|burger|wrap|sub|hoagie|panini)\b/i
             ],
             keywords: ['sandwich', 'burger', 'wrap']
         },
@@ -1567,58 +1570,47 @@ function classifyRecipe(recipe) {
         {
             category: 'beverages',
             patterns: [
-                /\b(drink|beverage|juice|smoothie|cocktail|tea|coffee|punch)\b/
+                /\b(drink|beverage|juice|smoothie|cocktail|tea|coffee|punch)\b/i
             ],
             keywords: ['drink', 'juice', 'smoothie', 'cocktail']
         },
 
-        // Basic Ingredients - homemade components for other recipes
+        // Basic Ingredients - MORE SPECIFIC patterns
         {
             category: 'ingredients',
             patterns: [
-                /\b(paste|extract|butter|oil|vinegar|stock|base|cheese|beans|patties)\b/,
-                /\btomato paste\b/,
-                /\bhomemade\b/,
-                /\b(ricotta|riccata|hamburger patties|pinto beans|refried beans|kidney beans)\b/,
-                /\b(from dry|from scratch)\b/,
-                /\bmake.*butter\b/,
-                /\bmake.*cheese\b/
+                /^tomato paste$/i,
+                /\bhomemade.*(?:butter|cheese|extract|stock|base)\b/i,
+                /\b(?:ricotta|riccata).*cheese$/i,
+                /^hamburger patties$/i,
+                /\b(?:pinto|kidney|refried).*beans.*(?:from dry|dry)$/i,
+                /^.*beans.*(?:from dry|dry)$/i,
+                /^homemade.*(?:vanilla|almond).*extract$/i
             ],
-            keywords: ['paste', 'extract', 'homemade', 'base', 'butter', 'ricotta', 'riccata', 'hamburger patties', 'pinto beans', 'refried beans', 'kidney beans', 'from dry']
-        },
-
-        // Specialty Items - unique Doc Bear creations with unusual ingredients/combinations
-        {
-            category: 'specialty-items',
-            patterns: [
-                /\b(coca.cola|dr.pepper|jack daniels|whiskey|bourbon|rum|beer)\b/,
-                /\bDoc Bear.*(?:coca.cola|dr.pepper|jack daniels|whiskey|bourbon)\b/i,
-                /\b(soda|cola|pepsi|sprite).*(?:chicken|pork|beef)\b/,
-                /\b(?:chicken|pork|beef).*(?:soda|cola|pepsi|sprite)\b/,
-                /\balcohol.*(?:fudge|dessert|sauce)\b/,
-                /\b(?:fudge|dessert|sauce).*alcohol\b/,
-                /\bunusual|unique|special.*combination\b/
-            ],
-            keywords: ['coca-cola', 'dr pepper', 'jack daniels', 'whiskey', 'bourbon', 'cola chicken', 'pepper pork', 'whiskey fudge']
-        },
-
-        // Side Dishes
-        {
-            category: 'side-dishes',
-            patterns: [
-                /\b(side|accompaniment|vegetable|potato|rice|pasta|grain)\b/,
-                /\b(roasted|mashed|steamed|sautéed).*vegetables?\b/
-            ],
-            keywords: ['side', 'potato', 'rice', 'vegetable']
+            keywords: ['tomato paste', 'ricotta cheese', 'riccata cheese', 'hamburger patties', 'pinto beans from dry', 'kidney beans from dry', 'refried beans', 'homemade butter', 'homemade cheese', 'vanilla extract', 'almond extract']
         },
 
         // Breakfast
         {
             category: 'breakfast',
             patterns: [
-                /\b(breakfast|pancake|waffle|omelette|eggs|bacon|sausage|cereal|oatmeal)\b/
+                /\b(breakfast|pancake|waffle|omelette|eggs|bacon|sausage|cereal|oatmeal)\b/i
             ],
             keywords: ['breakfast', 'pancake', 'eggs', 'bacon']
+        },
+
+        // Seasonings - MOVED TO LAST to be most specific
+        {
+            category: 'seasonings',
+            patterns: [
+                /^.*seasoning$/i,
+                /^.*spice.*blend$/i,
+                /^.*rub$/i,
+                /^Doc Bear.*seasoning$/i,
+                /^(?:salt|pepper|garlic|onion).*(?:blend|mix|powder)$/i,
+                /^.*(?:spice|seasoning).*mix$/i
+            ],
+            keywords: ['seasoning mix', 'spice blend', 'rub', 'seasoning powder', 'spice mix']
         }
     ];
 
@@ -1773,7 +1765,7 @@ function parseIngredientsAndInstructions(contentLines) {
         description: ''
     };
 }
-
+//Okay, lets try this again...
 // FINAL: Better fraction conversion
 function convertFractionToDecimal(fractionStr) {
     if (fractionStr === '½') return 0.5;
