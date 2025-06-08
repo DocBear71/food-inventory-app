@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v8
+// file: /src/components/meal-planning/MealPlanningCalendar.js v9
 
 'use client';
 
@@ -213,14 +213,19 @@ export default function MealPlanningCalendar() {
         setSelectedSlot(null);
     };
 
-    // Remove meal from slot
+    // Remove meal from slot - FIXED
     const removeMealFromSlot = async (day, mealIndex) => {
+        console.log('=== Removing meal from slot ===');
+        console.log('Day:', day, 'Meal index:', mealIndex);
+
         if (!mealPlan) return;
 
         const updatedMeals = {
             ...mealPlan.meals,
             [day]: mealPlan.meals[day].filter((_, index) => index !== mealIndex)
         };
+
+        console.log('Updated meals after removal:', updatedMeals);
 
         try {
             const response = await fetch(`/api/meal-plans/${mealPlan._id}`, {
@@ -234,11 +239,14 @@ export default function MealPlanningCalendar() {
             });
 
             const data = await response.json();
+            console.log('Remove meal API response:', data);
+
             if (data.success) {
                 setMealPlan(prev => ({
                     ...prev,
                     meals: updatedMeals
                 }));
+                console.log('Meal removed successfully!');
             }
         } catch (error) {
             console.error('Error removing meal:', error);
@@ -327,11 +335,11 @@ export default function MealPlanningCalendar() {
                                 />
                             )}
 
-                            {/* Shopping List Button */}
+                            {/* Shopping List Button - FIXED PADDING */}
                             {mealsPlanned && (
                                 <button
                                     onClick={() => setShowShoppingList(true)}
-                                    className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -422,27 +430,36 @@ export default function MealPlanningCalendar() {
                                     <div key={`${day}-${mealType}`}>
                                         <h4 className="font-medium text-gray-800 capitalize mb-2">{mealType}</h4>
                                         <div className="space-y-2">
-                                            {/* Existing Meals */}
-                                            {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-3"
-                                                >
-                                                    <div
-                                                        className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
-                                                    <div className="text-xs text-indigo-700">
-                                                        {meal.servings} servings • {meal.prepTime + meal.cookTime} min
-                                                    </div>
+                                            {/* Existing Meals - FIXED REMOVE BUTTON */}
+                                            {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
+                                                // Get the actual index in the day's meals array
+                                                const actualIndex = mealPlan.meals[day].findIndex(m =>
+                                                    m.recipeId === meal.recipeId &&
+                                                    m.mealType === meal.mealType &&
+                                                    m.createdAt === meal.createdAt
+                                                );
 
-                                                    {/* Remove Button */}
-                                                    <button
-                                                        onClick={() => removeMealFromSlot(day, mealPlan.meals[day].indexOf(meal))}
-                                                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                                                return (
+                                                    <div
+                                                        key={`${meal.recipeId}-${mealTypeIndex}`}
+                                                        className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-3"
                                                     >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                        <div className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
+                                                        <div className="text-xs text-indigo-700">
+                                                            {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                        </div>
+
+                                                        {/* Remove Button */}
+                                                        <button
+                                                            onClick={() => removeMealFromSlot(day, actualIndex)}
+                                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                                            title="Remove meal"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
 
                                             {/* Add Meal Button */}
                                             <button
@@ -580,7 +597,7 @@ export default function MealPlanningCalendar() {
                             />
                         )}
 
-                        {/* Shopping List Button */}
+                        {/* Shopping List Button - FIXED PADDING */}
                         {mealsPlanned && (
                             <button
                                 onClick={() => setShowShoppingList(true)}
@@ -689,27 +706,36 @@ export default function MealPlanningCalendar() {
                                 <div key={`${day}-${mealType}`}
                                      className="p-3 border-r border-gray-200 last:border-r-0 min-h-24">
                                     <div className="space-y-2">
-                                        {/* Existing Meals */}
-                                        {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, index) => (
-                                            <div
-                                                key={index}
-                                                className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-2 hover:bg-indigo-200 transition-colors"
-                                            >
-                                                <div
-                                                    className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
-                                                <div className="text-xs text-indigo-700">
-                                                    {meal.servings} servings • {meal.prepTime + meal.cookTime} min
-                                                </div>
+                                        {/* Existing Meals - FIXED REMOVE BUTTON */}
+                                        {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
+                                            // Get the actual index in the day's meals array
+                                            const actualIndex = mealPlan.meals[day].findIndex(m =>
+                                                m.recipeId === meal.recipeId &&
+                                                m.mealType === meal.mealType &&
+                                                m.createdAt === meal.createdAt
+                                            );
 
-                                                {/* Remove Button */}
-                                                <button
-                                                    onClick={() => removeMealFromSlot(day, mealPlan.meals[day].indexOf(meal))}
-                                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                            return (
+                                                <div
+                                                    key={`${meal.recipeId}-${mealTypeIndex}`}
+                                                    className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-2 hover:bg-indigo-200 transition-colors"
                                                 >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
+                                                    <div className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
+                                                    <div className="text-xs text-indigo-700">
+                                                        {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                    </div>
+
+                                                    {/* Remove Button */}
+                                                    <button
+                                                        onClick={() => removeMealFromSlot(day, actualIndex)}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                        title="Remove meal"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
 
                                         {/* Add Meal Button */}
                                         <button
