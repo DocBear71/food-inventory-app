@@ -1,4 +1,4 @@
-// file: /src/app/recipes/suggestions/page.js v2
+// file: /src/app/recipes/suggestions/page.js v3
 
 'use client';
 
@@ -17,6 +17,8 @@ export default function RecipeSuggestions() {
     const [matchThreshold, setMatchThreshold] = useState(0.4);
     const [sortBy, setSortBy] = useState('match');
     const [showShoppingList, setShowShoppingList] = useState(null);
+    const [showRecipeModal, setShowRecipeModal] = useState(null);
+    const [loadingRecipe, setLoadingRecipe] = useState(false);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -70,6 +72,24 @@ export default function RecipeSuggestions() {
         }
     };
 
+    const loadRecipeDetails = async (recipeId) => {
+        setLoadingRecipe(true);
+        try {
+            const response = await fetch(`/api/recipes/${recipeId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setShowRecipeModal(data.recipe);
+            } else {
+                console.error('Failed to load recipe details');
+            }
+        } catch (error) {
+            console.error('Error loading recipe details:', error);
+        } finally {
+            setLoadingRecipe(false);
+        }
+    };
+
     const generateSuggestions = () => {
         console.log('=== GENERATING SUGGESTIONS ===');
         console.log('Inventory count:', inventory.length);
@@ -114,8 +134,7 @@ export default function RecipeSuggestions() {
                 matchPercentage: 0,
                 availableIngredients: [],
                 missingIngredients: [],
-                canMake: false,
-                matches: []
+                canMake: false
             };
         }
 
@@ -300,6 +319,23 @@ export default function RecipeSuggestions() {
             default:
                 return '⚪';
         }
+    };
+
+    const getDifficultyColor = (difficulty) => {
+        const colors = {
+            easy: 'bg-green-100 text-green-800',
+            medium: 'bg-yellow-100 text-yellow-800',
+            hard: 'bg-red-100 text-red-800'
+        };
+        return colors[difficulty] || colors.medium;
+    };
+
+    const formatCookTime = (minutes) => {
+        if (!minutes) return 'Not specified';
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     };
 
     if (status === 'loading') {
@@ -521,12 +557,13 @@ export default function RecipeSuggestions() {
                                                 )}
                                             </div>
                                             <div className="flex space-x-2">
-                                                <a
-                                                    href={`/recipes/${recipe._id}`}
-                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                <button
+                                                    onClick={() => loadRecipeDetails(recipe._id)}
+                                                    disabled={loadingRecipe}
+                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                                                 >
-                                                    View Recipe
-                                                </a>
+                                                    {loadingRecipe ? 'Loading...' : 'View Recipe'}
+                                                </button>
                                                 {!recipe.analysis.canMake && (
                                                     <button
                                                         onClick={() => setShowShoppingList({
@@ -546,6 +583,146 @@ export default function RecipeSuggestions() {
                         )}
                     </div>
                 </div>
+
+                {/* Recipe Modal */}
+                {showRecipeModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                            {/* Modal Header */}
+                            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                                <h2 className="text-xl font-semibold text-gray-900">{showRecipeModal.title}</h2>
+                                <button
+                                    onClick={() => setShowRecipeModal(null)}
+                                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+                                {/* Recipe Meta */}
+                                <div className="mb-6">
+                                    {showRecipeModal.description && (
+                                        <p className="text-gray-600 mb-4">{showRecipeModal.description}</p>
+                                    )}
+
+                                    <div className="flex flex-wrap items-center space-x-4 text-sm text-gray-600 mb-4">
+                                        {showRecipeModal.prepTime && (
+                                            <span>Prep: {formatCookTime(showRecipeModal.prepTime)}</span>
+                                        )}
+                                        {showRecipeModal.cookTime && (
+                                            <span>Cook: {formatCookTime(showRecipeModal.cookTime)}</span>
+                                        )}
+                                        {showRecipeModal.servings && (
+                                            <span>Serves: {showRecipeModal.servings}</span>
+                                        )}
+                                        {showRecipeModal.difficulty && (
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(showRecipeModal.difficulty)}`}>
+                                                {showRecipeModal.difficulty}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {showRecipeModal.tags && showRecipeModal.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {showRecipeModal.tags.map((tag, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                                                >
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Ingredients */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Ingredients</h3>
+                                        <ul className="space-y-2">
+                                            {showRecipeModal.ingredients?.map((ingredient, index) => (
+                                                <li key={index} className="flex items-start space-x-5">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-gray-700">
+                                                        {ingredient.amount && (
+                                                            <span className="font-medium">
+                                                                {ingredient.amount}
+                                                                {ingredient.unit && ` ${ingredient.unit}`}{' '}
+                                                            </span>
+                                                        )}
+                                                        {ingredient.name}
+                                                        {ingredient.optional && (
+                                                            <span className="text-gray-500 text-sm"> (optional)</span>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    {/* Instructions */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Instructions</h3>
+                                        <ol className="space-y-4">
+                                            {showRecipeModal.instructions?.map((instruction, index) => (
+                                                <li key={index} className="flex items-start space-x-4">
+                                                    <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                                        {index + 1}
+                                                    </span>
+                                                    <p className="text-gray-700 leading-relaxed">{instruction}</p>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                </div>
+
+                                {/* Recipe Info */}
+                                {showRecipeModal.source && (
+                                    <div className="mt-6 pt-6 border-t border-gray-200">
+                                        <div className="text-sm text-gray-500">
+                                            <span className="font-medium">Source:</span> {showRecipeModal.source}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                                <div className="text-sm text-gray-500">
+                                    {showRecipeModal.isPublic ? '🌍 Public Recipe' : '🔒 Private Recipe'}
+                                </div>
+                                <div className="flex space-x-3">
+                                    <a
+                                        href={`/recipes/${showRecipeModal._id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Open Full Page
+                                    </a>
+                                    <button
+                                        onClick={() => window.print()}
+                                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Print
+                                    </button>
+                                    <button
+                                        onClick={() => setShowRecipeModal(null)}
+                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Shopping List Modal */}
                 {showShoppingList && (
