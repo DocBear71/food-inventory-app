@@ -64,7 +64,7 @@ export async function POST(request) {
                     source: recipeData.source || `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
                     category: recipeData.category || 'entrees', // ADDED: Include category
                     createdBy: session.user.id,
-                    isPublic: false,
+                    isPublic: true,
                     createdAt: new Date(),
                     updatedAt: new Date()
                 });
