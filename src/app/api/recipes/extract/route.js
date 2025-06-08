@@ -133,74 +133,6 @@ The manual entry method gives you full control over how recipes are formatted an
     }
 }
 
-// Parse recipes from extracted text - IMPROVED VERSION
-function parseRecipesFromText(text, volume) {
-    const recipes = [];
-
-    try {
-        console.log('Starting recipe parsing with delimiters...');
-        console.log('Text preview:', text.substring(0, 500));
-
-        // Clean up the text first
-        const cleanText = text
-            .replace(/\r\n/g, '\n')
-            .replace(/\r/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-
-        // Split by the recipe break delimiter
-        let recipeSections = cleanText.split(/---\s*RECIPE\s*BREAK\s*---/i);
-
-        console.log(`Split by RECIPE BREAK found ${recipeSections.length} sections`);
-
-        // If we only got one section, try other splitting methods
-        if (recipeSections.length === 1) {
-            console.log('No RECIPE BREAK delimiters found, trying other methods...');
-
-            // Try splitting by recipe titles (lines that start with ** and end with **)
-            recipeSections = cleanText.split(/\n\s*\*\*([^*]+)\*\*\s*\n/);
-            console.log(`Title pattern split found ${recipeSections.length} sections`);
-
-            // If still only one section, try splitting by double asterisks
-            if (recipeSections.length === 1) {
-                recipeSections = cleanText.split(/\*\*[^*]+\*\*/);
-                console.log(`Double asterisk split found ${recipeSections.length} sections`);
-            }
-        }
-
-        console.log(`Final section count: ${recipeSections.length}`);
-
-        // Process each section
-        for (let i = 0; i < recipeSections.length; i++) {
-            const section = recipeSections[i].trim();
-
-            console.log(`\n--- PROCESSING SECTION ${i + 1} ---`);
-            console.log(`Section length: ${section.length}`);
-            console.log(`Section preview: "${section.substring(0, 200)}..."`);
-
-            if (section.length < 20) {
-                console.log('❌ Section too short, skipping');
-                continue;
-            }
-
-            const recipe = parseRecipeWithProperSeparation(section, volume);
-            if (recipe && recipe.title) {
-                recipes.push(recipe);
-                console.log(`✅ Successfully parsed: "${recipe.title}"`);
-                console.log(`   - ${recipe.ingredients.length} ingredients`);
-                console.log(`   - ${recipe.instructions.length} instructions`);
-            }
-        }
-
-        console.log(`\nFINAL RESULT: ${recipes.length} recipes parsed successfully`);
-
-    } catch (error) {
-        console.error('Error parsing recipes:', error);
-    }
-
-    return recipes;
-}
-
 function parseRecipeWithProperSeparation(section, volume) {
     console.log('\n=== PARSING RECIPE SECTION ===');
 
@@ -933,11 +865,24 @@ function parseIngredientAggressively(line) {
     }
 }
 
-// COMPLETELY REWRITTEN PARSER - Much more accurate
+// Enhanced parsing function with delimiter support and fallback
 function parseRecipeWithImprovedStructure(section, volume) {
     console.log('\n=== PARSING RECIPE SECTION ===');
     console.log('Raw section:', section.substring(0, 300) + '...');
 
+    // STEP 1: Check if this section uses the new delimiter format
+    if (hasDelimiters(section)) {
+        console.log('✅ Delimiters detected, using delimiter-based parsing');
+        const delimiterResult = parseRecipeWithDelimiters(section, volume);
+        if (delimiterResult) {
+            return delimiterResult;
+        }
+        console.log('⚠️ Delimiter parsing failed, falling back to legacy method');
+    } else {
+        console.log('ℹ️ No delimiters found, using legacy parsing method');
+    }
+
+    // STEP 2: Fall back to your existing parsing logic
     // First, try to separate concatenated ingredients by looking for patterns
     const preprocessedSection = preprocessConcatenatedIngredients(section);
     console.log('After preprocessing:', preprocessedSection.substring(0, 300) + '...');
@@ -966,7 +911,7 @@ function parseRecipeWithImprovedStructure(section, volume) {
         isPublic: false
     };
 
-    // STEP 1: Find the title (first meaningful line)
+    // STEP 3: Find the title (first meaningful line)
     let titleIndex = -1;
     for (let i = 0; i < Math.min(allLines.length, 3); i++) {
         const line = allLines[i];
@@ -993,11 +938,11 @@ function parseRecipeWithImprovedStructure(section, volume) {
         return null;
     }
 
-    // STEP 2: Process remaining lines after title
+    // STEP 4: Process remaining lines after title
     const contentLines = allLines.slice(titleIndex + 1);
     console.log(`Processing ${contentLines.length} content lines after title`);
 
-    // STEP 3: Separate ingredients from instructions using better logic
+    // STEP 5: Separate ingredients from instructions using better logic
     const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
 
     recipe.ingredients = ingredients;
@@ -1016,7 +961,12 @@ function parseRecipeWithImprovedStructure(section, volume) {
     return recipe;
 }
 
-// NEW: Preprocess concatenated ingredients
+// Helper function to detect if section uses delimiters
+function hasDelimiters(section) {
+    return /--\s*ingredients\s*--/i.test(section) && /--\s*instructions\s*--/i.test(section);
+}
+
+// Add the preprocessing function that your current code uses
 function preprocessConcatenatedIngredients(text) {
     // Look for patterns where ingredients are concatenated like "2 cups flour1 cup sugar"
     // Insert line breaks before numbers that follow letters/units
@@ -1035,6 +985,39 @@ function preprocessConcatenatedIngredients(text) {
     processed = processed.replace(/(butter|oil|cream|cheese|sauce|flour|sugar|salt|pepper)\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/gi, '$1\n$2 ');
 
     return processed;
+}
+
+// Add the other helper functions your current code needs
+function isValidRecipeTitle(title) {
+    try {
+        // Filter out obvious non-titles
+        const invalidPatterns = [
+            /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|in a|with a|set|allow)/i,
+            /\b(minutes?|hours?|degrees?)\b/i,
+            /^\d+\s*(cup|tsp|tbsp|oz|lb)/i, // Measurements
+            /\bcontinued on next page\b/i,
+        ];
+
+        // Must not match any invalid patterns
+        if (invalidPatterns.some(pattern => pattern.test(title))) {
+            return false;
+        }
+
+        // Should be reasonable length
+        if (title.length < 3 || title.length > 100) {
+            return false;
+        }
+
+        // Should contain at least one letter
+        if (!/[a-zA-Z]/.test(title)) {
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error in isValidRecipeTitle:', error);
+        return title.length >= 3 && title.length <= 100 && /[a-zA-Z]/.test(title);
+    }
 }
 
 // NEW: Better separation of ingredients vs instructions
@@ -1192,41 +1175,6 @@ function looksLikeInstruction(line) {
     }
 }
 
-// IMPROVED: Better title validation
-function isValidRecipeTitle(title) {
-    try {
-        // Filter out obvious non-titles
-        const invalidPatterns = [
-            /^(using|heat|cook|add|melt|stir|bring|place|remove|warm|fill|combine|mix|in a|with a|set|allow)/i,
-            /\b(minutes?|hours?|degrees?)\b/i,
-            /^\d+\s*(cup|tsp|tbsp|oz|lb)/i, // Measurements
-            /method$/i,
-            /attention:/i,
-            /^\*\*.*\*\*$/
-        ];
-
-        // Must not match any invalid patterns
-        if (invalidPatterns.some(pattern => pattern.test(title))) {
-            return false;
-        }
-
-        // Should be reasonable length
-        if (title.length < 3 || title.length > 100) {
-            return false;
-        }
-
-        // Should contain at least one letter
-        if (!/[a-zA-Z]/.test(title)) {
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error in isValidRecipeTitle:', error);
-        return title.length >= 3 && title.length <= 100 && /[a-zA-Z]/.test(title);
-    }
-}
-
 // IMPROVED: Better ingredient parsing - handles the "1 1 1/2" issue
 function parseIngredientLine(line) {
     try {
@@ -1296,6 +1244,295 @@ function parseIngredientLine(line) {
         return null;
     }
 }
+
+// Parse recipes from extracted text - DELIMITER VERSION
+function parseRecipesFromText(text, volume) {
+    const recipes = [];
+
+    try {
+        console.log('Starting delimiter-based recipe parsing...');
+        console.log('Text preview:', text.substring(0, 500));
+
+        // Clean up the text first
+        const cleanText = text
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        // Split by the recipe break delimiter
+        const recipeSections = cleanText.split(/---\s*RECIPE\s*BREAK\s*---/i);
+
+        console.log(`Split by RECIPE BREAK found ${recipeSections.length} sections`);
+
+        // Process each section (skip first if it's empty)
+        for (let i = 0; i < recipeSections.length; i++) {
+            const section = recipeSections[i].trim();
+
+            console.log(`\n--- PROCESSING SECTION ${i + 1} ---`);
+            console.log(`Section length: ${section.length}`);
+            console.log(`Section preview: "${section.substring(0, 200)}..."`);
+
+            if (section.length < 20) {
+                console.log('❌ Section too short, skipping');
+                continue;
+            }
+
+            const recipe = parseRecipeWithDelimiters(section, volume);
+            if (recipe && recipe.title) {
+                recipes.push(recipe);
+                console.log(`✅ Successfully parsed: "${recipe.title}"`);
+                console.log(`   - ${recipe.ingredients.length} ingredients`);
+                console.log(`   - ${recipe.instructions.length} instructions`);
+            } else {
+                console.log(`❌ Failed to parse section ${i + 1}`);
+            }
+        }
+
+        console.log(`\nFINAL RESULT: ${recipes.length} recipes parsed successfully`);
+
+    } catch (error) {
+        console.error('Error parsing recipes:', error);
+    }
+
+    return recipes;
+}
+
+// Parse individual recipe using delimiters
+function parseRecipeWithDelimiters(section, volume) {
+    console.log('\n=== PARSING RECIPE WITH DELIMITERS ===');
+
+    const recipe = {
+        title: '',
+        description: '',
+        ingredients: [],
+        instructions: [],
+        prepTime: 15,
+        cookTime: 30,
+        servings: 4,
+        difficulty: 'medium',
+        tags: ['comfort-food'],
+        source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
+        isPublic: false
+    };
+
+    try {
+        // Split the section into parts based on delimiters
+        const lines = section.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+        let currentSection = 'title';
+        let titleFound = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            console.log(`Processing line ${i}: "${line}" (section: ${currentSection})`);
+
+            // Check for section delimiters
+            if (line.match(/^--\s*ingredients\s*--$/i)) {
+                currentSection = 'ingredients';
+                console.log('  ➡️ Switched to ingredients section');
+                continue;
+            }
+
+            if (line.match(/^--\s*instructions\s*--$/i)) {
+                currentSection = 'instructions';
+                console.log('  ➡️ Switched to instructions section');
+                continue;
+            }
+
+            // Process based on current section
+            if (currentSection === 'title' && !titleFound) {
+                // Extract title (remove ** markers if present)
+                recipe.title = line.replace(/^\*\*|\*\*$/g, '').trim();
+                titleFound = true;
+                console.log(`  ✅ Found title: "${recipe.title}"`);
+
+                // After title, look for description or switch to ingredients
+                currentSection = 'description';
+                continue;
+            }
+
+            if (currentSection === 'description') {
+                // If we hit ingredients delimiter, this will be handled above
+                // Otherwise, treat non-empty lines as description until we hit ingredients
+                if (line.length > 0 && !line.match(/^--\s*ingredients\s*--$/i)) {
+                    recipe.description = line;
+                    console.log(`  📝 Found description: "${recipe.description}"`);
+                }
+                continue;
+            }
+
+            if (currentSection === 'ingredients') {
+                const ingredient = parseIngredientLineDelimited(line);
+                if (ingredient) {
+                    recipe.ingredients.push(ingredient);
+                    console.log(`  ✅ Added ingredient: ${ingredient.amount} ${ingredient.unit} ${ingredient.name}`);
+                } else {
+                    console.log(`  ⚠️ Could not parse ingredient: "${line}"`);
+                }
+                continue;
+            }
+
+            if (currentSection === 'instructions') {
+                if (line.length > 0) {
+                    recipe.instructions.push(line);
+                    console.log(`  ✅ Added instruction: ${line.substring(0, 50)}...`);
+                }
+                continue;
+            }
+        }
+
+        // Validation
+        if (!recipe.title) {
+            console.log('❌ No title found');
+            return null;
+        }
+
+        if (recipe.ingredients.length === 0) {
+            console.log('❌ No ingredients found');
+            return null;
+        }
+
+        if (recipe.instructions.length === 0) {
+            console.log('❌ No instructions found');
+            return null;
+        }
+
+        console.log(`✅ Successfully parsed recipe: "${recipe.title}"`);
+        console.log(`   - ${recipe.ingredients.length} ingredients`);
+        console.log(`   - ${recipe.instructions.length} instructions`);
+
+        return recipe;
+
+    } catch (error) {
+        console.error('Error parsing recipe with delimiters:', error);
+        return null;
+    }
+}
+
+// Parse ingredient line for delimiter-based parsing
+function parseIngredientLineDelimited(line) {
+    try {
+        // Remove list markers and extra spaces
+        let cleanLine = line.replace(/^[-•*]\s*/, '').trim();
+
+        if (cleanLine.length < 2) return null;
+
+        console.log(`    Parsing ingredient: "${cleanLine}"`);
+
+        // Handle mixed fractions like "1 1/2" -> "1.5"
+        cleanLine = cleanLine.replace(/^(\d+)\s+(\d+)\/(\d+)\s+/, (match, whole, num, den) => {
+            const decimal = parseInt(whole) + (parseInt(num) / parseInt(den));
+            return `${decimal} `;
+        });
+
+        // Handle standalone fractions like "1/2" -> "0.5"
+        cleanLine = cleanLine.replace(/^(\d+)\/(\d+)\s+/, (match, num, den) => {
+            const decimal = parseInt(num) / parseInt(den);
+            return `${decimal} `;
+        });
+
+        // Handle unicode fractions
+        cleanLine = cleanLine.replace(/^½\s+/, '0.5 ');
+        cleanLine = cleanLine.replace(/^¼\s+/, '0.25 ');
+        cleanLine = cleanLine.replace(/^¾\s+/, '0.75 ');
+        cleanLine = cleanLine.replace(/^⅓\s+/, '0.33 ');
+        cleanLine = cleanLine.replace(/^⅔\s+/, '0.67 ');
+        cleanLine = cleanLine.replace(/^⅛\s+/, '0.125 ');
+        cleanLine = cleanLine.replace(/^⅜\s+/, '0.375 ');
+        cleanLine = cleanLine.replace(/^⅝\s+/, '0.625 ');
+        cleanLine = cleanLine.replace(/^⅞\s+/, '0.875 ');
+
+        // Parse patterns in order of specificity
+        const patterns = [
+            // Pattern 1: Number + Unit + Ingredient (e.g., "2 cups flour", "1.5 Cups whole milk")
+            {
+                regex: /^(\d+(?:\.\d+)?)\s+(cup|cups|tsp|tbsp|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|gallon|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
+                type: 'amount_unit_name'
+            },
+
+            // Pattern 2: Number + Ingredient (no unit) (e.g., "3 eggs", "4 garlic cloves")
+            {
+                regex: /^(\d+(?:\.\d+)?)\s+(.+)$/,
+                type: 'amount_name'
+            },
+
+            // Pattern 3: Decimal + Unit + Ingredient (e.g., "0.25 tsp nutmeg")
+            {
+                regex: /^(0\.\d+)\s+(cup|cups|tsp|tbsp|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|gallon|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
+                type: 'decimal_unit_name'
+            },
+
+            // Pattern 4: Just ingredient name (e.g., "Salt and pepper to taste")
+            {
+                regex: /^(.+)$/,
+                type: 'name_only'
+            }
+        ];
+
+        for (const pattern of patterns) {
+            const match = cleanLine.match(pattern.regex);
+            if (match) {
+                let amount = 1;
+                let unit = '';
+                let name = '';
+
+                switch (pattern.type) {
+                    case 'amount_unit_name':
+                    case 'decimal_unit_name':
+                        amount = parseFloat(match[1]);
+                        unit = match[2];
+                        name = match[3].trim();
+                        break;
+
+                    case 'amount_name':
+                        amount = parseFloat(match[1]);
+                        unit = '';
+                        name = match[2].trim();
+                        break;
+
+                    case 'name_only':
+                        amount = 1;
+                        unit = '';
+                        name = match[1].trim();
+                        break;
+                }
+
+                // Validate the parsed result
+                if (name.length < 1) {
+                    console.log(`    ❌ Invalid name: "${name}"`);
+                    continue;
+                }
+
+                // Skip obvious non-ingredients
+                if (/^(and|or|then|until|while|method|attention)$/i.test(name)) {
+                    console.log(`    ❌ Not an ingredient: "${name}"`);
+                    continue;
+                }
+
+                console.log(`    ✅ Parsed: ${amount} ${unit} ${name}`);
+
+                return {
+                    amount: amount,
+                    unit: unit,
+                    name: name,
+                    category: '',
+                    alternatives: [],
+                    optional: false
+                };
+            }
+        }
+
+        console.log(`    ❌ Could not parse: "${cleanLine}"`);
+        return null;
+
+    } catch (error) {
+        console.error('Error in parseIngredientLineDelimited:', error);
+        return null;
+    }
+}
+
 
 // FINAL: Better fraction conversion
 function convertFractionToDecimal(fractionStr) {
