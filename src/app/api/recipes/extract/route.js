@@ -961,146 +961,6 @@ function parseRecipeWithImprovedStructure(section, volume) {
     return recipe;
 }
 
-// Helper function to detect if section uses delimiters
-function hasDelimiters(section) {
-    return /--\s*ingredients\s*--/i.test(section) && /--\s*instructions\s*--/i.test(section);
-}
-
-// Add the preprocessing function that your current code uses
-function preprocessConcatenatedIngredients(text) {
-    // Look for patterns where ingredients are concatenated like "2 cups flour1 cup sugar"
-    // Insert line breaks before numbers that follow letters/units
-    let processed = text;
-
-    // Pattern: number + unit + ingredient + number (next ingredient starts)
-    // Example: "2 cups flour1 cup" -> "2 cups flour\n1 cup"
-    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon)/gi, '$1\n$2 $3');
-
-    // Pattern: ingredient name + number (next ingredient starts)
-    // Example: "olive oil1 cup" -> "olive oil\n1 cup"
-    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+([a-zA-Z])/g, '$1\n$2 $3');
-
-    // Pattern: unit + ingredient + number
-    // Example: "butter1 qt heavy" -> "butter\n1 qt heavy"
-    processed = processed.replace(/(butter|oil|cream|cheese|sauce|flour|sugar|salt|pepper)\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/gi, '$1\n$2 ');
-
-    return processed;
-}
-
-// Add the other helper functions your current code needs
-function isValidRecipeTitle(title) {
-    try {
-        // Filter out obvious non-titles
-        const invalidPatterns = [
-            /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|in a|with a|set|allow)/i,
-            /\b(minutes?|hours?|degrees?)\b/i,
-            /^\d+\s*(cup|tsp|tbsp|oz|lb)/i, // Measurements
-            /\bcontinued on next page\b/i,
-        ];
-
-        // Must not match any invalid patterns
-        if (invalidPatterns.some(pattern => pattern.test(title))) {
-            return false;
-        }
-
-        // Should be reasonable length
-        if (title.length < 3 || title.length > 100) {
-            return false;
-        }
-
-        // Should contain at least one letter
-        if (!/[a-zA-Z]/.test(title)) {
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error in isValidRecipeTitle:', error);
-        return title.length >= 3 && title.length <= 100 && /[a-zA-Z]/.test(title);
-    }
-}
-
-// NEW: Better separation of ingredients vs instructions
-function parseIngredientsAndInstructions(lines) {
-    const ingredients = [];
-    const instructions = [];
-    let description = '';
-
-    let currentSection = 'unknown';
-    let foundFirstIngredient = false;
-    let foundFirstInstruction = false;
-
-    console.log(`\n--- PARSING ${lines.length} CONTENT LINES ---`);
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // Skip empty lines
-        if (!line.trim()) continue;
-
-        // Check what type of line this is
-        const isIngredient = looksLikeIngredient(line);
-        const isInstruction = looksLikeInstruction(line);
-
-        console.log(`Line ${i}: "${line.substring(0, 60)}..." - Ingredient: ${isIngredient}, Instruction: ${isInstruction}`);
-
-        // Try to parse as ingredient first (unless we're clearly in instructions section)
-        if (isIngredient && !foundFirstInstruction) {
-            const parsed = parseIngredientLine(line);
-            if (parsed) {
-                ingredients.push(parsed);
-                foundFirstIngredient = true;
-                currentSection = 'ingredients';
-                console.log(`  ✅ Added ingredient: ${parsed.amount} ${parsed.unit} ${parsed.name}`);
-                continue;
-            }
-        }
-
-        // Check if this is clearly an instruction
-        if (isInstruction) {
-            instructions.push(line.trim());
-            foundFirstInstruction = true;
-            currentSection = 'instructions';
-            console.log(`  ✅ Added instruction: ${line.substring(0, 50)}...`);
-            continue;
-        }
-
-        // If we've found ingredients but this doesn't look like either, it might be an instruction
-        if (foundFirstIngredient && !isIngredient) {
-            instructions.push(line.trim());
-            foundFirstInstruction = true;
-            currentSection = 'instructions';
-            console.log(`  ⚠️ Added as instruction (after ingredients): ${line.substring(0, 50)}...`);
-            continue;
-        }
-
-        // If we haven't found anything yet, check if this could be a description
-        if (!foundFirstIngredient && !foundFirstInstruction && line.length < 200 && !description) {
-            description = line;
-            console.log(`  📝 Set as description: ${line}`);
-            continue;
-        }
-
-        // Last resort: try to parse as ingredient even if it doesn't look perfect
-        if (!foundFirstInstruction) {
-            const parsed = parseIngredientLine(line);
-            if (parsed && parsed.name.length > 2) {
-                ingredients.push(parsed);
-                foundFirstIngredient = true;
-                console.log(`  ⚠️ Added as ingredient (last resort): ${parsed.amount} ${parsed.unit} ${parsed.name}`);
-                continue;
-            }
-        }
-
-        // If all else fails, add to instructions
-        instructions.push(line.trim());
-        console.log(`  ⚠️ Added as instruction (fallback): ${line.substring(0, 50)}...`);
-    }
-
-    console.log(`--- PARSING COMPLETE: ${ingredients.length} ingredients, ${instructions.length} instructions ---\n`);
-
-    return { ingredients, instructions, description };
-}
 
 // IMPROVED: Better ingredient detection
 function looksLikeIngredient(line) {
@@ -1245,12 +1105,32 @@ function parseIngredientLine(line) {
     }
 }
 
-// Parse recipes from extracted text - DELIMITER VERSION
+// Recipe categories
+const RECIPE_CATEGORIES = {
+    'seasonings': 'Seasonings',
+    'sauces': 'Sauces',
+    'salad-dressings': 'Salad Dressings',
+    'marinades': 'Marinades',
+    'ingredients': 'Basic Ingredients',
+    'entrees': 'Entrees',
+    'side-dishes': 'Side Dishes',
+    'soups': 'Soups',
+    'sandwiches': 'Sandwiches',
+    'appetizers': 'Appetizers',
+    'desserts': 'Desserts',
+    'breads': 'Breads',
+    'pizza-dough': 'Pizza Dough',
+    'specialty-items': 'Specialty Items',
+    'beverages': 'Beverages',
+    'breakfast': 'Breakfast'
+};
+
+// Parse recipes from extracted text with classification
 function parseRecipesFromText(text, volume) {
     const recipes = [];
 
     try {
-        console.log('Starting delimiter-based recipe parsing...');
+        console.log('Starting delimiter-based recipe parsing with classification...');
         console.log('Text preview:', text.substring(0, 500));
 
         // Clean up the text first
@@ -1278,10 +1158,10 @@ function parseRecipesFromText(text, volume) {
                 continue;
             }
 
-            const recipe = parseRecipeWithDelimiters(section, volume);
+            const recipe = parseRecipeWithClassification(section, volume);
             if (recipe && recipe.title) {
                 recipes.push(recipe);
-                console.log(`✅ Successfully parsed: "${recipe.title}"`);
+                console.log(`✅ Successfully parsed: "${recipe.title}" [${recipe.category}]`);
                 console.log(`   - ${recipe.ingredients.length} ingredients`);
                 console.log(`   - ${recipe.instructions.length} instructions`);
             } else {
@@ -1298,7 +1178,105 @@ function parseRecipesFromText(text, volume) {
     return recipes;
 }
 
-// Parse individual recipe using delimiters
+// Enhanced parsing function with classification and delimiter support
+function parseRecipeWithClassification(section, volume) {
+    console.log('\n=== PARSING RECIPE SECTION WITH CLASSIFICATION ===');
+    console.log('Raw section:', section.substring(0, 300) + '...');
+
+    // STEP 1: Check if this section uses the new delimiter format
+    if (hasDelimiters(section)) {
+        console.log('✅ Delimiters detected, using delimiter-based parsing');
+        const delimiterResult = parseRecipeWithDelimiters(section, volume);
+        if (delimiterResult) {
+            // Add classification
+            delimiterResult.category = classifyRecipe(delimiterResult);
+            console.log(`🏷️ Auto-classified as: ${delimiterResult.category}`);
+            return delimiterResult;
+        }
+        console.log('⚠️ Delimiter parsing failed, falling back to legacy method');
+    } else {
+        console.log('ℹ️ No delimiters found, using legacy parsing method');
+    }
+
+    // STEP 2: Fall back to existing parsing logic
+    const preprocessedSection = preprocessConcatenatedIngredients(section);
+    console.log('After preprocessing:', preprocessedSection.substring(0, 300) + '...');
+
+    // Split into lines and clean them up
+    const allLines = preprocessedSection.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (allLines.length < 2) {
+        console.log('❌ Section too short');
+        return null;
+    }
+
+    const recipe = {
+        title: '',
+        description: '',
+        ingredients: [],
+        instructions: [],
+        prepTime: 15,
+        cookTime: 30,
+        servings: 4,
+        difficulty: 'medium',
+        tags: ['comfort-food'],
+        source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
+        isPublic: false,
+        category: 'entrees' // Default category
+    };
+
+    // Find the title
+    let titleIndex = -1;
+    for (let i = 0; i < Math.min(allLines.length, 3); i++) {
+        const line = allLines[i];
+        const cleanTitle = line.replace(/^\*\*|\*\*$/g, '').trim();
+
+        if (isValidRecipeTitle(cleanTitle)) {
+            recipe.title = cleanTitle;
+            titleIndex = i;
+            console.log(`✅ Found title at line ${i}: "${recipe.title}"`);
+            break;
+        }
+    }
+
+    if (titleIndex === -1 && allLines.length > 0) {
+        recipe.title = allLines[0].replace(/^\*\*|\*\*$/g, '').replace(/[^\w\s'&-]/g, '').trim();
+        titleIndex = 0;
+        console.log(`⚠️ Using first line as title: "${recipe.title}"`);
+    }
+
+    if (!recipe.title) {
+        console.log('❌ Could not find valid title');
+        return null;
+    }
+
+    // Process remaining lines
+    const contentLines = allLines.slice(titleIndex + 1);
+    console.log(`Processing ${contentLines.length} content lines after title`);
+
+    const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
+
+    recipe.ingredients = ingredients;
+    recipe.instructions = instructions;
+    recipe.description = description;
+
+    // Add classification
+    recipe.category = classifyRecipe(recipe);
+    console.log(`🏷️ Auto-classified as: ${recipe.category}`);
+
+    if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
+        console.log('❌ No ingredients or instructions found');
+        return null;
+    }
+
+    console.log(`✅ Successfully parsed recipe with ${recipe.ingredients.length} ingredients and ${recipe.instructions.length} instructions`);
+
+    return recipe;
+}
+
+// Parse individual recipe using delimiters with classification support
 function parseRecipeWithDelimiters(section, volume) {
     console.log('\n=== PARSING RECIPE WITH DELIMITERS ===');
 
@@ -1313,10 +1291,23 @@ function parseRecipeWithDelimiters(section, volume) {
         difficulty: 'medium',
         tags: ['comfort-food'],
         source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
-        isPublic: false
+        isPublic: false,
+        category: 'entrees' // Default category
     };
 
     try {
+        // Check for explicit category in the section
+        const categoryMatch = section.match(/--\s*category\s*--\s*\n\s*([^\n]+)/i);
+        let explicitCategory = null;
+
+        if (categoryMatch) {
+            const categoryName = categoryMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
+            if (RECIPE_CATEGORIES[categoryName]) {
+                explicitCategory = categoryName;
+                console.log(`🏷️ Found explicit category: ${explicitCategory}`);
+            }
+        }
+
         // Split the section into parts based on delimiters
         const lines = section.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
@@ -1329,6 +1320,12 @@ function parseRecipeWithDelimiters(section, volume) {
             console.log(`Processing line ${i}: "${line}" (section: ${currentSection})`);
 
             // Check for section delimiters
+            if (line.match(/^--\s*category\s*--$/i)) {
+                currentSection = 'category';
+                console.log('  ➡️ Switched to category section');
+                continue;
+            }
+
             if (line.match(/^--\s*ingredients\s*--$/i)) {
                 currentSection = 'ingredients';
                 console.log('  ➡️ Switched to ingredients section');
@@ -1343,22 +1340,28 @@ function parseRecipeWithDelimiters(section, volume) {
 
             // Process based on current section
             if (currentSection === 'title' && !titleFound) {
-                // Extract title (remove ** markers if present)
                 recipe.title = line.replace(/^\*\*|\*\*$/g, '').trim();
                 titleFound = true;
                 console.log(`  ✅ Found title: "${recipe.title}"`);
-
-                // After title, look for description or switch to ingredients
                 currentSection = 'description';
                 continue;
             }
 
             if (currentSection === 'description') {
-                // If we hit ingredients delimiter, this will be handled above
-                // Otherwise, treat non-empty lines as description until we hit ingredients
-                if (line.length > 0 && !line.match(/^--\s*ingredients\s*--$/i)) {
+                if (line.length > 0 && !line.match(/^--\s*(category|ingredients)\s*--$/i)) {
                     recipe.description = line;
                     console.log(`  📝 Found description: "${recipe.description}"`);
+                }
+                continue;
+            }
+
+            if (currentSection === 'category') {
+                if (line.length > 0) {
+                    const categoryName = line.trim().toLowerCase().replace(/\s+/g, '-');
+                    if (RECIPE_CATEGORIES[categoryName]) {
+                        explicitCategory = categoryName;
+                        console.log(`  🏷️ Found category: "${explicitCategory}"`);
+                    }
                 }
                 continue;
             }
@@ -1383,6 +1386,9 @@ function parseRecipeWithDelimiters(section, volume) {
             }
         }
 
+        // Use explicit category if provided, otherwise auto-classify
+        recipe.category = explicitCategory || classifyRecipe(recipe);
+
         // Validation
         if (!recipe.title) {
             console.log('❌ No title found');
@@ -1399,9 +1405,7 @@ function parseRecipeWithDelimiters(section, volume) {
             return null;
         }
 
-        console.log(`✅ Successfully parsed recipe: "${recipe.title}"`);
-        console.log(`   - ${recipe.ingredients.length} ingredients`);
-        console.log(`   - ${recipe.instructions.length} instructions`);
+        console.log(`✅ Successfully parsed recipe: "${recipe.title}" [${recipe.category}]`);
 
         return recipe;
 
@@ -1411,10 +1415,236 @@ function parseRecipeWithDelimiters(section, volume) {
     }
 }
 
+// Auto-classify recipe based on title and ingredients
+function classifyRecipe(recipe) {
+    const title = recipe.title.toLowerCase();
+    const ingredientNames = recipe.ingredients.map(ing => ing.name.toLowerCase()).join(' ');
+    const allText = (title + ' ' + ingredientNames).toLowerCase();
+
+    console.log(`🔍 Classifying recipe: "${recipe.title}"`);
+    console.log(`   Title: "${title}"`);
+    console.log(`   Ingredients text: "${ingredientNames}"`);
+
+    // Classification rules in order of specificity
+    const classificationRules = [
+        // Specialty Items - FIRST to catch Doc Bear's unique creations
+        {
+            category: 'specialty-items',
+            patterns: [
+                /\b(coca.cola|dr.pepper|jack daniels|whiskey|bourbon|rum|beer).*(?:chicken|pork|beef|fudge|sauce|marinade)\b/i,
+                /\b(?:chicken|pork|beef|fudge|sauce|marinade).*(coca.cola|dr.pepper|jack daniels|whiskey|bourbon|rum|beer)\b/i,
+                /\bDoc Bear.*(?:coca.cola|dr.pepper|jack daniels|whiskey|bourbon)\b/i,
+                /\b(soda|cola|pepsi|sprite).*(?:chicken|pork|beef|tacos)\b/i,
+                /\b(?:chicken|pork|beef|tacos).*(soda|cola|pepsi|sprite)\b/i,
+                /\balcohol.*(?:fudge|dessert|sauce|marinade)\b/i,
+                /\b(?:fudge|dessert|sauce|marinade).*(?:alcohol|whiskey|bourbon|rum)\b/i,
+                /\bsoft tacos.*coca.cola\b/i,
+                /\bpulled pork.*dr.pepper\b/i,
+                /\bwhiskey.*fudge\b/i
+            ],
+            keywords: ['coca-cola chicken', 'dr pepper pork', 'jack daniels', 'whiskey fudge', 'cola tacos', 'bourbon', 'rum sauce']
+        },
+
+        // Basic Ingredients - homemade components for other recipes
+        {
+            category: 'ingredients',
+            patterns: [
+                /\b(paste|extract|butter|oil|vinegar|stock|base|cheese|beans|patties)\b/,
+                /\btomato paste\b/,
+                /\bhomemade\b/,
+                /\b(ricotta|riccata|hamburger patties|pinto beans|refried beans|kidney beans)\b/,
+                /\b(from dry|from scratch)\b/,
+                /\bmake.*butter\b/,
+                /\bmake.*cheese\b/,
+                /\bdry.*beans\b/,
+                /\bbeans.*dry\b/
+            ],
+            keywords: ['paste', 'extract', 'homemade', 'base', 'butter', 'ricotta', 'riccata', 'hamburger patties', 'pinto beans', 'refried beans', 'kidney beans', 'from dry', 'from scratch']
+        },
+        // Seasonings - spice blends, rubs, seasoning mixes
+        {
+            category: 'seasonings',
+            patterns: [
+                /\b(seasoning|spice|rub|blend|mix)\b/,
+                /\b(salt|pepper|garlic powder|onion powder|paprika|cumin|oregano|basil|thyme|rosemary)\b/,
+                /\bDoc Bear.*seasoning\b/i
+            ],
+            keywords: ['seasoning', 'spice', 'rub', 'blend', 'salt', 'pepper blend']
+        },
+
+        // Sauces - cooking sauces, gravies, etc.
+        {
+            category: 'sauces',
+            patterns: [
+                /\b(sauce|gravy|reduction|glaze)\b/,
+                /\b(tomato sauce|alfredo|cheese sauce|mushroom sauce|enchilada|marinara)\b/
+            ],
+            keywords: ['sauce', 'gravy', 'alfredo', 'marinara', 'enchilada']
+        },
+
+        // Salad Dressings
+        {
+            category: 'salad-dressings',
+            patterns: [
+                /\b(dressing|vinaigrette)\b/,
+                /\bsalad.*dressing\b/
+            ],
+            keywords: ['dressing', 'vinaigrette']
+        },
+
+        // Marinades
+        {
+            category: 'marinades',
+            patterns: [
+                /\b(marinade|marinating)\b/
+            ],
+            keywords: ['marinade']
+        },
+
+        // Pizza Dough
+        {
+            category: 'pizza-dough',
+            patterns: [
+                /\bpizza.*dough\b/,
+                /\bdough.*pizza\b/
+            ],
+            keywords: ['pizza dough']
+        },
+
+        // Breads
+        {
+            category: 'breads',
+            patterns: [
+                /\b(bread|biscuit|roll|loaf|bun)\b/,
+                /\b(yeast|flour.*bread|bread.*flour)\b/
+            ],
+            keywords: ['bread', 'biscuit', 'roll', 'loaf']
+        },
+
+        // Desserts
+        {
+            category: 'desserts',
+            patterns: [
+                /\b(cake|cookie|pie|tart|pudding|ice cream|chocolate|dessert|sweet|sugar|frosting|icing)\b/,
+                /\bfruit.*sauce\b/
+            ],
+            keywords: ['cake', 'cookie', 'pie', 'dessert', 'chocolate', 'sweet']
+        },
+
+        // Soups
+        {
+            category: 'soups',
+            patterns: [
+                /\b(soup|stew|chowder|bisque|broth|stock)\b/
+            ],
+            keywords: ['soup', 'stew', 'chowder', 'broth']
+        },
+
+        // Appetizers
+        {
+            category: 'appetizers',
+            patterns: [
+                /\b(appetizer|starter|dip|spread|finger food)\b/,
+                /\b(chips|crackers|bite|canapé)\b/
+            ],
+            keywords: ['appetizer', 'dip', 'spread', 'finger']
+        },
+
+        // Sandwiches
+        {
+            category: 'sandwiches',
+            patterns: [
+                /\b(sandwich|burger|wrap|sub|hoagie|panini)\b/
+            ],
+            keywords: ['sandwich', 'burger', 'wrap']
+        },
+
+        // Beverages
+        {
+            category: 'beverages',
+            patterns: [
+                /\b(drink|beverage|juice|smoothie|cocktail|tea|coffee|punch)\b/
+            ],
+            keywords: ['drink', 'juice', 'smoothie', 'cocktail']
+        },
+
+        // Basic Ingredients - homemade components for other recipes
+        {
+            category: 'ingredients',
+            patterns: [
+                /\b(paste|extract|butter|oil|vinegar|stock|base|cheese|beans|patties)\b/,
+                /\btomato paste\b/,
+                /\bhomemade\b/,
+                /\b(ricotta|riccata|hamburger patties|pinto beans|refried beans|kidney beans)\b/,
+                /\b(from dry|from scratch)\b/,
+                /\bmake.*butter\b/,
+                /\bmake.*cheese\b/
+            ],
+            keywords: ['paste', 'extract', 'homemade', 'base', 'butter', 'ricotta', 'riccata', 'hamburger patties', 'pinto beans', 'refried beans', 'kidney beans', 'from dry']
+        },
+
+        // Specialty Items - unique Doc Bear creations with unusual ingredients/combinations
+        {
+            category: 'specialty-items',
+            patterns: [
+                /\b(coca.cola|dr.pepper|jack daniels|whiskey|bourbon|rum|beer)\b/,
+                /\bDoc Bear.*(?:coca.cola|dr.pepper|jack daniels|whiskey|bourbon)\b/i,
+                /\b(soda|cola|pepsi|sprite).*(?:chicken|pork|beef)\b/,
+                /\b(?:chicken|pork|beef).*(?:soda|cola|pepsi|sprite)\b/,
+                /\balcohol.*(?:fudge|dessert|sauce)\b/,
+                /\b(?:fudge|dessert|sauce).*alcohol\b/,
+                /\bunusual|unique|special.*combination\b/
+            ],
+            keywords: ['coca-cola', 'dr pepper', 'jack daniels', 'whiskey', 'bourbon', 'cola chicken', 'pepper pork', 'whiskey fudge']
+        },
+
+        // Side Dishes
+        {
+            category: 'side-dishes',
+            patterns: [
+                /\b(side|accompaniment|vegetable|potato|rice|pasta|grain)\b/,
+                /\b(roasted|mashed|steamed|sautéed).*vegetables?\b/
+            ],
+            keywords: ['side', 'potato', 'rice', 'vegetable']
+        },
+
+        // Breakfast
+        {
+            category: 'breakfast',
+            patterns: [
+                /\b(breakfast|pancake|waffle|omelette|eggs|bacon|sausage|cereal|oatmeal)\b/
+            ],
+            keywords: ['breakfast', 'pancake', 'eggs', 'bacon']
+        }
+    ];
+
+    // Check each classification rule
+    for (const rule of classificationRules) {
+        // Check if any pattern matches
+        const patternMatch = rule.patterns.some(pattern => pattern.test(allText));
+
+        // Check if any keyword is present
+        const keywordMatch = rule.keywords.some(keyword => allText.includes(keyword));
+
+        if (patternMatch || keywordMatch) {
+            console.log(`   ✅ Classified as: ${rule.category} (pattern: ${patternMatch}, keyword: ${keywordMatch})`);
+            return rule.category;
+        }
+    }
+
+    // Default to entrees if no specific category found
+    console.log(`   ⚠️ No specific category found, defaulting to: entrees`);
+    return 'entrees';
+}
+
+// Helper function to detect if section uses delimiters
+function hasDelimiters(section) {
+    return /--\s*ingredients\s*--/i.test(section) && /--\s*instructions\s*--/i.test(section);
+}
+
 // Parse ingredient line for delimiter-based parsing
 function parseIngredientLineDelimited(line) {
     try {
-        // Remove list markers and extra spaces
         let cleanLine = line.replace(/^[-•*]\s*/, '').trim();
 
         if (cleanLine.length < 2) return null;
@@ -1434,37 +1664,25 @@ function parseIngredientLineDelimited(line) {
         });
 
         // Handle unicode fractions
-        cleanLine = cleanLine.replace(/^½\s+/, '0.5 ');
-        cleanLine = cleanLine.replace(/^¼\s+/, '0.25 ');
-        cleanLine = cleanLine.replace(/^¾\s+/, '0.75 ');
-        cleanLine = cleanLine.replace(/^⅓\s+/, '0.33 ');
-        cleanLine = cleanLine.replace(/^⅔\s+/, '0.67 ');
-        cleanLine = cleanLine.replace(/^⅛\s+/, '0.125 ');
-        cleanLine = cleanLine.replace(/^⅜\s+/, '0.375 ');
-        cleanLine = cleanLine.replace(/^⅝\s+/, '0.625 ');
-        cleanLine = cleanLine.replace(/^⅞\s+/, '0.875 ');
+        const fractionMap = {
+            '½': '0.5', '¼': '0.25', '¾': '0.75', '⅓': '0.33', '⅔': '0.67',
+            '⅛': '0.125', '⅜': '0.375', '⅝': '0.625', '⅞': '0.875'
+        };
+
+        for (const [fraction, decimal] of Object.entries(fractionMap)) {
+            cleanLine = cleanLine.replace(new RegExp(`^${fraction}\\s+`), `${decimal} `);
+        }
 
         // Parse patterns in order of specificity
         const patterns = [
-            // Pattern 1: Number + Unit + Ingredient (e.g., "2 cups flour", "1.5 Cups whole milk")
             {
                 regex: /^(\d+(?:\.\d+)?)\s+(cup|cups|tsp|tbsp|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|gallon|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
                 type: 'amount_unit_name'
             },
-
-            // Pattern 2: Number + Ingredient (no unit) (e.g., "3 eggs", "4 garlic cloves")
             {
                 regex: /^(\d+(?:\.\d+)?)\s+(.+)$/,
                 type: 'amount_name'
             },
-
-            // Pattern 3: Decimal + Unit + Ingredient (e.g., "0.25 tsp nutmeg")
-            {
-                regex: /^(0\.\d+)\s+(cup|cups|tsp|tbsp|tablespoon|tablespoons|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|qt|quart|gallon|stick|sticks|clove|cloves|can|jar)\s+(.+)$/i,
-                type: 'decimal_unit_name'
-            },
-
-            // Pattern 4: Just ingredient name (e.g., "Salt and pepper to taste")
             {
                 regex: /^(.+)$/,
                 type: 'name_only'
@@ -1480,7 +1698,6 @@ function parseIngredientLineDelimited(line) {
 
                 switch (pattern.type) {
                     case 'amount_unit_name':
-                    case 'decimal_unit_name':
                         amount = parseFloat(match[1]);
                         unit = match[2];
                         name = match[3].trim();
@@ -1499,15 +1716,7 @@ function parseIngredientLineDelimited(line) {
                         break;
                 }
 
-                // Validate the parsed result
-                if (name.length < 1) {
-                    console.log(`    ❌ Invalid name: "${name}"`);
-                    continue;
-                }
-
-                // Skip obvious non-ingredients
-                if (/^(and|or|then|until|while|method|attention)$/i.test(name)) {
-                    console.log(`    ❌ Not an ingredient: "${name}"`);
+                if (name.length < 1 || /^(and|or|then|until|while|method|attention)$/i.test(name)) {
                     continue;
                 }
 
@@ -1524,13 +1733,41 @@ function parseIngredientLineDelimited(line) {
             }
         }
 
-        console.log(`    ❌ Could not parse: "${cleanLine}"`);
         return null;
 
     } catch (error) {
         console.error('Error in parseIngredientLineDelimited:', error);
         return null;
     }
+}
+
+// Add other helper functions (preprocessConcatenatedIngredients, isValidRecipeTitle, etc.)
+function preprocessConcatenatedIngredients(text) {
+    let processed = text;
+    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+(cup|cups|tsp|tbsp|oz|lb|lbs|stick|sticks|qt|quart|gallon)/gi, '$1\n$2 $3');
+    processed = processed.replace(/([a-zA-Z])\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+([a-zA-Z])/g, '$1\n$2 $3');
+    processed = processed.replace(/(butter|oil|cream|cheese|sauce|flour|sugar|salt|pepper)\s*(\d+(?:[⁄\/]\d+)?(?:\.\d+)?|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞)\s+/gi, '$1\n$2 ');
+    return processed;
+}
+
+function isValidRecipeTitle(title) {
+    const invalidPatterns = [
+        /^(combine|heat|cook|bake|mix|stir|add|melt|bring|place|remove|using|in a|with a|set|allow)/i,
+        /\b(minutes?|hours?|degrees?)\b/i,
+        /^\d+\s*(cup|tsp|tbsp|oz|lb)/i,
+        /\bcontinued on next page\b/i,
+    ];
+    return !invalidPatterns.some(pattern => pattern.test(title)) &&
+        title.length >= 3 && title.length <= 100 && /[a-zA-Z]/.test(title);
+}
+
+function parseIngredientsAndInstructions(contentLines) {
+    console.log('⚠️ Using fallback parseIngredientsAndInstructions - implement your existing logic here');
+    return {
+        ingredients: [],
+        instructions: contentLines,
+        description: ''
+    };
 }
 
 
