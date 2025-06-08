@@ -406,7 +406,7 @@ export default function RecipeDetailPage() {
                             </div>
                             <ul className="space-y-2">
                                 {recipe.ingredients?.map((ingredient, index) => (
-                                    <li key={index} className="flex items-start space-x-3">
+                                    <li key={index} className="flex items-start space-x-4">
                                         <input
                                             type="checkbox"
                                             className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
