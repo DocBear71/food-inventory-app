@@ -1260,7 +1260,7 @@ function parseRecipeWithClassification(section, volume) {
     const contentLines = allLines.slice(titleIndex + 1);
     console.log(`Processing ${contentLines.length} content lines after title`);
 
-    const {ingredients, instructions, description} = parseIngredientsAndInstructions(contentLines);
+    const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
 
     recipe.ingredients = ingredients;
     recipe.instructions = instructions;
@@ -1449,21 +1449,21 @@ function classifyRecipe(recipe) {
             keywords: ['coca-cola chicken', 'dr pepper pork', 'jack daniels', 'whiskey fudge', 'cola tacos', 'bourbon', 'rum sauce']
         },
 
-        // Basic Ingredients - homemade components for other recipes
+        // Basic Ingredients - homemade components for other recipes (MORE SPECIFIC)
         {
             category: 'ingredients',
             patterns: [
-                /\b(paste|extract|butter|oil|vinegar|stock|base|cheese|beans|patties)\b/,
-                /\btomato paste\b/,
-                /\bhomemade\b/,
-                /\b(ricotta|riccata|hamburger patties|pinto beans|refried beans|kidney beans)\b/,
-                /\b(from dry|from scratch)\b/,
-                /\bmake.*butter\b/,
-                /\bmake.*cheese\b/,
-                /\bdry.*beans\b/,
-                /\bbeans.*dry\b/
+                /\btomato paste\b/i,
+                /\bhomemade.*(?:butter|cheese|extract|stock|base)\b/i,
+                /\b(?:ricotta|riccata).*cheese\b/i,
+                /\bhamburger patties\b/i,
+                /\b(?:pinto|kidney|refried).*beans.*(?:from dry|dry)\b/i,
+                /\bbeans.*(?:from dry|dry)\b/i,
+                /\bmake.*(?:butter|cheese|extract|stock|base)\b/i,
+                /\b(?:butter|cheese|extract|stock|base).*from scratch\b/i,
+                /\bhomemade.*(?:vanilla|almond).*extract\b/i
             ],
-            keywords: ['paste', 'extract', 'homemade', 'base', 'butter', 'ricotta', 'riccata', 'hamburger patties', 'pinto beans', 'refried beans', 'kidney beans', 'from dry', 'from scratch']
+            keywords: ['tomato paste', 'ricotta cheese', 'riccata cheese', 'hamburger patties', 'pinto beans from dry', 'kidney beans from dry', 'refried beans', 'homemade butter', 'homemade cheese', 'vanilla extract', 'almond extract']
         },
         // Seasonings - spice blends, rubs, seasoning mixes
         {
@@ -1773,7 +1773,6 @@ function parseIngredientsAndInstructions(contentLines) {
         description: ''
     };
 }
-
 
 // FINAL: Better fraction conversion
 function convertFractionToDecimal(fractionStr) {

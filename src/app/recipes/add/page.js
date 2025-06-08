@@ -1,4 +1,4 @@
-// file: /src/app/recipes/add/page.js v3
+// file: /src/app/recipes/add/page.js v4
 
 'use client';
 
@@ -21,18 +21,18 @@ export default function AddRecipePage() {
             const apiData = {
                 title: recipeData.title,
                 description: recipeData.description,
-                ingredients: recipeData.ingredients.filter(ing => ing.name.trim()), // Remove empty ingredients
+                ingredients: recipeData.ingredients.filter(ing => ing.name.trim()),
                 instructions: recipeData.instructions
-                    .filter(inst => inst.instruction && inst.instruction.trim()) // Remove empty instructions
-                    .map(inst => inst.instruction), // Convert to string array for API
+                    .filter(inst => inst.instruction && inst.instruction.trim())
+                    .map(inst => inst.instruction),
                 prepTime: recipeData.prepTime ? parseInt(recipeData.prepTime) : null,
                 cookTime: recipeData.cookTime ? parseInt(recipeData.cookTime) : null,
                 servings: recipeData.servings ? parseInt(recipeData.servings) : null,
                 difficulty: recipeData.difficulty,
                 tags: recipeData.tags || [],
                 source: recipeData.source || '',
-                isPublic: recipeData.isPublic || false, // Use the actual checkbox value
-                // Transform nutrition data to structured format if provided
+                isPublic: recipeData.isPublic || false,
+                category: recipeData.category || 'entrees', // ADD THIS LINE
                 nutrition: recipeData.nutrition && Object.values(recipeData.nutrition).some(val => val) ? {
                     calories: {
                         value: parseFloat(recipeData.nutrition.calories) || 0,

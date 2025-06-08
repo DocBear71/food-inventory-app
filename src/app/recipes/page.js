@@ -2,16 +2,16 @@
 
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import {useSession} from 'next-auth/react';
+import {useEffect, useState, Suspense} from 'react';
+import {useSearchParams} from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { StarRating } from '@/components/reviews/RecipeRating';
-import { redirect } from 'next/navigation';
+import {StarRating} from '@/components/reviews/RecipeRating';
+import {redirect} from 'next/navigation';
 import Link from 'next/link';
 
 function RecipesContent() {
-    const { data: session, status } = useSession();
+    const {data: session, status} = useSession();
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +20,27 @@ function RecipesContent() {
     const [sortBy, setSortBy] = useState('newest'); // newest, oldest, rating, popular, title
     const [allTags, setAllTags] = useState([]);
     const searchParams = useSearchParams();
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [allCategories, setAllCategories] = useState([]);
+
+    const CATEGORY_OPTIONS = [
+        {value: 'seasonings', label: 'Seasonings'},
+        {value: 'sauces', label: 'Sauces'},
+        {value: 'salad-dressings', label: 'Salad Dressings'},
+        {value: 'marinades', label: 'Marinades'},
+        {value: 'ingredients', label: 'Basic Ingredients'},
+        {value: 'entrees', label: 'Entrees'},
+        {value: 'side-dishes', label: 'Side Dishes'},
+        {value: 'soups', label: 'Soups'},
+        {value: 'sandwiches', label: 'Sandwiches'},
+        {value: 'appetizers', label: 'Appetizers'},
+        {value: 'desserts', label: 'Desserts'},
+        {value: 'breads', label: 'Breads'},
+        {value: 'pizza-dough', label: 'Pizza Dough'},
+        {value: 'specialty-items', label: 'Specialty Items'},
+        {value: 'beverages', label: 'Beverages'},
+        {value: 'breakfast', label: 'Breakfast'}
+    ];
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -43,12 +64,17 @@ function RecipesContent() {
 
                 // Extract all unique tags
                 const tags = new Set();
+                const categories = new Set();
                 data.recipes.forEach(recipe => {
                     if (recipe.tags) {
                         recipe.tags.forEach(tag => tags.add(tag));
                     }
+                    if (recipe.category) {
+                        categories.add(recipe.category);
+                    }
                 });
                 setAllTags(Array.from(tags).sort());
+                setAllCategories(Array.from(categories).sort());
             }
         } catch (error) {
             console.error('Error fetching recipes:', error);
@@ -90,7 +116,10 @@ function RecipesContent() {
             const matchesDifficulty = !selectedDifficulty ||
                 recipe.difficulty === selectedDifficulty;
 
-            return matchesSearch && matchesTag && matchesDifficulty;
+            const matchesCategory = !selectedCategory ||
+                recipe.category === selectedCategory;
+
+            return matchesSearch && matchesTag && matchesDifficulty && matchesCategory;
         });
 
         // Sort recipes
@@ -171,8 +200,8 @@ function RecipesContent() {
 
                 {/* Filters and Search */}
                 <div className="bg-white rounded-lg border p-6 mb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {/* Search */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                        {/* Search - spans 2 columns */}
                         <div className="lg:col-span-2">
                             <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
                                 Search Recipes
@@ -185,6 +214,26 @@ function RecipesContent() {
                                 placeholder="Search by title or description..."
                                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                             />
+                        </div>
+
+                        {/* Category Filter */}
+                        <div>
+                            <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                                Category
+                            </label>
+                            <select
+                                id="category-filter"
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                <option value="">All Categories</option>
+                                {CATEGORY_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Tag Filter */}
@@ -249,12 +298,13 @@ function RecipesContent() {
                     <p className="text-gray-600">
                         Showing {filteredRecipes.length} of {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
                     </p>
-                    {(searchTerm || selectedTag || selectedDifficulty) && (
+                    {(searchTerm || selectedTag || selectedDifficulty || selectedCategory) && (
                         <button
                             onClick={() => {
                                 setSearchTerm('');
                                 setSelectedTag('');
                                 setSelectedDifficulty('');
+                                setSelectedCategory('');
                             }}
                             className="text-indigo-600 hover:text-indigo-800 text-sm"
                         >
@@ -267,7 +317,8 @@ function RecipesContent() {
                 {filteredRecipes.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredRecipes.map((recipe) => (
-                            <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                            <div key={recipe._id}
+                                 className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
                                 <div className="p-6">
                                     {/* Header */}
                                     <div className="flex justify-between items-start mb-3">
@@ -282,16 +333,20 @@ function RecipesContent() {
                                                 href={`/recipes/${recipe._id}/edit`}
                                                 className="text-gray-400 hover:text-indigo-600"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                     viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </Link>
                                             <button
                                                 onClick={() => handleDelete(recipe._id)}
                                                 className="text-gray-400 hover:text-red-600"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                     viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                 </svg>
                                             </button>
                                         </div>
@@ -326,23 +381,30 @@ function RecipesContent() {
                                         <div className="flex items-center space-x-4">
                                             {recipe.servings && (
                                                 <span className="flex items-center space-x-1">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                         viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                                     </svg>
                                                     <span>{recipe.servings}</span>
                                                 </span>
                                             )}
                                             {formatCookTime(recipe.cookTime) && (
                                                 <span className="flex items-center space-x-1">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                         viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                     </svg>
                                                     <span>{formatCookTime(recipe.cookTime)}</span>
                                                 </span>
                                             )}
                                         </div>
                                         {recipe.difficulty && (
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                            <span
+                                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
                                                 {recipe.difficulty}
                                             </span>
                                         )}
@@ -366,6 +428,15 @@ function RecipesContent() {
                                             )}
                                         </div>
                                     )}
+                                    {/* Category */}
+                                    {recipe.category && (
+                                        <div className="mt-2">
+        <span
+            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+            {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
+        </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -374,19 +445,21 @@ function RecipesContent() {
                     <div className="text-center py-12">
                         <div className="text-gray-500 mb-4">
                             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                             </svg>
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            {searchTerm || selectedTag || selectedDifficulty ? 'No recipes found' : 'No recipes yet'}
+                            {searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No recipes found' : 'No recipes yet'}
+
                         </h3>
                         <p className="text-gray-500 mb-4">
-                            {searchTerm || selectedTag || selectedDifficulty
+                            {searchTerm || selectedTag || selectedDifficulty || selectedCategory
                                 ? 'Try adjusting your filters to find more recipes.'
                                 : 'Start building your recipe collection by adding your first recipe!'
                             }
                         </p>
-                        {!searchTerm && !selectedTag && !selectedDifficulty && (
+                        {!searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
                             <Link
                                 href="/recipes/add"
                                 className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
@@ -417,7 +490,7 @@ export default function RecipesPage() {
                 </div>
             </DashboardLayout>
         }>
-            <RecipesContent />
+            <RecipesContent/>
         </Suspense>
     );
 }

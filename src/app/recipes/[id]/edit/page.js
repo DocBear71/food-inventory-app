@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/edit/page.js v1
+// file: /src/app/recipes/[id]/edit/page.js v2
 
 'use client';
 
@@ -17,6 +17,26 @@ export default function EditRecipePage() {
     const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const CATEGORY_OPTIONS = [
+        { value: 'seasonings', label: 'Seasonings' },
+        { value: 'sauces', label: 'Sauces' },
+        { value: 'salad-dressings', label: 'Salad Dressings' },
+        { value: 'marinades', label: 'Marinades' },
+        { value: 'ingredients', label: 'Basic Ingredients' },
+        { value: 'entrees', label: 'Entrees' },
+        { value: 'side-dishes', label: 'Side Dishes' },
+        { value: 'soups', label: 'Soups' },
+        { value: 'sandwiches', label: 'Sandwiches' },
+        { value: 'appetizers', label: 'Appetizers' },
+        { value: 'desserts', label: 'Desserts' },
+        { value: 'breads', label: 'Breads' },
+        { value: 'pizza-dough', label: 'Pizza Dough' },
+        { value: 'specialty-items', label: 'Specialty Items' },
+        { value: 'beverages', label: 'Beverages' },
+        { value: 'breakfast', label: 'Breakfast' }
+    ];
+
+// 2. Update formData state to include category:
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -28,7 +48,8 @@ export default function EditRecipePage() {
         difficulty: 'medium',
         tags: '',
         source: '',
-        isPublic: false
+        isPublic: false,
+        category: 'entrees'
     });
 
     useEffect(() => {
@@ -59,7 +80,8 @@ export default function EditRecipePage() {
                     difficulty: recipe.difficulty || 'medium',
                     tags: recipe.tags ? recipe.tags.join(', ') : '',
                     source: recipe.source || '',
-                    isPublic: recipe.isPublic || false
+                    isPublic: recipe.isPublic || false,
+                    category: recipe.category || 'entrees'
                 });
             } else {
                 setError(data.error || 'Failed to load recipe');
@@ -303,6 +325,24 @@ export default function EditRecipePage() {
                                     <option value="easy">Easy</option>
                                     <option value="medium">Medium</option>
                                     <option value="hard">Hard</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Category
+                                </label>
+                                <select
+                                    id="category"
+                                    value={formData.category}
+                                    onChange={(e) => handleInputChange('category', e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    {CATEGORY_OPTIONS.map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

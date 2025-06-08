@@ -1,4 +1,4 @@
-// file: /src/app/recipes/admin/page.js
+// file: /src/app/recipes/admin/page.js v2 - Updated with Category Selector
 
 'use client';
 
@@ -6,6 +6,26 @@ import {useState} from 'react';
 import {useSession} from 'next-auth/react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {redirect} from 'next/navigation';
+
+// Category options for the dropdown
+const CATEGORY_OPTIONS = [
+    { value: 'seasonings', label: 'Seasonings' },
+    { value: 'sauces', label: 'Sauces' },
+    { value: 'salad-dressings', label: 'Salad Dressings' },
+    { value: 'marinades', label: 'Marinades' },
+    { value: 'ingredients', label: 'Basic Ingredients' },
+    { value: 'entrees', label: 'Entrees' },
+    { value: 'side-dishes', label: 'Side Dishes' },
+    { value: 'soups', label: 'Soups' },
+    { value: 'sandwiches', label: 'Sandwiches' },
+    { value: 'appetizers', label: 'Appetizers' },
+    { value: 'desserts', label: 'Desserts' },
+    { value: 'breads', label: 'Breads' },
+    { value: 'pizza-dough', label: 'Pizza Dough' },
+    { value: 'specialty-items', label: 'Specialty Items' },
+    { value: 'beverages', label: 'Beverages' },
+    { value: 'breakfast', label: 'Breakfast' }
+];
 
 export default function AdminRecipes() {
     const {data: session, status} = useSession();
@@ -119,6 +139,21 @@ export default function AdminRecipes() {
         setParsedRecipes(updated);
     };
 
+    const removeRecipe = (index) => {
+        const updated = parsedRecipes.filter((_, i) => i !== index);
+        setParsedRecipes(updated);
+    };
+
+    // New function to handle bulk category changes
+    const handleBulkCategoryChange = (newCategory) => {
+        if (!newCategory) return;
+        const updated = parsedRecipes.map(recipe => ({
+            ...recipe,
+            category: newCategory
+        }));
+        setParsedRecipes(updated);
+    };
+
     const handleDeleteVolume = async () => {
         if (!confirm(`Are you sure you want to delete ALL recipes from Volume ${selectedVolume}? This cannot be undone.`)) {
             return;
@@ -148,6 +183,22 @@ export default function AdminRecipes() {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    // Helper function to get category label
+    const getCategoryLabel = (categoryValue) => {
+        const category = CATEGORY_OPTIONS.find(opt => opt.value === categoryValue);
+        return category ? category.label : categoryValue;
+    };
+
+    // Helper function to get category summary
+    const getCategorySummary = () => {
+        const summary = {};
+        parsedRecipes.forEach(recipe => {
+            const category = recipe.category || 'uncategorized';
+            summary[category] = (summary[category] || 0) + 1;
+        });
+        return summary;
     };
 
     return (
@@ -218,7 +269,8 @@ export default function AdminRecipes() {
                                         difficulty: 'medium',
                                         tags: ['comfort-food'],
                                         source: `Doc Bear's Comfort Food Survival Guide Volume ${selectedVolume}`,
-                                        isPublic: false
+                                        isPublic: false,
+                                        category: 'entrees'
                                     };
                                     setParsedRecipes([...parsedRecipes, newRecipe]);
                                 }}
@@ -273,6 +325,39 @@ export default function AdminRecipes() {
                             </button>
                         </div>
 
+                        {/* Bulk Category Change */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Change All Categories To:
+                                </label>
+                                <select
+                                    onChange={(e) => e.target.value && handleBulkCategoryChange(e.target.value)}
+                                    className="block w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    defaultValue=""
+                                >
+                                    <option value="">Select category for all...</option>
+                                    {CATEGORY_OPTIONS.map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Category Summary */}
+                            <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Current Category Distribution:</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                    {Object.entries(getCategorySummary()).map(([category, count]) => (
+                                        <div key={category} className="text-gray-600">
+                                            <strong>{getCategoryLabel(category)}:</strong> {count}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="space-y-6">
                             {parsedRecipes.map((recipe, index) => (
                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
@@ -286,9 +371,9 @@ export default function AdminRecipes() {
                                         </button>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {/* Title */}
-                                        <div>
+                                        <div className="lg:col-span-2">
                                             <label className="block text-sm font-medium text-gray-700">Title</label>
                                             <input
                                                 type="text"
@@ -298,10 +383,30 @@ export default function AdminRecipes() {
                                             />
                                         </div>
 
+                                        {/* Category Selector */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Category
+                                            </label>
+                                            <select
+                                                value={recipe.category || 'entrees'}
+                                                onChange={(e) => editRecipe(index, 'category', e.target.value)}
+                                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            >
+                                                {CATEGORY_OPTIONS.map(option => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Auto-detected: {getCategoryLabel(recipe.category)}
+                                            </p>
+                                        </div>
+
                                         {/* Prep Time */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Prep Time
-                                                (minutes)</label>
+                                            <label className="block text-sm font-medium text-gray-700">Prep Time (minutes)</label>
                                             <input
                                                 type="number"
                                                 value={recipe.prepTime || ''}
@@ -312,8 +417,7 @@ export default function AdminRecipes() {
 
                                         {/* Cook Time */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Cook Time
-                                                (minutes)</label>
+                                            <label className="block text-sm font-medium text-gray-700">Cook Time (minutes)</label>
                                             <input
                                                 type="number"
                                                 value={recipe.cookTime || ''}
@@ -333,12 +437,7 @@ export default function AdminRecipes() {
                                             />
                                         </div>
                                     </div>
-                                    {/* Category */}
-                                    <div>
-                                        <div className="recipe-category">
-                                            Category: {recipe.category}
-                                        </div>
-                                    </div>
+
                                     {/* Description */}
                                     <div className="mt-4">
                                         <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -352,8 +451,7 @@ export default function AdminRecipes() {
 
                                     {/* Ingredients */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Ingredients (one per
-                                            line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">Ingredients (one per line)</label>
                                         <textarea
                                             value={recipe.ingredients?.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim()).join('\n') || ''}
                                             onChange={(e) => {
@@ -375,8 +473,7 @@ export default function AdminRecipes() {
 
                                     {/* Instructions */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Instructions (one
-                                            step per line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">Instructions (one step per line)</label>
                                         <textarea
                                             value={recipe.instructions?.join('\n') || ''}
                                             onChange={(e) => editRecipe(index, 'instructions', e.target.value.split('\n').filter(line => line.trim()))}
@@ -464,9 +561,10 @@ export default function AdminRecipes() {
                         <li>1. Select the volume of Doc Bear's Comfort Food Survival Guide</li>
                         <li>2. Upload your PDF or DOCX file containing the recipes</li>
                         <li>3. Review the extracted text to ensure proper parsing</li>
-                        <li>4. Edit any recipes that need corrections</li>
-                        <li>5. Click "Import All Recipes" to add them to your database</li>
-                        <li>6. The recipes will be tagged with the appropriate volume source</li>
+                        <li>4. <strong>Review and adjust categories</strong> - Use bulk change or individual dropdowns</li>
+                        <li>5. Edit any recipes that need corrections</li>
+                        <li>6. Click "Import All Recipes" to add them to your database</li>
+                        <li>7. The recipes will be tagged with the appropriate volume source and category</li>
                     </ul>
                 </div>
             </div>
