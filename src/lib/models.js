@@ -239,6 +239,18 @@ const RecipeSchema = new mongoose.Schema({
         enum: ['easy', 'medium', 'hard'],
         default: 'medium'
     },
+
+    // ADD THIS FIELD:
+    category: {
+        type: String,
+        enum: [
+            'seasonings', 'sauces', 'salad-dressings', 'marinades', 'ingredients',
+            'entrees', 'side-dishes', 'soups', 'sandwiches', 'appetizers',
+            'desserts', 'breads', 'pizza-dough', 'specialty-items', 'beverages', 'breakfast'
+        ],
+        default: 'entrees'
+    },
+
     tags: [String],
     source: String,
     createdBy: {

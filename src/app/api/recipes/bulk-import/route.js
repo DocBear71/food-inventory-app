@@ -60,11 +60,11 @@ export async function POST(request) {
                     cookTime: parseInt(recipeData.cookTime) || 30,
                     servings: parseInt(recipeData.servings) || 4,
                     difficulty: recipeData.difficulty || 'medium',
-                    tags: [...(recipeData.tags || []), 'comfort-food', `volume-${volume}`],
+                    tags: [...new Set([...(recipeData.tags || []), 'comfort-food', `volume-${volume}`])], // Use Set to remove duplicates
                     source: recipeData.source || `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
                     category: recipeData.category || 'entrees', // ADDED: Include category
                     createdBy: session.user.id,
-                    isPublic: true,
+                    isPublic: true, // CHANGED: Make Doc Bear's recipes public by default
                     createdAt: new Date(),
                     updatedAt: new Date()
                 });
