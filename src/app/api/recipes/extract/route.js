@@ -1,15 +1,15 @@
 // file: /src/app/api/recipes/extract/route.js - v8 FIXED
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import {NextResponse} from 'next/server';
+import {getServerSession} from 'next-auth/next';
+import {authOptions} from '@/lib/auth';
 
 export async function POST(request) {
     try {
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
         }
 
         const formData = await request.formData();
@@ -17,7 +17,7 @@ export async function POST(request) {
         const volume = formData.get('volume');
 
         if (!file) {
-            return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+            return NextResponse.json({error: 'No file provided'}, {status: 400});
         }
 
         console.log('Processing file:', file.name, 'Size:', file.size, 'Type:', file.type);
@@ -31,7 +31,7 @@ export async function POST(request) {
         } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
             extractedText = await extractTextFromDOCX(file);
         } else {
-            return NextResponse.json({ error: 'Unsupported file type. Please upload PDF or DOCX files.' }, { status: 400 });
+            return NextResponse.json({error: 'Unsupported file type. Please upload PDF or DOCX files.'}, {status: 400});
         }
 
         console.log('Extracted text length:', extractedText.length);
@@ -57,7 +57,7 @@ export async function POST(request) {
         return NextResponse.json({
             error: 'Failed to extract recipes from file',
             details: error.message
-        }, { status: 500 });
+        }, {status: 500});
     }
 }
 
@@ -92,7 +92,7 @@ async function extractTextFromDOCX(file) {
 
             console.log('Attempting mammoth extraction, buffer size:', buffer.length);
 
-            const result = await mammoth.extractRawText({ buffer });
+            const result = await mammoth.extractRawText({buffer});
 
             if (result.value && result.value.length > 10) {
                 console.log('Mammoth extraction successful, text length:', result.value.length);
@@ -158,7 +158,8 @@ function parseRecipeWithProperSeparation(section, volume) {
         difficulty: 'medium',
         tags: ['comfort-food'],
         source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
-        isPublic: false
+        isPublic: false,
+        category: 'entrees'
     };
 
     // STEP 1: Find the title - look for lines with ** markers or first meaningful line
@@ -203,7 +204,7 @@ function parseRecipeWithProperSeparation(section, volume) {
     const separatedLines = separateConcatenatedIngredients(contentLines);
 
     // STEP 4: Parse ingredients and instructions
-    const { ingredients, instructions, description } = parseIngredientsAndInstructionsFinal(separatedLines);
+    const {ingredients, instructions, description} = parseIngredientsAndInstructionsFinal(separatedLines);
 
     recipe.ingredients = ingredients;
     recipe.instructions = instructions;
@@ -350,7 +351,7 @@ function parseIngredientsAndInstructionsFinal(lines) {
 
     console.log(`--- PARSING COMPLETE: ${ingredients.length} ingredients, ${instructions.length} instructions ---\n`);
 
-    return { ingredients, instructions, description };
+    return {ingredients, instructions, description};
 }
 
 
@@ -378,7 +379,8 @@ function parseRecipeWithFixedLogic(section, volume) {
         difficulty: 'medium',
         tags: ['comfort-food'],
         source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
-        isPublic: false
+        isPublic: false,
+        category: 'entrees'
     };
 
     // STEP 1: Find the title - look for lines with ** markers or first meaningful line
@@ -420,7 +422,7 @@ function parseRecipeWithFixedLogic(section, volume) {
     console.log(`Processing ${contentLines.length} content lines after title`);
 
     // STEP 3: Separate ingredients from instructions using improved logic
-    const { ingredients, instructions, description } = parseIngredientsAndInstructionsFixed(contentLines);
+    const {ingredients, instructions, description} = parseIngredientsAndInstructionsFixed(contentLines);
 
     recipe.ingredients = ingredients;
     recipe.instructions = instructions;
@@ -497,7 +499,7 @@ function parseIngredientsAndInstructionsFixed(lines) {
 
     console.log(`--- PARSING COMPLETE: ${ingredients.length} ingredients, ${instructions.length} instructions ---\n`);
 
-    return { ingredients, instructions, description };
+    return {ingredients, instructions, description};
 }
 
 // FIXED: Much more accurate ingredient detection
@@ -774,7 +776,8 @@ function parseRecipeAggressively(section, volume) {
         difficulty: 'medium',
         tags: ['comfort-food'],
         source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
-        isPublic: false
+        isPublic: false,
+        category: 'entrees'
     };
 
     // Take first line as title, no matter what
@@ -908,7 +911,8 @@ function parseRecipeWithImprovedStructure(section, volume) {
         difficulty: 'medium',
         tags: ['comfort-food'],
         source: `Doc Bear's Comfort Food Survival Guide Volume ${volume}`,
-        isPublic: false
+        isPublic: false,
+        category: 'entrees'
     };
 
     // STEP 3: Find the title (first meaningful line)
@@ -943,7 +947,7 @@ function parseRecipeWithImprovedStructure(section, volume) {
     console.log(`Processing ${contentLines.length} content lines after title`);
 
     // STEP 5: Separate ingredients from instructions using better logic
-    const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
+    const {ingredients, instructions, description} = parseIngredientsAndInstructions(contentLines);
 
     recipe.ingredients = ingredients;
     recipe.instructions = instructions;
@@ -1256,7 +1260,7 @@ function parseRecipeWithClassification(section, volume) {
     const contentLines = allLines.slice(titleIndex + 1);
     console.log(`Processing ${contentLines.length} content lines after title`);
 
-    const { ingredients, instructions, description } = parseIngredientsAndInstructions(contentLines);
+    const {ingredients, instructions, description} = parseIngredientsAndInstructions(contentLines);
 
     recipe.ingredients = ingredients;
     recipe.instructions = instructions;

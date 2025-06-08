@@ -31,7 +31,9 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
             servings: null,
             difficulty: 'medium',
             tags: [],
-            source: 'Pasted Recipe'
+            source: 'Pasted Recipe',
+            isPublic: false,
+            category: 'entrees'
         };
 
         let currentSection = 'title';
@@ -672,6 +674,12 @@ Instructions:
                                 </div>
                             </div>
 
+                            {/* Category */}
+                            <div>
+                                <div className="recipe-category">
+                                    Category: {recipe.category}
+                                </div>
+                            </div>
                             {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
