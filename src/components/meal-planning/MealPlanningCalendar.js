@@ -335,17 +335,40 @@ export default function MealPlanningCalendar() {
                                 />
                             )}
 
-                            {/* Shopping List Button - FIXED PADDING */}
+                            {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
                             {mealsPlanned && (
                                 <button
                                     onClick={() => setShowShoppingList(true)}
-                                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                                    style={{
+                                        backgroundColor: '#16a34a',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '0.75rem 1.5rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        transition: 'background-color 0.2s',
+                                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                                        width: '100%',
+                                        justifyContent: 'center'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.target.style.backgroundColor = '#15803d';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.target.style.backgroundColor = '#16a34a';
+                                    }}
+                                    title="Generate shopping list from your meal plan"
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                               d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
                                     </svg>
-                                    <span>Shopping List</span>
+                                    🛒 Shopping List
                                 </button>
                             )}
 
@@ -597,17 +620,38 @@ export default function MealPlanningCalendar() {
                             />
                         )}
 
-                        {/* Shopping List Button - FIXED PADDING */}
+                        {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
                         {mealsPlanned && (
                             <button
                                 onClick={() => setShowShoppingList(true)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                                style={{
+                                    backgroundColor: '#16a34a',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    padding: '0.75rem 1.5rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    transition: 'background-color 0.2s',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.target.style.backgroundColor = '#15803d';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.target.style.backgroundColor = '#16a34a';
+                                }}
+                                title="Generate shopping list from your meal plan"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                           d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 5H19M9 17v1a1 1 0 102 0v-1m4 0v1a1 1 0 102 0v-1"/>
                                 </svg>
-                                <span>Shopping List</span>
+                                🛒 Shopping List
                             </button>
                         )}
 
@@ -718,17 +762,58 @@ export default function MealPlanningCalendar() {
                                             return (
                                                 <div
                                                     key={`${meal.recipeId}-${mealTypeIndex}`}
-                                                    className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-2 hover:bg-indigo-200 transition-colors"
+                                                    style={{
+                                                        position: 'relative',
+                                                        backgroundColor: '#e0e7ff',
+                                                        border: '1px solid #c7d2fe',
+                                                        borderRadius: '8px',
+                                                        padding: '8px',
+                                                        paddingRight: '32px',
+                                                        marginBottom: '8px'
+                                                    }}
                                                 >
-                                                    <div className="text-sm font-medium text-indigo-900 pr-8">{meal.recipeName}</div>
-                                                    <div className="text-xs text-indigo-700">
+                                                    <div style={{
+                                                        fontSize: '14px',
+                                                        fontWeight: '500',
+                                                        color: '#312e81',
+                                                        marginBottom: '2px'
+                                                    }}>
+                                                        {meal.recipeName}
+                                                    </div>
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: '#4338ca'
+                                                    }}>
                                                         {meal.servings} servings • {meal.prepTime + meal.cookTime} min
                                                     </div>
 
-                                                    {/* Remove Button - Always Visible */}
+                                                    {/* Remove Button - Inline Styles for Visibility */}
                                                     <button
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
-                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: '4px',
+                                                            right: '4px',
+                                                            backgroundColor: '#ef4444',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '50%',
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontSize: '12px',
+                                                            fontWeight: 'bold',
+                                                            cursor: 'pointer',
+                                                            zIndex: 10
+                                                        }}
+                                                        onMouseOver={(e) => {
+                                                            e.target.style.backgroundColor = '#dc2626';
+                                                        }}
+                                                        onMouseOut={(e) => {
+                                                            e.target.style.backgroundColor = '#ef4444';
+                                                        }}
                                                         title="Remove meal"
                                                     >
                                                         ×
