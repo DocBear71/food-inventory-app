@@ -644,7 +644,7 @@ export default function RecipeSuggestions() {
                                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Ingredients</h3>
                                         <ul className="space-y-2">
                                             {showRecipeModal.ingredients?.map((ingredient, index) => (
-                                                <li key={index} className="flex items-start space-x-5">
+                                                <li key={index} className="flex items-start space-x-4">
                                                     <input
                                                         type="checkbox"
                                                         className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
