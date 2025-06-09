@@ -1,4 +1,4 @@
-// file: /src/components/mobile/PWAInstallBanner.js v8 - Fixed for SSG compatibility
+// file: /src/components/mobile/PWAInstallBanner.js v9 - Fixed crash with proper null checking
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,12 +6,18 @@ import { useSession } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 
 export function PWAInstallBanner() {
-    const session = useSession();
+    const sessionResult = useSession();
     const [showBanner, setShowBanner] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
     const [userDisabledBanner, setUserDisabledBanner] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // Safely extract session data with null checks
+    const session = sessionResult || {};
+    const sessionStatus = session.status || 'loading';
+    const sessionData = session.data || null;
+    const userId = sessionData?.user?.id || null;
 
     // Prevent hydration issues
     useEffect(() => {
@@ -23,21 +29,23 @@ export function PWAInstallBanner() {
 
         // Check if running on iOS
         const checkIsIOS = () => {
+            if (typeof navigator === 'undefined') return false;
             return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         };
 
         // Check if already running as PWA
         const checkIsStandalone = () => {
-            return window.matchMedia('(display-mode: standalone)').matches ||
-                window.navigator.standalone === true ||
-                document.referrer.includes('android-app://');
+            if (typeof window === 'undefined') return false;
+            return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator?.standalone === true ||
+                (typeof document !== 'undefined' && document.referrer.includes('android-app://'));
         };
 
         // Check if user has disabled PWA banner in their profile
         const checkUserDisabledBanner = async () => {
             // Only check if session is loaded and user is authenticated
-            if (session.status === 'authenticated' && session.data?.user?.id) {
+            if (sessionStatus === 'authenticated' && userId) {
                 try {
                     const response = await fetch('/api/user/preferences');
                     if (response.ok) {
@@ -57,7 +65,7 @@ export function PWAInstallBanner() {
         setIsIOS(isiOS);
         setIsStandalone(isStandaloneMode);
 
-        console.log('PWA Banner: iOS:', isiOS, 'Standalone:', isStandaloneMode, 'Session status:', session.status);
+        console.log('PWA Banner: iOS:', isiOS, 'Standalone:', isStandaloneMode, 'Session status:', sessionStatus);
 
         // Don't show if already running as PWA
         if (isStandaloneMode) {
@@ -66,13 +74,13 @@ export function PWAInstallBanner() {
         }
 
         // Wait for session to load
-        if (session.status === 'loading') {
+        if (sessionStatus === 'loading') {
             console.log('PWA Banner: Waiting for session to load');
             return;
         }
 
         // Check user preference if logged in
-        if (session.status === 'authenticated' && session.data?.user?.id) {
+        if (sessionStatus === 'authenticated' && userId) {
             checkUserDisabledBanner().then(disabled => {
                 console.log('PWA Banner: User disabled banner:', disabled);
                 setUserDisabledBanner(disabled);
@@ -84,14 +92,14 @@ export function PWAInstallBanner() {
                     }, 1000);
                 }
             });
-        } else if (session.status === 'unauthenticated') {
+        } else if (sessionStatus === 'unauthenticated') {
             // For non-logged in users, always show
             setTimeout(() => {
                 console.log('PWA Banner: Showing banner for guest user');
                 setShowBanner(true);
             }, 1000);
         }
-    }, [mounted, session.status, session.data]);
+    }, [mounted, sessionStatus, userId]);
 
     const handleInstall = async () => {
         console.log('PWA Banner: Install clicked - iOS:', isIOS);
@@ -100,7 +108,7 @@ export function PWAInstallBanner() {
             showIOSInstructions();
         } else {
             try {
-                if (window.deferredPrompt) {
+                if (typeof window !== 'undefined' && window.deferredPrompt) {
                     const result = await window.deferredPrompt.prompt();
                     if (result.outcome === 'accepted') {
                         setShowBanner(false);
@@ -116,6 +124,8 @@ export function PWAInstallBanner() {
     };
 
     const showIOSInstructions = () => {
+        if (typeof document === 'undefined') return;
+
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4';
         modal.style.zIndex = '9999';
@@ -146,7 +156,7 @@ export function PWAInstallBanner() {
                         >
                             Got it!
                         </button>
-                        ${session.status === 'authenticated' && session.data?.user?.id ? `
+                        ${sessionStatus === 'authenticated' && userId ? `
                         <button 
                             onclick="
                                 fetch('/api/user/preferences', { 
@@ -181,7 +191,9 @@ export function PWAInstallBanner() {
     };
 
     const showManualInstructions = () => {
-        alert('Look for an "Add to Home Screen" or "Install" option in your browser menu.');
+        if (typeof window !== 'undefined') {
+            alert('Look for an "Add to Home Screen" or "Install" option in your browser menu.');
+        }
     };
 
     const handleDismiss = () => {
@@ -190,7 +202,7 @@ export function PWAInstallBanner() {
     };
 
     // Don't render anything during SSR or before mounting
-    if (!mounted) {
+    if (!mounted || typeof window === 'undefined') {
         return null;
     }
 
@@ -199,7 +211,7 @@ export function PWAInstallBanner() {
     // - User has disabled it in their profile
     // - Banner state is false
     // - Session is still loading
-    if (isStandalone || userDisabledBanner || !showBanner || session.status === 'loading') {
+    if (isStandalone || userDisabledBanner || !showBanner || sessionStatus === 'loading') {
         return null;
     }
 
