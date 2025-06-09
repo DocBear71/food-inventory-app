@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js v2 - Enhanced mobile layout with PWA banner support
+// file: /src/components/layout/MobileDashboardLayout.js v3 - Enhanced mobile layout with PWA banner support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -63,18 +63,15 @@ export default function MobileDashboardLayout({ children }) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // Calculate top padding based on whether PWA banner is shown
-    const topPadding = showPWABanner ? 'pt-32' : 'pt-16'; // pt-32 = banner (64px) + header (64px), pt-16 = just header
+    // Calculate bottom padding based on whether PWA banner is shown
+    const bottomPadding = showPWABanner ? 'pb-32' : 'pb-20'; // pb-32 = bottom nav (64px) + banner (64px), pb-20 = just bottom nav
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* PWA Install Banner - appears at very top */}
-            <PWAInstallBanner />
-
-            {/* Mobile Header - positioned below PWA banner when present */}
-            <header className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
-                showPWABanner ? 'top-16' : 'top-0'
-            } ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'}`}>
+            {/* Mobile Header - back at top */}
+            <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-200 ${
+                isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
+            }`}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center space-x-3">
                         <button
@@ -163,8 +160,8 @@ export default function MobileDashboardLayout({ children }) {
                 </div>
             )}
 
-            {/* Main Content - Dynamic padding based on PWA banner presence */}
-            <main className={`${topPadding} pb-20`}>
+            {/* Main Content - Fixed padding to clear header */}
+            <main className={`pt-20 ${bottomPadding}`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
@@ -194,6 +191,8 @@ export default function MobileDashboardLayout({ children }) {
                     ))}
                 </div>
             </nav>
+            {/* PWA Install Banner - back at bottom */}
+            <PWAInstallBanner />
         </div>
     );
 }

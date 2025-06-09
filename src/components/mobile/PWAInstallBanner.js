@@ -1,4 +1,4 @@
-// file: /src/components/mobile/PWAInstallBanner.js v2 - SMART Install banner component
+// file: /src/components/mobile/PWAInstallBanner.js v3 - SMART Install banner component
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -53,45 +53,39 @@ export function PWAInstallBanner() {
     };
 
     return (
-        <>
-            {/* Banner */}
-            <div className="fixed top-0 left-0 right-0 z-50 bg-indigo-600 text-white p-3 shadow-lg pwa-install-banner">
-                <div className="flex items-center justify-between max-w-7xl mx-auto">
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="bg-white p-1.5 rounded-lg flex-shrink-0">
-                            <span className="text-indigo-600 text-lg">📱</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-sm truncate">Install Doc Bear's Comfort Kitchen</h3>
-                            <p className="text-indigo-100 text-xs truncate">
-                                Add to home screen for quick access
-                            </p>
-                        </div>
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-indigo-600 text-white p-3 shadow-lg pwa-install-banner">
+            <div className="flex items-center justify-between max-w-7xl mx-auto">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="bg-white p-1.5 rounded-lg flex-shrink-0">
+                        <span className="text-indigo-600 text-lg">📱</span>
                     </div>
-
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                        <TouchEnhancedButton
-                            onClick={handleDismiss}
-                            className="text-indigo-200 hover:text-white p-1 rounded"
-                            aria-label="Dismiss"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={handleInstall}
-                            className="bg-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-50 active:bg-indigo-100 transition-colors flex-shrink-0"
-                            style={{ color: '#4f46e5' }}
-                        >
-                            Install
-                        </TouchEnhancedButton>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm truncate">Install Doc Bear's Comfort Kitchen</h3>
+                        <p className="text-indigo-100 text-xs truncate">
+                            Add to home screen for quick access
+                        </p>
                     </div>
                 </div>
-            </div>
 
-            {/* Spacer to push content below banner - only when banner is visible */}
-            <div className="h-16 bg-gray-50 pwa-banner-spacer" />
-        </>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                    <TouchEnhancedButton
+                        onClick={handleDismiss}
+                        className="text-indigo-200 hover:text-white p-1 rounded"
+                        aria-label="Dismiss"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
+                        onClick={handleInstall}
+                        className="bg-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-50 active:bg-indigo-100 transition-colors flex-shrink-0"
+                        style={{ color: '#4f46e5' }}
+                    >
+                        Install
+                    </TouchEnhancedButton>
+                </div>
+            </div>
+        </div>
     );
 }
