@@ -1613,3 +1613,39 @@ textarea {
         padding: 12px !important;
     }
 }
+
+/* PROFILE PAGE MOBILE TAB FIXES */
+.scrollbar-hide {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Mobile tab improvements */
+@media (max-width: 767px) {
+    /* Ensure proper spacing for profile tabs */
+    .profile-tabs-container {
+        padding: 0.5rem 1rem !important;
+    }
+
+    /* Touch-friendly checkbox styling */
+    input[type="checkbox"].touch-friendly {
+        width: 20px !important;
+        height: 20px !important;
+        margin-right: 12px !important;
+    }
+
+    /* Better mobile form spacing */
+    .profile-form-section {
+        margin-bottom: 2rem !important;
+    }
+
+    /* Mobile-optimized button spacing */
+    .profile-buttons {
+        gap: 1rem !important;
+        flex-direction: column !important;
+    }
+}
