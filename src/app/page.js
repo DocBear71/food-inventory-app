@@ -6,7 +6,6 @@ import {useSession} from 'next-auth/react';
 import {useEffect} from 'react';
 import {useRouter} from 'next/navigation';
 import Link from 'next/link';
-import Footer from '../components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
