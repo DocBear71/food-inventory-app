@@ -163,7 +163,7 @@ export default function MobileDashboardLayout({ children }) {
             )}
 
             {/* Main Content - Right amount of padding to clear header */}
-            <main className="mobile-main-content" style={{ paddingTop: '80px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
+            <main className="mobile-main-content" style={{ paddingTop: '20px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
