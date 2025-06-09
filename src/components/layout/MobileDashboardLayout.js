@@ -111,13 +111,21 @@ export default function MobileDashboardLayout({ children }) {
                         {/* User avatar with profile link */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
-                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly"
+                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden"
                             aria-label="Go to profile"
                             title="Profile"
                         >
-                <span className="text-indigo-600 text-sm font-medium">
-                    {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                </span>
+                            {session?.user?.avatar ? (
+                                <img
+                                    src={session.user.avatar}
+                                    alt="Profile"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <span className="text-indigo-600 text-sm font-medium">
+            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+        </span>
+                            )}
                         </TouchEnhancedButton>
                     </div>
                 </div>

@@ -3,8 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { connectDB } from '@/lib/db';
-import User from '@/models/User';
+import connectDB from '@/lib/mongodb';
+import { User } from '@/lib/models';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
@@ -64,8 +64,9 @@ export async function POST(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Update user's avatar URL
+        // Update user's avatar URL (this will add the field if it doesn't exist)
         user.avatar = avatarUrl;
+        user.updatedAt = new Date();
         await user.save();
 
         return NextResponse.json({
@@ -100,6 +101,7 @@ export async function DELETE(request) {
 
         // Remove avatar URL
         user.avatar = '';
+        user.updatedAt = new Date();
         await user.save();
 
         return NextResponse.json({

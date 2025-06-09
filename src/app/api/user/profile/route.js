@@ -34,6 +34,7 @@ export async function GET(request) {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                avatar: user.avatar || '', // ADD AVATAR SUPPORT
                 profile: user.profile || {},
                 notificationSettings: user.notificationSettings || {},
                 mealPlanningPreferences: user.mealPlanningPreferences || {},
@@ -65,6 +66,7 @@ export async function PUT(request) {
 
         const {
             name,
+            avatar, // ADD AVATAR SUPPORT
             profile,
             notificationSettings,
             mealPlanningPreferences,
@@ -84,6 +86,23 @@ export async function PUT(request) {
                 { error: 'Name must be less than 100 characters' },
                 { status: 400 }
             );
+        }
+
+        // Validate avatar if provided
+        if (avatar !== undefined) {
+            if (typeof avatar !== 'string') {
+                return NextResponse.json(
+                    { error: 'Avatar must be a valid URL string' },
+                    { status: 400 }
+                );
+            }
+
+            if (avatar.length > 500) {
+                return NextResponse.json(
+                    { error: 'Avatar URL must be less than 500 characters' },
+                    { status: 400 }
+                );
+            }
         }
 
         // Validate profile data if provided
@@ -127,6 +146,11 @@ export async function PUT(request) {
             updatedAt: new Date()
         };
 
+        // Add avatar if provided
+        if (avatar !== undefined) {
+            updateData.avatar = avatar;
+        }
+
         // Add optional fields if provided
         if (profile) {
             updateData.profile = profile;
@@ -164,6 +188,7 @@ export async function PUT(request) {
                 id: updatedUser._id,
                 name: updatedUser.name,
                 email: updatedUser.email,
+                avatar: updatedUser.avatar || '', // ADD AVATAR SUPPORT
                 profile: updatedUser.profile || {},
                 notificationSettings: updatedUser.notificationSettings || {},
                 mealPlanningPreferences: updatedUser.mealPlanningPreferences || {},
