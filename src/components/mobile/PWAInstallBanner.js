@@ -54,6 +54,7 @@ export function PWAInstallBanner() {
                     <TouchEnhancedButton
                         onClick={handleInstall}
                         className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-50 active:bg-indigo-100 transition-colors"
+                        style={{ color: '#4f46e5' }}
                     >
                         Install
                     </TouchEnhancedButton>
