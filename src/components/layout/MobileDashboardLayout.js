@@ -65,7 +65,7 @@ export default function MobileDashboardLayout({ children }) {
                             </svg>
                         </button>
                         <h1 className="text-xl font-bold text-gray-900 truncate">
-                            Food Inventory
+                            Doc Bear's Comfort Kitchen
                         </h1>
                     </div>
 

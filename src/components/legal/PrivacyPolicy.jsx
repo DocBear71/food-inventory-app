@@ -26,7 +26,7 @@ const PrivacyPolicy = () => {
                     </p>
                     <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
                         <li>Visit our website at <a href="https://docbearscomfort.kitchen" target="_blank" rel="noopener noreferrer" style={{ color: '#3030F1' }}>https://docbearscomfort.kitchen</a>, or any website of ours that links to this Privacy Notice</li>
-                        <li>Use our Doc Bear's Comfort Food application for food inventory management and recipe discovery</li>
+                        <li>Use our Doc Bear's Comfort Kitchen application for food inventory management and recipe discovery</li>
                         <li>Engage with us in other related ways, including any sales, marketing, or events</li>
                     </ul>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -270,7 +270,7 @@ const PrivacyPolicy = () => {
 
                 <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
                     <p style={{ color: '#666', fontSize: '14px', textAlign: 'center', margin: '0' }}>
-                        This privacy policy is specifically tailored for Doc Bear's Comfort Food application and its food inventory management features.
+                        This privacy policy is specifically tailored for Doc Bear's Comfort Kitchen application and its food inventory management features.
                     </p>
                 </div>
             </div>

@@ -34,7 +34,7 @@ export function PWAInstallBanner() {
                         <span className="text-indigo-600 text-lg">📱</span>
                     </div>
                     <div>
-                        <h3 className="font-semibold text-sm">Install Food Inventory</h3>
+                        <h3 className="font-semibold text-sm">Install Doc Bear's Comfort Kitchen</h3>
                         <p className="text-indigo-100 text-xs">
                             Add to home screen for quick access
                         </p>

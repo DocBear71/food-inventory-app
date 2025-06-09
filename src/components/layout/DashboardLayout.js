@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }) {
                     {/* Logo/Title */}
                     <div className="flex items-center justify-between h-16 px-4 bg-indigo-600">
                         <h1 className="text-lg font-semibold text-white truncate">
-                            Food Inventory
+                            Doc Bear's Comfort Kitchen
                         </h1>
                         {/* Mobile close button */}
                         <TouchEnhancedButton

@@ -490,7 +490,7 @@ function InventoryContent() {
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">Food Inventory</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
                     <div className="flex gap-2">
                         <TouchEnhancedButton
                             onClick={() => setShowConsumptionHistory(true)}

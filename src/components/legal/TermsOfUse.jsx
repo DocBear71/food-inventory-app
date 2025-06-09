@@ -216,7 +216,7 @@ const TermsOfUse = () => {
 
                 <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
                     <p style={{ color: '#666', fontSize: '14px', textAlign: 'center', margin: '0' }}>
-                        These terms are specifically tailored for Doc Bear's Comfort Food application and its food inventory management features.
+                        These terms are specifically tailored for Doc Bear's Comfort Kitchen application and its food inventory management features.
                     </p>
                 </div>
             </div>

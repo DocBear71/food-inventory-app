@@ -1,6 +1,6 @@
 // file: /public/manifest.json - PWA Manifest
 {
-  "name": "Food Inventory Manager",
+  "name": "Doc Bear\'s Comfort Kitchen",
   "short_name": "FoodInventory",
   "description": "Manage your food inventory, meal planning, and recipes",
   "start_url": "/",

@@ -8,8 +8,8 @@ import PWAWrapper from '@/components/PWAWrapper';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-    title: 'Food Inventory Manager',
-    description: 'Manage your food inventory and find recipes based on what you have',
+    title: 'Doc Bear\'s Comfort Kitchen',
+    description: 'Manage your Food Inventory and find recipes based on what you have',
     // PWA metadata
     manifest: '/manifest.json',
     themeColor: '#4f46e5',
@@ -24,7 +24,7 @@ export const metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
-        title: 'Food Inventory'
+        title: 'Doc Bear\'s Comfort Kitchen'
     },
     // Icons
     icons: {
@@ -58,7 +58,7 @@ export default function RootLayout({ children }) {
             <meta name="theme-color" content="#4f46e5" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-            <meta name="apple-mobile-web-app-title" content="Food Inventory" />
+            <meta name="apple-mobile-web-app-title" content="Doc Bear\'s Comfort Kitchen" />
             <meta name="msapplication-TileColor" content="#4f46e5" />
             <meta name="msapplication-tap-highlight" content="no" />
 
