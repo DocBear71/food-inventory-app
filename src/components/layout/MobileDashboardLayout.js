@@ -51,7 +51,7 @@ export default function MobileDashboardLayout({ children }) {
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning') },
-        { name: 'Shopping Lists', href: '/shopping-lists', icon: '🛒', current: pathname.startsWith('/shopping-lists') },
+        { name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
     ];
 
     const handleNavigation = (href) => {
