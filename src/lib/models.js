@@ -156,6 +156,24 @@ const UserSchema = new mongoose.Schema({
             default: '1.0' // Update this when you change privacy policy
         }
     },
+    // Password reset functionality
+    passwordResetToken: {
+        type: String,
+        select: false // Don't include in queries by default
+    },
+    passwordResetExpires: {
+        type: Date,
+        select: false // Don't include in queries by default
+    },
+    passwordResetRequestedAt: {
+        type: Date,
+        select: false // Track when reset was requested for rate limiting
+    },
+    passwordResetCount: {
+        type: Number,
+        default: 0,
+        select: false // Track number of reset attempts for security
+    },
     notificationSettings: {
         type: NotificationSettingsSchema,
         default: () => ({
@@ -1146,6 +1164,42 @@ UserSchema.methods.getLegalAcceptanceSummary = function() {
     };
 };
 
+UserSchema.methods.canRequestPasswordReset = function() {
+    // Allow 3 reset requests per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    if (!this.passwordResetRequestedAt || this.passwordResetRequestedAt < oneHourAgo) {
+        return true;
+    }
+
+    return (this.passwordResetCount || 0) < 3;
+};
+
+// Track password reset request
+UserSchema.methods.trackPasswordResetRequest = function() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // Reset counter if it's been more than an hour
+    if (!this.passwordResetRequestedAt || this.passwordResetRequestedAt < oneHourAgo) {
+        this.passwordResetCount = 1;
+    } else {
+        this.passwordResetCount = (this.passwordResetCount || 0) + 1;
+    }
+
+    this.passwordResetRequestedAt = new Date();
+    return this.save();
+};
+
+// Clear password reset fields after successful reset
+UserSchema.methods.clearPasswordReset = function() {
+    this.passwordResetToken = undefined;
+    this.passwordResetExpires = undefined;
+    this.passwordResetRequestedAt = undefined;
+    this.passwordResetCount = 0;
+    return this.save();
+};
+
+
 // Methods for meal prep suggestions
 MealPrepSuggestionSchema.methods.markTaskCompleted = function(taskId) {
     if (!this.implementation.tasksCompleted.includes(taskId)) {
@@ -1189,6 +1243,11 @@ MealPrepTemplateSchema.methods.recordUsage = function(rating) {
 
     return this.save();
 };
+
+// Password reset indexes for security and performance
+UserSchema.index({ passwordResetToken: 1 });
+UserSchema.index({ passwordResetExpires: 1 });
+UserSchema.index({ email: 1, passwordResetRequestedAt: 1 }); // For rate limiting
 
 // Create indexes for better performance
 UserInventorySchema.index({ userId: 1 });

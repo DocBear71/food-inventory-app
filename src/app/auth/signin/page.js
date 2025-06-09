@@ -1,4 +1,4 @@
-// file: /src/app/auth/signin/page.js
+// file: /src/app/auth/signin/page.js - UPDATED WITH FORGOT PASSWORD LINK
 
 'use client';
 
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
+import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
 
 export default function SignIn() {
     const [formData, setFormData] = useState({
@@ -50,6 +51,7 @@ export default function SignIn() {
     };
 
     return (
+        <MobileOptimizedLayout>
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
                 <div>
@@ -97,6 +99,17 @@ export default function SignIn() {
                         </div>
                     </div>
 
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                            <Link
+                                href="/auth/forgot-password"
+                                className="font-medium text-indigo-600 hover:text-indigo-500"
+                            >
+                                Forgot your password?
+                            </Link>
+                        </div>
+                    </div>
+
                     <div>
                         <TouchEnhancedButton
                             type="submit"
@@ -119,5 +132,6 @@ export default function SignIn() {
             </div>
             <Footer />
         </div>
+        </MobileOptimizedLayout>
     );
 }
