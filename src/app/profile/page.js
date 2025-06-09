@@ -118,7 +118,7 @@ export default function ProfilePage() {
             return;
         }
 
-        // Validate file size (5MB limit)
+        // Validate file size (5MB limit for GridFS)
         if (file.size > 5 * 1024 * 1024) {
             setError('Image must be smaller than 5MB');
             return;
@@ -139,9 +139,12 @@ export default function ProfilePage() {
             const data = await response.json();
 
             if (response.ok) {
-                setFormData(prev => ({ ...prev, avatar: data.avatarUrl }));
+                // For GridFS, we store the file ID, but use the avatarUrl for display
+                setFormData(prev => ({ ...prev, avatar: data.avatarId }));
+
                 // Update the session to reflect the new avatar
-                await update({ avatar: data.avatarUrl });
+                await update({ avatar: data.avatarId });
+
                 setSuccess('Avatar updated successfully!');
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -149,6 +152,34 @@ export default function ProfilePage() {
             }
         } catch (error) {
             setError('Failed to upload avatar. Please try again.');
+            console.error('Avatar upload error:', error);
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        setUploadingAvatar(true);
+        setError('');
+
+        try {
+            const response = await fetch('/api/user/avatar', {
+                method: 'DELETE',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setFormData(prev => ({ ...prev, avatar: '' }));
+                // Update the session to reflect the removed avatar
+                await update({ avatar: '' });
+                setSuccess('Avatar removed successfully!');
+                setTimeout(() => setSuccess(''), 3000);
+            } else {
+                setError(data.error || 'Failed to remove avatar');
+            }
+        } catch (error) {
+            setError('Failed to remove avatar. Please try again.');
         } finally {
             setUploadingAvatar(false);
         }
@@ -267,27 +298,42 @@ export default function ProfilePage() {
                             </div>
                         )}
 
-                        {/* Mobile-Optimized Tabs */}
-                        <div className="border-b border-gray-200">
-                            <nav className="flex overflow-x-auto scrollbar-hide">
-                                <div className="flex space-x-1 px-2 sm:px-6 py-2 min-w-max">
+                        {/* Premium Tab Navigation - Enhanced Grid Layout */}
+                        <div className="bg-gray-50 border-b border-gray-200">
+                            <div className="px-4 sm:px-6 py-4">
+                                <nav className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                                     {tabs.map((tab) => (
                                         <TouchEnhancedButton
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
-                                            className={`flex items-center whitespace-nowrap px-3 py-2 rounded-lg font-medium text-sm transition-all touch-friendly ${
+                                            className={`group relative flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 touch-friendly min-h-[80px] ${
                                                 activeTab === tab.id
-                                                    ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-200'
-                                                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 border-2 border-transparent'
+                                                    ? 'bg-white text-indigo-700 shadow-lg border-2 border-indigo-200 transform scale-105'
+                                                    : 'bg-white text-gray-600 hover:text-gray-800 hover:shadow-md border-2 border-gray-100 hover:border-gray-200'
                                             }`}
-                                            style={{ minWidth: 'fit-content' }}
                                         >
-                                            <span className="text-base mr-2">{tab.icon}</span>
-                                            <span className="text-xs sm:text-sm">{tab.name}</span>
+                                            {/* Active indicator dot */}
+                                            {activeTab === tab.id && (
+                                                <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                            )}
+
+                                            {/* Icon with background circle */}
+                                            <div className={`flex items-center justify-center w-8 h-8 rounded-full mb-2 transition-all ${
+                                                activeTab === tab.id
+                                                    ? 'bg-indigo-100'
+                                                    : 'bg-gray-100 group-hover:bg-gray-200'
+                                            }`}>
+                                                <span className="text-lg">{tab.icon}</span>
+                                            </div>
+
+                                            {/* Tab name */}
+                                            <span className="text-xs sm:text-sm font-medium text-center leading-tight">
+                        {tab.name}
+                    </span>
                                         </TouchEnhancedButton>
                                     ))}
-                                </div>
-                            </nav>
+                                </nav>
+                            </div>
                         </div>
 
                         <form onSubmit={handleSubmit}>
@@ -295,21 +341,29 @@ export default function ProfilePage() {
                                 {/* General Tab */}
                                 {activeTab === 'general' && (
                                     <div className="space-y-6">
-                                        {/* Avatar Section */}
+                                        {/* Avatar Section - Updated for GridFS */}
                                         <div className="flex flex-col items-center space-y-4">
                                             <div className="relative">
                                                 <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center">
                                                     {formData.avatar ? (
                                                         <img
-                                                            src={formData.avatar}
+                                                            src={`/api/user/avatar/${formData.avatar}`}
                                                             alt="Profile Avatar"
                                                             className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                // Fallback if image fails to load
+                                                                e.target.style.display = 'none';
+                                                                e.target.nextElementSibling.style.display = 'flex';
+                                                            }}
                                                         />
-                                                    ) : (
-                                                        <span className="text-indigo-600 text-2xl font-medium">
-                                                        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                                                    </span>
-                                                    )}
+                                                    ) : null}
+                                                    {/* Fallback display */}
+                                                    <span
+                                                        className="text-indigo-600 text-2xl font-medium"
+                                                        style={{ display: formData.avatar ? 'none' : 'flex' }}
+                                                    >
+                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+            </span>
                                                 </div>
                                                 {uploadingAvatar && (
                                                     <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
@@ -327,6 +381,19 @@ export default function ProfilePage() {
                                                 >
                                                     {uploadingAvatar ? 'Uploading...' : 'Change Avatar'}
                                                 </TouchEnhancedButton>
+
+                                                {/* Add Remove Avatar Button */}
+                                                {formData.avatar && (
+                                                    <TouchEnhancedButton
+                                                        type="button"
+                                                        onClick={handleRemoveAvatar}
+                                                        disabled={uploadingAvatar}
+                                                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-red-400 touch-friendly text-sm"
+                                                    >
+                                                        Remove Avatar
+                                                    </TouchEnhancedButton>
+                                                )}
+
                                                 <input
                                                     ref={fileInputRef}
                                                     type="file"

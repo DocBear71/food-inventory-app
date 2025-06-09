@@ -1,15 +1,15 @@
 // file: /src/components/layout/MobileDashboardLayout.js - Enhanced mobile layout with PWA banner support
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, usePathname } from 'next/navigation';
-import { PWAInstallBanner } from '@/components/mobile/PWAInstallBanner';
-import { MobileHaptics } from '@/components/mobile/MobileHaptics';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {useState, useEffect} from 'react';
+import {useSession} from 'next-auth/react';
+import {useRouter, usePathname} from 'next/navigation';
+import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
+import {MobileHaptics} from '@/components/mobile/MobileHaptics';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
-export default function MobileDashboardLayout({ children }) {
-    const { data: session } = useSession();
+export default function MobileDashboardLayout({children}) {
+    const {data: session} = useSession();
     const router = useRouter();
     const pathname = usePathname();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,7 +22,7 @@ export default function MobileDashboardLayout({ children }) {
             setIsScrolled(window.scrollY > 10);
         };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('scroll', handleScroll, {passive: true});
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -47,11 +47,11 @@ export default function MobileDashboardLayout({ children }) {
     }, [pathname]);
 
     const navigation = [
-        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/' },
-        { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
-        { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
-        { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning') },
-        { name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
+        {name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/'},
+        {name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory'},
+        {name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes')},
+        {name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
+        {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
     const handleNavigation = (href) => {
@@ -81,7 +81,8 @@ export default function MobileDashboardLayout({ children }) {
                             aria-label="Open menu"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M4 6h16M4 12h16M4 18h16"/>
                             </svg>
                         </TouchEnhancedButton>
 
@@ -104,7 +105,8 @@ export default function MobileDashboardLayout({ children }) {
                             aria-label="Quick add item"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                             </svg>
                         </TouchEnhancedButton>
 
@@ -117,15 +119,22 @@ export default function MobileDashboardLayout({ children }) {
                         >
                             {session?.user?.avatar ? (
                                 <img
-                                    src={session.user.avatar}
+                                    src={`/api/user/avatar/${session.user.avatar}`}
                                     alt="Profile"
                                     className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        // Fallback if image fails to load
+                                        e.target.style.display = 'none';
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                    }}
                                 />
-                            ) : (
-                                <span className="text-indigo-600 text-sm font-medium">
-            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-        </span>
-                            )}
+                            ) : null}
+                            <span
+                                className="text-indigo-600 text-sm font-medium"
+                                style={{display: session?.user?.avatar ? 'none' : 'flex'}}
+                            >
+        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+    </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -134,7 +143,7 @@ export default function MobileDashboardLayout({ children }) {
             {/* Mobile Menu Overlay */}
             {mobileMenuOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
-                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
                     <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
                             <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
@@ -143,7 +152,8 @@ export default function MobileDashboardLayout({ children }) {
                                 className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                             </TouchEnhancedButton>
                         </div>
@@ -162,7 +172,7 @@ export default function MobileDashboardLayout({ children }) {
                                     <span className="text-xl">{item.icon}</span>
                                     <span className="font-medium">{item.name}</span>
                                     {item.current && (
-                                        <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full" />
+                                        <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
                                     )}
                                 </TouchEnhancedButton>
                             ))}
@@ -182,7 +192,8 @@ export default function MobileDashboardLayout({ children }) {
             )}
 
             {/* Main Content - Right amount of padding to clear header */}
-            <main className="mobile-main-content" style={{ paddingTop: '20px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
+            <main className="mobile-main-content"
+                  style={{paddingTop: '20px', paddingBottom: showPWABanner ? '128px' : '80px'}}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
@@ -206,14 +217,15 @@ export default function MobileDashboardLayout({ children }) {
                 {item.name}
               </span>
                             {item.current && (
-                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full" />
+                                <div
+                                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
                             )}
                         </TouchEnhancedButton>
                     ))}
                 </div>
             </nav>
             {/* PWA Install Banner - back at bottom */}
-            <PWAInstallBanner />
+            <PWAInstallBanner/>
         </div>
     );
 }

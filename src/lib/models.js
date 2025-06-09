@@ -125,7 +125,7 @@ const UserSchema = new mongoose.Schema({
     avatar: {
         type: String,
         default: '',
-        maxlength: 500 // URL length limit
+        maxlength: 100 // URL length limit
     },
     legalAcceptance: {
         termsAccepted: {

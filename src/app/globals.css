@@ -1649,3 +1649,82 @@ textarea {
         flex-direction: column !important;
     }
 }
+
+/* Add this to your /src/app/globals.css file */
+
+/* IMPROVED PROFILE TABS STYLES */
+
+/* Grid tab layout responsive improvements */
+@media (max-width: 640px) {
+    /* Mobile: 2 columns for tabs */
+    .profile-tabs-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Make tabs more touch-friendly on mobile */
+    .profile-tab-button {
+        min-height: 75px !important;
+        padding: 0.75rem !important;
+    }
+
+    /* Adjust text size for mobile */
+    .profile-tab-text {
+        font-size: 0.75rem !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Icon spacing for mobile */
+    .profile-tab-icon {
+        font-size: 1.25rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+    /* Tablet: 3 columns for tabs */
+    .profile-tabs-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 1rem !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    /* Desktop: 5 columns (all tabs in one row) */
+    .profile-tabs-grid {
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 1rem !important;
+    }
+}
+
+/* Tab button animations */
+.profile-tab-button {
+    transform: scale(1) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.profile-tab-button:active {
+    transform: scale(0.98) !important;
+}
+
+.profile-tab-button.active {
+    transform: scale(1.02) !important;
+}
+
+/* Remove scrollbar if any lingering horizontal scroll */
+.profile-tabs-container {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+}
+
+/* Enhanced hover effects for desktop */
+@media (min-width: 1024px) {
+    .profile-tab-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .profile-tab-button.active:hover {
+        transform: translateY(-2px) scale(1.02) !important;
+    }
+}
