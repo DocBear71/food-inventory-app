@@ -8,6 +8,7 @@ import {useRouter} from 'next/navigation';
 import Link from 'next/link';
 import Footer from '../components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function Home() {
     const {data: session, status} = useSession();

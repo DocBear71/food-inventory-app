@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function SavedShoppingListsPage() {
     const { data: session } = useSession();
@@ -722,6 +723,7 @@ export default function SavedShoppingListsPage() {
                         </div>
                     </div>
                 )}
+                <Footer />
             </div>
 
             <style jsx>{`

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function AddRecipePage() {
     const { data: session } = useSession();
@@ -122,6 +123,7 @@ export default function AddRecipePage() {
                     onCancel={handleCancel}
                     isEditing={false}
                 />
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

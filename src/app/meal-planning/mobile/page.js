@@ -8,6 +8,7 @@ import { SwipeableWeekNavigation } from '@/components/mobile/SwipeNavigation';
 import { DragDropMealCard, MealDropZone } from '@/components/mobile/DragDropMeal';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton";
+import Footer from '@/components/legal/Footer';
 
 export default function MobileMealPlanningPage() {
     const { data: session } = useSession();
@@ -198,6 +199,7 @@ export default function MobileMealPlanningPage() {
                             </div>
                         </div>
                     ))}
+                    <Footer />
                 </div>
             </SwipeableWeekNavigation>
 

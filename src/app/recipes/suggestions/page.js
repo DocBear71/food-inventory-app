@@ -8,6 +8,7 @@ import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function RecipeSuggestions() {
     const {data: session, status} = useSession();
@@ -733,6 +734,7 @@ export default function RecipeSuggestions() {
                         onClose={() => setShowShoppingList(null)}
                     />
                 )}
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

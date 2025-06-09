@@ -10,6 +10,7 @@ import {redirect} from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 function RecipesContent() {
     const {data: session, status} = useSession();
@@ -489,6 +490,7 @@ export default function RecipesPage() {
                             ))}
                         </div>
                     </div>
+                    <Footer />
                 </div>
             </MobileOptimizedLayout>
         }>

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import PrivacyPolicy from '@/components/legal/PrivacyPolicy';
 import TermsOfUse from '@/components/legal/TermsOfUse';
+import Footer from '@/components/legal/Footer';
 
 export default function SignUp() {
     const [formData, setFormData] = useState({
@@ -308,6 +309,7 @@ export default function SignUp() {
                         </div>
                     </form>
                 </div>
+                <Footer />
             </div>
 
             <Modal

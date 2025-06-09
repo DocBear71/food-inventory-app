@@ -7,6 +7,7 @@ import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import Footer from '@/components/legal/Footer';
 
 export default function SignIn() {
     const [formData, setFormData] = useState({
@@ -116,6 +117,7 @@ export default function SignIn() {
                     </div>
                 </form>
             </div>
+            <Footer />
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function ConsumptionHistoryPage() {
     const { data: session, status } = useSession();
@@ -322,6 +323,7 @@ export default function ConsumptionHistoryPage() {
                         )}
                     </div>
                 </div>
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

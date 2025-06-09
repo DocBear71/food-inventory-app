@@ -8,6 +8,7 @@ import ExpirationNotifications from '@/components/notifications/ExpirationNotifi
 import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
@@ -268,6 +269,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

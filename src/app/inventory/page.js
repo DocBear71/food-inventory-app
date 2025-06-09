@@ -11,6 +11,7 @@ import ConsumptionHistory from '@/components/inventory/ConsumptionHistory';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 // Separate component for search params to wrap in Suspense
 function InventoryContent() {
@@ -1073,6 +1074,7 @@ function InventoryContent() {
                         onClose={() => setShowConsumptionHistory(false)}
                     />
                 )}
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

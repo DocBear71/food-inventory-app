@@ -8,6 +8,7 @@ import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function ShoppingPage() {
     const { data: session } = useSession();
@@ -851,6 +852,7 @@ export default function ShoppingPage() {
                         100% { transform: rotate(360deg); }
                     }
                 `}</style>
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );

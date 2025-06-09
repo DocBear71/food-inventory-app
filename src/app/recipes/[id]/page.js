@@ -11,6 +11,7 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 export default function RecipeDetailPage() {
     const { data: session } = useSession();
@@ -805,6 +806,7 @@ export default function RecipeDetailPage() {
                             )}
                         </div>
                     </div>
+                    <Footer />
                 </div>
             )}
         </MobileOptimizedLayout>

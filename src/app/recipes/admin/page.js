@@ -7,6 +7,7 @@ import {useSession} from 'next-auth/react';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import Footer from '@/components/legal/Footer';
 
 // Category options for the dropdown
 const CATEGORY_OPTIONS = [
@@ -570,6 +571,7 @@ export default function AdminRecipes() {
                         <li>7. The recipes will be tagged with the appropriate volume source and category</li>
                     </ul>
                 </div>
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );
