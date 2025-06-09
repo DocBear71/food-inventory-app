@@ -418,6 +418,12 @@ body {
     background-color: #e0e7ff !important;
 }
 
+.hover\:bg-red-100:hover {
+    background-color: #fee2e2 !important; }
+
+.hover\:bg-blue-100:hover {
+    background-color: #dbeafe !important; }
+
 .hover\:bg-green-100:hover {
     background-color: #dcfce7 !important;
 }
