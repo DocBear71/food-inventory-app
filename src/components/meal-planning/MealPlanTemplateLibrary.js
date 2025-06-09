@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPlanTemplateLibrary({
                                                     mealPlanId,
@@ -211,7 +212,7 @@ export default function MealPlanTemplateLibrary({
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowCreateModal(true)}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -224,8 +225,8 @@ export default function MealPlanTemplateLibrary({
                             }}
                         >
                             💾 Save Current Plan
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 background: 'none',
@@ -237,7 +238,7 @@ export default function MealPlanTemplateLibrary({
                             }}
                         >
                             ×
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
@@ -254,7 +255,7 @@ export default function MealPlanTemplateLibrary({
                                 { id: 'my-templates', label: 'My Templates', icon: '📁' },
                                 { id: 'public', label: 'Community', icon: '🌐' }
                             ].map(tab => (
-                                <button
+                                <TouchEnhancedButton
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     style={{
@@ -271,7 +272,7 @@ export default function MealPlanTemplateLibrary({
                                     }}
                                 >
                                     {tab.icon} {tab.label}
-                                </button>
+                                </TouchEnhancedButton>
                             ))}
                         </div>
 
@@ -332,7 +333,7 @@ export default function MealPlanTemplateLibrary({
                                 marginBottom: '1rem'
                             }}>❌</div>
                             <p>{error}</p>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={fetchTemplates}
                                 style={{
                                     marginTop: '1rem',
@@ -345,7 +346,7 @@ export default function MealPlanTemplateLibrary({
                                 }}
                             >
                                 Try Again
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     ) : templates.length === 0 ? (
                         <div style={{
@@ -372,7 +373,7 @@ export default function MealPlanTemplateLibrary({
                                 }
                             </p>
                             {activeTab === 'my-templates' && (
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowCreateModal(true)}
                                     style={{
                                         backgroundColor: '#3b82f6',
@@ -384,7 +385,7 @@ export default function MealPlanTemplateLibrary({
                                     }}
                                 >
                                     💾 Save Current Plan as Template
-                                </button>
+                                </TouchEnhancedButton>
                             )}
                         </div>
                     ) : (
@@ -525,7 +526,7 @@ function TemplateCard({
                     )}
                 </div>
                 {isOwner && (
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => onDelete(template._id)}
                         style={{
                             background: 'none',
@@ -538,7 +539,7 @@ function TemplateCard({
                         title="Delete template"
                     >
                         🗑️
-                    </button>
+                    </TouchEnhancedButton>
                 )}
             </div>
 
@@ -618,7 +619,7 @@ function TemplateCard({
                 gap: '0.5rem',
                 flexWrap: 'wrap'
             }}>
-                <button
+                <TouchEnhancedButton
                     onClick={() => onPreview(template._id)}
                     style={{
                         flex: 1,
@@ -632,8 +633,8 @@ function TemplateCard({
                     }}
                 >
                     👁️ Preview
-                </button>
-                <button
+                </TouchEnhancedButton>
+                <TouchEnhancedButton
                     onClick={() => onApply(template._id, false)}
                     style={{
                         flex: 1,
@@ -648,8 +649,8 @@ function TemplateCard({
                     }}
                 >
                     🔄 Apply
-                </button>
-                <button
+                </TouchEnhancedButton>
+                <TouchEnhancedButton
                     onClick={() => onApply(template._id, true)}
                     style={{
                         backgroundColor: '#3b82f6',
@@ -663,7 +664,7 @@ function TemplateCard({
                     title="Add to existing meals"
                 >
                     ➕
-                </button>
+                </TouchEnhancedButton>
             </div>
         </div>
     );
@@ -856,7 +857,7 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                         justifyContent: 'flex-end',
                         marginTop: '1rem'
                     }}>
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={onClose}
                             style={{
@@ -870,8 +871,8 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                             }}
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={loading || !formData.name.trim()}
                             style={{
@@ -886,7 +887,7 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                             }}
                         >
                             {loading ? 'Creating...' : 'Create Template'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </form>
             </div>
@@ -935,7 +936,7 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                     }}>
                         👁️ Preview: {template.name}
                     </h3>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             background: 'none',
@@ -946,7 +947,7 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {template.description && (
@@ -1031,7 +1032,7 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                     gap: '0.75rem',
                     justifyContent: 'flex-end'
                 }}>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             backgroundColor: '#6b7280',
@@ -1044,8 +1045,8 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                         }}
                     >
                         Cancel
-                    </button>
-                    <button
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
                         onClick={() => onApply(true)}
                         style={{
                             backgroundColor: '#3b82f6',
@@ -1058,8 +1059,8 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                         }}
                     >
                         ➕ Add to Current
-                    </button>
-                    <button
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
                         onClick={() => onApply(false)}
                         style={{
                             backgroundColor: '#10b981',
@@ -1073,7 +1074,7 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                         }}
                     >
                         🔄 Replace Current
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </div>
         </div>

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -209,7 +210,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Error</h3>
                     <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => generateSuggestions(true)}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -221,8 +222,8 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             }}
                         >
                             Try Again
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -234,7 +235,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>
@@ -293,7 +294,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             {mealPlanName}
                         </p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             background: 'none',
@@ -305,7 +306,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Summary Cards */}
@@ -388,7 +389,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                         { id: 'prep', label: 'Ingredient Prep', icon: '🔪' },
                         { id: 'schedule', label: 'Schedule', icon: '📅' }
                     ].map(tab => (
-                        <button
+                        <TouchEnhancedButton
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             style={{
@@ -406,7 +407,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             }}
                         >
                             {tab.icon} {tab.label}
-                        </button>
+                        </TouchEnhancedButton>
                     ))}
                 </div>
 
@@ -784,7 +785,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                         Completion: {suggestions.implementation?.completionRate || 0}%
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => generateSuggestions(true)}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -797,8 +798,8 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             }}
                         >
                             🔄 Regenerate
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#374151',
@@ -811,7 +812,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>

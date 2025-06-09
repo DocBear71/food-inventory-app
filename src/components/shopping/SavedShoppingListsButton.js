@@ -3,6 +3,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function SavedShoppingListsButton() {
     const router = useRouter();
@@ -12,7 +13,7 @@ export default function SavedShoppingListsButton() {
     };
 
     return (
-        <button
+        <TouchEnhancedButton
             onClick={handleClick}
             style={{
                 backgroundColor: '#8b5cf6',
@@ -32,6 +33,6 @@ export default function SavedShoppingListsButton() {
             onMouseOut={(e) => e.target.style.backgroundColor = '#8b5cf6'}
         >
             💾 Saved Lists
-        </button>
+        </TouchEnhancedButton>
     );
 }

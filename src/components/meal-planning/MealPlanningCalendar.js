@@ -8,6 +8,7 @@ import ShoppingListGenerator from './ShoppingListGenerator';
 import MealPrepButton from './MealPrepButton';
 import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
 import TemplateLibraryButton from './TemplateLibraryButton';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSession();
@@ -404,7 +405,7 @@ export default function MealPlanningCalendar() {
                             </div>
 
                             {/* Week Settings Button */}
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowWeekSettings(true)}
                                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                                 title="Week Settings"
@@ -413,7 +414,7 @@ export default function MealPlanningCalendar() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         {/* Action Buttons - Mobile */}
@@ -430,7 +431,7 @@ export default function MealPlanningCalendar() {
 
                             {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
                             {mealsPlanned && (
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowShoppingList(true)}
                                     style={{
                                         backgroundColor: '#16a34a',
@@ -458,7 +459,7 @@ export default function MealPlanningCalendar() {
                                     title="Generate shopping list from your meal plan"
                                 >
                                     🛒 Shopping List
-                                </button>
+                                </TouchEnhancedButton>
                             )}
 
                             {/* Meal Prep Button */}
@@ -483,14 +484,14 @@ export default function MealPlanningCalendar() {
 
                     {/* Week Navigation */}
                     <div className="mt-4 flex items-center justify-between">
-                        <button
+                        <TouchEnhancedButton
                             onClick={goToPreviousWeek}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
 
                         <h2 className="text-xl font-semibold text-gray-900">
                             {getWeekStart(currentWeek).toLocaleDateString('en-US', {
@@ -508,21 +509,21 @@ export default function MealPlanningCalendar() {
                         })()}
                         </h2>
 
-                        <button
+                        <TouchEnhancedButton
                             onClick={goToNextWeek}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={goToToday}
                         className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
                     >
                         Today
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Week Start Notification - Add this after the header but before the calendar */}
@@ -550,7 +551,7 @@ export default function MealPlanningCalendar() {
                                 </div>
                             </div>
                             <div className="ml-4 flex-shrink-0">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={dismissWeekNotification}
                                     className="bg-blue-50 rounded-md text-blue-400 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     title="Dismiss notification"
@@ -558,7 +559,7 @@ export default function MealPlanningCalendar() {
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                     </svg>
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
@@ -601,19 +602,19 @@ export default function MealPlanningCalendar() {
                                                         </div>
 
                                                         {/* Remove Button */}
-                                                        <button
+                                                        <TouchEnhancedButton
                                                             onClick={() => removeMealFromSlot(day, actualIndex)}
                                                             className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                                                             title="Remove meal"
                                                         >
                                                             ×
-                                                        </button>
+                                                        </TouchEnhancedButton>
                                                     </div>
                                                 );
                                             })}
 
                                             {/* Add Meal Button */}
-                                            <button
+                                            <TouchEnhancedButton
                                                 onClick={() => {
                                                     setSelectedSlot({day, mealType});
                                                     setShowRecipeModal(true);
@@ -621,7 +622,7 @@ export default function MealPlanningCalendar() {
                                                 className="w-full border-2 border-dashed border-gray-300 rounded-lg p-3 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-sm"
                                             >
                                                 + Add Recipe
-                                            </button>
+                                            </TouchEnhancedButton>
                                         </div>
                                     </div>
                                 ))}
@@ -636,12 +637,12 @@ export default function MealPlanningCalendar() {
                         <div className="bg-white rounded-lg max-w-md w-full p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowWeekSettings(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
 
                             <div className="space-y-4">
@@ -651,7 +652,7 @@ export default function MealPlanningCalendar() {
                                     </label>
                                     <div className="space-y-2">
                                         {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => (
-                                            <button
+                                            <TouchEnhancedButton
                                                 key={day}
                                                 onClick={() => updateWeekStartPreference(day)}
                                                 className={`w-full text-left px-3 py-2 rounded-md border ${
@@ -664,7 +665,7 @@ export default function MealPlanningCalendar() {
                                                 {weekStartDay === day && (
                                                     <span className="ml-2 text-indigo-600">✓</span>
                                                 )}
-                                            </button>
+                                            </TouchEnhancedButton>
                                         ))}
                                     </div>
                                 </div>
@@ -686,7 +687,7 @@ export default function MealPlanningCalendar() {
                                     <h3 className="text-lg font-semibold text-gray-900">
                                         Add to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                     </h3>
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={() => {
                                             setShowRecipeModal(false);
                                             setSelectedSlot(null);
@@ -694,7 +695,7 @@ export default function MealPlanningCalendar() {
                                         className="text-gray-400 hover:text-gray-600 text-xl"
                                     >
                                         ×
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
 
@@ -706,7 +707,7 @@ export default function MealPlanningCalendar() {
                                 ) : (
                                     <div className="space-y-3">
                                         {recipes.map(recipe => (
-                                            <button
+                                            <TouchEnhancedButton
                                                 key={recipe._id}
                                                 onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
                                                 className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -726,7 +727,7 @@ export default function MealPlanningCalendar() {
                                                         ))}
                                                     </div>
                                                 )}
-                                            </button>
+                                            </TouchEnhancedButton>
                                         ))}
                                     </div>
                                 )}
@@ -786,7 +787,7 @@ export default function MealPlanningCalendar() {
                         </div>
 
                         {/* Week Settings Button */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowWeekSettings(true)}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Week Settings"
@@ -795,7 +796,7 @@ export default function MealPlanningCalendar() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* Template Button - First for prominence */}
                         {mealPlan && (
@@ -809,7 +810,7 @@ export default function MealPlanningCalendar() {
 
                         {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
                         {mealsPlanned && (
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowShoppingList(true)}
                                 style={{
                                     backgroundColor: '#16a34a',
@@ -835,7 +836,7 @@ export default function MealPlanningCalendar() {
                                 title="Generate shopping list from your meal plan"
                             >
                                 🛒 Shopping List
-                            </button>
+                            </TouchEnhancedButton>
                         )}
 
                         {/* Meal Prep Button */}
@@ -861,7 +862,7 @@ export default function MealPlanningCalendar() {
                 {/* Week Navigation */}
                 <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <button
+                        <TouchEnhancedButton
                             onClick={goToPreviousWeek}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
@@ -869,7 +870,7 @@ export default function MealPlanningCalendar() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                       d="M15 19l-7-7 7-7"/>
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
 
                         <h2 className="text-xl font-semibold text-gray-900">
                             {getWeekStart(currentWeek).toLocaleDateString('en-US', {
@@ -887,7 +888,7 @@ export default function MealPlanningCalendar() {
                         })()}
                         </h2>
 
-                        <button
+                        <TouchEnhancedButton
                             onClick={goToNextWeek}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
@@ -895,15 +896,15 @@ export default function MealPlanningCalendar() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                       d="M9 5l7 7-7 7"/>
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
-                    <button
+                    <TouchEnhancedButton
                         onClick={goToToday}
                         className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
                     >
                         Today
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </div>
 
@@ -932,7 +933,7 @@ export default function MealPlanningCalendar() {
                             </div>
                         </div>
                         <div className="ml-4 flex-shrink-0">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={dismissWeekNotification}
                                 className="bg-blue-50 rounded-md text-blue-400 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 title="Dismiss notification"
@@ -940,7 +941,7 @@ export default function MealPlanningCalendar() {
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                 </svg>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
@@ -1010,7 +1011,7 @@ export default function MealPlanningCalendar() {
                                                     </div>
 
                                                     {/* Remove Button - Inline Styles for Visibility */}
-                                                    <button
+                                                    <TouchEnhancedButton
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
                                                         style={{
                                                             position: 'absolute',
@@ -1039,13 +1040,13 @@ export default function MealPlanningCalendar() {
                                                         title="Remove meal"
                                                     >
                                                         ×
-                                                    </button>
+                                                    </TouchEnhancedButton>
                                                 </div>
                                             );
                                         })}
 
                                         {/* Add Meal Button */}
-                                        <button
+                                        <TouchEnhancedButton
                                             onClick={() => {
                                                 setSelectedSlot({day, mealType});
                                                 setShowRecipeModal(true);
@@ -1053,7 +1054,7 @@ export default function MealPlanningCalendar() {
                                             className="w-full border-2 border-dashed border-gray-300 rounded-lg p-3 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-sm"
                                         >
                                             + Add Recipe
-                                        </button>
+                                        </TouchEnhancedButton>
                                     </div>
                                 </div>
                             ))}
@@ -1068,12 +1069,12 @@ export default function MealPlanningCalendar() {
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowWeekSettings(false)}
                                 className="text-gray-400 hover:text-gray-600 text-xl"
                             >
                                 ×
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         <div className="space-y-4">
@@ -1083,7 +1084,7 @@ export default function MealPlanningCalendar() {
                                 </label>
                                 <div className="space-y-2">
                                     {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => (
-                                        <button
+                                        <TouchEnhancedButton
                                             key={day}
                                             onClick={() => updateWeekStartPreference(day)}
                                             className={`w-full text-left px-3 py-2 rounded-md border ${
@@ -1096,7 +1097,7 @@ export default function MealPlanningCalendar() {
                                             {weekStartDay === day && (
                                                 <span className="ml-2 text-indigo-600">✓</span>
                                             )}
-                                        </button>
+                                        </TouchEnhancedButton>
                                     ))}
                                 </div>
                             </div>
@@ -1118,7 +1119,7 @@ export default function MealPlanningCalendar() {
                                 <h3 className="text-lg font-semibold text-gray-900">
                                     Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         setShowRecipeModal(false);
                                         setSelectedSlot(null);
@@ -1126,7 +1127,7 @@ export default function MealPlanningCalendar() {
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
 
@@ -1138,7 +1139,7 @@ export default function MealPlanningCalendar() {
                             ) : (
                                 <div className="space-y-2">
                                     {recipes.map(recipe => (
-                                        <button
+                                        <TouchEnhancedButton
                                             key={recipe._id}
                                             onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
                                             className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1158,7 +1159,7 @@ export default function MealPlanningCalendar() {
                                                     ))}
                                                 </div>
                                             )}
-                                        </button>
+                                        </TouchEnhancedButton>
                                     ))}
                                 </div>
                             )}

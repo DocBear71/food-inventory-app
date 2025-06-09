@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import BarcodeScanner from './BarcodeScanner';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -182,7 +183,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                         placeholder="Enter or scan UPC code"
                         className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
-                    <button
+                    <TouchEnhancedButton
                         type="button"
                         onClick={handleScannerClick}
                         disabled={isLooking}
@@ -192,15 +193,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                         title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
                     >
                         📷 {cameraAvailable ? 'Scan' : 'No Camera'}
-                    </button>
-                    <button
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
                         type="button"
                         onClick={handleManualLookup}
                         disabled={!currentUPC || isLooking}
                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
                     >
                         {isLooking ? '🔍' : '🔍'} Lookup
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </div>
 
@@ -282,13 +283,13 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-green-800 font-medium">🥗 Nutrition Information</span>
                                         {/* 🔧 FIXED: Added proper event handling */}
-                                        <button
+                                        <TouchEnhancedButton
                                             type="button"
                                             onClick={handleToggleNutrition}
                                             className="text-sm text-green-600 hover:text-green-800 underline focus:outline-none"
                                         >
                                             {showNutrition ? 'Hide' : 'Show'} Details
-                                        </button>
+                                        </TouchEnhancedButton>
                                     </div>
 
                                     {/* Quick Nutrition Preview */}

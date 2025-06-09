@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 
 export default function SignIn() {
     const [formData, setFormData] = useState({
@@ -96,13 +97,13 @@ export default function SignIn() {
                     </div>
 
                     <div>
-                        <button
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={loading}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                         >
                             {loading ? 'Signing in...' : 'Sign in'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     <div className="text-center">

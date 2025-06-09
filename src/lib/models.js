@@ -117,11 +117,45 @@ const NotificationSettingsSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// User Schema - Updated (NOW UserMealPlanningPreferencesSchema is defined above)
+// User Schema - Updated with Legal Acceptance Fields
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    legalAcceptance: {
+        termsAccepted: {
+            type: Boolean,
+            required: true,
+            default: false
+        },
+        privacyAccepted: {
+            type: Boolean,
+            required: true,
+            default: false
+        },
+        acceptanceDate: {
+            type: Date,
+            required: true
+        },
+        ipAddress: {
+            type: String,
+            required: false
+        },
+        userAgent: {
+            type: String,
+            required: false
+        }
+    },
+    legalVersion: {
+        termsVersion: {
+            type: String,
+            default: '1.0' // Update this when you change terms
+        },
+        privacyVersion: {
+            type: String,
+            default: '1.0' // Update this when you change privacy policy
+        }
+    },
     notificationSettings: {
         type: NotificationSettingsSchema,
         default: () => ({
@@ -1068,6 +1102,49 @@ MealPrepSuggestionSchema.pre('save', function(next) {
 
     next();
 });
+
+// Check if user has accepted current version of legal documents
+UserSchema.methods.hasCurrentLegalAcceptance = function() {
+    const currentTermsVersion = '1.0'; // Update when you change terms
+    const currentPrivacyVersion = '1.0'; // Update when you change privacy
+
+    return this.legalAcceptance?.termsAccepted &&
+        this.legalAcceptance?.privacyAccepted &&
+        this.legalVersion?.termsVersion === currentTermsVersion &&
+        this.legalVersion?.privacyVersion === currentPrivacyVersion;
+};
+
+// Update legal acceptance (for when terms change)
+UserSchema.methods.updateLegalAcceptance = function(termsAccepted, privacyAccepted, ipAddress, userAgent) {
+    this.legalAcceptance = {
+        termsAccepted,
+        privacyAccepted,
+        acceptanceDate: new Date(),
+        ipAddress: ipAddress || 'unknown',
+        userAgent: userAgent || 'unknown'
+    };
+
+    this.legalVersion = {
+        termsVersion: '1.0', // Current version
+        privacyVersion: '1.0' // Current version
+    };
+
+    return this.save();
+};
+
+// Get legal acceptance summary for admin/audit purposes
+UserSchema.methods.getLegalAcceptanceSummary = function() {
+    return {
+        userId: this._id,
+        email: this.email,
+        termsAccepted: this.legalAcceptance?.termsAccepted || false,
+        privacyAccepted: this.legalAcceptance?.privacyAccepted || false,
+        acceptanceDate: this.legalAcceptance?.acceptanceDate,
+        termsVersion: this.legalVersion?.termsVersion,
+        privacyVersion: this.legalVersion?.privacyVersion,
+        hasCurrentAcceptance: this.hasCurrentLegalAcceptance()
+    };
+};
 
 // Methods for meal prep suggestions
 MealPrepSuggestionSchema.methods.markTaskCompleted = function(taskId) {

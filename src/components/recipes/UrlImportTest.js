@@ -4,6 +4,7 @@
 'use client';
 
 import { useState } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function UrlImportTest() {
     const [url, setUrl] = useState('');
@@ -80,7 +81,7 @@ export default function UrlImportTest() {
                         </label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {sampleUrls.map((sampleUrl, index) => (
-                                <button
+                                <TouchEnhancedButton
                                     key={index}
                                     onClick={() => {
                                         setUrl(sampleUrl);
@@ -90,12 +91,12 @@ export default function UrlImportTest() {
                                     className="text-left p-2 text-sm border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
                                 >
                                     {new URL(sampleUrl).hostname.replace('www.', '')}
-                                </button>
+                                </TouchEnhancedButton>
                             ))}
                         </div>
                     </div>
 
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => testImport()}
                         disabled={!url || loading}
                         className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
@@ -108,7 +109,7 @@ export default function UrlImportTest() {
                         ) : (
                             'Test URL Import'
                         )}
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </div>
 

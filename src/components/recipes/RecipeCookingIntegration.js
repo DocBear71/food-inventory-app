@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function RecipeCookingIntegration({
                                                      recipe,
@@ -224,12 +225,12 @@ export default function RecipeCookingIntegration({
                                 Check ingredients and update inventory
                             </p>
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             className="text-blue-400 hover:text-blue-600 text-2xl font-bold"
                         >
                             ×
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
@@ -385,14 +386,14 @@ export default function RecipeCookingIntegration({
                             )}
                         </div>
                         <div className="flex gap-3">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={onClose}
                                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
                             >
                                 Cancel
-                            </button>
+                            </TouchEnhancedButton>
                             {missingIngredients.length > 0 && (
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         // Could integrate with shopping list here
                                         alert('Shopping list feature coming soon!');
@@ -400,9 +401,9 @@ export default function RecipeCookingIntegration({
                                     className="px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
                                 >
                                     📋 Add to Shopping List
-                                </button>
+                                </TouchEnhancedButton>
                             )}
-                            <button
+                            <TouchEnhancedButton
                                 onClick={handleStartCooking}
                                 disabled={matchedIngredients.length === 0}
                                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
@@ -416,7 +417,7 @@ export default function RecipeCookingIntegration({
                                         ❌ No Ingredients Available
                                     </>
                                 )}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>

@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     const [shoppingList, setShoppingList] = useState(null);
@@ -207,7 +208,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
                     <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Error</h3>
                     <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             backgroundColor: '#374151',
@@ -219,7 +220,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         }}
                     >
                         Close
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </div>
         );
@@ -286,7 +287,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                 {recipeName}
                             </p>
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 background: 'none',
@@ -300,7 +301,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             }}
                         >
                             ×
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Compact Statistics */}
@@ -406,7 +407,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                         </select>
 
                         {/* Quick Actions */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={markAllAsPurchased}
                             style={{
                                 backgroundColor: '#8b5cf6',
@@ -420,8 +421,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             }}
                         >
                             ✓ All
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={clearAllPurchased}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -435,10 +436,10 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             }}
                         >
                             ✗ Clear
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* More Actions Toggle */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
                             style={{
                                 backgroundColor: '#374151',
@@ -452,7 +453,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Expandable Actions Panel */}
@@ -468,7 +469,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
                                 gap: '0.5rem'
                             }}>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={generateShoppingList}
                                     style={{
                                         backgroundColor: '#6b7280',
@@ -482,8 +483,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     🔄<br/>Refresh
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowSaveModal(true)}
                                     style={{
                                         backgroundColor: '#8b5cf6',
@@ -497,8 +498,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     💾<br/>Save
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowEmailModal(true)}
                                     style={{
                                         backgroundColor: '#16a34a',
@@ -512,8 +513,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     📧<br/>Share
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => window.print()}
                                     style={{
                                         backgroundColor: '#2563eb',
@@ -527,8 +528,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     🖨️<br/>Print
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const printContent = document.getElementById('recipe-shopping-list-content').innerHTML;
                                         const printWindow = window.open('', '_blank');
@@ -605,8 +606,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     📄<br/>PDF
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const textContent = `Shopping List - ${recipeName}\n\n` +
                                             Object.entries(groupedItems)
@@ -641,7 +642,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                     }}
                                 >
                                     📝<br/>Text
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     )}
@@ -784,7 +785,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                                 `Generated ${new Date(shoppingList.generatedAt).toLocaleString()}`
                             )}
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#374151',
@@ -797,7 +798,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>

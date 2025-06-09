@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import RecipeCookingIntegration from '@/components/recipes/RecipeCookingIntegration';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function RecipeCard({ recipe, onEdit, onDelete, showActions = true }) {
     const [showCooking, setShowCooking] = useState(false);
@@ -78,34 +79,34 @@ export default function RecipeCard({ recipe, onEdit, onDelete, showActions = tru
 
                     <div className="flex justify-between items-center">
                         <div className="flex gap-2">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowCooking(true)}
                                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                             >
                                 👨‍🍳 Cook This
-                            </button>
-                            <button className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                 📖 View Recipe
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         {showActions && (
                             <div className="flex gap-2">
                                 {onEdit && (
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={() => onEdit(recipe)}
                                         className="text-indigo-600 hover:text-indigo-900 text-sm"
                                     >
                                         Edit
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
                                 {onDelete && (
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={() => onDelete(recipe._id)}
                                         className="text-red-600 hover:text-red-900 text-sm"
                                     >
                                         Delete
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
                             </div>
                         )}

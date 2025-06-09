@@ -4,9 +4,10 @@
 
 import {useSession} from 'next-auth/react';
 import {useEffect, useState} from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {redirect} from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function RecipeSuggestions() {
     const {data: session, status} = useSession();
@@ -351,7 +352,7 @@ export default function RecipeSuggestions() {
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
@@ -360,13 +361,13 @@ export default function RecipeSuggestions() {
                         <p className="text-gray-600">Recipe suggestions based on your current inventory</p>
                     </div>
                     <div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={loadData}
                             disabled={loading}
                             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-100"
                         >
                             {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
@@ -447,12 +448,12 @@ export default function RecipeSuggestions() {
                                     No recipes match your current inventory at {Math.round(matchThreshold * 100)}%
                                     threshold
                                 </div>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setMatchThreshold(0.1)}
                                     className="text-indigo-600 hover:text-indigo-900 text-sm"
                                 >
                                     Try lowering the match threshold to 10%
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         ) : (
                             <div className="space-y-6">
@@ -557,15 +558,15 @@ export default function RecipeSuggestions() {
                                                 )}
                                             </div>
                                             <div className="flex space-x-2">
-                                                <button
+                                                <TouchEnhancedButton
                                                     onClick={() => loadRecipeDetails(recipe._id)}
                                                     disabled={loadingRecipe}
                                                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                                                 >
                                                     {loadingRecipe ? 'Loading...' : 'View Recipe'}
-                                                </button>
+                                                </TouchEnhancedButton>
                                                 {!recipe.analysis.canMake && (
-                                                    <button
+                                                    <TouchEnhancedButton
                                                         onClick={() => setShowShoppingList({
                                                             recipeId: recipe._id,
                                                             recipeName: recipe.title
@@ -573,7 +574,7 @@ export default function RecipeSuggestions() {
                                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                                     >
                                                         Shopping List
-                                                    </button>
+                                                    </TouchEnhancedButton>
                                                 )}
                                             </div>
                                         </div>
@@ -591,12 +592,12 @@ export default function RecipeSuggestions() {
                             {/* Modal Header */}
                             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                                 <h2 className="text-xl font-semibold text-gray-900">{showRecipeModal.title}</h2>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowRecipeModal(null)}
                                     className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
 
                             {/* Modal Content */}
@@ -706,18 +707,18 @@ export default function RecipeSuggestions() {
                                     >
                                         Open Full Page
                                     </a>
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={() => window.print()}
                                         className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
                                         Print
-                                    </button>
-                                    <button
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
                                         onClick={() => setShowRecipeModal(null)}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
                                         Close
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
@@ -733,6 +734,6 @@ export default function RecipeSuggestions() {
                     />
                 )}
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

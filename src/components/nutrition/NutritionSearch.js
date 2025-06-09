@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function NutritionSearch({
                                             onFoodSelected,
@@ -131,7 +132,7 @@ export default function NutritionSearch({
                                 <div className="text-sm text-green-700">{selectedFood.brandOwner}</div>
                             )}
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => {
                                 setSelectedFood(null);
                                 setQuery('');
@@ -139,7 +140,7 @@ export default function NutritionSearch({
                             className="text-green-600 hover:text-green-800"
                         >
                             ✕
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             )}
@@ -161,7 +162,7 @@ export default function NutritionSearch({
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {foods.map((food) => (
-                                <button
+                                <TouchEnhancedButton
                                     key={food.fdcId}
                                     onClick={() => handleFoodSelect(food)}
                                     className="w-full text-left p-4 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
@@ -201,7 +202,7 @@ export default function NutritionSearch({
                                             </span>
                                         </div>
                                     </div>
-                                </button>
+                                </TouchEnhancedButton>
                             ))}
                         </div>
                     )}

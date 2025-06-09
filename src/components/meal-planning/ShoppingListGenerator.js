@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -225,7 +226,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Error</h3>
                     <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={generateShoppingList}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -237,8 +238,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             Retry
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -250,7 +251,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>
@@ -318,7 +319,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 {mealPlanName}
                             </p>
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 background: 'none',
@@ -332,7 +333,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             ×
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Compact Statistics */}
@@ -438,7 +439,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                         </select>
 
                         {/* Quick Actions */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={markAllAsPurchased}
                             style={{
                                 backgroundColor: '#8b5cf6',
@@ -452,8 +453,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             ✓ All
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={clearAllPurchased}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -467,10 +468,10 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             ✗ Clear
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* More Actions Toggle */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
                             style={{
                                 backgroundColor: '#374151',
@@ -484,7 +485,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Expandable Actions Panel */}
@@ -500,7 +501,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
                                 gap: '0.5rem'
                             }}>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={generateShoppingList}
                                     style={{
                                         backgroundColor: '#6b7280',
@@ -514,8 +515,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     🔄<br/>Refresh
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowSaveModal(true)}
                                     style={{
                                         backgroundColor: '#8b5cf6',
@@ -529,8 +530,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     💾<br/>Save
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowEmailModal(true)}
                                     style={{
                                         backgroundColor: '#16a34a',
@@ -544,8 +545,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     📧<br/>Share
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => window.print()}
                                     style={{
                                         backgroundColor: '#2563eb',
@@ -559,8 +560,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     🖨️<br/>Print
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const printContent = document.getElementById('meal-plan-shopping-list-content').innerHTML;
                                         const printWindow = window.open('', '_blank');
@@ -643,8 +644,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     📄<br/>PDF
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const textContent = `Meal Plan Shopping List - ${mealPlanName}\n\n` +
                                             Object.entries(groupedItems)
@@ -681,7 +682,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     }}
                                 >
                                     📝<br/>Text
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     )}
@@ -838,7 +839,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 `Generated ${new Date(shoppingList.generatedAt).toLocaleString()}`
                             )}
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#374151',
@@ -851,7 +852,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>

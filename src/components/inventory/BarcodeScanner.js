@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive }) {
     const scannerRef = useRef(null);
@@ -565,7 +566,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 {/* Mobile Header - Fixed at top */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => {
                             cleanupScanner();
                             onClose();
@@ -573,7 +574,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {error ? (
@@ -585,7 +586,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             </div>
 
                             <div className="space-y-3">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={async () => {
                                         try {
                                             console.log('🔍 Testing camera permissions...');
@@ -608,9 +609,9 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md"
                                 >
                                     🔍 Test Camera Access
-                                </button>
+                                </TouchEnhancedButton>
 
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         cleanupScanner();
                                         onClose();
@@ -618,7 +619,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
                                 >
                                     Close Scanner
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
@@ -747,7 +748,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                         {/* Mobile Footer - Always visible */}
                         <div className="flex-shrink-0 bg-black px-4 py-3">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => {
                                     cleanupScanner();
                                     onClose();
@@ -756,7 +757,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                 disabled={!isScanning}
                             >
                                 {isScanning ? 'Cancel Scan' : 'Processing...'}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </>
                 )}
@@ -788,7 +789,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => {
                             cleanupScanner();
                             onClose();
@@ -796,7 +797,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {error ? (
@@ -805,7 +806,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         <div className="text-sm text-gray-500 mb-4">
                             Please ensure your browser has camera permissions enabled and try again.
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => {
                                 cleanupScanner();
                                 onClose();
@@ -813,7 +814,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                         >
                             Close Scanner
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 ) : (
                     <>
@@ -858,7 +859,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                         {!isLoading && (
                             <div className="mt-4 text-center">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         cleanupScanner();
                                         onClose();
@@ -867,7 +868,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     disabled={!isScanning}
                                 >
                                     {isScanning ? 'Cancel' : 'Processing...'}
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         )}
                     </>

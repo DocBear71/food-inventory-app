@@ -1,0 +1,94 @@
+// file: /public/manifest.json - PWA Manifest
+{
+  "name": "Food Inventory Manager",
+  "short_name": "FoodInventory",
+  "description": "Manage your food inventory, meal planning, and recipes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "categories": ["food", "lifestyle", "productivity"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Item",
+      "short_name": "Add",
+      "description": "Quickly add item to inventory",
+      "url": "/inventory?action=add",
+      "icons": [{ "src": "/icons/add-shortcut.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Meal Planning",
+      "short_name": "Meals",
+      "description": "Plan your meals for the week",
+      "url": "/meal-planning",
+      "icons": [{ "src": "/icons/meal-shortcut.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Recipes",
+      "short_name": "Recipes",
+      "description": "Browse your recipe collection",
+      "url": "/recipes",
+      "icons": [{ "src": "/icons/recipe-shortcut.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home-narrow.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/home-wide.png",
+      "sizes": "1024x768",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}

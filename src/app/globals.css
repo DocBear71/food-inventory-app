@@ -781,3 +781,200 @@ button:disabled .emoji {
 /* MISSING PURPLE FOCUS UTILITIES */
 .focus\:ring-purple-500:focus { box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.5) !important; }
 .focus\:border-purple-500:focus { border-color: #a855f7 !important; }
+
+/*// file: /src/components/mobile/MobileTouchImprovements.css - Touch-friendly styles*/
+  /* Add to your globals.css file */
+
+  /* Touch-friendly button improvements */
+.touch-friendly {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* Improved touch feedback */
+.touch-button {
+    transition: all 0.15s ease !important;
+    transform: scale(1) !important;
+}
+
+.touch-button:active {
+    transform: scale(0.95) !important;
+    background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Prevent zoom on input focus */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+select,
+textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    touch-action: manipulation !important;
+}
+
+/* Better scroll areas for mobile */
+.mobile-scroll {
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+    overscroll-behavior: contain !important;
+}
+
+/* Drag and drop improvements */
+.drag-item {
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: grab !important;
+}
+
+.drag-item:active {
+    cursor: grabbing !important;
+}
+
+.drag-item.dragging {
+    opacity: 0.5 !important;
+    transform: scale(1.05) !important;
+    z-index: 1000 !important;
+}
+
+/* Drop zone styling */
+.drop-zone {
+    transition: all 0.2s ease !important;
+}
+
+.drop-zone.drag-over {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+    border-color: #22c55e !important;
+    transform: scale(1.02) !important;
+}
+
+/* Swipe gesture indicators */
+.swipe-hint {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.swipe-hint::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: -100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent) !important;
+    animation: swipe-shimmer 3s infinite !important;
+}
+
+@keyframes swipe-shimmer {
+    0% { left: -100%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+}
+
+/* Mobile-first responsive improvements */
+@media (max-width: 768px) {
+    /* Larger touch targets */
+    button, .btn, .touch-target {
+        min-height: 48px !important;
+        padding: 12px 16px !important;
+    }
+
+    /* Better spacing for thumbs */
+    .mobile-grid {
+        gap: 16px !important;
+        padding: 16px !important;
+    }
+
+    /* Improved modal sizing */
+    .mobile-modal {
+        margin: 0 !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
+
+    /* Better typography for mobile */
+    .mobile-text {
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+    }
+}
+
+/* PWA-specific styles */
+@media all and (display-mode: standalone) {
+    /* Hide browser chrome in standalone mode */
+    body {
+        padding-top: env(safe-area-inset-top) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        padding-left: env(safe-area-inset-left) !important;
+        padding-right: env(safe-area-inset-right) !important;
+    }
+
+    /* Adjust header for notch */
+    .pwa-header {
+        padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+    }
+}
+
+/* Haptic feedback simulation */
+.haptic-light:active {
+    animation: haptic-pulse-light 0.1s ease !important;
+}
+
+.haptic-medium:active {
+    animation: haptic-pulse-medium 0.15s ease !important;
+}
+
+.haptic-heavy:active {
+    animation: haptic-pulse-heavy 0.2s ease !important;
+}
+
+@keyframes haptic-pulse-light {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+}
+
+@keyframes haptic-pulse-medium {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+@keyframes haptic-pulse-heavy {
+    0% { transform: scale(1); }
+    25% { transform: scale(0.92); }
+    75% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Enhanced meal planning mobile layout */
+.meal-plan-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+}
+
+@media (min-width: 768px) {
+    .meal-plan-mobile {
+        grid-template-columns: repeat(7, 1fr) !important;
+    }
+}
+
+/* Improved card stacking for mobile */
+.mobile-card-stack > * + * {
+    margin-top: 0.5rem !important;
+}
+
+.mobile-card-stack .card {
+    padding: 0.75rem !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}

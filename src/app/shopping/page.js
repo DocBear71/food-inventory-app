@@ -4,9 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function ShoppingPage() {
     const { data: session } = useSession();
@@ -271,7 +272,7 @@ export default function ShoppingPage() {
 
     if (showShoppingList && shoppingList) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <ShoppingListDisplay
                     shoppingList={shoppingList}
                     onClose={closeShoppingList}
@@ -281,12 +282,12 @@ export default function ShoppingPage() {
                     sourceRecipeIds={selectedRecipes}
                     sourceMealPlanId={null}
                 />
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div style={{ padding: '2rem' }}>
                 {/* Header */}
                 <div style={{
@@ -357,7 +358,7 @@ export default function ShoppingPage() {
                             alignItems: 'center',
                             marginBottom: showFilters ? '1rem' : '0'
                         }}>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowFilters(!showFilters)}
                                 style={{
                                     backgroundColor: showFilters ? '#4f46e5' : '#6b7280',
@@ -376,14 +377,14 @@ export default function ShoppingPage() {
                                 <span style={{ fontSize: '0.75rem' }}>
                                     {showFilters ? '▲' : '▼'}
                                 </span>
-                            </button>
+                            </TouchEnhancedButton>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                 <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                                     Showing {filteredRecipes.length} of {recipes.length} recipes
                                 </span>
                                 {getActiveFilterCount() > 0 && (
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={clearFilters}
                                         style={{
                                             backgroundColor: '#dc2626',
@@ -396,7 +397,7 @@ export default function ShoppingPage() {
                                         }}
                                     >
                                         Clear Filters
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
                             </div>
                         </div>
@@ -527,7 +528,7 @@ export default function ShoppingPage() {
                                     gap: '0.5rem'
                                 }}>
                                     {availableTags.map(tag => (
-                                        <button
+                                        <TouchEnhancedButton
                                             key={tag}
                                             onClick={() => handleTagToggle(tag)}
                                             style={{
@@ -542,7 +543,7 @@ export default function ShoppingPage() {
                                             }}
                                         >
                                             {tag}
-                                        </button>
+                                        </TouchEnhancedButton>
                                     ))}
                                 </div>
                             </div>
@@ -610,7 +611,7 @@ export default function ShoppingPage() {
                                 alignItems: 'center'
                             }}>
                                 {selectedRecipes.length > 0 && (
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={handleClearAll}
                                         style={{
                                             backgroundColor: '#6b7280',
@@ -624,10 +625,10 @@ export default function ShoppingPage() {
                                         }}
                                     >
                                         Clear All
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
 
-                                <button
+                                <TouchEnhancedButton
                                     onClick={generateShoppingList}
                                     disabled={selectedRecipes.length === 0 || loading}
                                     style={{
@@ -659,7 +660,7 @@ export default function ShoppingPage() {
                                     ) : (
                                         '🛒 Generate Shopping List'
                                     )}
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
@@ -851,6 +852,6 @@ export default function ShoppingPage() {
                     }
                 `}</style>
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

@@ -4,9 +4,10 @@
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import ExpirationNotifications from '@/components/notifications/ExpirationNotifications';
 import { redirect } from 'next/navigation';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
@@ -79,7 +80,7 @@ export default function Dashboard() {
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="space-y-6 dashboard-container">
                 {/* Welcome header */}
                 <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -220,7 +221,7 @@ export default function Dashboard() {
                             </a>
 
                             {/* New Expiration Management Quick Action */}
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="flex items-center p-6 bg-red-50 rounded-lg hover:bg-red-100 transition-colors min-h-[100px] w-full text-left"
                             >
@@ -238,7 +239,7 @@ export default function Dashboard() {
                                         }
                                     </div>
                                 </div>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
@@ -268,6 +269,6 @@ export default function Dashboard() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function DashboardLayout({ children }) {
     const { data: session } = useSession();
@@ -74,12 +75,12 @@ export default function DashboardLayout({ children }) {
                             Food Inventory
                         </h1>
                         {/* Mobile close button */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setSidebarOpen(false)}
                             className="lg:hidden text-white hover:text-gray-200 p-1"
                         >
                             <span className="text-xl">×</span>
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Navigation */}
@@ -103,7 +104,7 @@ export default function DashboardLayout({ children }) {
 
                                     {/* Submenu toggle button */}
                                     {item.submenu && (
-                                        <button
+                                        <TouchEnhancedButton
                                             onClick={() => toggleSubmenu(item.name)}
                                             className="ml-1 p-1 text-gray-400 hover:text-gray-600"
                                         >
@@ -117,7 +118,7 @@ export default function DashboardLayout({ children }) {
                                             >
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
-                                        </button>
+                                        </TouchEnhancedButton>
                                     )}
                                 </div>
 
@@ -156,13 +157,13 @@ export default function DashboardLayout({ children }) {
                                     {session.user.email}
                                 </div>
                             </div>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={handleSignOut}
                                 className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
                             >
                                 <span className="mr-2">🚪</span>
                                 Sign Out
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     )}
                 </div>
@@ -174,7 +175,7 @@ export default function DashboardLayout({ children }) {
                 <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
                     <div className="flex items-center justify-between h-16 px-4">
                         {/* Mobile menu button - Always visible on mobile */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setSidebarOpen(true)}
                             className="mobile-menu-button"
                         >
@@ -183,7 +184,7 @@ export default function DashboardLayout({ children }) {
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* Breadcrumb for current page */}
                         <div className="hidden sm:flex items-center text-sm text-gray-500">
@@ -203,13 +204,13 @@ export default function DashboardLayout({ children }) {
                                     <div className="text-sm text-gray-700">
                                         Welcome, <span className="font-medium">{session.user.name}</span>
                                     </div>
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={handleSignOut}
                                         className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
                                     >
                                         <span className="mr-1">🚪</span>
                                         Sign Out
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </>
                             )}
                         </div>

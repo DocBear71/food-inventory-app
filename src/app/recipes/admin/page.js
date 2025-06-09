@@ -4,8 +4,9 @@
 
 import {useState} from 'react';
 import {useSession} from 'next-auth/react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import {redirect} from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 // Category options for the dropdown
 const CATEGORY_OPTIONS = [
@@ -202,7 +203,7 @@ export default function AdminRecipes() {
     };
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="bg-white shadow rounded-lg p-6">
@@ -256,7 +257,7 @@ export default function AdminRecipes() {
 
                         {/* Manual Entry Button */}
                         <div className="pt-4 border-t border-gray-200">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => {
                                     const newRecipe = {
                                         title: '',
@@ -277,7 +278,7 @@ export default function AdminRecipes() {
                                 className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
                             >
                                 ➕ Add Recipe Manually
-                            </button>
+                            </TouchEnhancedButton>
                             <p className="mt-1 text-xs text-gray-500 text-center">
                                 Can't upload a file? Add recipes one by one manually
                             </p>
@@ -316,13 +317,13 @@ export default function AdminRecipes() {
                     <div className="bg-white shadow rounded-lg p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold">🍳 Parsed Recipes ({parsedRecipes.length})</h2>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={handleBulkImport}
                                 disabled={isProcessing}
                                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
                             >
                                 {isProcessing ? 'Importing...' : `Import All ${parsedRecipes.length} Recipes`}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         {/* Bulk Category Change */}
@@ -363,12 +364,12 @@ export default function AdminRecipes() {
                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                                     <div className="flex justify-between items-start mb-4">
                                         <h3 className="text-lg font-medium text-gray-900">Recipe {index + 1}</h3>
-                                        <button
+                                        <TouchEnhancedButton
                                             onClick={() => removeRecipe(index)}
                                             className="text-red-600 hover:text-red-800"
                                         >
                                             🗑️ Remove
-                                        </button>
+                                        </TouchEnhancedButton>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -514,14 +515,14 @@ export default function AdminRecipes() {
                                 ⚠️ If the recipes didn't import correctly, you can delete all recipes from this volume
                                 and try again:
                             </p>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={handleDeleteVolume}
                                 disabled={isProcessing}
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 flex items-center space-x-2"
                             >
                                 <span className="emoji" role="img" aria-label="trash">🗑️</span>
                                 <span>Delete All Volume {selectedVolume} Recipes</span>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 )}
@@ -544,14 +545,14 @@ export default function AdminRecipes() {
                                 <option value="3">Volume 3</option>
                                 <option value="4">Volume 4</option>
                             </select>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={handleDeleteVolume}
                                 disabled={isProcessing}
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 flex items-center space-x-2"
                             >
                                 <span className="emoji" role="img" aria-label="trash">🗑️</span>
                                 <span>Delete All Volume {selectedVolume} Recipes</span>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 )}
@@ -570,6 +571,6 @@ export default function AdminRecipes() {
                     </ul>
                 </div>
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

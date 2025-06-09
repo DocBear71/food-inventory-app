@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ShoppingListDisplay({
                                                 shoppingList,
@@ -203,7 +204,7 @@ export default function ShoppingListDisplay({
                                 </p>
                             )}
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 background: 'none',
@@ -217,7 +218,7 @@ export default function ShoppingListDisplay({
                             }}
                         >
                             ×
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Compact Statistics */}
@@ -323,7 +324,7 @@ export default function ShoppingListDisplay({
                         </select>
 
                         {/* Quick Actions */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={markAllAsPurchased}
                             style={{
                                 backgroundColor: '#8b5cf6',
@@ -337,8 +338,8 @@ export default function ShoppingListDisplay({
                             }}
                         >
                             ✓ All
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={clearAllPurchased}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -352,10 +353,10 @@ export default function ShoppingListDisplay({
                             }}
                         >
                             ✗ Clear
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* More Actions Toggle */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
                             style={{
                                 backgroundColor: '#374151',
@@ -369,7 +370,7 @@ export default function ShoppingListDisplay({
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Expandable Actions Panel */}
@@ -386,7 +387,7 @@ export default function ShoppingListDisplay({
                                 gap: '0.5rem'
                             }}>
                                 {onRefresh && (
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={onRefresh}
                                         style={{
                                             backgroundColor: '#6b7280',
@@ -400,9 +401,9 @@ export default function ShoppingListDisplay({
                                         }}
                                     >
                                         🔄<br/>Refresh
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowSaveModal(true)}
                                     style={{
                                         backgroundColor: '#8b5cf6',
@@ -416,8 +417,8 @@ export default function ShoppingListDisplay({
                                     }}
                                 >
                                     💾<br/>Save
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowEmailModal(true)}
                                     style={{
                                         backgroundColor: '#16a34a',
@@ -431,8 +432,8 @@ export default function ShoppingListDisplay({
                                     }}
                                 >
                                     📧<br/>Share
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => window.print()}
                                     style={{
                                         backgroundColor: '#2563eb',
@@ -446,8 +447,8 @@ export default function ShoppingListDisplay({
                                     }}
                                 >
                                     🖨️<br/>Print
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const printContent = document.getElementById('shopping-list-content').innerHTML;
                                         const printWindow = window.open('', '_blank');
@@ -479,8 +480,8 @@ export default function ShoppingListDisplay({
                                     }}
                                 >
                                     📄<br/>PDF
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const textContent = Object.entries(groupedItems)
                                             .map(([category, items]) => {
@@ -514,7 +515,7 @@ export default function ShoppingListDisplay({
                                     }}
                                 >
                                     📝<br/>Text
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     )}
@@ -671,7 +672,7 @@ export default function ShoppingListDisplay({
                                 `Generated ${new Date(shoppingList.generatedAt).toLocaleString()}`
                             )}
                         </div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#374151',
@@ -684,7 +685,7 @@ export default function ShoppingListDisplay({
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>

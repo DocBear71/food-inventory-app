@@ -5,7 +5,8 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function EditRecipePage() {
     const { data: session } = useSession();
@@ -189,7 +190,7 @@ export default function EditRecipePage() {
 
     if (fetchLoading) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-4xl mx-auto px-4 py-8">
                     <div className="animate-pulse">
                         <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
@@ -200,39 +201,39 @@ export default function EditRecipePage() {
                         </div>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     if (error) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-4xl mx-auto px-4 py-8">
                     <div className="text-center">
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => router.back()}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                         >
                             Go Back
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">Edit Recipe</h1>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => router.back()}
                         className="text-gray-600 hover:text-gray-800"
                     >
                         ← Back
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
@@ -393,13 +394,13 @@ export default function EditRecipePage() {
                     <div className="bg-white rounded-lg border p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
-                            <button
+                            <TouchEnhancedButton
                                 type="button"
                                 onClick={addIngredient}
                                 className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-700"
                             >
                                 Add Ingredient
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         <div className="space-y-3">
@@ -518,6 +519,6 @@ export default function EditRecipePage() {
                     </div>
                 </form>
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

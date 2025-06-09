@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import RecipeParser from './RecipeParser';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
     const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
@@ -305,7 +306,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </div>
 
                     <div className="flex justify-between">
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => {
                                 setShowUrlImport(false);
                                 setUrlInput('');
@@ -315,9 +316,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             disabled={isImporting}
                         >
                             Cancel
-                        </button>
+                        </TouchEnhancedButton>
                         <div className="flex gap-2">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => {
                                     setShowUrlImport(false);
                                     setShowParser(true);
@@ -328,8 +329,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 disabled={isImporting}
                             >
                                 📝 Use Text Parser Instead
-                            </button>
-                            <button
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
                                 onClick={() => handleUrlImport(urlInput)}
                                 disabled={!urlInput.trim() || isImporting}
                                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 flex items-center gap-2"
@@ -344,7 +345,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         🌐 Import Recipe
                                     </>
                                 )}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
@@ -356,7 +357,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         <div className="space-y-6">
             {/* Back to Recipes Button */}
             <div className="flex justify-between items-center">
-                <button
+                <TouchEnhancedButton
                     type="button"
                     onClick={() => window.location.href = '/recipes'}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
@@ -365,7 +366,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     <span>Back to Recipes</span>
-                </button>
+                </TouchEnhancedButton>
                 {!isEditing && (
                     <span className="text-sm text-gray-500">
                         {inputMethod === 'manual' ? 'Manual Entry' : inputMethod === 'parser' ? 'Text Parser' : 'URL Import'}
@@ -380,7 +381,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setInputMethod('manual')}
                             className={`p-4 border-2 rounded-lg text-left transition-colors ${
                                 inputMethod === 'manual'
@@ -393,9 +394,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <p className="text-sm text-gray-600 mt-1">
                                 Enter recipe details step by step
                             </p>
-                        </button>
+                        </TouchEnhancedButton>
 
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowParser(true)}
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors"
                         >
@@ -404,9 +405,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <p className="text-sm text-gray-600 mt-1">
                                 Paste recipe text and auto-extract details
                             </p>
-                        </button>
+                        </TouchEnhancedButton>
 
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowUrlImport(true)}
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors"
                         >
@@ -415,7 +416,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <p className="text-sm text-gray-600 mt-1">
                                 Import from recipe websites automatically
                             </p>
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {inputMethod === 'manual' && (
@@ -437,21 +438,21 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
                             {!isEditing && (
                                 <div className="flex gap-2">
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => setShowParser(true)}
                                         className="text-sm text-indigo-600 hover:text-indigo-700"
                                     >
                                         📝 Text Parser
-                                    </button>
+                                    </TouchEnhancedButton>
                                     <span className="text-gray-300">|</span>
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => setShowUrlImport(true)}
                                         className="text-sm text-indigo-600 hover:text-indigo-700"
                                     >
                                         🌐 URL Import
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             )}
                         </div>
@@ -607,25 +608,25 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                             Optional
                                         </label>
                                     </div>
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => removeIngredient(index)}
                                         className="text-red-500 hover:text-red-700 p-1"
                                         disabled={recipe.ingredients.length === 1}
                                     >
                                         ✕
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             ))}
                         </div>
 
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={addIngredient}
                             className="mt-3 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                         >
                             + Add Ingredient
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Instructions */}
@@ -650,25 +651,25 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                             required
                                         />
                                     </div>
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => removeInstruction(index)}
                                         className="text-red-500 hover:text-red-700 p-1"
                                         disabled={recipe.instructions.length === 1}
                                     >
                                         ✕
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             ))}
                         </div>
 
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={addInstruction}
                             className="mt-3 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                         >
                             + Add Step
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Tags */}
@@ -682,13 +683,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-700"
                                 >
                                     {tag}
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => removeTag(tag)}
                                         className="ml-2 text-indigo-500 hover:text-indigo-700"
                                     >
                                         ✕
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </span>
                             ))}
                         </div>
@@ -702,13 +703,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 placeholder="Add a tag..."
                                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                             />
-                            <button
+                            <TouchEnhancedButton
                                 type="button"
                                 onClick={addTag}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                             >
                                 Add
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
 
@@ -824,14 +825,14 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
                     {/* Submit Buttons */}
                     <div className="flex justify-between pt-6">
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={onCancel}
                             className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={isSubmitting}
                             className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center gap-2"
@@ -846,7 +847,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                     {isEditing ? '💾 Update Recipe' : '✨ Create Recipe'}
                                 </>
                             )}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </form>
             )}

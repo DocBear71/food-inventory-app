@@ -4,8 +4,9 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function SavedShoppingListsPage() {
     const { data: session } = useSession();
@@ -147,7 +148,7 @@ export default function SavedShoppingListsPage() {
 
     if (showingListData && showingList) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <ShoppingListDisplay
                     shoppingList={showingListData}
                     onClose={() => {
@@ -158,12 +159,12 @@ export default function SavedShoppingListsPage() {
                     title={`${showingList.name} (Loaded)`}
                     subtitle={`Saved on ${new Date(showingList.createdAt).toLocaleDateString()}`}
                 />
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div style={{ padding: '2rem' }}>
                 {/* Header */}
                 <div style={{ marginBottom: '2rem' }}>
@@ -336,7 +337,7 @@ export default function SavedShoppingListsPage() {
                             {selectedLists.length} list{selectedLists.length !== 1 ? 's' : ''} selected
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, true)}
                                 style={{
                                     backgroundColor: '#f59e0b',
@@ -349,8 +350,8 @@ export default function SavedShoppingListsPage() {
                                 }}
                             >
                                 📦 Archive
-                            </button>
-                            <button
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, false)}
                                 style={{
                                     backgroundColor: '#ef4444',
@@ -363,7 +364,7 @@ export default function SavedShoppingListsPage() {
                                 }}
                             >
                                 🗑️ Delete
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 )}
@@ -642,7 +643,7 @@ export default function SavedShoppingListsPage() {
                                             display: 'flex',
                                             gap: '0.5rem'
                                         }}>
-                                            <button
+                                            <TouchEnhancedButton
                                                 onClick={() => loadSavedList(list.id)}
                                                 style={{
                                                     flex: 1,
@@ -661,8 +662,8 @@ export default function SavedShoppingListsPage() {
                                                 }}
                                             >
                                                 📋 Load List
-                                            </button>
-                                            <button
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
                                                 onClick={() => deleteSavedLists([list.id], true)}
                                                 style={{
                                                     backgroundColor: '#f59e0b',
@@ -676,8 +677,8 @@ export default function SavedShoppingListsPage() {
                                                 title="Archive"
                                             >
                                                 📦
-                                            </button>
-                                            <button
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
                                                 onClick={() => deleteSavedLists([list.id], false)}
                                                 style={{
                                                     backgroundColor: '#ef4444',
@@ -691,7 +692,7 @@ export default function SavedShoppingListsPage() {
                                                 title="Delete"
                                             >
                                                 🗑️
-                                            </button>
+                                            </TouchEnhancedButton>
                                         </div>
                                     </div>
 
@@ -729,6 +730,6 @@ export default function SavedShoppingListsPage() {
                     100% { transform: rotate(360deg); }
                 }
             `}</style>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -195,7 +196,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                     <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Analysis Error</h3>
                     <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => generateAnalysis()}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -207,8 +208,8 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             }}
                         >
                             Try Again
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#6b7280',
@@ -220,7 +221,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>
@@ -279,7 +280,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             {mealPlanName}
                         </p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             background: 'none',
@@ -291,7 +292,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Nutrition Score Card */}
@@ -362,7 +363,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                         { id: 'insights', label: 'Insights', icon: '💡' },
                         { id: 'goals', label: 'Goals', icon: '🎯' }
                     ].map(tab => (
-                        <button
+                        <TouchEnhancedButton
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             style={{
@@ -380,7 +381,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             }}
                         >
                             {tab.icon} {tab.label}
-                        </button>
+                        </TouchEnhancedButton>
                     ))}
                 </div>
 
@@ -629,7 +630,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: '0', color: '#111827' }}>
                                     🎯 Nutrition Goals
                                 </h3>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowGoalsEditor(!showGoalsEditor)}
                                     style={{
                                         backgroundColor: '#3b82f6',
@@ -642,7 +643,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                                     }}
                                 >
                                     {showGoalsEditor ? 'View Goals' : 'Edit Goals'}
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
 
                             {showGoalsEditor ? (
@@ -692,7 +693,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                         Last analyzed: {new Date(analysis.generatedAt).toLocaleString()}
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={generateAnalysis}
                             style={{
                                 backgroundColor: '#3b82f6',
@@ -705,8 +706,8 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             }}
                         >
                             🔄 Refresh Analysis
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={onClose}
                             style={{
                                 backgroundColor: '#374151',
@@ -719,7 +720,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             }}
                         >
                             Close
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>
@@ -886,7 +887,7 @@ function GoalsEditor({ goals, onUpdate }) {
                     paddingTop: '1rem',
                     borderTop: '1px solid #e5e7eb'
                 }}>
-                    <button
+                    <TouchEnhancedButton
                         type="button"
                         onClick={resetToDefaults}
                         disabled={loading}
@@ -902,9 +903,9 @@ function GoalsEditor({ goals, onUpdate }) {
                         }}
                     >
                         Reset to Defaults
-                    </button>
+                    </TouchEnhancedButton>
 
-                    <button
+                    <TouchEnhancedButton
                         type="submit"
                         disabled={loading}
                         style={{
@@ -920,7 +921,7 @@ function GoalsEditor({ goals, onUpdate }) {
                         }}
                     >
                         {loading ? 'Updating...' : 'Update Goals'}
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
             </form>
 

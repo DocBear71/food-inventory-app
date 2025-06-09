@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import WeeklyNutritionDashboard from './WeeklyNutritionDashboard';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function NutritionAnalysisButton({ mealPlanId, mealPlanName, disabled = false }) {
     const [showNutritionDashboard, setShowNutritionDashboard] = useState(false);
@@ -16,7 +17,7 @@ export default function NutritionAnalysisButton({ mealPlanId, mealPlanName, disa
 
     return (
         <>
-            <button
+            <TouchEnhancedButton
                 onClick={handleClick}
                 disabled={disabled}
                 style={{
@@ -47,7 +48,7 @@ export default function NutritionAnalysisButton({ mealPlanId, mealPlanName, disa
                 title={disabled ? 'Add some meals to your plan first' : 'View weekly nutrition analysis'}
             >
                 📊 Nutrition Overview
-            </button>
+            </TouchEnhancedButton>
 
             {showNutritionDashboard && (
                 <WeeklyNutritionDashboard

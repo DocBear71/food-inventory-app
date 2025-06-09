@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function InventoryConsumption({
                                                  item,
@@ -227,14 +228,14 @@ export default function InventoryConsumption({
                         </div>
 
                         <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between">
-                            <button
+                            <TouchEnhancedButton
                                 type="button"
                                 onClick={onClose}
                                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
                                 type="submit"
                                 disabled={isSubmitting || Array.from(selectedIngredients.values()).every(data => !data.consume)}
                                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
@@ -247,7 +248,7 @@ export default function InventoryConsumption({
                                 ) : (
                                     '✅ Update Inventory'
                                 )}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </form>
                 </div>
@@ -293,7 +294,7 @@ export default function InventoryConsumption({
                             </label>
                             <div className="grid grid-cols-2 gap-2">
                                 {reasonOptions.map((option) => (
-                                    <button
+                                    <TouchEnhancedButton
                                         key={option.value}
                                         type="button"
                                         onClick={() => setConsumptionData(prev => ({ ...prev, reason: option.value }))}
@@ -309,7 +310,7 @@ export default function InventoryConsumption({
                                         }}
                                     >
                                         {option.label}
-                                    </button>
+                                    </TouchEnhancedButton>
                                 ))}
                             </div>
                         </div>
@@ -408,14 +409,14 @@ export default function InventoryConsumption({
                     </div>
 
                     <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between">
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={onClose}
                             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={isSubmitting}
                             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
@@ -428,7 +429,7 @@ export default function InventoryConsumption({
                             ) : (
                                 '✅ Update Inventory'
                             )}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </form>
             </div>

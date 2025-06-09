@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function SaveShoppingListModal({
                                                   isOpen,
@@ -177,7 +178,7 @@ export default function SaveShoppingListModal({
                     }}>
                         💾 Save Shopping List
                     </h2>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             background: 'none',
@@ -189,7 +190,7 @@ export default function SaveShoppingListModal({
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Form */}
@@ -319,7 +320,7 @@ export default function SaveShoppingListModal({
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                                 {predefinedTags.map(tag => (
-                                    <button
+                                    <TouchEnhancedButton
                                         key={tag}
                                         type="button"
                                         onClick={() => {
@@ -342,7 +343,7 @@ export default function SaveShoppingListModal({
                                         }}
                                     >
                                         +{tag}
-                                    </button>
+                                    </TouchEnhancedButton>
                                 ))}
                             </div>
                         </div>
@@ -361,7 +362,7 @@ export default function SaveShoppingListModal({
                         </label>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             {predefinedColors.map(color => (
-                                <button
+                                <TouchEnhancedButton
                                     key={color}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, color })}
@@ -404,7 +405,7 @@ export default function SaveShoppingListModal({
                         gap: '0.75rem',
                         justifyContent: 'flex-end'
                     }}>
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={onClose}
                             disabled={loading}
@@ -419,8 +420,8 @@ export default function SaveShoppingListModal({
                             }}
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={loading}
                             style={{
@@ -451,7 +452,7 @@ export default function SaveShoppingListModal({
                             ) : (
                                 <>💾 Save List</>
                             )}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </form>
 

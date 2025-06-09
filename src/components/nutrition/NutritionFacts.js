@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function NutritionFacts({
                                            recipeId,
@@ -132,12 +133,12 @@ export default function NutritionFacts({
                     <div className="font-medium mb-1">Nutrition data unavailable</div>
                     <div>{error}</div>
                     {recipeId && (
-                        <button
+                        <TouchEnhancedButton
                             onClick={fetchNutrition}
                             className="text-red-600 hover:text-red-800 underline mt-2"
                         >
                             Try again
-                        </button>
+                        </TouchEnhancedButton>
                     )}
                 </div>
             </div>

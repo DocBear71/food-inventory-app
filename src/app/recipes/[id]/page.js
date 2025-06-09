@@ -5,11 +5,12 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function RecipeDetailPage() {
     const { data: session } = useSession();
@@ -289,7 +290,7 @@ export default function RecipeDetailPage() {
 
     if (loading) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-4xl mx-auto px-4 py-8">
                     <div className="animate-pulse">
                         <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
@@ -303,35 +304,35 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     if (error) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-4xl mx-auto px-4 py-8">
                     <div className="text-center">
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => router.push('/recipes')}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                         >
                             Back to Recipes
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Header - FIXED: Only one back button now */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => router.push('/recipes')}
                             className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
                         >
@@ -339,7 +340,7 @@ export default function RecipeDetailPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                             <span>Back to Recipes</span>
-                        </button>
+                        </TouchEnhancedButton>
                         <div className="text-sm text-gray-500">
                             {recipe.isPublic ? '🌍 Public Recipe' : '🔒 Private Recipe'}
                         </div>
@@ -367,27 +368,27 @@ export default function RecipeDetailPage() {
                         <div className="flex space-x-2 ml-4">
                             {/* Show edit button if user owns the recipe */}
                             {session?.user?.id === recipe.createdBy?._id && (
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => router.push(`/recipes/${recipeId}/edit`)}
                                     className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                                 >
                                     Edit Recipe
-                                </button>
+                                </TouchEnhancedButton>
                             )}
                             {hasNutritionData && (
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowNutrition(!showNutrition)}
                                     className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
                                 >
                                     {showNutrition ? 'Hide' : 'Show'} Nutrition
-                                </button>
+                                </TouchEnhancedButton>
                             )}
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => window.print()}
                                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
                             >
                                 Print
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
 
@@ -563,12 +564,12 @@ export default function RecipeDetailPage() {
                                     showPerServing={true}
                                     compact={true}
                                 />
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowNutrition(true)}
                                     className="w-full mt-3 text-sm text-indigo-600 hover:text-indigo-700"
                                 >
                                     View detailed nutrition facts →
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         )}
 
@@ -576,7 +577,7 @@ export default function RecipeDetailPage() {
                         <div className="bg-white rounded-lg border p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                             <div className="space-y-3">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         fetchMealPlans();
                                         setShowMealPlanModal(true);
@@ -584,15 +585,15 @@ export default function RecipeDetailPage() {
                                     className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
                                 >
                                     Add to Meal Plan
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setShowQuickShoppingList(true)}
                                     className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
                                 >
                                     Generate Shopping List
-                                </button>
-                                {/* UPDATED: Collections button now functional */}
-                                <button
+                                </TouchEnhancedButton>
+                                {/* UPDATED: Collections TouchEnhancedButton now functional */}
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         fetchCollections();
                                         setShowCollectionsModal(true);
@@ -600,7 +601,7 @@ export default function RecipeDetailPage() {
                                     className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors shadow-sm"
                                 >
                                     📚 Save to Collection
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
@@ -625,12 +626,12 @@ export default function RecipeDetailPage() {
                                 <h3 className="text-lg font-semibold text-gray-900">
                                     Add "{recipe.title}" to Meal Plan
                                 </h3>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowMealPlanModal(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
 
@@ -643,7 +644,7 @@ export default function RecipeDetailPage() {
                             ) : mealPlans.length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500 mb-4">No meal plans found. Create one first!</p>
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={() => {
                                             setShowMealPlanModal(false);
                                             router.push('/meal-planning');
@@ -651,7 +652,7 @@ export default function RecipeDetailPage() {
                                         className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
                                     >
                                         Go to Meal Planning
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -675,13 +676,13 @@ export default function RecipeDetailPage() {
                                                         </div>
                                                         <div className="space-y-1">
                                                             {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
-                                                                <button
+                                                                <TouchEnhancedButton
                                                                     key={`${day}-${mealType}`}
                                                                     onClick={() => addToMealPlan(mealPlan._id, day, mealType)}
                                                                     className="w-full text-left px-2 py-1 text-xs bg-gray-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
                                                                 >
                                                                     {mealType}
-                                                                </button>
+                                                                </TouchEnhancedButton>
                                                             ))}
                                                         </div>
                                                     </div>
@@ -705,12 +706,12 @@ export default function RecipeDetailPage() {
                                 <h3 className="text-lg font-semibold text-gray-900">
                                     📚 Save "{recipe.title}" to Collection
                                 </h3>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowCollectionsModal(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
 
@@ -728,7 +729,7 @@ export default function RecipeDetailPage() {
                                             <h4 className="text-sm font-medium text-gray-900 mb-3">Add to existing collection:</h4>
                                             <div className="space-y-2">
                                                 {collections.map(collection => (
-                                                    <button
+                                                    <TouchEnhancedButton
                                                         key={collection._id}
                                                         onClick={() => addToCollection(collection._id)}
                                                         className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors"
@@ -740,7 +741,7 @@ export default function RecipeDetailPage() {
                                                         <div className="text-xs text-gray-500 mt-1">
                                                             {collection.recipes?.length || 0} recipe{(collection.recipes?.length || 0) !== 1 ? 's' : ''}
                                                         </div>
-                                                    </button>
+                                                    </TouchEnhancedButton>
                                                 ))}
                                             </div>
                                         </div>
@@ -786,12 +787,12 @@ export default function RecipeDetailPage() {
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                                                 />
                                             </div>
-                                            <button
+                                            <TouchEnhancedButton
                                                 type="submit"
                                                 className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
                                             >
                                                 ✨ Create Collection & Add Recipe
-                                            </button>
+                                            </TouchEnhancedButton>
                                         </form>
                                     </div>
 
@@ -806,6 +807,6 @@ export default function RecipeDetailPage() {
                     </div>
                 </div>
             )}
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

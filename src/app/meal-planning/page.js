@@ -5,8 +5,8 @@
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { redirect } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function MealPlanningPage() {
     const { data: session, status } = useSession();
@@ -19,7 +19,7 @@ export default function MealPlanningPage() {
 
     if (status === 'loading') {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-7xl mx-auto px-4 py-8">
                     <div className="animate-pulse">
                         <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
@@ -35,15 +35,15 @@ export default function MealPlanningPage() {
                         </div>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="max-w-7xl mx-auto">
                 <MealPlanningCalendar />
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

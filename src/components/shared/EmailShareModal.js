@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function EmailShareModal({
                                             isOpen,
@@ -253,7 +254,7 @@ export default function EmailShareModal({
                             {contextName}
                         </p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => { onClose(); resetForm(); }}
                         style={{
                             color: '#9ca3af',
@@ -265,7 +266,7 @@ export default function EmailShareModal({
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Shopping List Summary */}
@@ -373,7 +374,7 @@ export default function EmailShareModal({
                                     }}
                                 />
                                 {recipients.length > 1 && (
-                                    <button
+                                    <TouchEnhancedButton
                                         type="button"
                                         onClick={() => removeRecipientField(index)}
                                         style={{
@@ -386,12 +387,12 @@ export default function EmailShareModal({
                                         }}
                                     >
                                         ×
-                                    </button>
+                                    </TouchEnhancedButton>
                                 )}
                             </div>
                         ))}
 
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={addRecipientField}
                             style={{
@@ -405,7 +406,7 @@ export default function EmailShareModal({
                             }}
                         >
                             + Add another recipient
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Contacts Section */}
@@ -426,7 +427,7 @@ export default function EmailShareModal({
                                 gap: '0.5rem'
                             }}>
                                 {contacts.slice(0, 6).map(contact => (
-                                    <button
+                                    <TouchEnhancedButton
                                         key={contact.id}
                                         type="button"
                                         onClick={() => selectContact(contact)}
@@ -443,7 +444,7 @@ export default function EmailShareModal({
                                         }}
                                     >
                                         {contact.name}
-                                    </button>
+                                    </TouchEnhancedButton>
                                 ))}
                             </div>
                         </div>
@@ -467,7 +468,7 @@ export default function EmailShareModal({
                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>
                                     Add New Contact
                                 </h4>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowContactForm(false)}
                                     style={{
                                         color: '#6b7280',
@@ -477,7 +478,7 @@ export default function EmailShareModal({
                                     }}
                                 >
                                     ×
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <input
@@ -520,7 +521,7 @@ export default function EmailShareModal({
                                     <option value="colleague">Colleague</option>
                                     <option value="other">Other</option>
                                 </select>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={addContact}
                                     style={{
                                         padding: '0.5rem 1rem',
@@ -533,11 +534,11 @@ export default function EmailShareModal({
                                     }}
                                 >
                                     Add Contact
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     ) : (
-                        <button
+                        <TouchEnhancedButton
                             type="button"
                             onClick={() => setShowContactForm(true)}
                             style={{
@@ -552,7 +553,7 @@ export default function EmailShareModal({
                             }}
                         >
                             + Add new contact
-                        </button>
+                        </TouchEnhancedButton>
                     )}
 
                     {/* Personal Message */}
@@ -607,7 +608,7 @@ export default function EmailShareModal({
                         Email will be sent from: {session?.user?.email}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => { onClose(); resetForm(); }}
                             disabled={isLoading}
                             style={{
@@ -621,8 +622,8 @@ export default function EmailShareModal({
                             }}
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={sendEmail}
                             disabled={isLoading || recipients.filter(r => r.trim()).length === 0}
                             style={{
@@ -653,7 +654,7 @@ export default function EmailShareModal({
                             ) : (
                                 <>📧 Send Shopping List</>
                             )}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </div>

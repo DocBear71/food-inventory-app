@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { StarRating } from './RecipeRating';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ReviewDisplay({
                                           review,
@@ -105,18 +106,18 @@ export default function ReviewDisplay({
                 {/* Actions for own review */}
                 {isOwnReview && (
                     <div className="flex space-x-2">
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => onReviewUpdated && onReviewUpdated(review)}
                             className="text-sm text-indigo-600 hover:text-indigo-800"
                         >
                             Edit
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={() => onReviewDeleted && onReviewDeleted(review)}
                             className="text-sm text-red-600 hover:text-red-800"
                         >
                             Delete
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 )}
             </div>
@@ -155,12 +156,12 @@ export default function ReviewDisplay({
                         }
                     </p>
                     {shouldTruncate && (
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowFullComment(!showFullComment)}
                             className="text-sm text-indigo-600 hover:text-indigo-800"
                         >
                             {showFullComment ? 'Show less' : 'Read more'}
-                        </button>
+                        </TouchEnhancedButton>
                     )}
                 </div>
             )}
@@ -188,7 +189,7 @@ export default function ReviewDisplay({
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                     <div className="text-sm text-gray-500">Was this review helpful?</div>
                     <div className="flex items-center space-x-4">
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => handleVote('helpful')}
                             disabled={isVoting}
                             className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${
@@ -199,8 +200,8 @@ export default function ReviewDisplay({
                         >
                             <span>👍</span>
                             <span>Helpful ({voteState.helpful})</span>
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={() => handleVote('unhelpful')}
                             disabled={isVoting}
                             className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${
@@ -211,7 +212,7 @@ export default function ReviewDisplay({
                         >
                             <span>👎</span>
                             <span>Not helpful ({voteState.unhelpful})</span>
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             )}

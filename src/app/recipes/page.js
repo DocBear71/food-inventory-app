@@ -5,10 +5,11 @@
 import {useSession} from 'next-auth/react';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import {StarRating} from '@/components/reviews/RecipeRating';
 import {redirect} from 'next/navigation';
 import Link from 'next/link';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 function RecipesContent() {
     const {data: session, status} = useSession();
@@ -22,6 +23,7 @@ function RecipesContent() {
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
+
 
     const CATEGORY_OPTIONS = [
         {value: 'seasonings', label: 'Seasonings'},
@@ -168,7 +170,7 @@ function RecipesContent() {
 
     if (status === 'loading' || loading) {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-6xl mx-auto px-4 py-8">
                     <div className="animate-pulse space-y-4">
                         <div className="h-8 bg-gray-200 rounded w-1/4"></div>
@@ -179,14 +181,14 @@ function RecipesContent() {
                         </div>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
     const filteredRecipes = getFilteredAndSortedRecipes();
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">My Recipes</h1>
@@ -299,7 +301,7 @@ function RecipesContent() {
                         Showing {filteredRecipes.length} of {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
                     </p>
                     {(searchTerm || selectedTag || selectedDifficulty || selectedCategory) && (
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => {
                                 setSearchTerm('');
                                 setSelectedTag('');
@@ -309,7 +311,7 @@ function RecipesContent() {
                             className="text-indigo-600 hover:text-indigo-800 text-sm"
                         >
                             Clear Filters
-                        </button>
+                        </TouchEnhancedButton>
                     )}
                 </div>
 
@@ -339,7 +341,7 @@ function RecipesContent() {
                                                           d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </Link>
-                                            <button
+                                            <TouchEnhancedButton
                                                 onClick={() => handleDelete(recipe._id)}
                                                 className="text-gray-400 hover:text-red-600"
                                             >
@@ -348,7 +350,7 @@ function RecipesContent() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                           d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                 </svg>
-                                            </button>
+                                            </TouchEnhancedButton>
                                         </div>
                                     </div>
 
@@ -470,14 +472,14 @@ function RecipesContent() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }
 
 export default function RecipesPage() {
     return (
         <Suspense fallback={
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="max-w-6xl mx-auto px-4 py-8">
                     <div className="animate-pulse space-y-4">
                         <div className="h-8 bg-gray-200 rounded w-1/4"></div>
@@ -488,7 +490,7 @@ export default function RecipesPage() {
                         </div>
                     </div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         }>
             <RecipesContent/>
         </Suspense>

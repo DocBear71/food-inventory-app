@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ExpirationNotifications({ onItemsUpdated }) {
     const { data: session } = useSession();
@@ -124,12 +125,12 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
                 <h4 className="font-medium text-gray-900 mb-3 flex items-center justify-between">
                     {title} ({items.length})
                     {!defaultShow && (
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => setShowAll(!showAll)}
                             className="text-sm text-indigo-600 hover:text-indigo-800"
                         >
                             {isVisible ? 'Hide' : 'Show'}
-                        </button>
+                        </TouchEnhancedButton>
                     )}
                 </h4>
 
@@ -243,26 +244,26 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
                                 {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
                             </div>
                             <div className="flex space-x-2">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => handleBulkAction('consumed')}
                                     disabled={processingAction}
                                     className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-green-400"
                                 >
                                     Mark as Consumed
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => handleBulkAction('extend')}
                                     disabled={processingAction}
                                     className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-blue-400"
                                 >
                                     Extend 7 Days
-                                </button>
-                                <button
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => setSelectedItems(new Set())}
                                     className="px-4 py-2 bg-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-400"
                                 >
                                     Clear Selection
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>

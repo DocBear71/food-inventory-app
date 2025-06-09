@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -111,7 +112,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                             Batch cooking recommendations for: {mealPlanName}
                         </p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={onClose}
                         style={{
                             background: 'none',
@@ -123,7 +124,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                         }}
                     >
                         ×
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Tabs */}
@@ -138,7 +139,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                             { id: 'schedule', label: 'Prep Schedule', icon: '📅' },
                             { id: 'tips', label: 'Prep Tips', icon: '💡' }
                         ].map(tab => (
-                            <button
+                            <TouchEnhancedButton
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 style={{
@@ -156,7 +157,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                                 }}
                             >
                                 {tab.icon} {tab.label}
-                            </button>
+                            </TouchEnhancedButton>
                         ))}
                     </div>
                 </div>
@@ -194,7 +195,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                         }}>
                             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
                             <p>{error}</p>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={fetchMealPrepSuggestions}
                                 style={{
                                     marginTop: '1rem',
@@ -207,7 +208,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
                                 }}
                             >
                                 Try Again
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     ) : (
                         <>

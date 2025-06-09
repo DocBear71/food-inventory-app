@@ -5,7 +5,8 @@
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function ConsumptionHistoryPage() {
     const { data: session, status } = useSession();
@@ -119,11 +120,11 @@ export default function ConsumptionHistoryPage() {
 
     if (status === 'loading') {
         return (
-            <DashboardLayout>
+            <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-lg">Loading...</div>
                 </div>
-            </DashboardLayout>
+            </MobileOptimizedLayout>
         );
     }
 
@@ -135,7 +136,7 @@ export default function ConsumptionHistoryPage() {
     const reasonStats = getReasonStats();
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
@@ -143,12 +144,12 @@ export default function ConsumptionHistoryPage() {
                         <h1 className="text-2xl font-bold text-gray-900">📊 Consumption History</h1>
                         <p className="text-gray-600 mt-1">Track what you've used, consumed, or removed from inventory</p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => window.history.back()}
                         className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                     >
                         ← Back to Inventory
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 {/* Stats Overview */}
@@ -227,12 +228,12 @@ export default function ConsumptionHistoryPage() {
                         ) : error ? (
                             <div className="text-center py-8">
                                 <div className="text-red-600 mb-4">❌ {error}</div>
-                                <button
+                                <TouchEnhancedButton
                                     onClick={fetchHistory}
                                     className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                                 >
                                     Try Again
-                                </button>
+                                </TouchEnhancedButton>
                             </div>
                         ) : sortedHistory.length === 0 ? (
                             <div className="text-center py-8">
@@ -322,6 +323,6 @@ export default function ConsumptionHistoryPage() {
                     </div>
                 </div>
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

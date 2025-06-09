@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import MealPlanTemplateLibrary from './MealPlanTemplateLibrary';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function TemplateLibraryButton({
                                                   mealPlanId,
@@ -28,7 +29,7 @@ export default function TemplateLibraryButton({
 
     return (
         <>
-            <button
+            <TouchEnhancedButton
                 onClick={handleClick}
                 disabled={disabled}
                 style={{
@@ -59,7 +60,7 @@ export default function TemplateLibraryButton({
                 title={disabled ? 'Create a meal plan first' : 'Browse and apply meal plan templates'}
             >
                 🔄 Templates
-            </button>
+            </TouchEnhancedButton>
 
             {showTemplateLibrary && (
                 <MealPlanTemplateLibrary

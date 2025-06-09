@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import MealPrepSuggestions from './MealPrepSuggestions';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPrepButton({
                                            mealPlanId,
@@ -20,7 +21,7 @@ export default function MealPrepButton({
 
     return (
         <>
-            <button
+            <TouchEnhancedButton
                 onClick={handleClick}
                 disabled={disabled}
                 style={{
@@ -51,7 +52,7 @@ export default function MealPrepButton({
                 title={disabled ? 'Add some meals to your plan first' : 'Get intelligent meal prep suggestions for batch cooking'}
             >
                 🍳 Meal Prep
-            </button>
+            </TouchEnhancedButton>
 
             {showMealPrepSuggestions && (
                 <MealPrepSuggestions

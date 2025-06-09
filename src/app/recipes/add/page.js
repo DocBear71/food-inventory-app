@@ -5,8 +5,9 @@
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 
 export default function AddRecipePage() {
     const { data: session } = useSession();
@@ -99,7 +100,7 @@ export default function AddRecipePage() {
     };
 
     return (
-        <DashboardLayout>
+        <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
@@ -108,12 +109,12 @@ export default function AddRecipePage() {
                             Create a new recipe manually, or paste recipe text to auto-extract details
                         </p>
                     </div>
-                    <button
+                    <TouchEnhancedButton
                         onClick={() => router.back()}
                         className="text-gray-600 hover:text-gray-800 flex items-center gap-2"
                     >
                         ← Back to Recipes
-                    </button>
+                    </TouchEnhancedButton>
                 </div>
 
                 <EnhancedRecipeForm
@@ -122,6 +123,6 @@ export default function AddRecipePage() {
                     isEditing={false}
                 />
             </div>
-        </DashboardLayout>
+        </MobileOptimizedLayout>
     );
 }

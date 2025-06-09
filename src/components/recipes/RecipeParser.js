@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function RecipeParser({ onRecipeParsed, onCancel }) {
     const [rawText, setRawText] = useState('');
@@ -589,13 +590,13 @@ Instructions:
                         </div>
 
                         <div className="flex justify-between">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={onCancel}
                                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
                                 onClick={handleParse}
                                 disabled={!rawText.trim() || isParsing}
                                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 flex items-center gap-2"
@@ -610,7 +611,7 @@ Instructions:
                                         🔍 Parse Recipe
                                     </>
                                 )}
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
@@ -771,25 +772,25 @@ Instructions:
 
                             {/* Action Buttons */}
                             <div className="flex justify-between pt-4 border-t">
-                                <button
+                                <TouchEnhancedButton
                                     onClick={() => setShowPreview(false)}
                                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                                 >
                                     ← Back to Edit Text
-                                </button>
+                                </TouchEnhancedButton>
                                 <div className="flex gap-2">
-                                    <button
+                                    <TouchEnhancedButton
                                         onClick={onCancel}
                                         className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                                     >
                                         Cancel
-                                    </button>
-                                    <button
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
                                         onClick={handleUseRecipe}
                                         className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                                     >
                                         ✓ Use This Recipe
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
