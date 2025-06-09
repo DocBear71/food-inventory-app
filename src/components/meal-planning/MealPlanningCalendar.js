@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v10
+// file: /src/components/meal-planning/MealPlanningCalendar.js v11
 
 'use client';
 
@@ -594,17 +594,19 @@ export default function MealPlanningCalendar() {
                                                 return (
                                                     <div
                                                         key={`${meal.recipeId}-${mealTypeIndex}`}
-                                                        className="group relative bg-indigo-100 border border-indigo-200 rounded-lg p-3"
+                                                        className="meal-card"
                                                     >
-                                                        <div className="text-sm font-medium text-indigo-900">{meal.recipeName}</div>
-                                                        <div className="text-xs text-indigo-700">
-                                                            {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                        <div className="meal-recipe-content">
+                                                            <div className="meal-recipe-name">{meal.recipeName}</div>
+                                                            <div className="meal-recipe-details">
+                                                                {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                            </div>
                                                         </div>
 
-                                                        {/* Remove Button */}
+                                                        {/* Remove Button - Using CSS Classes */}
                                                         <TouchEnhancedButton
                                                             onClick={() => removeMealFromSlot(day, actualIndex)}
-                                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                                            className="meal-remove-btn"
                                                             title="Remove meal"
                                                         >
                                                             ×
@@ -985,74 +987,19 @@ export default function MealPlanningCalendar() {
                                             return (
                                                 <div
                                                     key={`${meal.recipeId}-${mealTypeIndex}`}
-                                                    style={{
-                                                        position: 'relative',
-                                                        backgroundColor: '#e0e7ff',
-                                                        border: '1px solid #c7d2fe',
-                                                        borderRadius: '8px',
-                                                        padding: '8px',
-                                                        paddingRight: '32px',
-                                                        marginBottom: '8px'
-                                                    }}
+                                                    className="meal-card"
                                                 >
-                                                    <div style={{
-                                                        fontSize: '14px',
-                                                        fontWeight: '500',
-                                                        color: '#312e81',
-                                                        marginBottom: '2px'
-                                                    }}>
-                                                        {meal.recipeName}
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: '12px',
-                                                        color: '#4338ca'
-                                                    }}>
-                                                        {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                    <div className="meal-recipe-content">
+                                                        <div className="meal-recipe-name">{meal.recipeName}</div>
+                                                        <div className="meal-recipe-details">
+                                                            {meal.servings} servings • {meal.prepTime + meal.cookTime} min
+                                                        </div>
                                                     </div>
 
-                                                    {/* Remove Button - Responsive Inline Styles */}
+                                                    {/* Remove Button - Using CSS Classes */}
                                                     <TouchEnhancedButton
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
-                                                        className={"meal-remove-btn"}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            top: '4px',
-                                                            right: '4px',
-                                                            backgroundColor: '#ef4444',
-                                                            color: 'white',
-                                                            border: '2px solid white',
-                                                            borderRadius: '50%',
-                                                            // Responsive sizing using CSS custom properties
-                                                            width: window.innerWidth >= 1024 ? '18px' : window.innerWidth >= 768 ? '20px' : '28px',
-                                                            height: window.innerWidth >= 1024 ? '18px' : window.innerWidth >= 768 ? '20px' : '28px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontSize: window.innerWidth >= 1024 ? '11px' : window.innerWidth >= 768 ? '12px' : '16px',
-                                                            fontWeight: 'bold',
-                                                            cursor: 'pointer',
-                                                            zIndex: 10,
-                                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                                                            transition: 'all 0.2s ease',
-                                                            // Desktop: slightly transparent until hover
-                                                            opacity: window.innerWidth >= 1024 ? 0.8 : 1
-                                                        }}
-                                                        onMouseOver={(e) => {
-                                                            e.target.style.backgroundColor = '#dc2626';
-                                                            e.target.style.transform = 'scale(1.1)';
-                                                            e.target.style.opacity = '1';
-                                                        }}
-                                                        onMouseOut={(e) => {
-                                                            e.target.style.backgroundColor = '#ef4444';
-                                                            e.target.style.transform = 'scale(1)';
-                                                            e.target.style.opacity = window.innerWidth >= 1024 ? '0.8' : '1';
-                                                        }}
-                                                        onMouseDown={(e) => {
-                                                            e.target.style.transform = 'scale(0.95)';
-                                                        }}
-                                                        onMouseUp={(e) => {
-                                                            e.target.style.transform = 'scale(1.1)';
-                                                        }}
+                                                        className="meal-remove-btn"
                                                         title="Remove meal"
                                                     >
                                                         ×
