@@ -2,6 +2,7 @@
 'use client';
 
 import { TouchSwipeContainer } from './TouchGestures';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export function SwipeableWeekNavigation({
                                             currentWeek,
@@ -29,7 +30,7 @@ export function SwipeableWeekNavigation({
         <div className={className}>
             {/* Week navigation header */}
             <div className="flex items-center justify-between mb-4 bg-white rounded-lg p-4 shadow-sm">
-                <button
+                <TouchEnhancedButton
                     onClick={onPreviousWeek}
                     className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
                     style={{ touchAction: 'manipulation' }}
@@ -37,7 +38,7 @@ export function SwipeableWeekNavigation({
                     <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                </button>
+                </TouchEnhancedButton>
 
                 <div className="flex-1 text-center">
                     <h2 className="text-lg font-semibold text-gray-900">
@@ -48,7 +49,7 @@ export function SwipeableWeekNavigation({
                     </p>
                 </div>
 
-                <button
+                <TouchEnhancedButton
                     onClick={onNextWeek}
                     className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
                     style={{ touchAction: 'manipulation' }}
@@ -56,7 +57,7 @@ export function SwipeableWeekNavigation({
                     <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                </button>
+                </TouchEnhancedButton>
             </div>
 
             {/* Swipeable content */}

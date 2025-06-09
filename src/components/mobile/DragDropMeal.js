@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export function DragDropMealCard({ meal, onDrop, onEdit, onDelete }) {
     const [isDragging, setIsDragging] = useState(false);
@@ -112,22 +113,22 @@ export function DragDropMealCard({ meal, onDrop, onEdit, onDelete }) {
                 )}
             </div>
 
-            {/* Action buttons */}
+            {/* Action Buttons */}
             <div className="flex gap-1 mt-2">
-                <button
+                <TouchEnhancedButton
                     onClick={() => onEdit && onEdit(meal)}
                     className="flex-1 bg-blue-50 text-blue-700 text-xs font-medium py-1 px-2 rounded hover:bg-blue-100 active:bg-blue-200 transition-colors"
                     style={{ touchAction: 'manipulation' }}
                 >
                     ✏️ Edit
-                </button>
-                <button
+                </TouchEnhancedButton>
+                <TouchEnhancedButton
                     onClick={() => onDelete && onDelete(meal)}
                     className="bg-red-50 text-red-700 text-xs font-medium py-1 px-2 rounded hover:bg-red-100 active:bg-red-200 transition-colors"
                     style={{ touchAction: 'manipulation' }}
                 >
                     🗑️
-                </button>
+                </TouchEnhancedButton>
             </div>
 
             {/* Visual feedback for drag state */}
