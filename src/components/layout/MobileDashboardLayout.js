@@ -161,7 +161,7 @@ export default function MobileDashboardLayout({ children }) {
             )}
 
             {/* Main Content - Fixed padding to clear header */}
-            <main className={`pt-20 ${bottomPadding}`}>
+            <main className={`pt-70 ${bottomPadding}`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
