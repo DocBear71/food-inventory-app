@@ -171,7 +171,7 @@ export default function MobileDashboardLayout({ children }) {
 
             {/* Bottom Navigation */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
-                <div className="grid grid-cols-5 h-16">
+                <div className="grid grid-cols-6 h-16">
                     {navigation.map((item) => (
                         <TouchEnhancedButton
                             key={item.name}
