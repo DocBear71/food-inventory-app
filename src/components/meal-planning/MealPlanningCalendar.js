@@ -1013,6 +1013,7 @@ export default function MealPlanningCalendar() {
                                                     {/* Remove Button - Responsive Inline Styles */}
                                                     <TouchEnhancedButton
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
+                                                        className={"meal-remove-btn"}
                                                         style={{
                                                             position: 'absolute',
                                                             top: '4px',
