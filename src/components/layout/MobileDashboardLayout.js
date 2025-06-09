@@ -52,7 +52,6 @@ export default function MobileDashboardLayout({ children }) {
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning') },
         { name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
-        { name: "Profile", href: '/profile', icon: '👤', current: pathname.startsWith('/profile') },
     ];
 
     const handleNavigation = (href) => {
@@ -75,22 +74,29 @@ export default function MobileDashboardLayout({ children }) {
                 isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
             }`}>
                 <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className="p-2 rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2 rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0"
                             aria-label="Open menu"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </TouchEnhancedButton>
-                        <h1 className="text-xl font-bold text-gray-900 truncate">
-                            Doc Bear's Comfort Kitchen
-                        </h1>
+
+                        {/* Two-line title */}
+                        <div className="flex-1 min-w-0">
+                            <div className="text-lg font-bold text-gray-900 leading-tight">
+                                Doc Bear's
+                            </div>
+                            <div className="text-sm font-semibold text-gray-700 leading-tight">
+                                Comfort Kitchen
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-shrink-0">
                         {/* Quick add Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add')}
@@ -102,12 +108,17 @@ export default function MobileDashboardLayout({ children }) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* User avatar */}
-                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-              <span className="text-indigo-600 text-sm font-medium">
-                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-              </span>
-                        </div>
+                        {/* User avatar with profile link */}
+                        <TouchEnhancedButton
+                            onClick={() => handleNavigation('/profile')}
+                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly"
+                            aria-label="Go to profile"
+                            title="Profile"
+                        >
+                <span className="text-indigo-600 text-sm font-medium">
+                    {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                </span>
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </header>
@@ -171,7 +182,7 @@ export default function MobileDashboardLayout({ children }) {
 
             {/* Bottom Navigation */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
-                <div className="grid grid-cols-6 h-16">
+                <div className="grid grid-cols-5 h-16">
                     {navigation.map((item) => (
                         <TouchEnhancedButton
                             key={item.name}
