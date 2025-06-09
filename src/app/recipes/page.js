@@ -334,7 +334,7 @@ function RecipesContent() {
                                         <div className="flex space-x-1 ml-2">
                                             <TouchEnhancedButton
                                                 onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
-                                                className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
+                                                className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
                                                 title="Edit recipe"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,7 +344,7 @@ function RecipesContent() {
                                             </TouchEnhancedButton>
                                             <TouchEnhancedButton
                                                 onClick={() => handleDelete(recipe._id)}
-                                                className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors touch-friendly"
+                                                className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
                                                 title="Delete recipe"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
