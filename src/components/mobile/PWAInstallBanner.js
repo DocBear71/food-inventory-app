@@ -1,104 +1,156 @@
-// file: /src/components/mobile/PWAInstallBanner.js v4 - iOS Safari compatible banner
+// file: /src/components/mobile/PWAInstallBanner.js v7 - Works with your existing API
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePWA } from '@/hooks/usePWA';
+import { useSession } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 
 export function PWAInstallBanner() {
-    const { isInstallable, isInstalled, installPWA, isIOS } = usePWA();
-    const [dismissed, setDismissed] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(false);
+    const { data: session } = useSession();
     const [showBanner, setShowBanner] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
+    const [userDisabledBanner, setUserDisabledBanner] = useState(false);
 
     useEffect(() => {
-        // Check if running in standalone mode (PWA is already installed and running)
-        const checkStandalone = () => {
-            const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
-                window.navigator.standalone ||
+        // Check if running on iOS
+        const checkIsIOS = () => {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        };
+
+        // Check if already running as PWA
+        const checkIsStandalone = () => {
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true ||
                 document.referrer.includes('android-app://');
-            setIsStandalone(isStandaloneMode);
-            return isStandaloneMode;
         };
 
-        // Check session storage for dismissal
-        const checkDismissed = () => {
-            const wasDismissed = sessionStorage.getItem('pwa-install-dismissed') === 'true' ||
-                localStorage.getItem('pwa-install-permanently-dismissed') === 'true';
-            setDismissed(wasDismissed);
-            return wasDismissed;
-        };
-
-        const isStandaloneMode = checkStandalone();
-        const isDismissed = checkDismissed();
-
-        // Show banner if:
-        // - Not dismissed
-        // - Not already in standalone mode
-        // - Either iOS Safari OR installable on other browsers
-        if (!isDismissed && !isStandaloneMode) {
-            if (isIOS || isInstallable) {
-                // Add a small delay to ensure page is loaded
-                const timer = setTimeout(() => {
-                    setShowBanner(true);
-                }, 1000);
-
-                return () => clearTimeout(timer);
+        // Check if user has disabled PWA banner in their profile
+        const checkUserDisabledBanner = async () => {
+            if (session?.user?.id) {
+                try {
+                    const response = await fetch('/api/user/preferences');
+                    if (response.ok) {
+                        const data = await response.json();
+                        return data.preferences?.disablePWABanner === true;
+                    }
+                } catch (error) {
+                    console.log('Could not fetch user preferences for PWA banner:', error);
+                }
             }
+            return false;
+        };
+
+        const isiOS = checkIsIOS();
+        const isStandaloneMode = checkIsStandalone();
+
+        setIsIOS(isiOS);
+        setIsStandalone(isStandaloneMode);
+
+        console.log('PWA Banner: iOS:', isiOS, 'Standalone:', isStandaloneMode);
+
+        // Don't show if already running as PWA
+        if (isStandaloneMode) {
+            console.log('PWA Banner: Not showing - already in standalone mode');
+            return;
         }
-    }, [isIOS, isInstallable]);
+
+        // Check user preference if logged in
+        if (session?.user?.id) {
+            checkUserDisabledBanner().then(disabled => {
+                console.log('PWA Banner: User disabled banner:', disabled);
+                setUserDisabledBanner(disabled);
+
+                if (!disabled) {
+                    setTimeout(() => {
+                        console.log('PWA Banner: Showing banner for logged in user');
+                        setShowBanner(true);
+                    }, 1000);
+                }
+            });
+        } else {
+            // For non-logged in users, always show
+            setTimeout(() => {
+                console.log('PWA Banner: Showing banner for guest user');
+                setShowBanner(true);
+            }, 1000);
+        }
+    }, [session]);
 
     const handleInstall = async () => {
+        console.log('PWA Banner: Install clicked - iOS:', isIOS);
+
         if (isIOS) {
-            // For iOS, show installation instructions
             showIOSInstructions();
         } else {
-            // For Android/Chrome, try automatic installation
-            const success = await installPWA();
-            if (!success) {
-                handleDismiss();
+            try {
+                if (window.deferredPrompt) {
+                    const result = await window.deferredPrompt.prompt();
+                    if (result.outcome === 'accepted') {
+                        setShowBanner(false);
+                    }
+                } else {
+                    showManualInstructions();
+                }
+            } catch (error) {
+                console.log('PWA installation failed:', error);
+                showManualInstructions();
             }
         }
     };
 
     const showIOSInstructions = () => {
-        // Create and show iOS installation instructions modal
         const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4';
         modal.style.zIndex = '9999';
         modal.innerHTML = `
-            <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-                <div class="text-center">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Install App</h3>
-                    <div class="space-y-3 text-left text-sm text-gray-700">
-                        <div class="flex items-center space-x-3">
-                            <span class="text-2xl">1️⃣</span>
+            <div style="background: white; border-radius: 8px; padding: 24px; max-width: 400px; width: 100%; margin: 16px;">
+                <div style="text-align: center;">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #111827;">Install App</h3>
+                    <div style="text-align: left; font-size: 14px; color: #374151; margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 24px; margin-right: 12px;">1️⃣</span>
                             <span>Tap the <strong>Share</strong> button</span>
-                            <span class="text-xl">📤</span>
+                            <span style="font-size: 20px; margin-left: 8px;">📤</span>
                         </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="text-2xl">2️⃣</span>
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 24px; margin-right: 12px;">2️⃣</span>
                             <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
-                            <span class="text-xl">➕</span>
+                            <span style="font-size: 20px; margin-left: 8px;">➕</span>
                         </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="text-2xl">3️⃣</span>
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 24px; margin-right: 12px;">3️⃣</span>
                             <span>Tap <strong>"Add"</strong> to install</span>
                         </div>
                     </div>
-                    <div class="mt-6 space-y-2">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
                         <button 
-                            onclick="this.parentElement.parentElement.parentElement.parentElement.remove()"
-                            class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700"
+                            onclick="this.closest('.fixed').remove()"
+                            style="width: 100%; background: #4f46e5; color: white; padding: 10px 16px; border-radius: 8px; font-weight: 500; border: none; cursor: pointer; font-size: 14px;"
                         >
                             Got it!
                         </button>
+                        ${session?.user?.id ? `
                         <button 
-                            onclick="this.parentElement.parentElement.parentElement.parentElement.remove(); sessionStorage.setItem('pwa-install-dismissed', 'true');"
-                            class="w-full text-gray-600 py-2 px-4 rounded-lg hover:bg-gray-100"
+                            onclick="
+                                fetch('/api/user/preferences', { 
+                                    method: 'PATCH', 
+                                    headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify({ disablePWABanner: true }) 
+                                }).then(() => {
+                                    this.closest('.fixed').remove();
+                                    window.location.reload();
+                                }).catch(err => {
+                                    console.error('Failed to disable PWA banner:', err);
+                                    this.closest('.fixed').remove();
+                                });
+                            "
+                            style="width: 100%; background: transparent; color: #6b7280; padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer; font-size: 14px;"
                         >
                             Don't show again
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -106,7 +158,6 @@ export function PWAInstallBanner() {
 
         document.body.appendChild(modal);
 
-        // Remove modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
@@ -114,23 +165,54 @@ export function PWAInstallBanner() {
         });
     };
 
+    const showManualInstructions = () => {
+        alert('Look for an "Add to Home Screen" or "Install" option in your browser menu.');
+    };
+
     const handleDismiss = () => {
+        console.log('PWA Banner: Dismissed for this session');
         setShowBanner(false);
-        setDismissed(true);
-        sessionStorage.setItem('pwa-install-dismissed', 'true');
+    };
+
+    const handleDisableForever = async () => {
+        if (session?.user?.id) {
+            try {
+                const response = await fetch('/api/user/preferences', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        disablePWABanner: true
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('PWA Banner: Disabled permanently');
+                    setShowBanner(false);
+                    setUserDisabledBanner(true);
+                } else {
+                    console.error('Failed to disable PWA banner');
+                }
+            } catch (error) {
+                console.error('Error disabling PWA banner:', error);
+            }
+        }
+        setShowBanner(false);
     };
 
     // Don't show if:
-    // - Already installed
-    // - Dismissed
-    // - Running in standalone mode (already installed and launched as PWA)
-    // - Not installable and not iOS
-    if (isInstalled || dismissed || isStandalone || !showBanner) {
+    // - Already running as PWA
+    // - User has disabled it in their profile
+    // - Banner state is false
+    if (isStandalone || userDisabledBanner || !showBanner) {
         return null;
     }
 
+    console.log('PWA Banner: Rendering banner');
+
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-indigo-600 text-white p-3 shadow-lg pwa-install-banner mobile-optimized">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-indigo-600 text-white p-3 shadow-lg mobile-optimized">
             <div className="flex items-center justify-between max-w-7xl mx-auto">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="bg-white p-1.5 rounded-lg flex-shrink-0">

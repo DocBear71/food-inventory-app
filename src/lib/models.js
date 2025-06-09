@@ -127,6 +127,10 @@ const UserSchema = new mongoose.Schema({
         default: '',
         maxlength: 100 // URL length limit
     },
+    disablePWABanner: {
+        type: Boolean,
+        default: false
+    },
     legalAcceptance: {
         termsAccepted: {
             type: Boolean,
