@@ -2,8 +2,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import {useState, useEffect} from 'react';
+import {useSession} from 'next-auth/react';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -11,7 +11,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function ShoppingPage() {
-    const { data: session } = useSession();
+    const {data: session} = useSession();
     const [recipes, setRecipes] = useState([]);
     const [filteredRecipes, setFilteredRecipes] = useState([]);
     const [selectedRecipes, setSelectedRecipes] = useState([]);
@@ -289,7 +289,7 @@ export default function ShoppingPage() {
 
     return (
         <MobileOptimizedLayout>
-            <div style={{ padding: '2rem' }}>
+            <div style={{padding: '2rem'}}>
                 {/* Header */}
                 <div style={{
                     display: 'flex',
@@ -306,11 +306,11 @@ export default function ShoppingPage() {
                         }}>
                             🛒 Shopping List Generator
                         </h1>
-                        <p style={{ color: '#6b7280', fontSize: '1rem' }}>
+                        <p style={{color: '#6b7280', fontSize: '1rem'}}>
                             Filter and select recipes to generate a smart shopping list
                         </p>
                     </div>
-                    <SavedShoppingListsButton />
+                    <SavedShoppingListsButton/>
                 </div>
 
                 {/* Search and Filter Bar */}
@@ -322,10 +322,10 @@ export default function ShoppingPage() {
                     marginBottom: '1.5rem',
                     overflow: 'hidden'
                 }}>
-                    <div style={{ padding: '1.5rem' }}>
+                    <div style={{padding: '1.5rem'}}>
                         {/* Search Bar */}
-                        <div style={{ marginBottom: '1rem' }}>
-                            <div style={{ position: 'relative' }}>
+                        <div style={{marginBottom: '1rem'}}>
+                            <div style={{position: 'relative'}}>
                                 <input
                                     type="text"
                                     placeholder="Search recipes by name or description..."
@@ -375,15 +375,13 @@ export default function ShoppingPage() {
                                 }}
                             >
                                 🎛️ Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
-                                <span style={{ fontSize: '0.75rem' }}>
+                                <span style={{fontSize: '0.75rem'}}>
                                     {showFilters ? '▲' : '▼'}
                                 </span>
                             </TouchEnhancedButton>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                                    Showing {filteredRecipes.length} of {recipes.length} recipes
-                                </span>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+
                                 {getActiveFilterCount() > 0 && (
                                     <TouchEnhancedButton
                                         onClick={clearFilters}
@@ -511,9 +509,19 @@ export default function ShoppingPage() {
                             </div>
                         )}
 
+                        <div style={{
+                            marginTop: showFilters ? '1rem' : '0.5rem',
+                            marginBottom: '0.5rem',
+                            textAlign: 'center'
+                        }}>
+                            <span style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                                Showing {filteredRecipes.length} of {recipes.length} recipes
+                            </span>
+                        </div>
+
                         {/* Tags Filter (always visible when there are tags) */}
                         {availableTags.length > 0 && (
-                            <div style={{ marginTop: showFilters ? '1rem' : '0' }}>
+                            <div style={{marginTop: showFilters ? '1rem' : '0'}}>
                                 <label style={{
                                     display: 'block',
                                     fontSize: '0.875rem',
@@ -587,7 +595,7 @@ export default function ShoppingPage() {
                                         type="checkbox"
                                         checked={selectedRecipes.length === filteredRecipes.length && filteredRecipes.length > 0}
                                         onChange={handleSelectAll}
-                                        style={{ transform: 'scale(1.1)' }}
+                                        style={{transform: 'scale(1.1)'}}
                                     />
                                     Select All ({filteredRecipes.length} recipes)
                                 </label>
@@ -655,7 +663,7 @@ export default function ShoppingPage() {
                                                 borderTop: '2px solid white',
                                                 borderRadius: '50%',
                                                 animation: 'spin 1s linear infinite'
-                                            }} />
+                                            }}/>
                                             Generating...
                                         </>
                                     ) : (
@@ -702,7 +710,7 @@ export default function ShoppingPage() {
                         </h2>
                     </div>
 
-                    <div style={{ padding: '1.5rem' }}>
+                    <div style={{padding: '1.5rem'}}>
                         {filteredRecipes.length === 0 ? (
                             <div style={{
                                 textAlign: 'center',
@@ -711,16 +719,16 @@ export default function ShoppingPage() {
                             }}>
                                 {recipes.length === 0 ? (
                                     <>
-                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
-                                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                                        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📝</div>
+                                        <h3 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>
                                             No recipes found
                                         </h3>
                                         <p>Add some recipes first to generate shopping lists.</p>
                                     </>
                                 ) : (
                                     <>
-                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-                                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                                        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🔍</div>
+                                        <h3 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>
                                             No recipes match your filters
                                         </h3>
                                         <p>Try adjusting your search criteria or clearing some filters.</p>
@@ -764,7 +772,7 @@ export default function ShoppingPage() {
                                                     transform: 'scale(1.1)'
                                                 }}
                                             />
-                                            <div style={{ flex: 1 }}>
+                                            <div style={{flex: 1}}>
                                                 <h3 style={{
                                                     fontSize: '1rem',
                                                     fontWeight: '600',
@@ -814,7 +822,7 @@ export default function ShoppingPage() {
                                                     )}
                                                 </div>
                                                 {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem'}}>
                                                         {recipe.tags.slice(0, 4).map(tag => (
                                                             <span key={tag} style={{
                                                                 backgroundColor: selectedTags.includes(tag) ? '#4f46e5' : '#f3f4f6',
@@ -848,11 +856,15 @@ export default function ShoppingPage() {
 
                 <style jsx>{`
                     @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
+                        0% {
+                            transform: rotate(0deg);
+                        }
+                        100% {
+                            transform: rotate(360deg);
+                        }
                     }
                 `}</style>
-                <Footer />
+                <Footer/>
             </div>
         </MobileOptimizedLayout>
     );
