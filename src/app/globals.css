@@ -991,23 +991,17 @@ textarea {
 
 /* Add this to the bottom of your /src/app/globals.css file */
 
-/* EMERGENCY MOBILE HEADER FIX - Ensure content is visible below header */
+/* MOBILE HEADER FIX - Ensure content is visible below header */
 @media (max-width: 767px) {
     /* Force spacing for mobile dashboard content */
     .dashboard-container {
-        padding-top: 100px !important;
+        padding-top: 20px !important;
         margin-top: 0 !important;
     }
 
     /* Alternative approach - target the main content area */
-    main {
-        padding-top: 100px !important;
-    }
-
-    /* Ensure welcome card is visible */
-    .dashboard-container > div:first-child,
-    .dashboard-container .space-y-6 > div:first-child {
-        margin-top: 20px !important;
+    main.mobile-main-content {
+        padding-top: 80px !important;
     }
 
     /* Force header to stay at top with proper z-index */
@@ -1016,12 +1010,5 @@ textarea {
         position: fixed !important;
         top: 0 !important;
         background: white !important;
-    }
-}
-
-/* Fallback - if the above doesn't work, this definitely will */
-@media (max-width: 767px) {
-    body {
-        padding-top: 80px !important;
     }
 }

@@ -90,7 +90,7 @@ export default function MobileDashboardLayout({ children }) {
                     </div>
 
                     <div className="flex items-center space-x-2">
-                        {/* Quick add button */}
+                        {/* Quick add Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add')}
                             className="p-2 rounded-lg bg-green-600 text-white shadow-md hover:bg-green-700 active:scale-95 transition-all touch-friendly"
@@ -161,8 +161,8 @@ export default function MobileDashboardLayout({ children }) {
                 </div>
             )}
 
-            {/* Main Content - Very aggressive padding to ensure content clears header */}
-            <main className="mobile-main-content" style={{ paddingTop: '100px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
+            {/* Main Content - Right amount of padding to clear header */}
+            <main className="mobile-main-content" style={{ paddingTop: '80px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
