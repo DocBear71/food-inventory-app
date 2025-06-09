@@ -1196,3 +1196,141 @@ textarea {
     white-space: nowrap !important;
     border: 0 !important;
 }
+
+/* Meal Planning Recipe Remove Button - Responsive Sizing */
+.meal-recipe-remove {
+    /* Base mobile styles */
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #dc2626;
+    color: white;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.meal-recipe-remove:hover {
+    background-color: #b91c1c;
+    transform: scale(1.1);
+}
+
+.meal-recipe-remove:active {
+    transform: scale(0.95);
+}
+
+/* Desktop styles - smaller, less intrusive */
+@media (min-width: 768px) {
+    .meal-recipe-remove {
+        width: 20px;
+        height: 20px;
+        top: 6px;
+        right: 6px;
+        font-size: 12px;
+        border-width: 1px;
+    }
+}
+
+/* Large desktop - even smaller */
+@media (min-width: 1024px) {
+    .meal-recipe-remove {
+        width: 18px;
+        height: 18px;
+        top: 8px;
+        right: 8px;
+        font-size: 11px;
+        opacity: 0.8;
+    }
+
+    /* Show on hover for desktop */
+    .meal-recipe-card:hover .meal-recipe-remove {
+        opacity: 1;
+    }
+}
+
+/* Ensure recipe text has proper spacing */
+.meal-recipe-content {
+    padding-right: 32px; /* Space for remove button */
+    padding-top: 8px;
+}
+
+@media (min-width: 768px) {
+    .meal-recipe-content {
+        padding-right: 28px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .meal-recipe-content {
+        padding-right: 26px;
+    }
+}
+
+/* Meal Planning Remove Button - Responsive */
+.meal-remove-btn {
+    position: absolute !important;
+    top: 4px !important;
+    right: 4px !important;
+    background-color: #ef4444 !important;
+    color: white !important;
+    border: 2px solid white !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s ease !important;
+
+    /* Mobile first - larger for touch */
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 16px !important;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+    .meal-remove-btn {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 13px !important;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .meal-remove-btn {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 11px !important;
+        opacity: 0.8 !important;
+    }
+
+    /* Show fully on hover */
+    .meal-remove-btn:hover {
+        opacity: 1 !important;
+        background-color: #dc2626 !important;
+        transform: scale(1.1) !important;
+    }
+}
+
+.meal-remove-btn:hover {
+    background-color: #dc2626 !important;
+    transform: scale(1.05) !important;
+}
+
+.meal-remove-btn:active {
+    transform: scale(0.95) !important;
+}

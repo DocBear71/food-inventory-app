@@ -1010,7 +1010,7 @@ export default function MealPlanningCalendar() {
                                                         {meal.servings} servings • {meal.prepTime + meal.cookTime} min
                                                     </div>
 
-                                                    {/* Remove Button - Inline Styles for Visibility */}
+                                                    {/* Remove Button - Responsive Inline Styles */}
                                                     <TouchEnhancedButton
                                                         onClick={() => removeMealFromSlot(day, actualIndex)}
                                                         style={{
@@ -1019,23 +1019,38 @@ export default function MealPlanningCalendar() {
                                                             right: '4px',
                                                             backgroundColor: '#ef4444',
                                                             color: 'white',
-                                                            border: 'none',
+                                                            border: '2px solid white',
                                                             borderRadius: '50%',
-                                                            width: '20px',
-                                                            height: '20px',
+                                                            // Responsive sizing using CSS custom properties
+                                                            width: window.innerWidth >= 1024 ? '18px' : window.innerWidth >= 768 ? '20px' : '28px',
+                                                            height: window.innerWidth >= 1024 ? '18px' : window.innerWidth >= 768 ? '20px' : '28px',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            fontSize: '12px',
+                                                            fontSize: window.innerWidth >= 1024 ? '11px' : window.innerWidth >= 768 ? '12px' : '16px',
                                                             fontWeight: 'bold',
                                                             cursor: 'pointer',
-                                                            zIndex: 10
+                                                            zIndex: 10,
+                                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                                                            transition: 'all 0.2s ease',
+                                                            // Desktop: slightly transparent until hover
+                                                            opacity: window.innerWidth >= 1024 ? 0.8 : 1
                                                         }}
                                                         onMouseOver={(e) => {
                                                             e.target.style.backgroundColor = '#dc2626';
+                                                            e.target.style.transform = 'scale(1.1)';
+                                                            e.target.style.opacity = '1';
                                                         }}
                                                         onMouseOut={(e) => {
                                                             e.target.style.backgroundColor = '#ef4444';
+                                                            e.target.style.transform = 'scale(1)';
+                                                            e.target.style.opacity = window.innerWidth >= 1024 ? '0.8' : '1';
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            e.target.style.transform = 'scale(0.95)';
+                                                        }}
+                                                        onMouseUp={(e) => {
+                                                            e.target.style.transform = 'scale(1.1)';
                                                         }}
                                                         title="Remove meal"
                                                     >
