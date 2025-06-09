@@ -1,4 +1,4 @@
-// file: /src/components/recipes/RecipeParser.js v1
+// file: /src/components/recipes/RecipeParser.js v2
 
 'use client';
 
@@ -677,10 +677,36 @@ Instructions:
 
                             {/* Category */}
                             <div>
-                                <div className="recipe-category">
-                                    Category: {recipe.category}
-                                </div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Category
+                                </label>
+                                <select
+                                    value={parsedRecipe.category}
+                                    onChange={(e) => handleEditField('category', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    <option value="entrees">Entrees</option>
+                                    <option value="appetizers">Appetizers</option>
+                                    <option value="side-dishes">Side Dishes</option>
+                                    <option value="soups">Soups</option>
+                                    <option value="salads">Salads</option>
+                                    <option value="desserts">Desserts</option>
+                                    <option value="beverages">Beverages</option>
+                                    <option value="breakfast">Breakfast</option>
+                                    <option value="lunch">Lunch</option>
+                                    <option value="dinner">Dinner</option>
+                                    <option value="snacks">Snacks</option>
+                                    <option value="sauces">Sauces</option>
+                                    <option value="seasonings">Seasonings</option>
+                                    <option value="breads">Breads</option>
+                                    <option value="pasta">Pasta</option>
+                                    <option value="pizza">Pizza</option>
+                                    <option value="seafood">Seafood</option>
+                                    <option value="vegetarian">Vegetarian</option>
+                                    <option value="comfort-food">Comfort Food</option>
+                                </select>
                             </div>
+
                             {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
