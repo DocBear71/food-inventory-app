@@ -978,3 +978,13 @@ textarea {
     border-radius: 0.5rem !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
+
+/* Add this to your globals.css */
+.pwa-install-button {
+    color: #4f46e5 !important;
+    background-color: #ffffff !important;
+}
+
+.pwa-install-button:hover {
+    background-color: #eef2ff !important;
+}

@@ -118,7 +118,7 @@ const Footer = () => {
                                     marginBottom: '1rem',
                                     color: '#e74c3c'
                                 }}>
-                                    Doc Bear's Comfort Food
+                                    Doc Bear's Comfort Kitchen
                                 </h3>
                                 <p style={{
                                     fontSize: '14px',
