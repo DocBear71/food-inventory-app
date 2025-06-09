@@ -988,3 +988,10 @@ textarea {
 .pwa-install-button:hover {
     background-color: #eef2ff !important;
 }
+
+/* Emergency mobile header spacing fix */
+@media (max-width: 767px) {
+    .dashboard-container {
+        padding-top: 100px !important;
+    }
+}
