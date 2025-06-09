@@ -5,8 +5,8 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import { connectToDatabase } from '@/lib/mongodb';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/mongodb';
 import RecipeCollection from '@/models/RecipeCollection';
 import mongoose from 'mongoose';
 
@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
             );
         }
 
-        await connectToDatabase();
+        await connectDB();
 
         // Find collection - check if public or user owns it
         const collection = await RecipeCollection.findOne({
@@ -86,7 +86,7 @@ export async function PUT(request, { params }) {
             );
         }
 
-        await connectToDatabase();
+        await connectDB();
 
         // Find collection and verify ownership
         const collection = await RecipeCollection.findOne({
@@ -190,7 +190,7 @@ export async function DELETE(request, { params }) {
             );
         }
 
-        await connectToDatabase();
+        await connectDB();
 
         // Find and delete collection (verify ownership)
         const deletedCollection = await RecipeCollection.findOneAndDelete({

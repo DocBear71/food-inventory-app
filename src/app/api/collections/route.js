@@ -4,8 +4,8 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
-import { connectToDatabase } from '@/lib/mongodb';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/mongodb';
 import RecipeCollection from '@/models/RecipeCollection';
 
 export async function GET(request) {
@@ -19,7 +19,7 @@ export async function GET(request) {
             );
         }
 
-        await connectToDatabase();
+        await connectDB();
 
         // Fetch user's collections, populate recipe details
         const collections = await RecipeCollection.find({
@@ -82,7 +82,7 @@ export async function POST(request) {
             );
         }
 
-        await connectToDatabase();
+        await connectDB();
 
         // Check if user already has a collection with this name
         const existingCollection = await RecipeCollection.findOne({
