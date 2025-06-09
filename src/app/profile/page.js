@@ -1,4 +1,4 @@
-// file: /src/app/profile/page.js v3 - CLIENT with Robust Error Handling
+// file: /src/app/profile/page.js v4 - COMPLETE with All Tabs Restored
 
 'use client';
 
@@ -151,7 +151,7 @@ export default function ProfilePage() {
     // Improved file validation
     const validateFile = (file) => {
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        const maxSize = 2 * 1024 * 1024; // 2MB
+        const maxSize = 1 * 1024 * 1024; // 1MB for Vercel
 
         if (!file) {
             throw new Error('No file selected');
@@ -162,7 +162,7 @@ export default function ProfilePage() {
         }
 
         if (file.size > maxSize) {
-            throw new Error('Image must be smaller than 2MB. Please choose a smaller image.');
+            throw new Error('Image must be smaller than 1MB. Please choose a smaller image.');
         }
 
         if (file.size === 0) {
@@ -620,7 +620,7 @@ export default function ProfilePage() {
                                                     className="hidden"
                                                 />
                                                 <p className="text-xs text-gray-500 text-center">
-                                                    JPG, PNG, GIF or WebP. Max 2MB.<br/>
+                                                    JPG, PNG, GIF or WebP. Max 1MB.<br/>
                                                     Large images will be automatically compressed.<br/>
                                                     Loading % may pause at 90%, just let it finish.
                                                 </p>
@@ -705,7 +705,345 @@ export default function ProfilePage() {
                                     </div>
                                 )}
 
-                                {/* Security Tab - Keep this visible for testing */}
+                                {/* Notifications Tab - RESTORED */}
+                                {activeTab === 'notifications' && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Email Notifications</h3>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="email-enabled"
+                                                        checked={formData.notificationSettings.email.enabled}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'email', 'enabled', e.target.checked)}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    />
+                                                    <label htmlFor="email-enabled" className="ml-3 text-sm text-gray-700">
+                                                        Enable email notifications
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="daily-digest"
+                                                        checked={formData.notificationSettings.email.dailyDigest}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'email', 'dailyDigest', e.target.checked)}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    />
+                                                    <label htmlFor="daily-digest" className="ml-3 text-sm text-gray-700">
+                                                        Daily digest emails
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="expiration-alerts"
+                                                        checked={formData.notificationSettings.email.expirationAlerts}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'email', 'expirationAlerts', e.target.checked)}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    />
+                                                    <label htmlFor="expiration-alerts" className="ml-3 text-sm text-gray-700">
+                                                        Food expiration alerts
+                                                    </label>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Alert me _ days before expiration
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max="30"
+                                                        value={formData.notificationSettings.email.daysBeforeExpiration}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'email', 'daysBeforeExpiration', parseInt(e.target.value))}
+                                                        className="mt-1 block w-20 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{ fontSize: '16px' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Dashboard Settings</h3>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="show-expiration-panel"
+                                                        checked={formData.notificationSettings.dashboard.showExpirationPanel}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'showExpirationPanel', e.target.checked)}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    />
+                                                    <label htmlFor="show-expiration-panel" className="ml-3 text-sm text-gray-700">
+                                                        Show expiration alerts panel
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="show-quick-stats"
+                                                        checked={formData.notificationSettings.dashboard.showQuickStats}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'showQuickStats', e.target.checked)}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    />
+                                                    <label htmlFor="show-quick-stats" className="ml-3 text-sm text-gray-700">
+                                                        Show quick stats
+                                                    </label>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Alert threshold (days)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max="30"
+                                                        value={formData.notificationSettings.dashboard.alertThreshold}
+                                                        onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'alertThreshold', parseInt(e.target.value))}
+                                                        className="mt-1 block w-20 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{ fontSize: '16px' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Meal Planning Tab - RESTORED */}
+                                {activeTab === 'meal-planning' && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Week starts on
+                                            </label>
+                                            <select
+                                                value={formData.mealPlanningPreferences.weekStartDay}
+                                                onChange={(e) => handleInputChange('mealPlanningPreferences', 'weekStartDay', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="sunday">Sunday</option>
+                                                <option value="monday">Monday</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Default meal types
+                                            </label>
+                                            <div className="space-y-3">
+                                                {['breakfast', 'lunch', 'dinner', 'snack'].map((meal) => (
+                                                    <div key={meal} className="flex items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={meal}
+                                                            checked={formData.mealPlanningPreferences.defaultMealTypes.includes(meal)}
+                                                            onChange={(e) => {
+                                                                const current = formData.mealPlanningPreferences.defaultMealTypes;
+                                                                const updated = e.target.checked
+                                                                    ? [...current, meal]
+                                                                    : current.filter(m => m !== meal);
+                                                                handleInputChange('mealPlanningPreferences', 'defaultMealTypes', updated);
+                                                            }}
+                                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                        />
+                                                        <label htmlFor={meal} className="ml-3 text-sm text-gray-700 capitalize">
+                                                            {meal}
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Planning horizon
+                                            </label>
+                                            <select
+                                                value={formData.mealPlanningPreferences.planningHorizon}
+                                                onChange={(e) => handleInputChange('mealPlanningPreferences', 'planningHorizon', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="week">1 Week</option>
+                                                <option value="2weeks">2 Weeks</option>
+                                                <option value="month">1 Month</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Preferred shopping day
+                                            </label>
+                                            <select
+                                                value={formData.mealPlanningPreferences.shoppingDay}
+                                                onChange={(e) => handleInputChange('mealPlanningPreferences', 'shoppingDay', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
+                                                    <option key={day} value={day} className="capitalize">{day}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Cooking time preference
+                                            </label>
+                                            <select
+                                                value={formData.mealPlanningPreferences.cookingTimePreference}
+                                                onChange={(e) => handleInputChange('mealPlanningPreferences', 'cookingTimePreference', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="quick">Quick meals (under 30 min)</option>
+                                                <option value="moderate">Moderate (30-60 min)</option>
+                                                <option value="any">Any duration</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Dietary restrictions
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.mealPlanningPreferences.dietaryRestrictions.join(', ')}
+                                                onChange={(e) => handleArrayChange('mealPlanningPreferences', 'dietaryRestrictions', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ fontSize: '16px' }}
+                                                placeholder="Vegetarian, Gluten-free, etc. (comma separated)"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Ingredients to avoid
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.mealPlanningPreferences.avoidIngredients.join(', ')}
+                                                onChange={(e) => handleArrayChange('mealPlanningPreferences', 'avoidIngredients', e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ fontSize: '16px' }}
+                                                placeholder="Nuts, shellfish, etc. (comma separated)"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Nutrition Tab - RESTORED */}
+                                {activeTab === 'nutrition' && (
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Daily Calories
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1000"
+                                                    max="5000"
+                                                    value={formData.nutritionGoals.dailyCalories}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Protein (grams)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="500"
+                                                    value={formData.nutritionGoals.protein}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'protein', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Fat (grams)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="300"
+                                                    value={formData.nutritionGoals.fat}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'fat', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Carbohydrates (grams)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="500"
+                                                    value={formData.nutritionGoals.carbs}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'carbs', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Fiber (grams)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    value={formData.nutritionGoals.fiber}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'fiber', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Sodium (mg)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="5000"
+                                                    value={formData.nutritionGoals.sodium}
+                                                    onChange={(e) => handleInputChange('nutritionGoals', 'sodium', parseInt(e.target.value))}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ fontSize: '16px' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                                            <h4 className="text-sm font-medium text-blue-900 mb-2">💡 Nutrition Tips</h4>
+                                            <ul className="text-sm text-blue-700 space-y-1">
+                                                <li>• Consult with a healthcare provider for personalized nutrition goals</li>
+                                                <li>• These values are used to track your daily nutrition intake</li>
+                                                <li>• Adjust based on your activity level and health goals</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Security Tab */}
                                 {activeTab === 'security' && (
                                     <div className="space-y-6">
                                         <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
@@ -747,19 +1085,10 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Add placeholder for other tabs */}
-                                {activeTab !== 'general' && activeTab !== 'security' && (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500">
-                                            {tabs.find(tab => tab.id === activeTab)?.name} settings coming soon...
-                                        </p>
-                                    </div>
-                                )}
                             </div>
 
                             {/* Save Button */}
-                            {activeTab === 'general' && (
+                            {activeTab !== 'security' && (
                                 <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                                     <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
                                         <TouchEnhancedButton
