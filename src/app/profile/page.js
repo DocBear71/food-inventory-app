@@ -621,7 +621,8 @@ export default function ProfilePage() {
                                                 />
                                                 <p className="text-xs text-gray-500 text-center">
                                                     JPG, PNG, GIF or WebP. Max 2MB.<br/>
-                                                    Large images will be automatically compressed.
+                                                    Large images will be automatically compressed.<br/>
+                                                    Loading % may pause at 90%, just let it finish.
                                                 </p>
                                             </div>
                                         </div>
