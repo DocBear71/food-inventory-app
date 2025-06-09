@@ -29,6 +29,7 @@ export default function DashboardLayout({ children }) {
         { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅' },
         { name: 'Shopping List', href: '/shopping', icon: '🛒' },
+        { name: 'Profile Settings', href: '/profile', icon: '👤' },
         { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 

@@ -52,6 +52,7 @@ export default function MobileDashboardLayout({ children }) {
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning') },
         { name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
+        { name: "Profile", href: '/profile', icon: '👤', current: pathname.startsWith('/profile') },
     ];
 
     const handleNavigation = (href) => {
@@ -150,11 +151,11 @@ export default function MobileDashboardLayout({ children }) {
 
                         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
                             <TouchEnhancedButton
-                                onClick={() => handleNavigation('/settings')}
+                                onClick={() => handleNavigation('/profile')}
                                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
                             >
                                 <span className="text-xl">⚙️</span>
-                                <span className="font-medium">Settings</span>
+                                <span className="font-medium">Profile Settings</span>
                             </TouchEnhancedButton>
                         </div>
                     </div>
