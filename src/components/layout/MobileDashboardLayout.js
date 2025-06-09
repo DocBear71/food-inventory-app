@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js v3 - Enhanced mobile layout with PWA banner support
+// file: /src/components/layout/MobileDashboardLayout.js - Enhanced mobile layout with PWA banner support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { PWAInstallBanner } from '@/components/mobile/PWAInstallBanner';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 
 export default function MobileDashboardLayout({ children }) {
     const { data: session } = useSession();
@@ -74,7 +75,7 @@ export default function MobileDashboardLayout({ children }) {
             }`}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center space-x-3">
-                        <button
+                        <TouchEnhancedButton
                             onClick={toggleMobileMenu}
                             className="p-2 rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Open menu"
@@ -82,7 +83,7 @@ export default function MobileDashboardLayout({ children }) {
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
                         <h1 className="text-xl font-bold text-gray-900 truncate">
                             Doc Bear's Comfort Kitchen
                         </h1>
@@ -90,7 +91,7 @@ export default function MobileDashboardLayout({ children }) {
 
                     <div className="flex items-center space-x-2">
                         {/* Quick add button */}
-                        <button
+                        <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add')}
                             className="p-2 rounded-lg bg-green-600 text-white shadow-md hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
@@ -98,7 +99,7 @@ export default function MobileDashboardLayout({ children }) {
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
-                        </button>
+                        </TouchEnhancedButton>
 
                         {/* User avatar */}
                         <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -117,19 +118,19 @@ export default function MobileDashboardLayout({ children }) {
                     <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
                             <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
                         <nav className="px-4 py-6 space-y-2">
                             {navigation.map((item) => (
-                                <button
+                                <TouchEnhancedButton
                                     key={item.name}
                                     onClick={() => handleNavigation(item.href)}
                                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
@@ -143,25 +144,25 @@ export default function MobileDashboardLayout({ children }) {
                                     {item.current && (
                                         <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full" />
                                     )}
-                                </button>
+                                </TouchEnhancedButton>
                             ))}
                         </nav>
 
                         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
-                            <button
+                            <TouchEnhancedButton
                                 onClick={() => handleNavigation('/settings')}
                                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
                             >
                                 <span className="text-xl">⚙️</span>
                                 <span className="font-medium">Settings</span>
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Main Content - Fixed padding to clear header */}
-            <main className={`pt-70 ${bottomPadding}`}>
+            {/* Main Content - Very aggressive padding to ensure content clears header */}
+            <main className="mobile-main-content" style={{ paddingTop: '100px', paddingBottom: showPWABanner ? '128px' : '80px' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
@@ -171,7 +172,7 @@ export default function MobileDashboardLayout({ children }) {
             <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
                 <div className="grid grid-cols-5 h-16">
                     {navigation.map((item) => (
-                        <button
+                        <TouchEnhancedButton
                             key={item.name}
                             onClick={() => handleNavigation(item.href)}
                             className={`flex flex-col items-center justify-center space-y-1 transition-all touch-friendly ${
@@ -187,7 +188,7 @@ export default function MobileDashboardLayout({ children }) {
                             {item.current && (
                                 <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full" />
                             )}
-                        </button>
+                        </TouchEnhancedButton>
                     ))}
                 </div>
             </nav>
