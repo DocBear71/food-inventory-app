@@ -642,11 +642,17 @@ body {
     background-color: #e0e7ff !important;
 }
 
+.hover\:bg-indigo-700:hover {
+    background-color: #4338ca !important;
+}
+
 .hover\:bg-red-100:hover {
-    background-color: #fee2e2 !important; }
+    background-color: #fee2e2 !important;
+}
 
 .hover\:bg-blue-100:hover {
-    background-color: #dbeafe !important; }
+    background-color: #dbeafe !important;
+}
 
 .hover\:bg-green-100:hover {
     background-color: #dcfce7 !important;
@@ -1275,6 +1281,7 @@ textarea {
 .hover\:bg-gray-100:hover { background-color: #f3f4f6 !important; }
 .hover\:bg-gray-200:hover { background-color: #e5e7eb !important; }
 .hover\:bg-gray-400:hover { background-color: #9ca3af !important; }
+.hover\:bg-gray-700:hover { background-color: #6b7391 !important; }
 
 /* MISSING GREEN COLORS */
 .text-green-900 { color: #14532d !important; }

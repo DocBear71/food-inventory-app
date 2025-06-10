@@ -523,7 +523,7 @@ export default function EditRecipePage() {
                         <TouchEnhancedButton
                             type="button"
                             onClick={() => router.back()}
-                            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
+                            className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-black hover:bg-gray-50 font-medium"
                         >
                             Cancel
                         </TouchEnhancedButton>
