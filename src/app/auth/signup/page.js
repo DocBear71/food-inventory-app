@@ -309,6 +309,7 @@ export default function SignUp() {
                         </div>
                     </form>
                 </div>
+                <br/>
                 <Footer />
             </div>
 

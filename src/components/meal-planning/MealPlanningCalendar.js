@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v11
+// file: /src/components/meal-planning/MealPlanningCalendar.js v12 - Fixed button styling
 
 'use client';
 
@@ -419,43 +419,23 @@ export default function MealPlanningCalendar() {
 
                         {/* Action Buttons - Mobile */}
                         <div className="flex flex-col space-y-3">
-                            {/* Template Button - First for easy access */}
+                            {/* Template Button - First for prominence */}
                             {mealPlan && (
                                 <TemplateLibraryButton
                                     mealPlanId={mealPlan._id}
                                     mealPlanName={mealPlan.name}
                                     onTemplateApplied={handleTemplateApplied}
                                     disabled={false}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="Save or load meal plan templates"
                                 />
                             )}
 
-                            {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
+                            {/* Shopping List Button - FIXED WITH PROPER STYLING */}
                             {mealsPlanned && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowShoppingList(true)}
-                                    style={{
-                                        backgroundColor: '#16a34a',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        padding: '0.75rem 1.5rem',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        transition: 'background-color 0.2s',
-                                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                                        width: '100%',
-                                        justifyContent: 'center'
-                                    }}
-                                    onMouseOver={(e) => {
-                                        e.target.style.backgroundColor = '#15803d';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.target.style.backgroundColor = '#16a34a';
-                                    }}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
                                     title="Generate shopping list from your meal plan"
                                 >
                                     🛒 Shopping List
@@ -468,6 +448,8 @@ export default function MealPlanningCalendar() {
                                     mealPlanId={mealPlan._id}
                                     mealPlanName={mealPlan.name}
                                     disabled={!mealsPlanned}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="Get meal preparation instructions and tips"
                                 />
                             )}
 
@@ -477,6 +459,8 @@ export default function MealPlanningCalendar() {
                                     mealPlanId={mealPlan._id}
                                     mealPlanName={mealPlan.name}
                                     disabled={!mealsPlanned}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="View nutritional breakdown of your meal plan"
                                 />
                             )}
                         </div>
@@ -807,34 +791,16 @@ export default function MealPlanningCalendar() {
                                 mealPlanName={mealPlan.name}
                                 onTemplateApplied={handleTemplateApplied}
                                 disabled={false}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="Save or load meal plan templates"
                             />
                         )}
 
-                        {/* Shopping List Button - FIXED TO MATCH OTHER BUTTONS */}
+                        {/* Shopping List Button - FIXED WITH PROPER STYLING */}
                         {mealsPlanned && (
                             <TouchEnhancedButton
                                 onClick={() => setShowShoppingList(true)}
-                                style={{
-                                    backgroundColor: '#16a34a',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    padding: '0.75rem 1.5rem',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    transition: 'background-color 0.2s',
-                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.backgroundColor = '#15803d';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.backgroundColor = '#16a34a';
-                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
                                 title="Generate shopping list from your meal plan"
                             >
                                 🛒 Shopping List
@@ -847,6 +813,8 @@ export default function MealPlanningCalendar() {
                                 mealPlanId={mealPlan._id}
                                 mealPlanName={mealPlan.name}
                                 disabled={!mealsPlanned}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="Get meal preparation instructions and tips"
                             />
                         )}
 
@@ -856,6 +824,8 @@ export default function MealPlanningCalendar() {
                                 mealPlanId={mealPlan._id}
                                 mealPlanName={mealPlan.name}
                                 disabled={!mealsPlanned}
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="View nutritional breakdown of your meal plan"
                             />
                         )}
                     </div>
