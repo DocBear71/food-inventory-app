@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPrepButton.js v2
+// file: /src/components/meal-planning/MealPrepButton.js v3
 
 'use client';
 
@@ -24,31 +24,11 @@ export default function MealPrepButton({
             <TouchEnhancedButton
                 onClick={handleClick}
                 disabled={disabled}
-                style={{
-                    backgroundColor: disabled ? '#9ca3af' : '#8b5cf6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'background-color 0.2s',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                }}
-                onMouseOver={(e) => {
-                    if (!disabled) {
-                        e.target.style.backgroundColor = '#7c3aed';
-                    }
-                }}
-                onMouseOut={(e) => {
-                    if (!disabled) {
-                        e.target.style.backgroundColor = '#8b5cf6';
-                    }
-                }}
+                className={`${
+                    disabled
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-violet-500 hover:bg-violet-600 cursor-pointer'
+                } text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md`}
                 title={disabled ? 'Add some meals to your plan first' : 'Get intelligent meal prep suggestions for batch cooking'}
             >
                 🍳 Meal Prep

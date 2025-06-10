@@ -20,31 +20,11 @@ export default function NutritionAnalysisButton({ mealPlanId, mealPlanName, disa
             <TouchEnhancedButton
                 onClick={handleClick}
                 disabled={disabled}
-                style={{
-                    backgroundColor: disabled ? '#9ca3af' : '#059669',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'background-color 0.2s',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                }}
-                onMouseOver={(e) => {
-                    if (!disabled) {
-                        e.target.style.backgroundColor = '#047857';
-                    }
-                }}
-                onMouseOut={(e) => {
-                    if (!disabled) {
-                        e.target.style.backgroundColor = '#059669';
-                    }
-                }}
+                className={`${
+                    disabled
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                } text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md`}
                 title={disabled ? 'Add some meals to your plan first' : 'View weekly nutrition analysis'}
             >
                 📊 Nutrition Overview
