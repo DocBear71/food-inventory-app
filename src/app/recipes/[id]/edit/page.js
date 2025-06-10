@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/edit/page.js v2
+// file: /src/app/recipes/[id]/edit/page.js v3 - Fixed layout and labels
 
 'use client';
 
@@ -393,21 +393,30 @@ export default function EditRecipePage() {
 
                     {/* Ingredients */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={addIngredient}
-                                className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-700"
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
                             >
                                 Add Ingredient
                             </TouchEnhancedButton>
                         </div>
 
-                        <div className="space-y-3">
+                        {/* Column Headers */}
+                        <div className="grid grid-cols-12 gap-3 mb-3 text-sm font-medium text-gray-600">
+                            <div className="col-span-2">Amount</div>
+                            <div className="col-span-2">Unit</div>
+                            <div className="col-span-5">Ingredient Name</div>
+                            <div className="col-span-2 text-center">Optional</div>
+                            <div className="col-span-1 text-center">Remove</div>
+                        </div>
+
+                        <div className="space-y-4">
                             {formData.ingredients.map((ingredient, index) => (
-                                <div key={index} className="grid grid-cols-12 gap-3 items-end">
-                                    <div className="col-span-3">
+                                <div key={index} className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-50 rounded-lg">
+                                    <div className="col-span-2">
                                         <input
                                             type="text"
                                             placeholder="Amount"
@@ -435,24 +444,29 @@ export default function EditRecipePage() {
                                             required
                                         />
                                     </div>
-                                    <div className="col-span-1">
-                                        <input
-                                            type="checkbox"
-                                            checked={ingredient.optional || false}
-                                            onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                            title="Optional"
-                                        />
+                                    <div className="col-span-2 flex justify-center">
+                                        <label className="flex items-center space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={ingredient.optional || false}
+                                                onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
+                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-xs text-gray-600">Optional</span>
+                                        </label>
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 flex justify-center">
                                         {formData.ingredients.length > 1 && (
-                                            <button
+                                            <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => removeIngredient(index)}
-                                                className="text-red-600 hover:text-red-800"
+                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md"
+                                                title="Remove ingredient"
                                             >
-                                                ×
-                                            </button>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </TouchEnhancedButton>
                                         )}
                                     </div>
                                 </div>
@@ -462,20 +476,20 @@ export default function EditRecipePage() {
 
                     {/* Instructions */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-semibold text-gray-900">Instructions</h2>
-                            <button
+                            <TouchEnhancedButton
                                 type="button"
                                 onClick={addInstruction}
-                                className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-700"
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
                             >
                                 Add Step
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {formData.instructions.map((instruction, index) => (
-                                <div key={index} className="flex items-start space-x-3">
+                                <div key={index} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
                                     <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold mt-1">
                                         {index + 1}
                                     </span>
@@ -483,18 +497,21 @@ export default function EditRecipePage() {
                                         value={instruction}
                                         onChange={(e) => updateInstruction(index, e.target.value)}
                                         placeholder={`Step ${index + 1} instructions...`}
-                                        rows={2}
+                                        rows={3}
                                         className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         required
                                     />
                                     {formData.instructions.length > 1 && (
-                                        <button
+                                        <TouchEnhancedButton
                                             type="button"
                                             onClick={() => removeInstruction(index)}
-                                            className="text-red-600 hover:text-red-800 mt-2"
+                                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md mt-1"
+                                            title="Remove step"
                                         >
-                                            ×
-                                        </button>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </TouchEnhancedButton>
                                     )}
                                 </div>
                             ))}
@@ -502,23 +519,24 @@ export default function EditRecipePage() {
                     </div>
 
                     {/* Submit Buttons */}
-                    <div className="flex justify-end space-x-4">
-                        <button
+                    <div className="flex justify-end space-x-4 pt-6 pb-8">
+                        <TouchEnhancedButton
                             type="button"
                             onClick={() => router.back()}
-                            className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                            className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium"
                         >
                             {loading ? 'Updating...' : 'Update Recipe'}
-                        </button>
+                        </TouchEnhancedButton>
                     </div>
                 </form>
+
                 <Footer />
             </div>
         </MobileOptimizedLayout>
