@@ -94,7 +94,9 @@ export default function ShoppingPage() {
                     !ingredientNormalized.includes('cornstarch') &&
                     !ingredientNormalized.includes('cornmeal') &&
                     !ingredientNormalized.includes('corn flake') &&
-                    !ingredientNormalized.includes('corn syrup'));
+                    !ingredientNormalized.includes('corn syrup') &&
+                !ingredientNormalized.includes('cornhusks') &&
+                !ingredientNormalized.includes('corn starch'));
         }
 
         if (searchNormalized === 'flour') {
@@ -743,7 +745,7 @@ export default function ShoppingPage() {
                         )}
                     </div>
                 </div>
-
+                <br/>
                 <Footer />
             </div>
         </MobileOptimizedLayout>
