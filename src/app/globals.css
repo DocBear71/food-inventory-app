@@ -642,6 +642,10 @@ body {
     background-color: #e0e7ff !important;
 }
 
+.hover\:bg-indigo-400:hover {
+    background-color: #655aec !important;
+}
+
 .hover\:bg-indigo-700:hover {
     background-color: #4338ca !important;
 }
