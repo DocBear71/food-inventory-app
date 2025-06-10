@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/[id]/route.js v2 - CLEAN VERSION
+// file: /src/app/api/recipes/[id]/route.js v3 - Updated with User Tracking
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -23,6 +23,7 @@ export async function GET(request, { params }) {
 
         const recipe = await Recipe.findById(recipeId)
             .populate('createdBy', 'name profile.cookingLevel')
+            .populate('lastEditedBy', 'name') // NEW: Populate last editor info
             .lean();
 
         if (!recipe) {
@@ -95,7 +96,7 @@ export async function PUT(request, { params }) {
         const allowedUpdates = [
             'title', 'description', 'ingredients', 'instructions',
             'cookTime', 'prepTime', 'servings', 'difficulty', 'tags',
-            'source', 'isPublic'
+            'source', 'isPublic', 'category' // Added category to allowed updates
         ];
 
         allowedUpdates.forEach(field => {
@@ -104,12 +105,21 @@ export async function PUT(request, { params }) {
             }
         });
 
+        // NEW: Track who last edited this recipe
+        recipe.lastEditedBy = session.user.id;
         recipe.updatedAt = new Date();
+
         await recipe.save();
+
+        // Return populated recipe for better response
+        const updatedRecipe = await Recipe.findById(recipeId)
+            .populate('createdBy', 'name profile.cookingLevel')
+            .populate('lastEditedBy', 'name')
+            .lean();
 
         return NextResponse.json({
             success: true,
-            recipe,
+            recipe: updatedRecipe,
             message: 'Recipe updated successfully'
         });
 

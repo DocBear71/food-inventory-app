@@ -528,30 +528,98 @@ export default function RecipeDetailPage() {
 
                     {/* Sidebar */}
                     <div className="space-y-6">
-                        {/* Recipe Info Card */}
+                        {/* Recipe Info Card - Updated with user tracking */}
                         <div className="bg-white rounded-lg border p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
                             <div className="space-y-3 text-sm">
+                                {/* Source */}
                                 {recipe.source && (
                                     <div>
                                         <span className="text-gray-500">Source:</span>
                                         <span className="ml-2 text-gray-900">{recipe.source}</span>
                                     </div>
                                 )}
+
+                                {/* Imported From (for cookbook recipes) */}
+                                {recipe.importedFrom && (
+                                    <div>
+                                        <span className="text-gray-500">Imported from:</span>
+                                        <span className="ml-2 text-gray-900 italic">{recipe.importedFrom}</span>
+                                    </div>
+                                )}
+
+                                {/* Created By */}
+                                <div>
+                                    <span className="text-gray-500">Added by:</span>
+                                    <span className="ml-2 text-gray-900">
+                {recipe.createdBy ? (
+                    <span className="flex items-center gap-1">
+                        <span>{recipe.createdBy.name || recipe.createdBy.email}</span>
+                        {recipe.importedFrom && (
+                            <span className="text-xs text-gray-400">(imported)</span>
+                        )}
+                    </span>
+                ) : (
+                    <span className="text-gray-400">Unknown</span>
+                )}
+            </span>
+                                </div>
+
+                                {/* Created Date */}
                                 <div>
                                     <span className="text-gray-500">Created:</span>
                                     <span className="ml-2 text-gray-900">
-                                        {new Date(recipe.createdAt).toLocaleDateString()}
-                                    </span>
+                {new Date(recipe.createdAt).toLocaleDateString()}
+            </span>
                                 </div>
+
+                                {/* Last Edited (only show if different from created) */}
                                 {recipe.updatedAt !== recipe.createdAt && (
+                                    <>
+                                        <div>
+                                            <span className="text-gray-500">Last edited by:</span>
+                                            <span className="ml-2 text-gray-900">
+                        {recipe.lastEditedBy ? (
+                            recipe.lastEditedBy.name || recipe.lastEditedBy.email
+                        ) : (
+                            recipe.createdBy ? (
+                                recipe.createdBy.name || recipe.createdBy.email
+                            ) : (
+                                <span className="text-gray-400">Unknown</span>
+                            )
+                        )}
+                    </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Updated:</span>
+                                            <span className="ml-2 text-gray-900">
+                        {new Date(recipe.updatedAt).toLocaleDateString()}
+                    </span>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Category */}
+                                {recipe.category && (
                                     <div>
-                                        <span className="text-gray-500">Updated:</span>
-                                        <span className="ml-2 text-gray-900">
-                                            {new Date(recipe.updatedAt).toLocaleDateString()}
-                                        </span>
+                                        <span className="text-gray-500">Category:</span>
+                                        <span className="ml-2 text-gray-900 capitalize">
+                    {recipe.category.replace(/-/g, ' ')}
+                </span>
                                     </div>
                                 )}
+
+                                {/* Privacy Status */}
+                                <div>
+                                    <span className="text-gray-500">Visibility:</span>
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                        recipe.isPublic
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                {recipe.isPublic ? 'Public' : 'Private'}
+            </span>
+                                </div>
                             </div>
                         </div>
 

@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v8 FIXED
+// file: /src/lib/models.js - v9 UPDATED with Recipe user tracking
 
 import mongoose from 'mongoose';
 
@@ -322,7 +322,7 @@ const UserInventorySchema = new mongoose.Schema({
 // Recipe Ingredient Schema - Enhanced with nutrition
 const RecipeIngredientSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    amount: String,
+    amount: { type: mongoose.Schema.Types.Mixed }, // Updated to Mixed for flexible types
     unit: String,
     category: String,
     alternatives: [String],
@@ -332,10 +332,10 @@ const RecipeIngredientSchema = new mongoose.Schema({
     nutrition: NutritionSchema
 });
 
-// Recipe Schema - Enhanced with rating and review system
+// Recipe Schema - Enhanced with rating, review system, and USER TRACKING
 const RecipeSchema = new mongoose.Schema({
     title: { type: String, required: true },
-    description: String,
+    description: { type: String, default: '' }, // Updated with default
     ingredients: [RecipeIngredientSchema],
     instructions: [String],
     cookTime: Number, // in minutes
@@ -359,12 +359,23 @@ const RecipeSchema = new mongoose.Schema({
     },
 
     tags: [String],
-    source: String,
+    source: { type: String, default: '' }, // Updated with default
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
+
+    // NEW: USER TRACKING FIELDS
+    lastEditedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    importedFrom: {
+        type: String,
+        default: null // e.g., "Doc Bear's Comfort Food Survival Guide Volume 1"
+    },
+
     isPublic: { type: Boolean, default: false },
 
     // Nutrition information
@@ -399,6 +410,17 @@ const RecipeSchema = new mongoose.Schema({
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
+}, {
+    timestamps: true // This will auto-update updatedAt
+});
+
+// Pre-save middleware to update lastEditedBy on edits
+RecipeSchema.pre('save', function(next) {
+    if (this.isModified() && !this.isNew) {
+        this.updatedAt = new Date();
+        // Note: lastEditedBy should be set in your API routes when editing
+    }
+    next();
 });
 
 // Daily Nutrition Log Schema - Track user's daily nutrition intake

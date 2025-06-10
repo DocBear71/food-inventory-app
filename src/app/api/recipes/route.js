@@ -1,20 +1,17 @@
-// file: /src/app/api/recipes/route.js - v3
+// file: /src/app/api/recipes/route.js - v4 - Updated with user tracking
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { Recipe } from '@/lib/models';
+import { Recipe, User } from '@/lib/models';
 
 // GET - Fetch user's recipes or a single recipe
 export async function GET(request) {
     try {
         const session = await getServerSession(authOptions);
 
-        console.log('GET /api/recipes - Session:', session);
-
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -24,14 +21,16 @@ export async function GET(request) {
         await connectDB();
 
         if (recipeId) {
-            // Get single recipe
+            // Get single recipe with user information populated
             const recipe = await Recipe.findOne({
                 _id: recipeId,
                 $or: [
                     { createdBy: session.user.id },
                     { isPublic: true }
                 ]
-            });
+            })
+                .populate('createdBy', 'name email') // Populate creator info
+                .populate('lastEditedBy', 'name email'); // Populate last editor info
 
             if (!recipe) {
                 return NextResponse.json(
@@ -45,13 +44,16 @@ export async function GET(request) {
                 recipe
             });
         } else {
-            // Get user's recipes and public recipes
+            // Get user's recipes and public recipes with user info
             const recipes = await Recipe.find({
                 $or: [
                     { createdBy: session.user.id },
                     { isPublic: true }
                 ]
-            }).sort({ createdAt: -1 });
+            })
+                .populate('createdBy', 'name email')
+                .populate('lastEditedBy', 'name email')
+                .sort({ createdAt: -1 });
 
             return NextResponse.json({
                 success: true,
@@ -71,19 +73,13 @@ export async function GET(request) {
 // POST - Add new recipe
 export async function POST(request) {
     try {
-        console.log('=== POST /api/recipes START ===');
-
         const session = await getServerSession(authOptions);
-        console.log('Session:', session);
 
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
-        console.log('Request body:', JSON.stringify(body, null, 2));
-
         const {
             title,
             description,
@@ -96,22 +92,19 @@ export async function POST(request) {
             tags,
             source,
             isPublic,
-            nutrition // Make sure to extract nutrition from body
+            category,
+            nutrition,
+            importedFrom // ADD THIS for imported recipes
         } = body;
 
         if (!title || !ingredients || ingredients.length === 0) {
-            console.log('Validation failed - missing title or ingredients');
             return NextResponse.json(
                 { error: 'Recipe title and at least one ingredient are required' },
                 { status: 400 }
             );
         }
 
-        console.log('Connecting to database...');
         await connectDB();
-        console.log('Database connected successfully');
-
-        console.log('Nutrition data received:', nutrition);
 
         const recipeData = {
             title,
@@ -125,10 +118,12 @@ export async function POST(request) {
             tags: tags || [],
             source: source || '',
             isPublic: isPublic || false,
-            createdBy: session.user.id,
+            category: category || 'entrees',
+            createdBy: session.user.id, // Set creator
+            lastEditedBy: session.user.id, // Set initial editor as creator
+            importedFrom: importedFrom || null, // Track if imported
             createdAt: new Date(),
             updatedAt: new Date(),
-            // Include nutrition data if provided
             ...(nutrition && Object.keys(nutrition).length > 0 && {
                 nutrition: nutrition,
                 nutritionManuallySet: true,
@@ -136,14 +131,12 @@ export async function POST(request) {
             })
         };
 
-        console.log('Creating recipe with data:', JSON.stringify(recipeData, null, 2));
-
         const recipe = new Recipe(recipeData);
-        console.log('Recipe instance created, attempting to save...');
-
         await recipe.save();
-        console.log('Recipe saved successfully:', recipe._id);
-        console.log('Saved recipe nutrition:', recipe.nutrition);
+
+        // Populate user info for response
+        await recipe.populate('createdBy', 'name email');
+        await recipe.populate('lastEditedBy', 'name email');
 
         return NextResponse.json({
             success: true,
@@ -152,12 +145,7 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('=== POST recipes error ===');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('========================');
-
+        console.error('POST recipes error:', error);
         return NextResponse.json(
             {
                 error: 'Failed to add recipe',
@@ -208,6 +196,7 @@ export async function PUT(request) {
             ...updateData,
             ingredients: updateData.ingredients?.filter(ing => ing.name && ing.name.trim() !== ''),
             instructions: updateData.instructions?.filter(inst => inst && inst.trim() !== ''),
+            lastEditedBy: session.user.id, // UPDATE: Track who edited
             updatedAt: new Date()
         };
 
@@ -223,7 +212,9 @@ export async function PUT(request) {
             recipeId,
             updateFields,
             { new: true }
-        );
+        )
+            .populate('createdBy', 'name email')
+            .populate('lastEditedBy', 'name email');
 
         return NextResponse.json({
             success: true,
@@ -240,7 +231,7 @@ export async function PUT(request) {
     }
 }
 
-// DELETE - Remove recipe
+// DELETE - Remove recipe (unchanged, but could add user tracking here too)
 export async function DELETE(request) {
     try {
         const session = await getServerSession(authOptions);
