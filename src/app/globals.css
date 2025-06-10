@@ -1969,3 +1969,45 @@ textarea {
         transform: translateY(-2px) scale(1.02) !important;
     }
 }
+
+/* Add these missing VIOLET/PURPLE color utilities to your globals.css file */
+
+/* MISSING VIOLET BACKGROUND COLORS */
+.bg-violet-500 { background-color: #8b5cf6 !important; }
+.bg-violet-600 { background-color: #7c3aed !important; }
+.bg-violet-700 { background-color: #6d28d9 !important; }
+
+/* MISSING VIOLET HOVER EFFECTS */
+.hover\:bg-violet-600:hover { background-color: #7c3aed !important; }
+.hover\:bg-violet-700:hover { background-color: #6d28d9 !important; }
+
+/* MISSING VIOLET TEXT COLORS */
+.text-violet-600 { color: #7c3aed !important; }
+.text-violet-700 { color: #6d28d9 !important; }
+
+/* MISSING VIOLET BORDER COLORS */
+.border-violet-300 { border-color: #d8b4fe !important; }
+.border-violet-600 { border-color: #7c3aed !important; }
+
+/* MISSING VIOLET FOCUS UTILITIES */
+.focus\:ring-violet-500:focus { box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5) !important; }
+.focus\:border-violet-500:focus { border-color: #8b5cf6 !important; }
+
+/* MISSING EMERALD BACKGROUND COLORS (for nutrition button) */
+.bg-emerald-600 { background-color: #059669 !important; }
+.bg-emerald-700 { background-color: #047857 !important; }
+
+/* MISSING EMERALD HOVER EFFECTS */
+.hover\:bg-emerald-700:hover { background-color: #047857 !important; }
+
+/* MISSING EMERALD TEXT COLORS */
+.text-emerald-600 { color: #059669 !important; }
+.text-emerald-700 { color: #047857 !important; }
+
+/* MISSING EMERALD BORDER COLORS */
+.border-emerald-300 { border-color: #6ee7b7 !important; }
+.border-emerald-600 { border-color: #059669 !important; }
+
+/* MISSING EMERALD FOCUS UTILITIES */
+.focus\:ring-emerald-500:focus { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5) !important; }
+.focus\:border-emerald-500:focus { border-color: #10b981 !important; }
