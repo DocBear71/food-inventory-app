@@ -621,9 +621,9 @@ export default function ShoppingPage() {
                             </div>
                         )}
                     </div>
-                    <br/>
-                </div>
 
+                </div>
+                <br/>
                 <Footer />
             </div>
         </MobileOptimizedLayout>
