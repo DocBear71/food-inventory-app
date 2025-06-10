@@ -1,17 +1,17 @@
-// file: /src/app/profile/page.js v4 - COMPLETE with All Tabs Restored
+// file: /src/app/profile/page.js v5 - FIXED COMMA INPUT ISSUE
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import {useState, useEffect, useRef} from 'react';
+import {useSession} from 'next-auth/react';
+import {useRouter} from 'next/navigation';
 import AccountDeletionModal from '@/components/profile/AccountDeletionModal';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function ProfilePage() {
-    const { data: session, status, update } = useSession();
+    const {data: session, status, update} = useSession();
     const router = useRouter();
     const fileInputRef = useRef(null);
     const [loading, setLoading] = useState(true);
@@ -65,6 +65,11 @@ export default function ProfilePage() {
         }
     });
 
+    // FIXED: Add string states for comma-separated inputs
+    const [favoritesCuisinesString, setFavoritesCuisinesString] = useState('');
+    const [dietaryRestrictionsString, setDietaryRestrictionsString] = useState('');
+    const [avoidIngredientsString, setAvoidIngredientsString] = useState('');
+
     // Improved response parsing that handles both JSON and HTML responses
     const parseResponse = async (response) => {
         const contentType = response.headers.get('content-type');
@@ -79,18 +84,18 @@ export default function ProfilePage() {
 
                 // Try to extract error message from HTML
                 if (text.includes('An error occurred')) {
-                    return { error: 'Server error occurred. Please try again.' };
+                    return {error: 'Server error occurred. Please try again.'};
                 } else if (text.includes('404')) {
-                    return { error: 'API endpoint not found. Please refresh the page.' };
+                    return {error: 'API endpoint not found. Please refresh the page.'};
                 } else if (text.includes('500')) {
-                    return { error: 'Internal server error. Please try again later.' };
+                    return {error: 'Internal server error. Please try again later.'};
                 } else {
-                    return { error: 'Unexpected server response. Please try again.' };
+                    return {error: 'Unexpected server response. Please try again.'};
                 }
             }
         } catch (parseError) {
             console.error('Response parsing error:', parseError);
-            return { error: 'Failed to parse server response. Please try again.' };
+            return {error: 'Failed to parse server response. Please try again.'};
         }
     };
 
@@ -105,7 +110,7 @@ export default function ProfilePage() {
                 img.onload = () => {
                     try {
                         // Calculate new dimensions
-                        let { width, height } = img;
+                        let {width, height} = img;
 
                         if (width > height) {
                             if (width > maxWidth) {
@@ -251,11 +256,11 @@ export default function ProfilePage() {
 
             if (response.ok && data.success) {
                 // Update form data with new avatar
-                setFormData(prev => ({ ...prev, avatar: data.avatarId }));
+                setFormData(prev => ({...prev, avatar: data.avatarId}));
 
                 // Update the session to reflect the new avatar
                 try {
-                    await update({ avatar: data.avatarId });
+                    await update({avatar: data.avatarId});
                     console.log('Session updated with new avatar');
                 } catch (sessionError) {
                     console.warn('Failed to update session:', sessionError);
@@ -309,10 +314,10 @@ export default function ProfilePage() {
             const data = await parseResponse(response);
 
             if (response.ok && data.success) {
-                setFormData(prev => ({ ...prev, avatar: '' }));
+                setFormData(prev => ({...prev, avatar: ''}));
 
                 try {
-                    await update({ avatar: '' });
+                    await update({avatar: ''});
                     console.log('Session updated - avatar removed');
                 } catch (sessionError) {
                     console.warn('Failed to update session:', sessionError);
@@ -364,7 +369,7 @@ export default function ProfilePage() {
             if (data.error) {
                 setError(data.error);
             } else {
-                setFormData({
+                const userData = {
                     name: data.user?.name || '',
                     avatar: data.user?.avatar || '',
                     profile: {
@@ -375,7 +380,14 @@ export default function ProfilePage() {
                     notificationSettings: data.user?.notificationSettings || formData.notificationSettings,
                     mealPlanningPreferences: data.user?.mealPlanningPreferences || formData.mealPlanningPreferences,
                     nutritionGoals: data.user?.nutritionGoals || formData.nutritionGoals
-                });
+                };
+
+                setFormData(userData);
+
+                // FIXED: Set string states for comma-separated fields
+                setFavoritesCuisinesString(userData.profile.favoritesCuisines.join(', '));
+                setDietaryRestrictionsString(userData.mealPlanningPreferences.dietaryRestrictions.join(', '));
+                setAvoidIngredientsString(userData.mealPlanningPreferences.avoidIngredients.join(', '));
             }
         } catch (error) {
             console.error('Profile fetch error:', error);
@@ -392,17 +404,42 @@ export default function ProfilePage() {
         setSuccess('');
 
         try {
+            // FIXED: Process comma-separated strings before submitting
+            const finalFormData = {
+                ...formData,
+                profile: {
+                    ...formData.profile,
+                    favoritesCuisines: favoritesCuisinesString
+                        .split(',')
+                        .map(item => item.trim())
+                        .filter(item => item.length > 0)
+                },
+                mealPlanningPreferences: {
+                    ...formData.mealPlanningPreferences,
+                    dietaryRestrictions: dietaryRestrictionsString
+                        .split(',')
+                        .map(item => item.trim())
+                        .filter(item => item.length > 0),
+                    avoidIngredients: avoidIngredientsString
+                        .split(',')
+                        .map(item => item.trim())
+                        .filter(item => item.length > 0)
+                }
+            };
+
             const response = await fetch('/api/user/profile', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(finalFormData),
             });
 
             const data = await parseResponse(response);
 
             if (response.ok && !data.error) {
+                // Update the main form data with processed arrays
+                setFormData(finalFormData);
                 setSuccess('Profile updated successfully!');
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -418,7 +455,7 @@ export default function ProfilePage() {
 
     const handleInputChange = (section, field, value) => {
         if (section === 'name') {
-            setFormData(prev => ({ ...prev, name: value }));
+            setFormData(prev => ({...prev, name: value}));
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -443,15 +480,7 @@ export default function ProfilePage() {
         }));
     };
 
-    const handleArrayChange = (section, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [section]: {
-                ...prev[section],
-                [field]: value.split(',').map(item => item.trim()).filter(item => item)
-            }
-        }));
-    };
+    // FIXED: Remove the old handleArrayChange function and use string handlers
 
     if (status === 'loading' || loading) {
         return (
@@ -466,11 +495,11 @@ export default function ProfilePage() {
     }
 
     const tabs = [
-        { id: 'general', name: 'General', icon: '👤' },
-        { id: 'notifications', name: 'Notifications', icon: '🔔' },
-        { id: 'meal-planning', name: 'Meal Planning', icon: '📅' },
-        { id: 'nutrition', name: 'Nutrition Goals', icon: '🥗' },
-        { id: 'security', name: 'Security', icon: '🔒' }
+        {id: 'general', name: 'General', icon: '👤'},
+        {id: 'notifications', name: 'Notifications', icon: '🔔'},
+        {id: 'meal-planning', name: 'Meal Planning', icon: '📅'},
+        {id: 'nutrition', name: 'Nutrition Goals', icon: '🥗'},
+        {id: 'security', name: 'Security', icon: '🔒'}
     ];
 
     return (
@@ -502,7 +531,8 @@ export default function ProfilePage() {
                         )}
 
                         {success && (
-                            <div className="mx-6 mt-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                            <div
+                                className="mx-6 mt-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
                                 <div className="flex items-center">
                                     <div className="mr-2">✅</div>
                                     <div>{success}</div>
@@ -525,18 +555,21 @@ export default function ProfilePage() {
                                             }`}
                                         >
                                             {activeTab === tab.id && (
-                                                <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                                <div
+                                                    className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full"></div>
                                             )}
 
-                                            <div className={`profile-tab-icon flex items-center justify-center w-8 h-8 rounded-full mb-2 transition-all ${
-                                                activeTab === tab.id
-                                                    ? 'bg-indigo-100'
-                                                    : 'bg-gray-100 group-hover:bg-gray-200'
-                                            }`}>
+                                            <div
+                                                className={`profile-tab-icon flex items-center justify-center w-8 h-8 rounded-full mb-2 transition-all ${
+                                                    activeTab === tab.id
+                                                        ? 'bg-indigo-100'
+                                                        : 'bg-gray-100 group-hover:bg-gray-200'
+                                                }`}>
                                                 <span className="text-lg">{tab.icon}</span>
                                             </div>
 
-                                            <span className="profile-tab-text text-xs sm:text-sm font-medium text-center leading-tight">
+                                            <span
+                                                className="profile-tab-text text-xs sm:text-sm font-medium text-center leading-tight">
                                                 {tab.name}
                                             </span>
                                         </TouchEnhancedButton>
@@ -553,7 +586,8 @@ export default function ProfilePage() {
                                         {/* Avatar Section - Enhanced with Better Error Display */}
                                         <div className="flex flex-col items-center space-y-4">
                                             <div className="relative">
-                                                <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center">
+                                                <div
+                                                    className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center">
                                                     {formData.avatar ? (
                                                         <img
                                                             src={`/api/user/avatar/${formData.avatar}`}
@@ -569,7 +603,7 @@ export default function ProfilePage() {
                                                     {/* Fallback display */}
                                                     <span
                                                         className="text-indigo-600 text-2xl font-medium"
-                                                        style={{ display: formData.avatar ? 'none' : 'flex' }}
+                                                        style={{display: formData.avatar ? 'none' : 'flex'}}
                                                     >
                                                         {session?.user?.name?.[0]?.toUpperCase() || 'U'}
                                                     </span>
@@ -577,11 +611,14 @@ export default function ProfilePage() {
 
                                                 {/* Upload Progress Overlay */}
                                                 {uploadingAvatar && (
-                                                    <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                                                    <div
+                                                        className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
                                                         <div className="text-center">
-                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-1"></div>
+                                                            <div
+                                                                className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-1"></div>
                                                             {uploadProgress > 0 && (
-                                                                <div className="text-white text-xs font-medium">{uploadProgress}%</div>
+                                                                <div
+                                                                    className="text-white text-xs font-medium">{uploadProgress}%</div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -636,7 +673,7 @@ export default function ProfilePage() {
                                                 value={formData.name}
                                                 onChange={(e) => handleInputChange('name', null, e.target.value)}
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ fontSize: '16px' }}
+                                                style={{fontSize: '16px'}}
                                                 required
                                             />
                                         </div>
@@ -666,7 +703,7 @@ export default function ProfilePage() {
                                                 rows={3}
                                                 maxLength={200}
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ fontSize: '16px' }}
+                                                style={{fontSize: '16px'}}
                                                 placeholder="Tell us a bit about yourself..."
                                             />
                                             <p className="text-xs text-gray-500 mt-1">
@@ -689,27 +726,32 @@ export default function ProfilePage() {
                                             </select>
                                         </div>
 
+                                        {/* FIXED: Favorite Cuisines */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Favorite Cuisines
                                             </label>
                                             <input
                                                 type="text"
-                                                value={formData.profile.favoritesCuisines.join(', ')}
-                                                onChange={(e) => handleArrayChange('profile', 'favoritesCuisines', e.target.value)}
+                                                value={favoritesCuisinesString}
+                                                onChange={(e) => setFavoritesCuisinesString(e.target.value)}
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ fontSize: '16px' }}
+                                                style={{fontSize: '16px'}}
                                                 placeholder="Italian, Mexican, Asian, etc. (comma separated)"
                                             />
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Separate multiple cuisines with commas
+                                            </p>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Notifications Tab - RESTORED */}
+                                {/* Notifications Tab */}
                                 {activeTab === 'notifications' && (
                                     <div className="space-y-6">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Email Notifications</h3>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Email
+                                                Notifications</h3>
 
                                             <div className="space-y-4">
                                                 <div className="flex items-center">
@@ -720,7 +762,8 @@ export default function ProfilePage() {
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'email', 'enabled', e.target.checked)}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                     />
-                                                    <label htmlFor="email-enabled" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="email-enabled"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Enable email notifications
                                                     </label>
                                                 </div>
@@ -733,7 +776,8 @@ export default function ProfilePage() {
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'email', 'dailyDigest', e.target.checked)}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                     />
-                                                    <label htmlFor="daily-digest" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="daily-digest"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Daily digest emails
                                                     </label>
                                                 </div>
@@ -746,7 +790,8 @@ export default function ProfilePage() {
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'email', 'expirationAlerts', e.target.checked)}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                     />
-                                                    <label htmlFor="expiration-alerts" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="expiration-alerts"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Food expiration alerts
                                                     </label>
                                                 </div>
@@ -762,14 +807,15 @@ export default function ProfilePage() {
                                                         value={formData.notificationSettings.email.daysBeforeExpiration}
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'email', 'daysBeforeExpiration', parseInt(e.target.value))}
                                                         className="mt-1 block w-20 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                        style={{ fontSize: '16px' }}
+                                                        style={{fontSize: '16px'}}
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Dashboard Settings</h3>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Dashboard
+                                                Settings</h3>
 
                                             <div className="space-y-4">
                                                 <div className="flex items-center">
@@ -780,7 +826,8 @@ export default function ProfilePage() {
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'showExpirationPanel', e.target.checked)}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                     />
-                                                    <label htmlFor="show-expiration-panel" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="show-expiration-panel"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Show expiration alerts panel
                                                     </label>
                                                 </div>
@@ -793,7 +840,8 @@ export default function ProfilePage() {
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'showQuickStats', e.target.checked)}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                     />
-                                                    <label htmlFor="show-quick-stats" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="show-quick-stats"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Show quick stats
                                                     </label>
                                                 </div>
@@ -809,7 +857,7 @@ export default function ProfilePage() {
                                                         value={formData.notificationSettings.dashboard.alertThreshold}
                                                         onChange={(e) => handleNestedChange('notificationSettings', 'dashboard', 'alertThreshold', parseInt(e.target.value))}
                                                         className="mt-1 block w-20 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                        style={{ fontSize: '16px' }}
+                                                        style={{fontSize: '16px'}}
                                                     />
                                                 </div>
                                             </div>
@@ -817,7 +865,7 @@ export default function ProfilePage() {
                                     </div>
                                 )}
 
-                                {/* Meal Planning Tab - RESTORED */}
+                                {/* Meal Planning Tab - FIXED */}
                                 {activeTab === 'meal-planning' && (
                                     <div className="space-y-6">
                                         <div>
@@ -854,7 +902,8 @@ export default function ProfilePage() {
                                                             }}
                                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                         />
-                                                        <label htmlFor={meal} className="ml-3 text-sm text-gray-700 capitalize">
+                                                        <label htmlFor={meal}
+                                                               className="ml-3 text-sm text-gray-700 capitalize">
                                                             {meal}
                                                         </label>
                                                     </div>
@@ -907,37 +956,45 @@ export default function ProfilePage() {
                                             </select>
                                         </div>
 
+                                        {/* FIXED: Dietary restrictions */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Dietary restrictions
                                             </label>
                                             <input
                                                 type="text"
-                                                value={formData.mealPlanningPreferences.dietaryRestrictions.join(', ')}
-                                                onChange={(e) => handleArrayChange('mealPlanningPreferences', 'dietaryRestrictions', e.target.value)}
+                                                value={dietaryRestrictionsString}
+                                                onChange={(e) => setDietaryRestrictionsString(e.target.value)}
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ fontSize: '16px' }}
+                                                style={{fontSize: '16px'}}
                                                 placeholder="Vegetarian, Gluten-free, etc. (comma separated)"
                                             />
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Separate multiple restrictions with commas
+                                            </p>
                                         </div>
 
+                                        {/* FIXED: Ingredients to avoid */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Ingredients to avoid
                                             </label>
                                             <input
                                                 type="text"
-                                                value={formData.mealPlanningPreferences.avoidIngredients.join(', ')}
-                                                onChange={(e) => handleArrayChange('mealPlanningPreferences', 'avoidIngredients', e.target.value)}
+                                                value={avoidIngredientsString}
+                                                onChange={(e) => setAvoidIngredientsString(e.target.value)}
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ fontSize: '16px' }}
+                                                style={{fontSize: '16px'}}
                                                 placeholder="Nuts, shellfish, etc. (comma separated)"
                                             />
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Separate multiple ingredients with commas
+                                            </p>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Nutrition Tab - RESTORED */}
+                                {/* Nutrition Tab */}
                                 {activeTab === 'nutrition' && (
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -952,7 +1009,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.dailyCalories}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
 
@@ -967,7 +1024,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.protein}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'protein', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
 
@@ -982,7 +1039,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.fat}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'fat', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
 
@@ -997,7 +1054,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.carbs}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'carbs', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
 
@@ -1012,7 +1069,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.fiber}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'fiber', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
 
@@ -1027,7 +1084,7 @@ export default function ProfilePage() {
                                                     value={formData.nutritionGoals.sodium}
                                                     onChange={(e) => handleInputChange('nutritionGoals', 'sodium', parseInt(e.target.value))}
                                                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ fontSize: '16px' }}
+                                                    style={{fontSize: '16px'}}
                                                 />
                                             </div>
                                         </div>
@@ -1035,7 +1092,9 @@ export default function ProfilePage() {
                                         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                                             <h4 className="text-sm font-medium text-blue-900 mb-2">💡 Nutrition Tips</h4>
                                             <ul className="text-sm text-blue-700 space-y-1">
-                                                <li>• Consult with a healthcare provider for personalized nutrition goals</li>
+                                                <li>• Consult with a healthcare provider for personalized nutrition
+                                                    goals
+                                                </li>
                                                 <li>• These values are used to track your daily nutrition intake</li>
                                                 <li>• Adjust based on your activity level and health goals</li>
                                             </ul>
@@ -1047,7 +1106,8 @@ export default function ProfilePage() {
                                 {activeTab === 'security' && (
                                     <div className="space-y-6">
                                         <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-2">🔒 Password Security</h4>
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">🔒 Password
+                                                Security</h4>
                                             <p className="text-sm text-gray-600 mb-4">
                                                 Keep your account secure by regularly updating your password
                                             </p>
@@ -1062,10 +1122,13 @@ export default function ProfilePage() {
                                         </div>
 
                                         <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-2">📧 Account Information</h4>
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">📧 Account
+                                                Information</h4>
                                             <div className="space-y-2 text-sm text-gray-600">
                                                 <p><strong>Email:</strong> {session.user.email}</p>
-                                                <p><strong>Account created:</strong> {new Date(session.user.createdAt || Date.now()).toLocaleDateString()}</p>
+                                                <p><strong>Account
+                                                    created:</strong> {new Date(session.user.createdAt || Date.now()).toLocaleDateString()}
+                                                </p>
                                             </div>
                                         </div>
 
@@ -1074,7 +1137,6 @@ export default function ProfilePage() {
                                             <p className="text-sm text-red-700 mb-4">
                                                 Account deletion is permanent and cannot be undone
                                             </p>
-
                                             <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => setShowDeletionModal(true)}

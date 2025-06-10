@@ -1,4 +1,4 @@
-// file: /src/components/recipes/EnhancedRecipeForm.js v2
+// file: /src/components/recipes/EnhancedRecipeForm.js v3 - FIXED COMMA INPUT ISSUE
 
 'use client';
 
@@ -10,8 +10,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
     const [showParser, setShowParser] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
-
-    // Add category options at the top of the file (after the imports):
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -31,7 +29,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         { value: 'beverages', label: 'Beverages' },
         { value: 'breakfast', label: 'Breakfast' }
     ];
-
 
     // Recipe form state
     const [recipe, setRecipe] = useState({
@@ -58,6 +55,10 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     });
 
     const [tagInput, setTagInput] = useState('');
+    // FIXED: Add state for tags string to prevent comma parsing issues
+    const [tagsString, setTagsString] = useState(
+        initialData?.tags ? initialData.tags.join(', ') : ''
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // URL import state
@@ -90,6 +91,11 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             source: parsedData.source || prevRecipe.source,
             nutrition: parsedData.nutrition || prevRecipe.nutrition
         }));
+
+        // Update tags string as well
+        const allTags = [...new Set([...recipe.tags, ...parsedData.tags])];
+        setTagsString(allTags.join(', '));
+
         setShowParser(false);
         setInputMethod('manual'); // Switch back to manual editing
     };
@@ -146,6 +152,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 };
 
                 setRecipe(importedRecipe);
+                // Update tags string
+                setTagsString(importedRecipe.tags.join(', '));
                 setShowUrlImport(false);
                 setInputMethod('manual'); // Switch to manual editing
                 setUrlInput(''); // Clear the URL input
@@ -223,18 +231,40 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     const addTag = () => {
         if (tagInput.trim() && !recipe.tags.includes(tagInput.trim())) {
+            const newTags = [...recipe.tags, tagInput.trim()];
             setRecipe(prev => ({
                 ...prev,
-                tags: [...prev.tags, tagInput.trim()]
+                tags: newTags
             }));
+            setTagsString(newTags.join(', '));
             setTagInput('');
         }
     };
 
     const removeTag = (tagToRemove) => {
+        const newTags = recipe.tags.filter(tag => tag !== tagToRemove);
         setRecipe(prev => ({
             ...prev,
-            tags: prev.tags.filter(tag => tag !== tagToRemove)
+            tags: newTags
+        }));
+        setTagsString(newTags.join(', '));
+    };
+
+    // FIXED: Handle tags string changes without immediately parsing
+    const handleTagsStringChange = (value) => {
+        setTagsString(value);
+    };
+
+    // FIXED: Process tags string on blur
+    const handleTagsStringBlur = () => {
+        const tags = tagsString
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0);
+
+        setRecipe(prev => ({
+            ...prev,
+            tags: tags
         }));
     };
 
@@ -243,7 +273,18 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         setIsSubmitting(true);
 
         try {
-            await onSubmit(recipe);
+            // Make sure tags are processed from the string before submitting
+            const finalTags = tagsString
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag.length > 0);
+
+            const finalRecipe = {
+                ...recipe,
+                tags: finalTags
+            };
+
+            await onSubmit(finalRecipe);
         } catch (error) {
             console.error('Error submitting recipe:', error);
         } finally {
@@ -373,6 +414,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </span>
                 )}
             </div>
+
             {/* Input Method Selection */}
             {!isEditing && (
                 <div className="bg-white shadow rounded-lg p-6">
@@ -472,7 +514,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 />
                             </div>
 
-                            {/* Category Dropdown - REPLACE THE OLD SECTION WITH THIS */}
+                            {/* Category Dropdown */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Category
@@ -504,7 +546,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 />
                             </div>
 
-                            {/* Rest of the grid continues as before... */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Prep Time (minutes)
@@ -560,6 +601,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </div>
                         </div>
                     </div>
+
                     {/* Ingredients */}
                     <div className="bg-white shadow rounded-lg p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -672,7 +714,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* Tags */}
+                    {/* Tags - FIXED */}
                     <div className="bg-white shadow rounded-lg p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
 
@@ -694,22 +736,47 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             ))}
                         </div>
 
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={tagInput}
-                                onChange={(e) => setTagInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                placeholder="Add a tag..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={addTag}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                            >
-                                Add
-                            </TouchEnhancedButton>
+                        {/* FIXED: Use string input that doesn't immediately parse commas */}
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tags (comma-separated)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={tagsString}
+                                    onChange={(e) => handleTagsStringChange(e.target.value)}
+                                    onBlur={handleTagsStringBlur}
+                                    placeholder="italian, dinner, easy, comfort-food"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Enter tags separated by commas. Press Tab or click elsewhere to apply.
+                                </p>
+                            </div>
+
+                            <div className="border-t pt-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Add individual tag
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                        placeholder="Add a tag..."
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    />
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={addTag}
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                    >
+                                        Add
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
