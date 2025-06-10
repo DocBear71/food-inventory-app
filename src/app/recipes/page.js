@@ -1,4 +1,4 @@
-// file: /src/app/recipes/page.js v3 - Enhanced with Ratings
+// file: /src/app/recipes/page.js v4 - Enhanced with tabbed interface for My Recipes vs Public Recipes
 
 'use client';
 
@@ -19,12 +19,14 @@ function RecipesContent() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTag, setSelectedTag] = useState('');
     const [selectedDifficulty, setSelectedDifficulty] = useState('');
-    const [sortBy, setSortBy] = useState('newest'); // newest, oldest, rating, popular, title
+    const [sortBy, setSortBy] = useState('newest');
     const [allTags, setAllTags] = useState([]);
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
 
+    // NEW: Tab state for My Recipes vs Public Recipes
+    const [activeTab, setActiveTab] = useState('my-recipes');
 
     const CATEGORY_OPTIONS = [
         {value: 'seasonings', label: 'Seasonings'},
@@ -65,7 +67,7 @@ function RecipesContent() {
             if (data.success) {
                 setRecipes(data.recipes);
 
-                // Extract all unique tags
+                // Extract all unique tags and categories
                 const tags = new Set();
                 const categories = new Set();
                 data.recipes.forEach(recipe => {
@@ -107,8 +109,14 @@ function RecipesContent() {
         }
     };
 
+    // NEW: Filter recipes by tab and other criteria
     const getFilteredAndSortedRecipes = () => {
         let filtered = recipes.filter(recipe => {
+            // NEW: Filter by tab selection
+            const matchesTab = activeTab === 'my-recipes'
+                ? recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
+                : recipe.isPublic === true;
+
             const matchesSearch = !searchTerm ||
                 recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 recipe.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -122,7 +130,7 @@ function RecipesContent() {
             const matchesCategory = !selectedCategory ||
                 recipe.category === selectedCategory;
 
-            return matchesSearch && matchesTag && matchesDifficulty && matchesCategory;
+            return matchesTab && matchesSearch && matchesTag && matchesDifficulty && matchesCategory;
         });
 
         // Sort recipes
@@ -136,13 +144,11 @@ function RecipesContent() {
                     const aRating = a.ratingStats?.averageRating || 0;
                     const bRating = b.ratingStats?.averageRating || 0;
                     if (bRating !== aRating) return bRating - aRating;
-                    // Secondary sort by number of ratings
                     return (b.ratingStats?.totalRatings || 0) - (a.ratingStats?.totalRatings || 0);
                 case 'popular':
                     const aViews = a.metrics?.viewCount || 0;
                     const bViews = b.metrics?.viewCount || 0;
                     if (bViews !== aViews) return bViews - aViews;
-                    // Secondary sort by ratings
                     return (b.ratingStats?.averageRating || 0) - (a.ratingStats?.averageRating || 0);
                 case 'title':
                     return a.title.localeCompare(b.title);
@@ -169,6 +175,24 @@ function RecipesContent() {
         return colors[difficulty] || colors.medium;
     };
 
+    // NEW: Get tab-specific counts
+    const getTabCounts = () => {
+        const myRecipes = recipes.filter(recipe =>
+            recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
+        );
+        const publicRecipes = recipes.filter(recipe => recipe.isPublic === true);
+
+        return {
+            myRecipes: myRecipes.length,
+            publicRecipes: publicRecipes.length
+        };
+    };
+
+    // NEW: Check if user can edit recipe
+    const canEditRecipe = (recipe) => {
+        return recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id;
+    };
+
     if (status === 'loading' || loading) {
         return (
             <MobileOptimizedLayout>
@@ -187,18 +211,112 @@ function RecipesContent() {
     }
 
     const filteredRecipes = getFilteredAndSortedRecipes();
+    const tabCounts = getTabCounts();
 
     return (
         <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">My Recipes</h1>
-                    <Link
-                        href="/recipes/add"
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-                    >
-                        Add New Recipe
-                    </Link>
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Recipes</h1>
+                        <p className="text-gray-600 mt-1">
+                            {activeTab === 'my-recipes'
+                                ? 'Manage your personal recipe collection'
+                                : 'Browse recipes shared by the community'
+                            }
+                        </p>
+                    </div>
+                    {/* Only show Add Recipe button on My Recipes tab */}
+                    {activeTab === 'my-recipes' && (
+                        <Link
+                            href="/recipes/add"
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                        >
+                            Add New Recipe
+                        </Link>
+                    )}
+                </div>
+
+                {/* NEW: Mobile-Optimized Tab Navigation */}
+                <div className="mb-6">
+                    <div className="bg-gray-100 p-1 rounded-lg flex">
+                        <TouchEnhancedButton
+                            onClick={() => setActiveTab('my-recipes')}
+                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all touch-friendly ${
+                                activeTab === 'my-recipes'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <span>📝 My Recipes</span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                    activeTab === 'my-recipes'
+                                        ? 'bg-indigo-100 text-indigo-600'
+                                        : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                    {tabCounts.myRecipes}
+                                </span>
+                            </div>
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setActiveTab('public-recipes')}
+                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all touch-friendly ${
+                                activeTab === 'public-recipes'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <span>🌍 Public Recipes</span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                    activeTab === 'public-recipes'
+                                        ? 'bg-indigo-100 text-indigo-600'
+                                        : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                    {tabCounts.publicRecipes}
+                                </span>
+                            </div>
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+
+                {/* Tab Content Info */}
+                <div className="mb-6">
+                    {activeTab === 'my-recipes' ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start">
+                                <div className="text-blue-600 mr-3 mt-0.5">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-medium text-blue-800">Your Personal Recipe Collection</h3>
+                                    <p className="text-sm text-blue-700 mt-1">
+                                        These are recipes you've created or added to your personal collection. You can edit, delete, and manage these recipes.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="flex items-start">
+                                <div className="text-green-600 mr-3 mt-0.5">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-medium text-green-800">Community Recipe Collection</h3>
+                                    <p className="text-sm text-green-700 mt-1">
+                                        Discover recipes shared by the community, including Doc Bear's Comfort Food collection. Save favorites to your personal collection!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filters and Search */}
@@ -299,7 +417,10 @@ function RecipesContent() {
                 {/* Results Count */}
                 <div className="flex justify-between items-center mb-6">
                     <p className="text-gray-600">
-                        Showing {filteredRecipes.length} of {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
+                        Showing {filteredRecipes.length} of {getTabCounts()[activeTab === 'my-recipes' ? 'myRecipes' : 'publicRecipes']} recipe{filteredRecipes.length !== 1 ? 's' : ''}
+                        <span className="text-indigo-600 font-medium ml-1">
+                            ({activeTab === 'my-recipes' ? 'My Recipes' : 'Public Recipes'})
+                        </span>
                     </p>
                     {(searchTerm || selectedTag || selectedDifficulty || selectedCategory) && (
                         <TouchEnhancedButton
@@ -331,29 +452,51 @@ function RecipesContent() {
                                         >
                                             {recipe.title}
                                         </Link>
-                                        <div className="flex space-x-1 ml-2">
-                                            <TouchEnhancedButton
-                                                onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
-                                                className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
-                                                title="Edit recipe"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </TouchEnhancedButton>
-                                            <TouchEnhancedButton
-                                                onClick={() => handleDelete(recipe._id)}
-                                                className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
-                                                title="Delete recipe"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                </svg>
-                                            </TouchEnhancedButton>
-                                        </div>
+                                        {/* NEW: Only show edit/delete buttons for user's own recipes */}
+                                        {canEditRecipe(recipe) && (
+                                            <div className="flex space-x-1 ml-2">
+                                                <TouchEnhancedButton
+                                                    onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
+                                                    className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
+                                                    title="Edit recipe"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                    </svg>
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={() => handleDelete(recipe._id)}
+                                                    className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
+                                                    title="Delete recipe"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </TouchEnhancedButton>
+                                            </div>
+                                        )}
                                     </div>
+
+                                    {/* NEW: Recipe Author Info (for public recipes) */}
+                                    {activeTab === 'public-recipes' && recipe.createdBy && (
+                                        <div className="mb-3">
+                                            <div className="flex items-center text-sm text-gray-600">
+                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                                <span>
+                                                    by {recipe.createdBy.name || recipe.createdBy.email}
+                                                    {recipe.importedFrom && (
+                                                        <span className="text-xs text-gray-500 ml-1">
+                                                            (from {recipe.importedFrom})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Rating and Views */}
                                     <div className="flex items-center justify-between mb-3">
@@ -434,10 +577,10 @@ function RecipesContent() {
                                     {/* Category */}
                                     {recipe.category && (
                                         <div className="mt-2">
-        <span
-            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-            {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
-        </span>
+                                            <span
+                                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                                {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
@@ -453,26 +596,60 @@ function RecipesContent() {
                             </svg>
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            {searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No recipes found' : 'No recipes yet'}
-
+                            {activeTab === 'my-recipes' ? (
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No recipes found' : 'No recipes yet'
+                            ) : (
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No public recipes found' : 'No public recipes available'
+                            )}
                         </h3>
                         <p className="text-gray-500 mb-4">
-                            {searchTerm || selectedTag || selectedDifficulty || selectedCategory
-                                ? 'Try adjusting your filters to find more recipes.'
-                                : 'Start building your recipe collection by adding your first recipe!'
-                            }
+                            {activeTab === 'my-recipes' ? (
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory
+                                    ? 'Try adjusting your filters to find more recipes.'
+                                    : 'Start building your recipe collection by adding your first recipe!'
+                            ) : (
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory
+                                    ? 'Try adjusting your filters to find more public recipes.'
+                                    : 'Public recipes will appear here when they become available.'
+                            )}
                         </p>
-                        {!searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
-                            <Link
-                                href="/recipes/add"
-                                className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-                            >
-                                Add Your First Recipe
-                            </Link>
+                        {activeTab === 'my-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
+                            <div className="space-y-3">
+                                <Link
+                                    href="/recipes/add"
+                                    className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                >
+                                    Add Your First Recipe
+                                </Link>
+                                <div className="text-sm text-gray-500">
+                                    <p>or</p>
+                                    <TouchEnhancedButton
+                                        onClick={() => setActiveTab('public-recipes')}
+                                        className="text-indigo-600 hover:text-indigo-700 font-medium"
+                                    >
+                                        Browse public recipes to save to your collection
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        )}
+                        {activeTab === 'public-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
+                            <div className="space-y-3">
+                                <p className="text-sm text-gray-500">
+                                    Check back later for community recipes, or
+                                </p>
+                                <TouchEnhancedButton
+                                    onClick={() => setActiveTab('my-recipes')}
+                                    className="text-indigo-600 hover:text-indigo-700 font-medium"
+                                >
+                                    Start by adding your own recipes
+                                </TouchEnhancedButton>
+                            </div>
                         )}
                     </div>
                 )}
             </div>
+            <br/>
+            <Footer />
         </MobileOptimizedLayout>
     );
 }

@@ -1,4 +1,4 @@
-// file: /src/models/RecipeCollection.js
+// file: /src/models/RecipeCollection.js v1
 // Mongoose model for Recipe Collections
 
 import mongoose from 'mongoose';
