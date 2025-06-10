@@ -518,12 +518,12 @@ export default function EditRecipePage() {
                         </div>
                     </div>
 
-                    {/* Submit Buttons */}
+                    {/* Submit Buttons */}<br/>
                     <div className="flex justify-end space-x-4 pt-6 pb-8">
                         <TouchEnhancedButton
                             type="button"
                             onClick={() => router.back()}
-                            className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-black hover:bg-gray-50 font-medium"
+                            className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-black hover:bg-gray-400 font-medium"
                         >
                             Cancel
                         </TouchEnhancedButton>
@@ -535,7 +535,7 @@ export default function EditRecipePage() {
                             {loading ? 'Updating...' : 'Update Recipe'}
                         </TouchEnhancedButton>
                     </div>
-                </form>
+                </form><br/>
 
                 <Footer />
             </div>
