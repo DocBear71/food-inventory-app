@@ -32,6 +32,127 @@ export default function ShoppingPage() {
     const [availableTags, setAvailableTags] = useState([]);
     const [availableIngredients, setAvailableIngredients] = useState([]);
 
+    // Enhanced ingredient normalization and matching (borrowed from your API)
+    const normalizeIngredient = (ingredient) => {
+        if (!ingredient || typeof ingredient !== 'string') {
+            return '';
+        }
+
+        return ingredient
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s]/g, ' ')  // Replace non-word characters with spaces
+            .replace(/\s+/g, ' ')      // Replace multiple spaces with single space
+            .trim();
+    };
+
+    // Create ingredient key for better matching (similar to your API)
+    const createIngredientKey = (ingredient) => {
+        const normalized = normalizeIngredient(ingredient);
+
+        // Remove common descriptors that shouldn't prevent matching
+        const cleaned = normalized
+            .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|toasted|crumbled|cooked)\b/g, '')
+            .replace(/\b(small|medium|large|extra large)\b/g, '')
+            .replace(/\b(can|jar|bottle|bag|box|package)\b/g, '')
+            .replace(/\b(of|the|and|or|into|cut)\b/g, '')
+            .replace(/\b(matchsticks|strips|florets)\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return cleaned;
+    };
+
+    // Smart ingredient matching function
+    const ingredientMatches = (searchTerm, ingredient) => {
+        if (!searchTerm || !ingredient?.name) return false;
+
+        const searchNormalized = normalizeIngredient(searchTerm);
+        const ingredientNormalized = normalizeIngredient(ingredient.name);
+        const ingredientKey = createIngredientKey(ingredient.name);
+        const searchKey = createIngredientKey(searchTerm);
+
+        // 1. Exact match (highest priority)
+        if (ingredientNormalized === searchNormalized) return true;
+
+        // 2. Key match (normalized without descriptors)
+        if (ingredientKey === searchKey && searchKey.length > 2) return true;
+
+        // 3. Specific ingredient type matching to prevent false positives
+        if (searchNormalized === 'cheese') {
+            // Only match actual cheese types, not things that contain "cheese"
+            const cheeseTypes = ['cheddar', 'mozzarella', 'parmesan', 'swiss', 'feta', 'goat cheese', 'cream cheese', 'ricotta', 'provolone', 'brie', 'camembert', 'blue cheese', 'gouda', 'monterey jack', 'pepper jack', 'string cheese'];
+            return cheeseTypes.some(type => ingredientKey.includes(type)) || ingredientKey === 'cheese';
+        }
+
+        if (searchNormalized === 'corn') {
+            // Only match actual corn, not cornstarch, cornmeal, etc.
+            return ingredientKey === 'corn' ||
+                ingredientNormalized.includes('corn kernels') ||
+                ingredientNormalized.includes('sweet corn') ||
+                (ingredientNormalized.includes('corn') &&
+                    !ingredientNormalized.includes('cornstarch') &&
+                    !ingredientNormalized.includes('cornmeal') &&
+                    !ingredientNormalized.includes('corn flake') &&
+                    !ingredientNormalized.includes('corn syrup'));
+        }
+
+        if (searchNormalized === 'flour') {
+            // Match flour types but not things that just contain "flour"
+            return ingredientKey.includes('flour') &&
+                (ingredientKey === 'flour' ||
+                    ingredientNormalized.includes('all purpose flour') ||
+                    ingredientNormalized.includes('wheat flour') ||
+                    ingredientNormalized.includes('bread flour') ||
+                    ingredientNormalized.includes('cake flour') ||
+                    ingredientNormalized.includes('self rising flour'));
+        }
+
+        if (searchNormalized === 'beans') {
+            // Match actual beans, not green beans or other things
+            const beanTypes = ['black beans', 'kidney beans', 'pinto beans', 'navy beans', 'chickpeas', 'garbanzo beans', 'white beans', 'cannellini beans', 'lima beans', 'red beans', 'refried beans'];
+            return beanTypes.some(type => ingredientNormalized.includes(type)) ||
+                (ingredientKey === 'beans' &&
+                    !ingredientNormalized.includes('green beans') &&
+                    !ingredientNormalized.includes('string beans') &&
+                    !ingredientNormalized.includes('vanilla beans'));
+        }
+
+        if (searchNormalized === 'chicken') {
+            // Match chicken but not chicken broth, chicken stock, etc. in some cases
+            return ingredientNormalized.includes('chicken') &&
+                !ingredientNormalized.includes('chicken broth') &&
+                !ingredientNormalized.includes('chicken stock') &&
+                !ingredientNormalized.includes('chicken bouillon');
+        }
+
+        // 4. Word boundary matching for longer search terms (3+ characters)
+        if (searchNormalized.length >= 3) {
+            // Check if search term appears as a complete word
+            const wordBoundaryRegex = new RegExp(`\\b${searchNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+            if (wordBoundaryRegex.test(ingredientNormalized)) return true;
+
+            // Also check if ingredient starts with search term (for partial matching)
+            if (ingredientNormalized.startsWith(searchNormalized + ' ') || ingredientNormalized === searchNormalized) return true;
+        }
+
+        // 5. Conservative contains check for very specific cases
+        if (searchNormalized.length >= 4 && ingredientNormalized.includes(searchNormalized)) {
+            // Make sure it's not a false positive like "corn" matching "cornstarch"
+            const index = ingredientNormalized.indexOf(searchNormalized);
+            const beforeChar = index > 0 ? ingredientNormalized[index - 1] : ' ';
+            const afterChar = index + searchNormalized.length < ingredientNormalized.length ?
+                ingredientNormalized[index + searchNormalized.length] : ' ';
+
+            // It's a good match if search term is at word boundaries
+            if (beforeChar === ' ' && (afterChar === ' ' || afterChar === 's')) { // Allow plural
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     // Fetch recipes when component mounts
     useEffect(() => {
         fetchRecipes();
@@ -120,11 +241,11 @@ export default function ShoppingPage() {
             filtered = filtered.filter(recipe => recipe.difficulty === selectedDifficulty);
         }
 
-        // Ingredient filter
+        // Ingredient filter - now using smart matching
         if (selectedIngredient) {
             filtered = filtered.filter(recipe =>
                     recipe.ingredients && recipe.ingredients.some(ingredient =>
-                        ingredient.name.toLowerCase().includes(selectedIngredient.toLowerCase())
+                        ingredientMatches(selectedIngredient, ingredient)
                     )
             );
         }
@@ -621,9 +742,8 @@ export default function ShoppingPage() {
                             </div>
                         )}
                     </div>
-
                 </div>
-                <br/>
+
                 <Footer />
             </div>
         </MobileOptimizedLayout>
