@@ -1,4 +1,4 @@
-// file: /src/components/shopping/SavedShoppingListsButton.js v1
+// file: /src/components/shopping/SavedShoppingListsButton.js v2 - Updated with Tailwind classes
 
 'use client';
 
@@ -15,24 +15,12 @@ export default function SavedShoppingListsButton() {
     return (
         <TouchEnhancedButton
             onClick={handleClick}
-            style={{
-                backgroundColor: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '0.75rem 1.5rem',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'background-color 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = '#7c3aed'}
-            onMouseOut={(e) => e.target.style.backgroundColor = '#8b5cf6'}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white border-none rounded-lg px-6 py-3 text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors shadow-md"
         >
-            💾 Saved Lists
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Saved Lists
         </TouchEnhancedButton>
     );
 }
