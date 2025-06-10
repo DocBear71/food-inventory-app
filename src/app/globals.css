@@ -2011,3 +2011,22 @@ textarea {
 /* MISSING EMERALD FOCUS UTILITIES */
 .focus\:ring-emerald-500:focus { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5) !important; }
 .focus\:border-emerald-500:focus { border-color: #10b981 !important; }
+
+/* MISSING BLUE COLORS - Add these */
+.bg-blue-600 { background-color: #2563eb !important; }
+.bg-blue-700 { background-color: #1d4ed8 !important; }
+.hover\:bg-blue-600:hover { background-color: #2563eb !important; }
+.hover\:bg-blue-700:hover { background-color: #1d4ed8 !important; }
+.text-blue-600 { color: #2563eb !important; }
+.text-blue-700 { color: #1d4ed8 !important; }
+.text-blue-800 { color: #1e40af !important; }
+.border-blue-500 { border-color: #3b82f6 !important; }
+.focus\:ring-blue-500:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important; }
+.focus\:border-blue-500:focus { border-color: #3b82f6 !important; }
+
+/* MISSING GREEN COLORS - Add these */
+.bg-green-600 { background-color: #16a34a !important; }
+.bg-green-700 { background-color: #15803d !important; }
+.hover\:bg-green-600:hover { background-color: #16a34a !important; }
+.hover\:bg-green-700:hover { background-color: #15803d !important; }
+

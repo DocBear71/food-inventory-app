@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanTemplateLibrary.js v1
+// file: /src/components/meal-planning/MealPlanTemplateLibrary.js v2 - Fixed button styling
 
 'use client';
 
@@ -162,80 +162,28 @@ export default function MealPlanTemplateLibrary({
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem'
-        }}>
-            <div style={{
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                width: '100%',
-                maxWidth: '1000px',
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
                 {/* Header */}
-                <div style={{
-                    padding: '1.5rem',
-                    borderBottom: '1px solid #e5e7eb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
+                <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                     <div>
-                        <h2 style={{
-                            margin: 0,
-                            fontSize: '1.25rem',
-                            fontWeight: '600',
-                            color: '#111827'
-                        }}>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-1">
                             🔄 Meal Plan Templates
                         </h2>
-                        <p style={{
-                            margin: '0.25rem 0 0 0',
-                            fontSize: '0.875rem',
-                            color: '#6b7280'
-                        }}>
+                        <p className="text-sm text-gray-600">
                             Apply to: {mealPlanName}
                         </p>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div className="flex items-center gap-3">
                         <TouchEnhancedButton
                             onClick={() => setShowCreateModal(true)}
-                            style={{
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.875rem',
-                                cursor: 'pointer'
-                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         >
                             💾 Save Current Plan
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
                             onClick={onClose}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                fontSize: '1.5rem',
-                                cursor: 'pointer',
-                                color: '#6b7280',
-                                padding: '0.25rem'
-                            }}
+                            className="text-gray-400 hover:text-gray-600 text-2xl p-1"
                         >
                             ×
                         </TouchEnhancedButton>
@@ -243,14 +191,10 @@ export default function MealPlanTemplateLibrary({
                 </div>
 
                 {/* Filters */}
-                <div style={{
-                    padding: '1rem 1.5rem',
-                    borderBottom: '1px solid #f3f4f6',
-                    backgroundColor: '#f9fafb'
-                }}>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <div className="flex gap-4 items-center flex-wrap">
                         {/* Tabs */}
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm">
                             {[
                                 { id: 'my-templates', label: 'My Templates', icon: '📁' },
                                 { id: 'public', label: 'Community', icon: '🌐' }
@@ -258,20 +202,14 @@ export default function MealPlanTemplateLibrary({
                                 <TouchEnhancedButton
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    style={{
-                                        padding: '0.5rem 1rem',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        backgroundColor: activeTab === tab.id ? '#3b82f6' : 'white',
-                                        color: activeTab === tab.id ? 'white' : '#6b7280',
-                                        cursor: 'pointer',
-                                        fontSize: '0.875rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                                        activeTab === tab.id
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
                                 >
-                                    {tab.icon} {tab.label}
+                                    <span>{tab.icon}</span>
+                                    <span>{tab.label}</span>
                                 </TouchEnhancedButton>
                             ))}
                         </div>
@@ -280,13 +218,7 @@ export default function MealPlanTemplateLibrary({
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
-                            style={{
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem',
-                                backgroundColor: 'white'
-                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
                         >
                             {categories.map(cat => (
                                 <option key={cat.value} value={cat.value}>
@@ -298,75 +230,30 @@ export default function MealPlanTemplateLibrary({
                 </div>
 
                 {/* Content */}
-                <div style={{
-                    flex: 1,
-                    padding: '1.5rem',
-                    overflow: 'auto'
-                }}>
+                <div className="flex-1 p-6 overflow-auto">
                     {loading ? (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '3rem',
-                            flexDirection: 'column',
-                            gap: '1rem'
-                        }}>
-                            <div style={{
-                                width: '2rem',
-                                height: '2rem',
-                                border: '3px solid #e5e7eb',
-                                borderTop: '3px solid #3b82f6',
-                                borderRadius: '50%',
-                                animation: 'spin 1s linear infinite'
-                            }} />
-                            <p style={{ color: '#6b7280' }}>Loading templates...</p>
+                        <div className="flex items-center justify-center py-12 flex-col gap-4">
+                            <div className="w-8 h-8 border-3 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+                            <p className="text-gray-600">Loading templates...</p>
                         </div>
                     ) : error ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '3rem',
-                            color: '#ef4444'
-                        }}>
-                            <div style={{
-                                fontSize: '3rem',
-                                marginBottom: '1rem'
-                            }}>❌</div>
-                            <p>{error}</p>
+                        <div className="text-center py-12">
+                            <div className="text-5xl mb-4">❌</div>
+                            <p className="text-red-600 mb-4">{error}</p>
                             <TouchEnhancedButton
                                 onClick={fetchTemplates}
-                                style={{
-                                    marginTop: '1rem',
-                                    backgroundColor: '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem 1rem',
-                                    cursor: 'pointer'
-                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
                             >
                                 Try Again
                             </TouchEnhancedButton>
                         </div>
                     ) : templates.length === 0 ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '3rem',
-                            color: '#6b7280'
-                        }}>
-                            <div style={{
-                                fontSize: '3rem',
-                                marginBottom: '1rem'
-                            }}>📋</div>
-                            <h3 style={{
-                                fontSize: '1.125rem',
-                                fontWeight: '600',
-                                margin: '0 0 0.5rem 0',
-                                color: '#111827'
-                            }}>
+                        <div className="text-center py-12">
+                            <div className="text-5xl mb-4">📋</div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
                                 {activeTab === 'my-templates' ? 'No templates yet' : 'No public templates found'}
                             </h3>
-                            <p style={{ margin: '0 0 1rem 0' }}>
+                            <p className="text-gray-600 mb-6">
                                 {activeTab === 'my-templates'
                                     ? 'Save your current meal plan as a template to reuse it later!'
                                     : 'Try changing the category filter to find more templates.'
@@ -375,25 +262,14 @@ export default function MealPlanTemplateLibrary({
                             {activeTab === 'my-templates' && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowCreateModal(true)}
-                                    style={{
-                                        backgroundColor: '#3b82f6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        padding: '0.75rem 1.5rem',
-                                        cursor: 'pointer'
-                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
                                 >
                                     💾 Save Current Plan as Template
                                 </TouchEnhancedButton>
                             )}
                         </div>
                     ) : (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                            gap: '1.5rem'
-                        }}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {templates.map(template => (
                                 <TemplateCard
                                     key={template._id}
@@ -434,13 +310,6 @@ export default function MealPlanTemplateLibrary({
                     />
                 )}
             </div>
-
-            <style jsx>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }
@@ -460,67 +329,25 @@ function TemplateCard({
     );
 
     return (
-        <div style={{
-            backgroundColor: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            padding: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'transform 0.2s, box-shadow 0.2s'
-        }}
-             onMouseEnter={(e) => {
-                 e.currentTarget.style.transform = 'translateY(-2px)';
-                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-             }}
-             onMouseLeave={(e) => {
-                 e.currentTarget.style.transform = 'translateY(0)';
-                 e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-             }}>
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
             {/* Header */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '1rem'
-            }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginBottom: '0.5rem'
-                    }}>
-                        <span style={{ fontSize: '1.5rem' }}>
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-2xl">
                             {getCategoryIcon(template.category)}
                         </span>
-                        <h3 style={{
-                            margin: 0,
-                            fontSize: '1.125rem',
-                            fontWeight: '600',
-                            color: '#111827'
-                        }}>
+                        <h3 className="text-lg font-semibold text-gray-900">
                             {template.name}
                         </h3>
                         {template.isPublic && (
-                            <span style={{
-                                backgroundColor: '#dbeafe',
-                                color: '#1e40af',
-                                padding: '0.125rem 0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: '500'
-                            }}>
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
                                 Public
                             </span>
                         )}
                     </div>
                     {template.description && (
-                        <p style={{
-                            margin: '0 0 0.75rem 0',
-                            fontSize: '0.875rem',
-                            color: '#6b7280',
-                            lineHeight: '1.4'
-                        }}>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
                             {template.description}
                         </p>
                     )}
@@ -528,14 +355,7 @@ function TemplateCard({
                 {isOwner && (
                     <TouchEnhancedButton
                         onClick={() => onDelete(template._id)}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            padding: '0.25rem',
-                            borderRadius: '4px'
-                        }}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50"
                         title="Delete template"
                     >
                         🗑️
@@ -544,68 +364,35 @@ function TemplateCard({
             </div>
 
             {/* Stats */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '1rem',
-                marginBottom: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f9fafb',
-                borderRadius: '6px'
-            }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                        fontSize: '1.25rem',
-                        fontWeight: 'bold',
-                        color: '#111827'
-                    }}>
+            <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md mb-4">
+                <div className="text-center">
+                    <div className="text-xl font-bold text-gray-900">
                         {totalMeals}
                     </div>
-                    <div style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280'
-                    }}>
+                    <div className="text-xs text-gray-600">
                         Meals
                     </div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                        fontSize: '1.25rem',
-                        fontWeight: 'bold',
-                        color: '#111827'
-                    }}>
+                <div className="text-center">
+                    <div className="text-xl font-bold text-gray-900">
                         {template.timesUsed || 0}
                     </div>
-                    <div style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280'
-                    }}>
+                    <div className="text-xs text-gray-600">
                         Uses
                     </div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                        fontSize: '1.25rem',
-                        fontWeight: 'bold',
-                        color: '#111827'
-                    }}>
+                <div className="text-center">
+                    <div className="text-xl font-bold text-gray-900">
                         {template.rating ? template.rating.toFixed(1) : '—'}
                     </div>
-                    <div style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280'
-                    }}>
+                    <div className="text-xs text-gray-600">
                         Rating
                     </div>
                 </div>
             </div>
 
             {/* Metadata */}
-            <div style={{
-                fontSize: '0.75rem',
-                color: '#6b7280',
-                marginBottom: '1rem'
-            }}>
+            <div className="text-xs text-gray-500 space-y-1 mb-4">
                 <div>Category: {template.category}</div>
                 <div>Created: {formatTimeAgo(template.createdAt)}</div>
                 {!isOwner && template.userId?.name && (
@@ -614,53 +401,22 @@ function TemplateCard({
             </div>
 
             {/* Actions */}
-            <div style={{
-                display: 'flex',
-                gap: '0.5rem',
-                flexWrap: 'wrap'
-            }}>
+            <div className="flex gap-2">
                 <TouchEnhancedButton
                     onClick={() => onPreview(template._id)}
-                    style={{
-                        flex: 1,
-                        backgroundColor: '#f3f4f6',
-                        color: '#374151',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.875rem',
-                        cursor: 'pointer'
-                    }}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-md text-sm font-medium transition-colors"
                 >
                     👁️ Preview
                 </TouchEnhancedButton>
                 <TouchEnhancedButton
                     onClick={() => onApply(template._id, false)}
-                    style={{
-                        flex: 1,
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.875rem',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-md text-sm font-medium transition-colors"
                 >
                     🔄 Apply
                 </TouchEnhancedButton>
                 <TouchEnhancedButton
                     onClick={() => onApply(template._id, true)}
-                    style={{
-                        backgroundColor: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.75rem',
-                        fontSize: '0.875rem',
-                        cursor: 'pointer'
-                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-md text-sm font-medium transition-colors"
                     title="Add to existing meals"
                 >
                     ➕
@@ -724,45 +480,15 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001
-        }}>
-            <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                padding: '2rem',
-                maxWidth: '500px',
-                width: '90%',
-                maxHeight: '80vh',
-                overflow: 'auto'
-            }}>
-                <h3 style={{
-                    margin: '0 0 1.5rem 0',
-                    fontSize: '1.25rem',
-                    fontWeight: '600',
-                    color: '#111827'
-                }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-auto">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
                     💾 Save as Template
                 </h3>
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            color: '#374151',
-                            marginBottom: '0.25rem'
-                        }}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Template Name *
                         </label>
                         <input
@@ -771,24 +497,12 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="e.g., Family Favorites Week"
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
-                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
                     <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            color: '#374151',
-                            marginBottom: '0.25rem'
-                        }}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Description
                         </label>
                         <textarea
@@ -796,37 +510,18 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Describe this meal plan template..."
                             rows={3}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem',
-                                resize: 'vertical'
-                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-vertical"
                         />
                     </div>
 
                     <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            color: '#374151',
-                            marginBottom: '0.25rem'
-                        }}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Category
                         </label>
                         <select
                             value={formData.category}
                             onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
-                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         >
                             {categories.map(cat => (
                                 <option key={cat.value} value={cat.value}>
@@ -836,55 +531,31 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                         </select>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div className="flex items-center gap-2">
                         <input
                             type="checkbox"
                             id="isPublic"
                             checked={formData.isPublic}
                             onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <label htmlFor="isPublic" style={{
-                            fontSize: '0.875rem',
-                            color: '#374151'
-                        }}>
+                        <label htmlFor="isPublic" className="text-sm text-gray-700">
                             Make this template public (share with community)
                         </label>
                     </div>
 
-                    <div style={{
-                        display: 'flex',
-                        gap: '0.75rem',
-                        justifyContent: 'flex-end',
-                        marginTop: '1rem'
-                    }}>
+                    <div className="flex gap-3 justify-end pt-4">
                         <TouchEnhancedButton
                             type="button"
                             onClick={onClose}
-                            style={{
-                                backgroundColor: '#6b7280',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.75rem 1rem',
-                                fontSize: '0.875rem',
-                                cursor: 'pointer'
-                            }}
+                            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                         >
                             Cancel
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
                             type="submit"
                             disabled={loading || !formData.name.trim()}
-                            style={{
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.75rem 1.5rem',
-                                fontSize: '0.875rem',
-                                cursor: loading || !formData.name.trim() ? 'not-allowed' : 'pointer',
-                                opacity: loading || !formData.name.trim() ? 0.7 : 1
-                            }}
+                            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Creating...' : 'Create Template'}
                         </TouchEnhancedButton>
@@ -901,124 +572,56 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
     const stats = preview.preview;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001
-        }}>
-            <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                padding: '2rem',
-                maxWidth: '600px',
-                width: '90%',
-                maxHeight: '80vh',
-                overflow: 'auto'
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '1.5rem'
-                }}>
-                    <h3 style={{
-                        margin: 0,
-                        fontSize: '1.25rem',
-                        fontWeight: '600',
-                        color: '#111827'
-                    }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-auto">
+                <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
                         👁️ Preview: {template.name}
                     </h3>
                     <TouchEnhancedButton
                         onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer',
-                            color: '#6b7280'
-                        }}
+                        className="text-gray-400 hover:text-gray-600 text-xl"
                     >
                         ×
                     </TouchEnhancedButton>
                 </div>
 
                 {template.description && (
-                    <p style={{
-                        margin: '0 0 1rem 0',
-                        color: '#6b7280',
-                        fontSize: '0.875rem'
-                    }}>
+                    <p className="text-gray-600 text-sm mb-4">
                         {template.description}
                     </p>
                 )}
 
                 {/* Stats */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '1rem',
-                    marginBottom: '1.5rem',
-                    padding: '1rem',
-                    backgroundColor: '#f9fafb',
-                    borderRadius: '6px'
-                }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-md mb-6">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-900">
                             {stats.totalMeals}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Total Meals</div>
+                        <div className="text-sm text-gray-600">Total Meals</div>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-900">
                             {stats.uniqueRecipes}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Unique Recipes</div>
+                        <div className="text-sm text-gray-600">Unique Recipes</div>
                     </div>
                 </div>
 
                 {/* Meal breakdown */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{
-                        margin: '0 0 1rem 0',
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        color: '#111827'
-                    }}>
+                <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">
                         Weekly Breakdown
                     </h4>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
-                        gap: '0.5rem'
-                    }}>
+                    <div className="grid grid-cols-7 gap-2">
                         {Object.entries(stats.mealCounts).map(([day, count]) => (
-                            <div key={day} style={{
-                                textAlign: 'center',
-                                padding: '0.5rem',
-                                backgroundColor: count > 0 ? '#dbeafe' : '#f3f4f6',
-                                borderRadius: '4px'
-                            }}>
-                                <div style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: '500',
-                                    color: '#374151',
-                                    marginBottom: '0.25rem'
-                                }}>
-                                    {day.slice(0, 3)}
+                            <div key={day} className={`text-center p-3 rounded-md ${
+                                count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                                <div className="text-xs font-medium mb-1">
+                                    {day.slice(0, 3).toUpperCase()}
                                 </div>
-                                <div style={{
-                                    fontSize: '1rem',
-                                    fontWeight: 'bold',
-                                    color: count > 0 ? '#1e40af' : '#9ca3af'
-                                }}>
+                                <div className="text-lg font-bold">
                                     {count}
                                 </div>
                             </div>
@@ -1027,51 +630,22 @@ function TemplatePreviewModal({ preview, onClose, onApply }) {
                 </div>
 
                 {/* Actions */}
-                <div style={{
-                    display: 'flex',
-                    gap: '0.75rem',
-                    justifyContent: 'flex-end'
-                }}>
+                <div className="flex gap-3 justify-end">
                     <TouchEnhancedButton
                         onClick={onClose}
-                        style={{
-                            backgroundColor: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1rem',
-                            fontSize: '0.875rem',
-                            cursor: 'pointer'
-                        }}
+                        className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                     >
                         Cancel
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         onClick={() => onApply(true)}
-                        style={{
-                            backgroundColor: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1rem',
-                            fontSize: '0.875rem',
-                            cursor: 'pointer'
-                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                     >
                         ➕ Add to Current
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         onClick={() => onApply(false)}
-                        style={{
-                            backgroundColor: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1.5rem',
-                            fontSize: '0.875rem',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
+                        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
                     >
                         🔄 Replace Current
                     </TouchEnhancedButton>
