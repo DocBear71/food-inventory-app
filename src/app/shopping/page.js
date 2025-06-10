@@ -94,6 +94,7 @@ export default function ShoppingPage() {
                     !ingredientNormalized.includes('cornstarch') &&
                     !ingredientNormalized.includes('cornmeal') &&
                     !ingredientNormalized.includes('corn flake') &&
+                    !ingredientNormalized.includes('cornflake') &&
                     !ingredientNormalized.includes('corn syrup') &&
                 !ingredientNormalized.includes('cornhusks') &&
                 !ingredientNormalized.includes('corn starch'));
