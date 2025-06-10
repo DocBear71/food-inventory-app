@@ -489,27 +489,40 @@ function InventoryContent() {
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
-                    <div className="flex gap-2">
-                        <TouchEnhancedButton
-                            onClick={() => setShowConsumptionHistory(true)}
-                            className="inline-flex items-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                            📊 View History
-                        </TouchEnhancedButton>
-                        {expiredCount > 0 && (
+                {/* Header - FIXED MOBILE LAYOUT */}
+                <div className="space-y-4">
+                    {/* Title Row */}
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
+                    </div>
+
+                    {/* Action Buttons Row - Mobile Responsive */}
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        {/* Left side buttons */}
+                        <div className="flex gap-2 flex-1">
                             <TouchEnhancedButton
-                                onClick={handleBulkConsumeExpired}
-                                className="inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                onClick={() => setShowConsumptionHistory(true)}
+                                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                                🗑️ Remove {expiredCount} Expired
+                                <span className="hidden sm:inline">📊 View History</span>
+                                <span className="sm:hidden">📊 History</span>
                             </TouchEnhancedButton>
-                        )}
+
+                            {expiredCount > 0 && (
+                                <TouchEnhancedButton
+                                    onClick={handleBulkConsumeExpired}
+                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                >
+                                    <span className="hidden sm:inline">🗑️ Remove {expiredCount} Expired</span>
+                                    <span className="sm:hidden">🗑️ Remove {expiredCount}</span>
+                                </TouchEnhancedButton>
+                            )}
+                        </div>
+
+                        {/* Add/Cancel button - Always visible */}
                         <TouchEnhancedButton
                             onClick={() => setShowAddForm(!showAddForm)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                             {showAddForm ? 'Cancel' : 'Add Item'}
                         </TouchEnhancedButton>

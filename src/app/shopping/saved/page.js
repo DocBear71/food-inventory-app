@@ -1,4 +1,4 @@
-// file: /src/app/shopping/saved/page.js v1
+// file: /src/app/shopping/saved/page.js v2 - Fixed button styling and mobile layout
 
 'use client';
 
@@ -139,11 +139,11 @@ export default function SavedShoppingListsPage() {
 
     const getTypeColor = (type) => {
         switch (type) {
-            case 'recipe': return '#10b981';
-            case 'recipes': return '#3b82f6';
-            case 'meal-plan': return '#8b5cf6';
-            case 'custom': return '#f59e0b';
-            default: return '#6b7280';
+            case 'recipe': return 'text-green-600 bg-green-50';
+            case 'recipes': return 'text-blue-600 bg-blue-50';
+            case 'meal-plan': return 'text-purple-600 bg-purple-50';
+            case 'custom': return 'text-yellow-600 bg-yellow-50';
+            default: return 'text-gray-600 bg-gray-50';
         }
     };
 
@@ -166,66 +166,36 @@ export default function SavedShoppingListsPage() {
 
     return (
         <MobileOptimizedLayout>
-            <div style={{ padding: '2rem' }}>
+            <div className="max-w-7xl mx-auto px-4 py-8 pb-16">
                 {/* Header */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <h1 style={{
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        marginBottom: '0.5rem',
-                        color: '#111827'
-                    }}>
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         💾 Saved Shopping Lists
                     </h1>
-                    <p style={{ color: '#6b7280', fontSize: '1rem' }}>
+                    <p className="text-gray-600 text-lg">
                         Manage your saved shopping lists and templates
                     </p>
                 </div>
 
                 {/* Stats Cards */}
                 {Object.keys(stats).length > 0 && (
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '1rem',
-                        marginBottom: '2rem'
-                    }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                         {Object.entries(stats).map(([type, data]) => (
-                            <div key={type} style={{
-                                backgroundColor: 'white',
-                                padding: '1.5rem',
-                                borderRadius: '12px',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                                border: '1px solid #e5e7eb'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    marginBottom: '0.5rem'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        backgroundColor: getTypeColor(type),
-                                        color: 'white',
-                                        padding: '0.5rem',
-                                        borderRadius: '8px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
+                            <div key={type} className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className={`text-2xl p-2 rounded-lg ${getTypeColor(type)}`}>
                                         {getTypeIcon(type)}
                                     </div>
                                     <div>
-                                        <div style={{ fontWeight: '600', textTransform: 'capitalize' }}>
+                                        <div className="font-semibold text-gray-900 capitalize">
                                             {type.replace('-', ' ')} Lists
                                         </div>
-                                        <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                                        <div className="text-gray-600 text-sm">
                                             {data.count} saved
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                                <div className="text-gray-600 text-sm">
                                     {data.totalItems} total items
                                 </div>
                             </div>
@@ -234,40 +204,16 @@ export default function SavedShoppingListsPage() {
                 )}
 
                 {/* Filters */}
-                <div style={{
-                    backgroundColor: 'white',
-                    padding: '1.5rem',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    border: '1px solid #e5e7eb',
-                    marginBottom: '2rem'
-                }}>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '1rem',
-                        alignItems: 'end'
-                    }}>
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <div>
-                            <label style={{
-                                display: 'block',
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                marginBottom: '0.5rem',
-                                color: '#374151'
-                            }}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Filter by Type
                             </label>
                             <select
                                 value={filters.type}
                                 onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '6px',
-                                    fontSize: '0.875rem'
-                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                             >
                                 <option value="all">All Types</option>
                                 <option value="recipe">Single Recipe</option>
@@ -278,13 +224,7 @@ export default function SavedShoppingListsPage() {
                         </div>
 
                         <div>
-                            <label style={{
-                                display: 'block',
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                marginBottom: '0.5rem',
-                                color: '#374151'
-                            }}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Filter by Tags
                             </label>
                             <input
@@ -292,29 +232,19 @@ export default function SavedShoppingListsPage() {
                                 value={filters.tags}
                                 onChange={(e) => setFilters({ ...filters, tags: e.target.value })}
                                 placeholder="weekly, healthy, quick..."
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '6px',
-                                    fontSize: '0.875rem'
-                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                             />
                         </div>
 
                         <div>
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                cursor: 'pointer'
-                            }}>
+                            <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
                                     checked={filters.includeArchived}
                                     onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })}
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                 />
-                                <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+                                <span className="text-sm text-gray-700">
                                     Include archived
                                 </span>
                             </label>
@@ -322,47 +252,22 @@ export default function SavedShoppingListsPage() {
                     </div>
                 </div>
 
-                {/* Bulk Actions */}
+                {/* Bulk Actions - FIXED BUTTON STYLING */}
                 {selectedLists.length > 0 && (
-                    <div style={{
-                        backgroundColor: '#eff6ff',
-                        border: '1px solid #dbeafe',
-                        borderRadius: '8px',
-                        padding: '1rem',
-                        marginBottom: '1rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                    }}>
-                        <div style={{ color: '#1e40af', fontWeight: '500' }}>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+                        <div className="text-blue-800 font-medium">
                             {selectedLists.length} list{selectedLists.length !== 1 ? 's' : ''} selected
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="flex gap-2">
                             <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, true)}
-                                style={{
-                                    backgroundColor: '#f59e0b',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem 1rem',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer'
-                                }}
+                                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
                             >
                                 📦 Archive
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, false)}
-                                style={{
-                                    backgroundColor: '#ef4444',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem 1rem',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer'
-                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
                             >
                                 🗑️ Delete
                             </TouchEnhancedButton>
@@ -372,49 +277,24 @@ export default function SavedShoppingListsPage() {
 
                 {/* Error Message */}
                 {error && (
-                    <div style={{
-                        backgroundColor: '#fef2f2',
-                        border: '1px solid #fecaca',
-                        color: '#dc2626',
-                        padding: '1rem',
-                        borderRadius: '8px',
-                        marginBottom: '1rem'
-                    }}>
+                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
                         {error}
                     </div>
                 )}
 
                 {/* Loading State */}
                 {loading ? (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '3rem',
-                        color: '#6b7280'
-                    }}>
-                        <div style={{
-                            width: '2rem',
-                            height: '2rem',
-                            border: '3px solid #e5e7eb',
-                            borderTop: '3px solid #3b82f6',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite',
-                            marginRight: '1rem'
-                        }} />
+                    <div className="flex items-center justify-center py-12 text-gray-600">
+                        <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mr-4" />
                         Loading saved lists...
                     </div>
                 ) : savedLists.length === 0 ? (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '3rem',
-                        color: '#6b7280'
-                    }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    <div className="text-center py-12 text-gray-500">
+                        <div className="text-6xl mb-4">📋</div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
                             No saved shopping lists
                         </h3>
-                        <p>
+                        <p className="text-gray-600">
                             Create a shopping list and save it to see it here.
                         </p>
                     </div>
@@ -422,143 +302,71 @@ export default function SavedShoppingListsPage() {
                     /* Shopping Lists Grid */
                     <div>
                         {/* Select All Header */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginBottom: '1rem',
-                            padding: '0 0.5rem'
-                        }}>
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                cursor: 'pointer',
-                                fontSize: '0.875rem',
-                                color: '#6b7280'
-                            }}>
+                        <div className="flex items-center justify-between mb-4 px-2">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
                                 <input
                                     type="checkbox"
                                     checked={selectedLists.length === savedLists.length && savedLists.length > 0}
                                     onChange={handleSelectAll}
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                 />
                                 Select All ({savedLists.length} lists)
                             </label>
-                            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            <div className="text-sm text-gray-600">
                                 {savedLists.length} list{savedLists.length !== 1 ? 's' : ''} found
                             </div>
                         </div>
 
                         {/* Lists Grid */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                            gap: '1.5rem'
-                        }}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {savedLists.map(list => (
                                 <div
                                     key={list.id}
-                                    style={{
-                                        backgroundColor: 'white',
-                                        borderRadius: '12px',
-                                        border: selectedLists.includes(list.id)
-                                            ? '2px solid #3b82f6'
-                                            : '1px solid #e5e7eb',
-                                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                                        overflow: 'hidden',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    className={`bg-white rounded-lg border-2 shadow-md overflow-hidden transition-all ${
+                                        selectedLists.includes(list.id)
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
                                 >
                                     {/* List Header */}
-                                    <div style={{
-                                        padding: '1.5rem',
-                                        borderBottom: '1px solid #f3f4f6'
-                                    }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            justifyContent: 'space-between',
-                                            marginBottom: '1rem'
-                                        }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.75rem',
-                                                    marginBottom: '0.5rem'
-                                                }}>
+                                    <div className="p-6 border-b border-gray-100">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-3">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedLists.includes(list.id)}
                                                         onChange={() => handleSelectList(list.id)}
-                                                        style={{ margin: 0 }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
                                                     <div
-                                                        style={{
-                                                            width: '0.75rem',
-                                                            height: '0.75rem',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: list.color
-                                                        }}
+                                                        className="w-3 h-3 rounded-full"
+                                                        style={{ backgroundColor: list.color }}
                                                     />
-                                                    <span style={{
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: '500',
-                                                        color: getTypeColor(list.listType),
-                                                        backgroundColor: `${getTypeColor(list.listType)}20`,
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        textTransform: 'uppercase'
-                                                    }}>
+                                                    <span className={`text-xs font-medium px-2 py-1 rounded uppercase ${getTypeColor(list.listType)}`}>
                                                         {list.listType.replace('-', ' ')}
                                                     </span>
                                                     {list.isTemplate && (
-                                                        <span style={{
-                                                            fontSize: '0.75rem',
-                                                            color: '#8b5cf6',
-                                                            backgroundColor: '#f3e8ff',
-                                                            padding: '0.25rem 0.5rem',
-                                                            borderRadius: '4px'
-                                                        }}>
+                                                        <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
                                                             TEMPLATE
                                                         </span>
                                                     )}
                                                     {list.isArchived && (
-                                                        <span style={{
-                                                            fontSize: '0.75rem',
-                                                            color: '#6b7280',
-                                                            backgroundColor: '#f3f4f6',
-                                                            padding: '0.25rem 0.5rem',
-                                                            borderRadius: '4px'
-                                                        }}>
+                                                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                                             ARCHIVED
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h3 style={{
-                                                    fontSize: '1.125rem',
-                                                    fontWeight: '600',
-                                                    margin: '0 0 0.25rem 0',
-                                                    color: '#111827'
-                                                }}>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-1">
                                                     {list.name}
                                                 </h3>
                                                 {list.contextName && (
-                                                    <div style={{
-                                                        fontSize: '0.875rem',
-                                                        color: '#6b7280',
-                                                        marginBottom: '0.5rem'
-                                                    }}>
+                                                    <div className="text-sm text-gray-600 mb-2">
                                                         {list.contextName}
                                                     </div>
                                                 )}
                                                 {list.description && (
-                                                    <p style={{
-                                                        fontSize: '0.875rem',
-                                                        color: '#6b7280',
-                                                        margin: '0 0 0.5rem 0',
-                                                        lineHeight: '1.4'
-                                                    }}>
+                                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                                                         {list.description}
                                                     </p>
                                                 )}
@@ -567,22 +375,11 @@ export default function SavedShoppingListsPage() {
 
                                         {/* Tags */}
                                         {list.tags && list.tags.length > 0 && (
-                                            <div style={{
-                                                display: 'flex',
-                                                flexWrap: 'wrap',
-                                                gap: '0.25rem',
-                                                marginBottom: '1rem'
-                                            }}>
+                                            <div className="flex flex-wrap gap-1 mb-4">
                                                 {list.tags.map(tag => (
                                                     <span
                                                         key={tag}
-                                                        style={{
-                                                            fontSize: '0.75rem',
-                                                            backgroundColor: '#f3f4f6',
-                                                            color: '#6b7280',
-                                                            padding: '0.25rem 0.5rem',
-                                                            borderRadius: '4px'
-                                                        }}
+                                                        className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
                                                     >
                                                         #{tag}
                                                     </span>
@@ -591,105 +388,43 @@ export default function SavedShoppingListsPage() {
                                         )}
 
                                         {/* Stats */}
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(2, 1fr)',
-                                            gap: '0.5rem',
-                                            marginBottom: '1rem'
-                                        }}>
-                                            <div style={{
-                                                backgroundColor: '#f8fafc',
-                                                padding: '0.75rem',
-                                                borderRadius: '6px',
-                                                textAlign: 'center'
-                                            }}>
-                                                <div style={{
-                                                    fontSize: '1.25rem',
-                                                    fontWeight: '600',
-                                                    color: '#1e293b'
-                                                }}>
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
+                                            <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                                <div className="text-lg font-semibold text-gray-900">
                                                     {list.stats.totalItems}
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '0.75rem',
-                                                    color: '#64748b'
-                                                }}>
+                                                <div className="text-xs text-gray-600">
                                                     Items
                                                 </div>
                                             </div>
-                                            <div style={{
-                                                backgroundColor: '#f8fafc',
-                                                padding: '0.75rem',
-                                                borderRadius: '6px',
-                                                textAlign: 'center'
-                                            }}>
-                                                <div style={{
-                                                    fontSize: '1.25rem',
-                                                    fontWeight: '600',
-                                                    color: '#1e293b'
-                                                }}>
+                                            <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                                <div className="text-lg font-semibold text-gray-900">
                                                     {list.usage.timesLoaded || 0}
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '0.75rem',
-                                                    color: '#64748b'
-                                                }}>
+                                                <div className="text-xs text-gray-600">
                                                     Uses
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Actions */}
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '0.5rem'
-                                        }}>
+                                        {/* Actions - FIXED BUTTON STYLING */}
+                                        <div className="flex gap-2">
                                             <TouchEnhancedButton
                                                 onClick={() => loadSavedList(list.id)}
-                                                style={{
-                                                    flex: 1,
-                                                    backgroundColor: '#3b82f6',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    padding: '0.75rem',
-                                                    fontSize: '0.875rem',
-                                                    fontWeight: '500',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.5rem'
-                                                }}
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
                                             >
                                                 📋 Load List
                                             </TouchEnhancedButton>
                                             <TouchEnhancedButton
                                                 onClick={() => deleteSavedLists([list.id], true)}
-                                                style={{
-                                                    backgroundColor: '#f59e0b',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    padding: '0.75rem',
-                                                    fontSize: '0.875rem',
-                                                    cursor: 'pointer'
-                                                }}
+                                                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-3 rounded-md text-sm transition-colors"
                                                 title="Archive"
                                             >
                                                 📦
                                             </TouchEnhancedButton>
                                             <TouchEnhancedButton
                                                 onClick={() => deleteSavedLists([list.id], false)}
-                                                style={{
-                                                    backgroundColor: '#ef4444',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    padding: '0.75rem',
-                                                    fontSize: '0.875rem',
-                                                    cursor: 'pointer'
-                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-3 rounded-md text-sm transition-colors"
                                                 title="Delete"
                                             >
                                                 🗑️
@@ -698,16 +433,8 @@ export default function SavedShoppingListsPage() {
                                     </div>
 
                                     {/* List Footer */}
-                                    <div style={{
-                                        padding: '1rem 1.5rem',
-                                        backgroundColor: '#f9fafb',
-                                        fontSize: '0.75rem',
-                                        color: '#6b7280'
-                                    }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between'
-                                        }}>
+                                    <div className="px-6 py-4 bg-gray-50 text-xs text-gray-600">
+                                        <div className="flex justify-between">
                                             <div>
                                                 Created {new Date(list.createdAt).toLocaleDateString()}
                                             </div>
@@ -723,15 +450,9 @@ export default function SavedShoppingListsPage() {
                         </div>
                     </div>
                 )}
+                <br/>
                 <Footer />
             </div>
-
-            <style jsx>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </MobileOptimizedLayout>
     );
 }

@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPrepSuggestions.js v1
+// file: /src/components/meal-planning/MealPrepSuggestions.js v2 - Mobile optimized
 
 'use client';
 
@@ -150,35 +150,10 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     if (loading) {
         return (
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000
-            }}>
-                <div style={{
-                    backgroundColor: 'white',
-                    padding: '2rem',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                    maxWidth: '400px'
-                }}>
-                    <div style={{
-                        width: '3rem',
-                        height: '3rem',
-                        border: '4px solid #e5e7eb',
-                        borderTop: '4px solid #3b82f6',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto 1rem'
-                    }} />
-                    <p style={{ color: '#6b7280' }}>Analyzing your meal plan for prep opportunities...</p>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-8 rounded-lg text-center max-w-sm mx-4">
+                    <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-gray-600">Analyzing your meal plan for prep opportunities...</p>
                 </div>
             </div>
         );
@@ -186,53 +161,21 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     if (error) {
         return (
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '1rem'
-            }}>
-                <div style={{
-                    backgroundColor: 'white',
-                    padding: '2rem',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                    maxWidth: '400px'
-                }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
-                    <h3 style={{ margin: '0 0 1rem 0', color: '#dc2626' }}>Error</h3>
-                    <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{error}</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white p-6 rounded-lg text-center max-w-sm w-full">
+                    <div className="text-4xl mb-4">❌</div>
+                    <h3 className="text-lg font-semibold text-red-600 mb-2">Error</h3>
+                    <p className="text-gray-600 mb-4">{error}</p>
+                    <div className="flex gap-2 justify-center">
                         <TouchEnhancedButton
                             onClick={() => generateSuggestions(true)}
-                            style={{
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.75rem 1rem',
-                                cursor: 'pointer'
-                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
                         >
                             Try Again
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
                             onClick={onClose}
-                            style={{
-                                backgroundColor: '#6b7280',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.75rem 1rem',
-                                cursor: 'pointer'
-                            }}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
                         >
                             Close
                         </TouchEnhancedButton>
@@ -245,230 +188,124 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
     if (!suggestions) return null;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem'
-        }}>
-            <div style={{
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                width: '100%',
-                maxWidth: '900px',
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
-                {/* Header */}
-                <div style={{
-                    padding: '1.5rem',
-                    borderBottom: '1px solid #e5e7eb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div>
-                        <h2 style={{
-                            margin: 0,
-                            fontSize: '1.25rem',
-                            fontWeight: '600',
-                            color: '#111827'
-                        }}>
-                            🍳 Meal Prep Suggestions
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white w-full h-full md:max-w-4xl md:max-h-[90vh] md:rounded-lg overflow-hidden shadow-2xl flex flex-col">
+                {/* Compact Header */}
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-lg font-semibold text-gray-900 truncate">
+                            🍳 Meal Prep
                         </h2>
-                        <p style={{
-                            margin: '0.25rem 0 0 0',
-                            fontSize: '0.875rem',
-                            color: '#6b7280'
-                        }}>
+                        <p className="text-xs text-gray-600 truncate">
                             {mealPlanName}
                         </p>
                     </div>
                     <TouchEnhancedButton
                         onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer',
-                            color: '#6b7280',
-                            padding: '0.25rem'
-                        }}
+                        className="text-gray-400 hover:text-gray-600 text-xl p-1 ml-2"
                     >
                         ×
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Summary Cards */}
+                {/* Compact Summary Cards - Mobile Optimized */}
                 {suggestions.metrics && (
-                    <div style={{
-                        padding: '1.5rem',
-                        borderBottom: '1px solid #f3f4f6'
-                    }}>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                            gap: '1rem'
-                        }}>
-                            <div style={{
-                                backgroundColor: '#f0f9ff',
-                                padding: '1rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0369a1' }}>
+                    <div className="p-3 border-b border-gray-100 bg-gray-50">
+                        <div className="grid grid-cols-4 gap-2">
+                            <div className="bg-blue-50 p-2 rounded text-center">
+                                <div className="text-sm font-bold text-blue-600">
                                     {formatTime(suggestions.metrics.totalPrepTime)}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.25rem' }}>
-                                    Total Prep Time
-                                </div>
+                                <div className="text-xs text-blue-500">Prep Time</div>
                             </div>
-                            <div style={{
-                                backgroundColor: '#f0fdf4',
-                                padding: '1rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#15803d' }}>
+                            <div className="bg-green-50 p-2 rounded text-center">
+                                <div className="text-sm font-bold text-green-600">
                                     {formatTime(suggestions.metrics.timeSaved)}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '0.25rem' }}>
-                                    Time Saved
-                                </div>
+                                <div className="text-xs text-green-500">Time Saved</div>
                             </div>
-                            <div style={{
-                                backgroundColor: '#fef3c7',
-                                padding: '1rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d97706' }}>
+                            <div className="bg-yellow-50 p-2 rounded text-center">
+                                <div className="text-sm font-bold text-yellow-600">
                                     {suggestions.metrics.efficiency}%
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.25rem' }}>
-                                    Efficiency
-                                </div>
+                                <div className="text-xs text-yellow-500">Efficiency</div>
                             </div>
-                            <div style={{
-                                backgroundColor: '#f3e8ff',
-                                padding: '1rem',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#7c3aed' }}>
+                            <div className="bg-purple-50 p-2 rounded text-center">
+                                <div className="text-sm font-bold text-purple-600">
                                     {suggestions.metrics.recipesAffected}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#8b5cf6', marginTop: '0.25rem' }}>
-                                    Recipes Affected
-                                </div>
+                                <div className="text-xs text-purple-500">Recipes</div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Tabs */}
-                <div style={{
-                    padding: '0 1.5rem',
-                    borderBottom: '1px solid #e5e7eb',
-                    display: 'flex',
-                    gap: '1rem'
-                }}>
-                    {[
-                        { id: 'overview', label: 'Overview', icon: '📋' },
-                        { id: 'batch', label: 'Batch Cooking', icon: '🍳' },
-                        { id: 'prep', label: 'Ingredient Prep', icon: '🔪' },
-                        { id: 'schedule', label: 'Schedule', icon: '📅' }
-                    ].map(tab => (
-                        <TouchEnhancedButton
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            style={{
-                                padding: '1rem 0',
-                                border: 'none',
-                                background: 'none',
-                                borderBottom: activeTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
-                                color: activeTab === tab.id ? '#3b82f6' : '#6b7280',
-                                fontWeight: activeTab === tab.id ? '600' : '400',
-                                cursor: 'pointer',
-                                fontSize: '0.875rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                            }}
-                        >
-                            {tab.icon} {tab.label}
-                        </TouchEnhancedButton>
-                    ))}
+                {/* Compact Tabs - Mobile Scrollable */}
+                <div className="border-b border-gray-200 bg-white">
+                    <div className="flex overflow-x-auto scrollbar-hide">
+                        {[
+                            { id: 'overview', label: 'Overview', icon: '📋' },
+                            { id: 'batch', label: 'Batch Cook', icon: '🍳' },
+                            { id: 'prep', label: 'Prep Tasks', icon: '🔪' },
+                            { id: 'schedule', label: 'Schedule', icon: '📅' }
+                        ].map(tab => (
+                            <TouchEnhancedButton
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 ${
+                                    activeTab === tab.id
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                <span className="mr-1">{tab.icon}</span>
+                                <span className="whitespace-nowrap">{tab.label}</span>
+                            </TouchEnhancedButton>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div style={{
-                    flex: 1,
-                    padding: '1.5rem',
-                    overflow: 'auto'
-                }}>
+                {/* Scrollable Content - Takes remaining space */}
+                <div className="flex-1 overflow-auto p-4">
                     {activeTab === 'overview' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div>
-                                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#111827' }}>
-                                    📊 Meal Prep Summary
+                        <div className="space-y-4">
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                                    📊 Summary
                                 </h3>
-                                <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '8px' }}>
-                                    <p style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>
-                                        Based on your meal plan, we found <strong>{suggestions.batchCookingSuggestions?.length || 0}</strong> batch cooking opportunities
-                                        and <strong>{suggestions.ingredientPrepSuggestions?.length || 0}</strong> ingredient prep tasks that could save you time during the week.
-                                    </p>
-                                    <p style={{ margin: '0', color: '#6b7280' }}>
-                                        Total prep time: <strong>{formatTime(suggestions.metrics.totalPrepTime)}</strong> •
-                                        Estimated time saved: <strong>{formatTime(suggestions.metrics.timeSaved)}</strong>
-                                    </p>
-                                </div>
+                                <p className="text-sm text-gray-700 mb-2">
+                                    Found <strong>{suggestions.batchCookingSuggestions?.length || 0}</strong> batch cooking opportunities
+                                    and <strong>{suggestions.ingredientPrepSuggestions?.length || 0}</strong> ingredient prep tasks.
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                    Total prep: <strong>{formatTime(suggestions.metrics.totalPrepTime)}</strong> •
+                                    Time saved: <strong>{formatTime(suggestions.metrics.timeSaved)}</strong>
+                                </p>
                             </div>
 
                             {suggestions.batchCookingSuggestions?.length > 0 && (
                                 <div>
-                                    <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#111827' }}>
-                                        🍳 Top Batch Cooking Opportunities
+                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        🍳 Top Batch Cooking
                                     </h4>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <div className="space-y-3">
                                         {suggestions.batchCookingSuggestions.slice(0, 3).map((suggestion, index) => (
-                                            <div key={index} style={{
-                                                backgroundColor: 'white',
-                                                border: '1px solid #e5e7eb',
-                                                borderRadius: '8px',
-                                                padding: '1rem'
-                                            }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                    <div>
-                                                        <h5 style={{ margin: '0 0 0.25rem 0', fontWeight: '600', color: '#111827' }}>
+                                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1">
+                                                        <h5 className="font-medium text-gray-900 mb-1">
                                                             {suggestion.totalAmount} {suggestion.ingredient}
                                                         </h5>
-                                                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                                                        <p className="text-xs text-gray-600 mb-2">
                                                             Used in: {suggestion.recipes.join(', ')}
                                                         </p>
-                                                        <p style={{ margin: '0', fontSize: '0.875rem', color: '#374151' }}>
+                                                        <p className="text-xs text-gray-700">
                                                             {suggestion.prepInstructions}
                                                         </p>
                                                     </div>
-                                                    <div style={{
-                                                        backgroundColor: '#f3f4f6',
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.75rem',
-                                                        color: '#6b7280'
-                                                    }}>
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs ml-2">
                                                         {formatTime(suggestion.estimatedPrepTime)}
-                                                    </div>
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
@@ -478,38 +315,27 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                             {suggestions.ingredientPrepSuggestions?.length > 0 && (
                                 <div>
-                                    <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#111827' }}>
-                                        🔪 Top Ingredient Prep Tasks
+                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        🔪 Top Prep Tasks
                                     </h4>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <div className="space-y-3">
                                         {suggestions.ingredientPrepSuggestions.slice(0, 3).map((suggestion, index) => (
-                                            <div key={index} style={{
-                                                backgroundColor: 'white',
-                                                border: '1px solid #e5e7eb',
-                                                borderRadius: '8px',
-                                                padding: '1rem'
-                                            }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                    <div>
-                                                        <h5 style={{ margin: '0 0 0.25rem 0', fontWeight: '600', color: '#111827' }}>
+                                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1">
+                                                        <h5 className="font-medium text-gray-900 mb-1">
                                                             {suggestion.prepType} {suggestion.totalAmount} {suggestion.ingredient}
                                                         </h5>
-                                                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                                                        <p className="text-xs text-gray-600 mb-2">
                                                             Used in: {suggestion.recipes.join(', ')}
                                                         </p>
-                                                        <p style={{ margin: '0', fontSize: '0.875rem', color: '#374151' }}>
+                                                        <p className="text-xs text-gray-700">
                                                             {suggestion.prepInstructions}
                                                         </p>
                                                     </div>
-                                                    <div style={{
-                                                        backgroundColor: '#f3f4f6',
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.75rem',
-                                                        color: '#6b7280'
-                                                    }}>
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs ml-2">
                                                         {formatTime(suggestion.estimatedPrepTime)}
-                                                    </div>
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
@@ -521,74 +347,51 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                     {activeTab === 'batch' && (
                         <div>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#111827' }}>
+                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
                                 🍳 Batch Cooking Suggestions
                             </h3>
                             {suggestions.batchCookingSuggestions?.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div className="space-y-4">
                                     {suggestions.batchCookingSuggestions.map((suggestion, index) => (
-                                        <div key={index} style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            padding: '1.5rem'
-                                        }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                                <div>
-                                                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
-                                                        {suggestion.totalAmount} {suggestion.ingredient}
-                                                    </h4>
-                                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                                                        <span>⏱️ {formatTime(suggestion.estimatedPrepTime)}</span>
-                                                        <span>📊 {suggestion.difficulty}</span>
-                                                        <span>🗓️ {suggestion.shelfLife}</span>
-                                                    </div>
+                                        <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <h4 className="font-semibold text-gray-900">
+                                                    {suggestion.totalAmount} {suggestion.ingredient}
+                                                </h4>
+                                                <div className="text-xs text-gray-500 text-right">
+                                                    <div>⏱️ {formatTime(suggestion.estimatedPrepTime)}</div>
+                                                    <div>📊 {suggestion.difficulty}</div>
+                                                    <div>🗓️ {suggestion.shelfLife}</div>
                                                 </div>
                                             </div>
 
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Used in these recipes:
-                                                </h5>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            <div className="mb-3">
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Used in:</h5>
+                                                <div className="flex flex-wrap gap-1">
                                                     {suggestion.recipes.map((recipe, idx) => (
-                                                        <span key={idx} style={{
-                                                            backgroundColor: '#f3f4f6',
-                                                            padding: '0.25rem 0.75rem',
-                                                            borderRadius: '4px',
-                                                            fontSize: '0.75rem',
-                                                            color: '#6b7280'
-                                                        }}>
+                                                        <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
                                                             {recipe}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Instructions:
-                                                </h5>
-                                                <p style={{ margin: '0', fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
-                                                    {suggestion.prepInstructions}
-                                                </p>
+                                            <div className="mb-3">
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Instructions:</h5>
+                                                <p className="text-sm text-gray-600">{suggestion.prepInstructions}</p>
                                             </div>
 
                                             <div>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Storage:
-                                                </h5>
-                                                <p style={{ margin: '0', fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
-                                                    {suggestion.storageInstructions}
-                                                </p>
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Storage:</h5>
+                                                <p className="text-sm text-gray-600">{suggestion.storageInstructions}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
-                                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍳</div>
-                                    <p>No batch cooking opportunities found for this meal plan.</p>
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-4xl mb-4">🍳</div>
+                                    <p>No batch cooking opportunities found.</p>
                                 </div>
                             )}
                         </div>
@@ -596,72 +399,49 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                     {activeTab === 'prep' && (
                         <div>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#111827' }}>
+                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
                                 🔪 Ingredient Prep Tasks
                             </h3>
                             {suggestions.ingredientPrepSuggestions?.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div className="space-y-4">
                                     {suggestions.ingredientPrepSuggestions.map((suggestion, index) => (
-                                        <div key={index} style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            padding: '1.5rem'
-                                        }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                                <div>
-                                                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
-                                                        {suggestion.prepType} {suggestion.totalAmount} {suggestion.ingredient}
-                                                    </h4>
-                                                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                                                        ⏱️ {formatTime(suggestion.estimatedPrepTime)}
-                                                    </div>
-                                                </div>
+                                        <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <h4 className="font-semibold text-gray-900">
+                                                    {suggestion.prepType} {suggestion.totalAmount} {suggestion.ingredient}
+                                                </h4>
+                                                <span className="text-xs text-gray-500">
+                                                    ⏱️ {formatTime(suggestion.estimatedPrepTime)}
+                                                </span>
                                             </div>
 
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Used in these recipes:
-                                                </h5>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            <div className="mb-3">
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Used in:</h5>
+                                                <div className="flex flex-wrap gap-1">
                                                     {suggestion.recipes.map((recipe, idx) => (
-                                                        <span key={idx} style={{
-                                                            backgroundColor: '#f3f4f6',
-                                                            padding: '0.25rem 0.75rem',
-                                                            borderRadius: '4px',
-                                                            fontSize: '0.75rem',
-                                                            color: '#6b7280'
-                                                        }}>
+                                                        <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
                                                             {recipe}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Instructions:
-                                                </h5>
-                                                <p style={{ margin: '0', fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
-                                                    {suggestion.prepInstructions}
-                                                </p>
+                                            <div className="mb-3">
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Instructions:</h5>
+                                                <p className="text-sm text-gray-600">{suggestion.prepInstructions}</p>
                                             </div>
 
                                             <div>
-                                                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                                                    Storage:
-                                                </h5>
-                                                <p style={{ margin: '0', fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
-                                                    {suggestion.storageMethod}
-                                                </p>
+                                                <h5 className="text-sm font-medium text-gray-700 mb-1">Storage:</h5>
+                                                <p className="text-sm text-gray-600">{suggestion.storageMethod}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
-                                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔪</div>
-                                    <p>No ingredient prep tasks found for this meal plan.</p>
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-4xl mb-4">🔪</div>
+                                    <p>No ingredient prep tasks found.</p>
                                 </div>
                             )}
                         </div>
@@ -669,87 +449,64 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                     {activeTab === 'schedule' && (
                         <div>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#111827' }}>
+                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
                                 📅 Prep Schedule
                             </h3>
                             {suggestions.prepSchedule?.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                <div className="space-y-4">
                                     {suggestions.prepSchedule.map((daySchedule, index) => (
-                                        <div key={index} style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            overflow: 'hidden'
-                                        }}>
-                                            <div style={{
-                                                backgroundColor: '#f9fafb',
-                                                padding: '1rem',
-                                                borderBottom: '1px solid #e5e7eb'
-                                            }}>
-                                                <h4 style={{ margin: '0', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                                        <div key={index} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                            <div className="bg-gray-50 p-3 border-b border-gray-200">
+                                                <h4 className="font-semibold text-gray-900">
                                                     {getDayName(daySchedule.day)}
                                                 </h4>
-                                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                                                <p className="text-sm text-gray-600">
                                                     {daySchedule.tasks.length} task{daySchedule.tasks.length !== 1 ? 's' : ''} •
-                                                    Total time: {formatTime(daySchedule.tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0))}
+                                                    {formatTime(daySchedule.tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0))}
                                                 </p>
                                             </div>
-                                            <div style={{ padding: '1rem' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            <div className="p-3">
+                                                <div className="space-y-3">
                                                     {daySchedule.tasks.map((task, taskIndex) => {
                                                         const taskId = `${daySchedule.day}-${taskIndex}`;
                                                         const isCompleted = completedTasks.has(taskId);
 
                                                         return (
-                                                            <div key={taskIndex} style={{
-                                                                display: 'flex',
-                                                                alignItems: 'flex-start',
-                                                                gap: '1rem',
-                                                                padding: '1rem',
-                                                                backgroundColor: isCompleted ? '#f0fdf4' : '#f9fafb',
-                                                                borderRadius: '6px',
-                                                                opacity: isCompleted ? 0.7 : 1
-                                                            }}>
+                                                            <div
+                                                                key={taskIndex}
+                                                                className={`flex items-start gap-3 p-3 rounded-lg ${
+                                                                    isCompleted ? 'bg-green-50' : 'bg-gray-50'
+                                                                }`}
+                                                            >
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={isCompleted}
                                                                     onChange={() => handleTaskComplete(taskId)}
-                                                                    style={{
-                                                                        marginTop: '0.125rem',
-                                                                        cursor: 'pointer'
-                                                                    }}
+                                                                    className="mt-1"
                                                                 />
-                                                                <div style={{ flex: 1 }}>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                                        <span style={{ fontSize: '1rem' }}>{getTaskIcon(task.taskType)}</span>
-                                                                        <h5 style={{
-                                                                            margin: '0',
-                                                                            fontSize: '1rem',
-                                                                            fontWeight: '600',
-                                                                            color: '#111827',
-                                                                            textDecoration: isCompleted ? 'line-through' : 'none'
-                                                                        }}>
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span>{getTaskIcon(task.taskType)}</span>
+                                                                        <h5 className={`font-medium text-gray-900 ${
+                                                                            isCompleted ? 'line-through' : ''
+                                                                        }`}>
                                                                             {task.description}
                                                                         </h5>
-                                                                        <div style={{
-                                                                            backgroundColor: getPriorityColor(task.priority),
-                                                                            color: 'white',
-                                                                            padding: '0.125rem 0.5rem',
-                                                                            borderRadius: '4px',
-                                                                            fontSize: '0.75rem',
-                                                                            fontWeight: '500'
-                                                                        }}>
+                                                                        <span
+                                                                            className="px-2 py-1 rounded text-xs text-white"
+                                                                            style={{ backgroundColor: getPriorityColor(task.priority) }}
+                                                                        >
                                                                             {task.priority}
-                                                                        </div>
+                                                                        </span>
                                                                     </div>
-                                                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                                                                        <span>⏱️ {formatTime(task.estimatedTime)}</span>
+                                                                    <div className="text-sm text-gray-600">
+                                                                        ⏱️ {formatTime(task.estimatedTime)}
                                                                         {task.equipment && task.equipment.length > 0 && (
-                                                                            <span>🔧 {task.equipment.join(', ')}</span>
+                                                                            <span className="ml-2">🔧 {task.equipment.join(', ')}</span>
                                                                         )}
                                                                     </div>
                                                                     {task.ingredients && task.ingredients.length > 0 && (
-                                                                        <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                                                                        <div className="text-sm text-gray-600 mt-1">
                                                                             <strong>Ingredients:</strong> {task.ingredients.join(', ')}
                                                                         </div>
                                                                     )}
@@ -763,66 +520,36 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                     ))}
                                 </div>
                             ) : (
-                                <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
-                                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
-                                    <p>No prep schedule available for this meal plan.</p>
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-4xl mb-4">📅</div>
+                                    <p>No prep schedule available.</p>
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* Footer */}
-                <div style={{
-                    padding: '1rem 1.5rem',
-                    borderTop: '1px solid #e5e7eb',
-                    backgroundColor: '#f9fafb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                {/* Compact Footer */}
+                <div className="p-3 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
                         Completion: {suggestions.implementation?.completionRate || 0}%
                     </div>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <div className="flex gap-2">
                         <TouchEnhancedButton
                             onClick={() => generateSuggestions(true)}
-                            style={{
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.875rem',
-                                cursor: 'pointer'
-                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                         >
                             🔄 Regenerate
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
                             onClick={onClose}
-                            style={{
-                                backgroundColor: '#374151',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.875rem',
-                                cursor: 'pointer'
-                            }}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
                         >
                             Close
                         </TouchEnhancedButton>
                     </div>
                 </div>
             </div>
-
-            <style jsx>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }

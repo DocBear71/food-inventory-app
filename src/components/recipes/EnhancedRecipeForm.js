@@ -1,4 +1,4 @@
-// file: /src/components/recipes/EnhancedRecipeForm.js v3 - FIXED COMMA INPUT ISSUE
+// file: /src/components/recipes/EnhancedRecipeForm.js v4 - FIXED DUPLICATE BACK BUTTON
 
 'use client';
 
@@ -396,24 +396,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     return (
         <div className="space-y-6">
-            {/* Back to Recipes Button */}
-            <div className="flex justify-between items-center">
-                <TouchEnhancedButton
-                    type="button"
-                    onClick={() => window.location.href = '/recipes'}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    <span>Back to Recipes</span>
-                </TouchEnhancedButton>
-                {!isEditing && (
-                    <span className="text-sm text-gray-500">
-                        {inputMethod === 'manual' ? 'Manual Entry' : inputMethod === 'parser' ? 'Text Parser' : 'URL Import'}
-                    </span>
-                )}
-            </div>
+            {/* REMOVED: Duplicate Back to Recipes Button - Now handled by parent component */}
 
             {/* Input Method Selection */}
             {!isEditing && (
