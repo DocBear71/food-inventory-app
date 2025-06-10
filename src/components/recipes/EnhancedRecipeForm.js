@@ -889,9 +889,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </div>
                         </div>
                     </div>
-
+                    <br/>
                     {/* Submit Buttons */}
-                    <div className="flex justify-between pt-6">
+                    <div className="flex justify-end space-x-4 pt-6 pb-8">
                         <TouchEnhancedButton
                             type="button"
                             onClick={onCancel}
@@ -918,6 +918,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </div>
                 </form>
             )}
+            <br/>
         </div>
     );
 }

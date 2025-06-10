@@ -1,4 +1,4 @@
-// file: /src/app/shopping/page.js v5
+// file: /src/app/shopping/page.js v6 - Fixed layout and styling issues
 
 'use client';
 
@@ -289,111 +289,65 @@ export default function ShoppingPage() {
 
     return (
         <MobileOptimizedLayout>
-            <div style={{padding: '2rem'}}>
+            <div className="max-w-7xl mx-auto px-4 py-8 pb-16">
                 {/* Header */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '2rem'
-                }}>
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 style={{
-                            fontSize: '2rem',
-                            fontWeight: 'bold',
-                            marginBottom: '0.5rem',
-                            color: '#111827'
-                        }}>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
                             🛒 Shopping List Generator
                         </h1>
-                        <p style={{color: '#6b7280', fontSize: '1rem'}}>
+                        <p className="text-gray-600 text-lg">
                             Filter and select recipes to generate a smart shopping list
                         </p>
                     </div>
-                    <SavedShoppingListsButton/>
+                    <SavedShoppingListsButton />
                 </div>
 
                 {/* Search and Filter Bar */}
-                <div style={{
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    border: '1px solid #e5e7eb',
-                    marginBottom: '1.5rem',
-                    overflow: 'hidden'
-                }}>
-                    <div style={{padding: '1.5rem'}}>
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 mb-6 overflow-hidden">
+                    <div className="p-6">
                         {/* Search Bar */}
-                        <div style={{marginBottom: '1rem'}}>
-                            <div style={{position: 'relative'}}>
+                        <div className="mb-4">
+                            <div className="relative">
                                 <input
                                     type="text"
                                     placeholder="Search recipes by name or description..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '8px',
-                                        fontSize: '1rem',
-                                        backgroundColor: '#f9fafb'
-                                    }}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500"
                                 />
-                                <div style={{
-                                    position: 'absolute',
-                                    left: '0.75rem',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: '#6b7280'
-                                }}>
-                                    🔍
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
                                 </div>
                             </div>
                         </div>
 
                         {/* Filter Toggle and Status */}
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: showFilters ? '1rem' : '0'
-                        }}>
+                        <div className="flex items-center justify-between mb-4">
                             <TouchEnhancedButton
                                 onClick={() => setShowFilters(!showFilters)}
-                                style={{
-                                    backgroundColor: showFilters ? '#4f46e5' : '#6b7280',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem 1rem',
-                                    fontSize: '0.875rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    showFilters
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-gray-600 text-white'
+                                }`}
                             >
-                                🎛️ Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
-                                <span style={{fontSize: '0.75rem'}}>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                                </svg>
+                                Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
+                                <span className="text-xs">
                                     {showFilters ? '▲' : '▼'}
                                 </span>
                             </TouchEnhancedButton>
 
-                            <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-
+                            <div className="flex items-center gap-4">
                                 {getActiveFilterCount() > 0 && (
                                     <TouchEnhancedButton
                                         onClick={clearFilters}
-                                        style={{
-                                            backgroundColor: '#dc2626',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            padding: '0.25rem 0.75rem',
-                                            fontSize: '0.75rem',
-                                            cursor: 'pointer'
-                                        }}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium"
                                     >
                                         Clear Filters
                                     </TouchEnhancedButton>
@@ -403,37 +357,16 @@ export default function ShoppingPage() {
 
                         {/* Expanded Filters */}
                         {showFilters && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                                gap: '1rem',
-                                padding: '1rem',
-                                backgroundColor: '#f8fafc',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0'
-                            }}>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                                 {/* Difficulty Filter */}
                                 <div>
-                                    <label style={{
-                                        display: 'block',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        color: '#374151',
-                                        marginBottom: '0.5rem'
-                                    }}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Difficulty Level
                                     </label>
                                     <select
                                         value={selectedDifficulty}
                                         onChange={(e) => setSelectedDifficulty(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.5rem',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            fontSize: '0.875rem',
-                                            backgroundColor: 'white'
-                                        }}
+                                        className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                         <option value="">All Difficulties</option>
                                         <option value="easy">Easy</option>
@@ -444,26 +377,13 @@ export default function ShoppingPage() {
 
                                 {/* Cook Time Filter */}
                                 <div>
-                                    <label style={{
-                                        display: 'block',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        color: '#374151',
-                                        marginBottom: '0.5rem'
-                                    }}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Max Total Time (minutes)
                                     </label>
                                     <select
                                         value={maxCookTime}
                                         onChange={(e) => setMaxCookTime(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.5rem',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            fontSize: '0.875rem',
-                                            backgroundColor: 'white'
-                                        }}
+                                        className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                         <option value="">Any Time</option>
                                         <option value="15">15 minutes or less</option>
@@ -477,26 +397,13 @@ export default function ShoppingPage() {
 
                                 {/* Ingredient Filter */}
                                 <div>
-                                    <label style={{
-                                        display: 'block',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        color: '#374151',
-                                        marginBottom: '0.5rem'
-                                    }}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Contains Ingredient
                                     </label>
                                     <select
                                         value={selectedIngredient}
                                         onChange={(e) => setSelectedIngredient(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.5rem',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            fontSize: '0.875rem',
-                                            backgroundColor: 'white'
-                                        }}
+                                        className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                         <option value="">Any Ingredient</option>
                                         {availableIngredients.slice(0, 50).map(ingredient => (
@@ -509,47 +416,29 @@ export default function ShoppingPage() {
                             </div>
                         )}
 
-                        <div style={{
-                            marginTop: showFilters ? '1rem' : '0.5rem',
-                            marginBottom: '0.5rem',
-                            textAlign: 'center'
-                        }}>
-                            <span style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                        {/* Results Count */}
+                        <div className="mt-4 text-center">
+                            <span className="text-sm text-gray-600">
                                 Showing {filteredRecipes.length} of {recipes.length} recipes
                             </span>
                         </div>
 
-                        {/* Tags Filter (always visible when there are tags) */}
+                        {/* Tags Filter */}
                         {availableTags.length > 0 && (
-                            <div style={{marginTop: showFilters ? '1rem' : '0'}}>
-                                <label style={{
-                                    display: 'block',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    color: '#374151',
-                                    marginBottom: '0.5rem'
-                                }}>
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
                                     Recipe Tags
                                 </label>
-                                <div style={{
-                                    display: 'flex',
-                                    flexWrap: 'wrap',
-                                    gap: '0.5rem'
-                                }}>
+                                <div className="flex flex-wrap gap-2">
                                     {availableTags.map(tag => (
                                         <TouchEnhancedButton
                                             key={tag}
                                             onClick={() => handleTagToggle(tag)}
-                                            style={{
-                                                backgroundColor: selectedTags.includes(tag) ? '#4f46e5' : '#f3f4f6',
-                                                color: selectedTags.includes(tag) ? 'white' : '#374151',
-                                                border: 'none',
-                                                borderRadius: '16px',
-                                                padding: '0.375rem 0.75rem',
-                                                fontSize: '0.75rem',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s'
-                                            }}
+                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                                selectedTags.includes(tag)
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            }`}
                                         >
                                             {tag}
                                         </TouchEnhancedButton>
@@ -562,76 +451,31 @@ export default function ShoppingPage() {
 
                 {/* Action Bar */}
                 {filteredRecipes.length > 0 && (
-                    <div style={{
-                        backgroundColor: 'white',
-                        padding: '1.5rem',
-                        borderRadius: '12px',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                        border: '1px solid #e5e7eb',
-                        marginBottom: '2rem'
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: '1rem'
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '1rem',
-                                flexWrap: 'wrap'
-                            }}>
-                                <label style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    color: '#374151'
-                                }}>
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div className="flex items-center gap-4 flex-wrap">
+                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                                     <input
                                         type="checkbox"
                                         checked={selectedRecipes.length === filteredRecipes.length && filteredRecipes.length > 0}
                                         onChange={handleSelectAll}
-                                        style={{transform: 'scale(1.1)'}}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                     />
                                     Select All ({filteredRecipes.length} recipes)
                                 </label>
 
                                 {selectedRecipes.length > 0 && (
-                                    <span style={{
-                                        backgroundColor: '#dbeafe',
-                                        color: '#1e40af',
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '6px',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500'
-                                    }}>
+                                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-md text-sm font-medium">
                                         {selectedRecipes.length} selected
                                     </span>
                                 )}
                             </div>
 
-                            <div style={{
-                                display: 'flex',
-                                gap: '0.75rem',
-                                alignItems: 'center'
-                            }}>
+                            <div className="flex gap-3 items-center">
                                 {selectedRecipes.length > 0 && (
                                     <TouchEnhancedButton
                                         onClick={handleClearAll}
-                                        style={{
-                                            backgroundColor: '#6b7280',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            padding: '0.75rem 1rem',
-                                            fontSize: '0.875rem',
-                                            fontWeight: '500',
-                                            cursor: 'pointer'
-                                        }}
+                                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
                                     >
                                         Clear All
                                     </TouchEnhancedButton>
@@ -640,34 +484,21 @@ export default function ShoppingPage() {
                                 <TouchEnhancedButton
                                     onClick={generateShoppingList}
                                     disabled={selectedRecipes.length === 0 || loading}
-                                    style={{
-                                        backgroundColor: selectedRecipes.length === 0 || loading ? '#9ca3af' : '#16a34a',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        padding: '0.75rem 1.5rem',
-                                        fontSize: '0.875rem',
-                                        fontWeight: '500',
-                                        cursor: selectedRecipes.length === 0 || loading ? 'not-allowed' : 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }}
+                                    className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                                        selectedRecipes.length === 0 || loading
+                                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                                            : 'bg-green-600 hover:bg-green-700 text-white'
+                                    }`}
                                 >
                                     {loading ? (
                                         <>
-                                            <div style={{
-                                                width: '1rem',
-                                                height: '1rem',
-                                                border: '2px solid transparent',
-                                                borderTop: '2px solid white',
-                                                borderRadius: '50%',
-                                                animation: 'spin 1s linear infinite'
-                                            }}/>
+                                            <div className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
                                             Generating...
                                         </>
                                     ) : (
-                                        '🛒 Generate Shopping List'
+                                        <>
+                                            🛒 Generate Shopping List
+                                        </>
                                     )}
                                 </TouchEnhancedButton>
                             </div>
@@ -677,169 +508,105 @@ export default function ShoppingPage() {
 
                 {/* Error Message */}
                 {error && (
-                    <div style={{
-                        backgroundColor: '#fef2f2',
-                        border: '1px solid #fecaca',
-                        color: '#dc2626',
-                        padding: '1rem',
-                        borderRadius: '8px',
-                        marginBottom: '2rem'
-                    }}>
+                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8">
                         {error}
                     </div>
                 )}
 
                 {/* Recipe Selection */}
-                <div style={{
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    border: '1px solid #e5e7eb'
-                }}>
-                    <div style={{
-                        padding: '1.5rem',
-                        borderBottom: '1px solid #e5e7eb'
-                    }}>
-                        <h2 style={{
-                            fontSize: '1.25rem',
-                            fontWeight: '600',
-                            margin: 0,
-                            color: '#111827'
-                        }}>
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 mb-16">
+                    <div className="p-6 border-b border-gray-200">
+                        <h2 className="text-xl font-semibold text-gray-900">
                             📝 Select Recipes ({filteredRecipes.length} available)
                         </h2>
                     </div>
 
-                    <div style={{padding: '1.5rem'}}>
+                    <div className="p-6">
                         {filteredRecipes.length === 0 ? (
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '3rem',
-                                color: '#6b7280'
-                            }}>
+                            <div className="text-center py-12 text-gray-500">
                                 {recipes.length === 0 ? (
                                     <>
-                                        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📝</div>
-                                        <h3 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>
-                                            No recipes found
-                                        </h3>
+                                        <div className="text-5xl mb-4">📝</div>
+                                        <h3 className="text-xl font-semibold mb-2">No recipes found</h3>
                                         <p>Add some recipes first to generate shopping lists.</p>
                                     </>
                                 ) : (
                                     <>
-                                        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🔍</div>
-                                        <h3 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>
-                                            No recipes match your filters
-                                        </h3>
+                                        <div className="text-5xl mb-4">🔍</div>
+                                        <h3 className="text-xl font-semibold mb-2">No recipes match your filters</h3>
                                         <p>Try adjusting your search criteria or clearing some filters.</p>
                                     </>
                                 )}
                             </div>
                         ) : (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                                gap: '1rem'
-                            }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filteredRecipes.map(recipe => (
                                     <div
                                         key={recipe._id}
-                                        style={{
-                                            border: selectedRecipes.includes(recipe._id)
-                                                ? '2px solid #3b82f6'
-                                                : '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            padding: '1rem',
-                                            cursor: 'pointer',
-                                            backgroundColor: selectedRecipes.includes(recipe._id)
-                                                ? '#eff6ff'
-                                                : 'white',
-                                            transition: 'all 0.2s'
-                                        }}
+                                        className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                                            selectedRecipes.includes(recipe._id)
+                                                ? 'border-blue-500 bg-blue-50 border-2'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
                                         onClick={() => handleRecipeToggle(recipe._id)}
                                     >
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            gap: '0.75rem'
-                                        }}>
+                                        <div className="flex items-start gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedRecipes.includes(recipe._id)}
                                                 onChange={() => handleRecipeToggle(recipe._id)}
-                                                style={{
-                                                    marginTop: '0.125rem',
-                                                    transform: 'scale(1.1)'
-                                                }}
+                                                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                             />
-                                            <div style={{flex: 1}}>
-                                                <h3 style={{
-                                                    fontSize: '1rem',
-                                                    fontWeight: '600',
-                                                    margin: '0 0 0.5rem 0',
-                                                    color: '#111827'
-                                                }}>
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-gray-900 mb-2">
                                                     {recipe.title}
                                                 </h3>
                                                 {recipe.description && (
-                                                    <p style={{
-                                                        fontSize: '0.875rem',
-                                                        color: '#6b7280',
-                                                        margin: '0 0 0.75rem 0',
-                                                        lineHeight: '1.4',
-                                                        display: '-webkit-box',
-                                                        WebkitLineClamp: 2,
-                                                        WebkitBoxOrient: 'vertical',
-                                                        overflow: 'hidden'
-                                                    }}>
+                                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                                                         {recipe.description}
                                                     </p>
                                                 )}
-                                                <div style={{
-                                                    display: 'flex',
-                                                    flexWrap: 'wrap',
-                                                    gap: '1rem',
-                                                    fontSize: '0.75rem',
-                                                    color: '#6b7280',
-                                                    marginBottom: '0.75rem'
-                                                }}>
+                                                <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-3">
                                                     {recipe.servings && (
-                                                        <span>🍽️ {recipe.servings} servings</span>
+                                                        <span className="flex items-center gap-1">
+                                                            🍽️ {recipe.servings} servings
+                                                        </span>
                                                     )}
                                                     {(recipe.cookTime || recipe.prepTime) && (
-                                                        <span>⏱️ {(recipe.cookTime || 0) + (recipe.prepTime || 0)} min</span>
+                                                        <span className="flex items-center gap-1">
+                                                            ⏱️ {(recipe.cookTime || 0) + (recipe.prepTime || 0)} min
+                                                        </span>
                                                     )}
                                                     {recipe.ingredients && (
-                                                        <span>🥕 {recipe.ingredients.length} ingredients</span>
+                                                        <span className="flex items-center gap-1">
+                                                            🥕 {recipe.ingredients.length} ingredients
+                                                        </span>
                                                     )}
                                                     {recipe.difficulty && (
-                                                        <span style={{
-                                                            color: recipe.difficulty === 'easy' ? '#16a34a' :
-                                                                recipe.difficulty === 'medium' ? '#d97706' : '#dc2626'
-                                                        }}>
+                                                        <span className={`flex items-center gap-1 ${
+                                                            recipe.difficulty === 'easy' ? 'text-green-600' :
+                                                                recipe.difficulty === 'medium' ? 'text-orange-600' : 'text-red-600'
+                                                        }`}>
                                                             📊 {recipe.difficulty}
                                                         </span>
                                                     )}
                                                 </div>
                                                 {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem'}}>
+                                                    <div className="flex flex-wrap gap-1">
                                                         {recipe.tags.slice(0, 4).map(tag => (
-                                                            <span key={tag} style={{
-                                                                backgroundColor: selectedTags.includes(tag) ? '#4f46e5' : '#f3f4f6',
-                                                                color: selectedTags.includes(tag) ? 'white' : '#6b7280',
-                                                                padding: '0.25rem 0.5rem',
-                                                                borderRadius: '12px',
-                                                                fontSize: '0.75rem'
-                                                            }}>
+                                                            <span
+                                                                key={tag}
+                                                                className={`px-2 py-1 rounded-full text-xs ${
+                                                                    selectedTags.includes(tag)
+                                                                        ? 'bg-indigo-600 text-white'
+                                                                        : 'bg-gray-100 text-gray-600'
+                                                                }`}
+                                                            >
                                                                 {tag}
                                                             </span>
                                                         ))}
                                                         {recipe.tags.length > 4 && (
-                                                            <span style={{
-                                                                color: '#6b7280',
-                                                                fontSize: '0.75rem',
-                                                                fontStyle: 'italic'
-                                                            }}>
+                                                            <span className="text-xs text-gray-500 italic">
                                                                 +{recipe.tags.length - 4} more
                                                             </span>
                                                         )}
@@ -854,17 +621,7 @@ export default function ShoppingPage() {
                     </div>
                 </div>
 
-                <style jsx>{`
-                    @keyframes spin {
-                        0% {
-                            transform: rotate(0deg);
-                        }
-                        100% {
-                            transform: rotate(360deg);
-                        }
-                    }
-                `}</style>
-                <Footer/>
+                <Footer />
             </div>
         </MobileOptimizedLayout>
     );
