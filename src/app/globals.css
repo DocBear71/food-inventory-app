@@ -2053,3 +2053,41 @@ textarea {
 /* GREEN HOVER EFFECTS */
 .hover\:bg-green-600:hover { background-color: #16a34a !important; }
 .hover\:bg-green-700:hover { background-color: #15803d !important; }
+
+/* MISSING CYAN COLORS (for freezer button) */
+.bg-cyan-100 { background-color: #cffafe !important; }
+.bg-cyan-600 { background-color: #0891b2 !important; }
+.bg-cyan-700 { background-color: #0e7490 !important; }
+.text-cyan-700 { color: #0e7490 !important; }
+.text-cyan-800 { color: #155e75 !important; }
+.border-cyan-300 { border-color: #67e8f9 !important; }
+.hover\:bg-cyan-200:hover { background-color: #a5f3fc !important; }
+
+/* ADDITIONAL COLORS FOR SHOPPING LIST ENHANCEMENT */
+.bg-amber-100 { background-color: #fef3c7 !important; }
+.bg-amber-600 { background-color: #d97706 !important; }
+.text-amber-700 { color: #b45309 !important; }
+.text-amber-800 { color: #92400e !important; }
+.border-amber-300 { border-color: #fcd34d !important; }
+.hover\:bg-amber-200:hover { background-color: #fde68a !important; }
+
+.bg-pink-100 { background-color: #fce7f3 !important; }
+.bg-pink-600 { background-color: #db2777 !important; }
+.text-pink-700 { color: #be185d !important; }
+.text-pink-800 { color: #9d174d !important; }
+.border-pink-300 { border-color: #f9a8d4 !important; }
+.hover\:bg-pink-200:hover { background-color: #fbcfe8 !important; }
+
+.bg-teal-100 { background-color: #ccfbf1 !important; }
+.bg-teal-600 { background-color: #0d9488 !important; }
+.text-teal-700 { color: #0f766e !important; }
+.text-teal-800 { color: #115e59 !important; }
+.border-teal-300 { border-color: #5eead4 !important; }
+.hover\:bg-teal-200:hover { background-color: #99f6e4 !important; }
+
+.bg-lime-100 { background-color: #ecfccb !important; }
+.bg-lime-600 { background-color: #65a30d !important; }
+.text-lime-700 { color: #4d7c0f !important; }
+.text-lime-800 { color: #365314 !important; }
+.border-lime-300 { border-color: #bef264 !important; }
+.hover\:bg-lime-200:hover { background-color: #d9f99d !important; }

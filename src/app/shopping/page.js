@@ -1,4 +1,4 @@
-// file: /src/app/shopping/page.js v6 - Fixed layout and styling issues
+// file: /src/app/shopping/page.js v7 - Enhanced with beautiful colors and icons
 
 'use client';
 
@@ -96,8 +96,8 @@ export default function ShoppingPage() {
                     !ingredientNormalized.includes('corn flake') &&
                     !ingredientNormalized.includes('cornflake') &&
                     !ingredientNormalized.includes('corn syrup') &&
-                !ingredientNormalized.includes('cornhusks') &&
-                !ingredientNormalized.includes('corn starch'));
+                    !ingredientNormalized.includes('cornhusks') &&
+                    !ingredientNormalized.includes('corn starch'));
         }
 
         if (searchNormalized === 'flour') {
@@ -461,7 +461,7 @@ export default function ShoppingPage() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
                                 </svg>
-                                Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
+                                🎛️ Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
                                 <span className="text-xs">
                                     {showFilters ? '▲' : '▼'}
                                 </span>
@@ -473,7 +473,7 @@ export default function ShoppingPage() {
                                         onClick={clearFilters}
                                         className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium"
                                     >
-                                        Clear Filters
+                                        🔄 Clear Filters
                                     </TouchEnhancedButton>
                                 )}
                             </div>
@@ -485,7 +485,7 @@ export default function ShoppingPage() {
                                 {/* Difficulty Filter */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Difficulty Level
+                                        📊 Difficulty Level
                                     </label>
                                     <select
                                         value={selectedDifficulty}
@@ -502,7 +502,7 @@ export default function ShoppingPage() {
                                 {/* Cook Time Filter */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Max Total Time (minutes)
+                                        ⏱️ Max Total Time (minutes)
                                     </label>
                                     <select
                                         value={maxCookTime}
@@ -522,7 +522,7 @@ export default function ShoppingPage() {
                                 {/* Ingredient Filter - Improved */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Contains Ingredient
+                                        🥕 Contains Ingredient
                                     </label>
                                     <input
                                         type="text"
@@ -541,7 +541,7 @@ export default function ShoppingPage() {
                         {/* Results Count */}
                         <div className="mt-4 text-center">
                             <span className="text-sm text-gray-600">
-                                Showing {filteredRecipes.length} of {recipes.length} recipes
+                                📋 Showing {filteredRecipes.length} of {recipes.length} recipes
                             </span>
                         </div>
 
@@ -549,7 +549,7 @@ export default function ShoppingPage() {
                         {availableTags.length > 0 && (
                             <div className="mt-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                                    Recipe Tags
+                                    🏷️ Recipe Tags
                                 </label>
                                 <div className="flex flex-wrap gap-2">
                                     {availableTags.map(tag => (
@@ -583,12 +583,12 @@ export default function ShoppingPage() {
                                         onChange={handleSelectAll}
                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                     />
-                                    Select All ({filteredRecipes.length} recipes)
+                                    ✅ Select All ({filteredRecipes.length} recipes)
                                 </label>
 
                                 {selectedRecipes.length > 0 && (
                                     <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-md text-sm font-medium">
-                                        {selectedRecipes.length} selected
+                                        📝 {selectedRecipes.length} selected
                                     </span>
                                 )}
                             </div>
@@ -599,7 +599,7 @@ export default function ShoppingPage() {
                                         onClick={handleClearAll}
                                         className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
                                     >
-                                        Clear All
+                                        🗑️ Clear All
                                     </TouchEnhancedButton>
                                 )}
 
@@ -615,7 +615,7 @@ export default function ShoppingPage() {
                                     {loading ? (
                                         <>
                                             <div className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
-                                            Generating...
+                                            🔄 Generating...
                                         </>
                                     ) : (
                                         <>
@@ -631,7 +631,7 @@ export default function ShoppingPage() {
                 {/* Error Message */}
                 {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8">
-                        {error}
+                        🚨 {error}
                     </div>
                 )}
 
