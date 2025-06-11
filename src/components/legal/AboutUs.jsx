@@ -88,13 +88,13 @@ const AboutUs = () => {
                                 justifyContent: 'center',
                                 margin: '0 auto 1rem auto',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                border: '4px solid #f8f9fa'
+                                border: '4px solid #f8f9fa',
                             }}>
-                                <span style={{ fontSize: '24px', color: '#6c757d' }}>
-                                    <link href="/icons/edmckeown.jpg" />
-                                </span>
+                                <img alt="Edward McKeown Picture" className="w-full h-full object-cover"
+                                     src="/icons/edmckeown.jpg"/>
+
                             </div>
-                            <h3 style={{ fontSize: '20px', color: '#2c3e50', marginBottom: '0.5rem' }}>Dr. Edward McKeown</h3>
+                            <h3 style={{fontSize: '20px', color: '#2c3e50', marginBottom: '0.5rem'}}>Dr. Edward McKeown</h3>
                             <p style={{ fontSize: '16px', color: '#7f8c8d', fontStyle: 'italic', margin: '0' }}>
                                 U.S. Marine Corps Veteran<br/>
                                 Founder & Creator
