@@ -2030,3 +2030,18 @@ textarea {
 .hover\:bg-green-600:hover { background-color: #16a34a !important; }
 .hover\:bg-green-700:hover { background-color: #15803d !important; }
 
+/* MISSING YELLOW BACKGROUND COLORS */
+.bg-yellow-600 { background-color: #ca8a04 !important; }
+.bg-yellow-700 { background-color: #a16207 !important; }
+
+/* MISSING YELLOW HOVER EFFECTS */
+.hover\:bg-yellow-600:hover { background-color: #ca8a04 !important; }
+.hover\:bg-yellow-700:hover { background-color: #a16207 !important; }
+
+/* MISSING YELLOW TEXT COLORS (in case needed) */
+.text-yellow-600 { color: #ca8a04 !important; }
+.text-yellow-700 { color: #a16207 !important; }
+
+/* MISSING YELLOW BORDER COLORS (in case needed) */
+.border-yellow-600 { border-color: #ca8a04 !important; }
+.border-yellow-700 { border-color: #a16207 !important; }
