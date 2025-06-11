@@ -52,7 +52,7 @@ export default function SignIn() {
 
     return (
         <MobileOptimizedLayout>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+            <div className="flex items-start justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ minHeight: '100vh', paddingTop: '3rem', paddingBottom: '2rem' }}>
                 <div className="max-w-md w-full space-y-4">
                     <div className="text-center">
                         <h2 className="text-3xl font-extrabold text-gray-900">
