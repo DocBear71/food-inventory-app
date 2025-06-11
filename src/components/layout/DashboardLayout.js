@@ -1,4 +1,4 @@
-// file: /src/components/layout/DashboardLayout.js - v2
+// file: /src/components/layout/DashboardLayout.js - v3
 
 'use client';
 
@@ -25,8 +25,16 @@ export default function DashboardLayout({ children }) {
                 { name: 'Usage History', href: '/inventory/history', icon: '📊' }
             ]
         },
-        { name: 'Recipes', href: '/recipes', icon: '🍳' },
-        { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
+        {
+            name: 'Recipes',
+            href: '/recipes',
+            icon: '🍳',
+            submenu: [
+                { name: 'Browse Recipes', href: '/recipes', icon: '📖' },
+                { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
+                { name: 'Add New Recipe', href: '/recipes/add', icon: '➕' }
+            ]
+        },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅' },
         { name: 'Shopping List', href: '/shopping', icon: '🛒' },
         { name: 'Profile Settings', href: '/profile', icon: '👤' },
@@ -194,6 +202,20 @@ export default function DashboardLayout({ children }) {
                                     <span>📦 Inventory</span>
                                     <span>›</span>
                                     <span className="text-gray-900 font-medium">📊 Usage History</span>
+                                </div>
+                            )}
+                            {pathname === '/recipes/suggestions' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🍳 Recipes</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">💡 What Can I Make?</span>
+                                </div>
+                            )}
+                            {pathname === '/recipes/add' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🍳 Recipes</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">➕ Add New Recipe</span>
                                 </div>
                             )}
                         </div>

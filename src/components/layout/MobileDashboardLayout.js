@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js - Enhanced mobile layout with PWA banner support
+// file: /src/components/layout/MobileDashboardLayout.js - Enhanced mobile layout with PWA banner support and What Can I Make?
 'use client';
 
 import {useState, useEffect} from 'react';
@@ -52,6 +52,24 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes')},
         {name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
+    ];
+
+    // NEW: Additional menu items for hamburger menu only
+    const additionalMenuItems = [
+        {
+            name: 'What Can I Make?',
+            href: '/recipes/suggestions',
+            icon: '💡',
+            current: pathname === '/recipes/suggestions',
+            description: 'Find recipes based on your inventory'
+        },
+        {
+            name: 'Recipe Import',
+            href: '/recipes/admin',
+            icon: '⚙️',
+            current: pathname === '/recipes/admin',
+            description: 'Import recipes from external sources'
+        }
     ];
 
     const handleNavigation = (href) => {
@@ -158,24 +176,59 @@ export default function MobileDashboardLayout({children}) {
                             </TouchEnhancedButton>
                         </div>
 
-                        <nav className="px-4 py-6 space-y-2">
-                            {navigation.map((item) => (
-                                <TouchEnhancedButton
-                                    key={item.name}
-                                    onClick={() => handleNavigation(item.href)}
-                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
-                                        item.current
-                                            ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
-                                            : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
-                                    }`}
-                                >
-                                    <span className="text-xl">{item.icon}</span>
-                                    <span className="font-medium">{item.name}</span>
-                                    {item.current && (
-                                        <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
-                                    )}
-                                </TouchEnhancedButton>
-                            ))}
+                        <nav className="px-4 py-6 space-y-2 overflow-y-auto" style={{maxHeight: 'calc(100vh - 200px)'}}>
+                            {/* Main navigation items */}
+                            <div className="mb-6">
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                    Main Navigation
+                                </h3>
+                                {navigation.map((item) => (
+                                    <TouchEnhancedButton
+                                        key={item.name}
+                                        onClick={() => handleNavigation(item.href)}
+                                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                            item.current
+                                                ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                        }`}
+                                    >
+                                        <span className="text-xl">{item.icon}</span>
+                                        <span className="font-medium">{item.name}</span>
+                                        {item.current && (
+                                            <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
+                                        )}
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
+
+                            {/* Additional menu items */}
+                            <div className="mb-6">
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                    Tools & Features
+                                </h3>
+                                {additionalMenuItems.map((item) => (
+                                    <TouchEnhancedButton
+                                        key={item.name}
+                                        onClick={() => handleNavigation(item.href)}
+                                        className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                            item.current
+                                                ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                        }`}
+                                    >
+                                        <span className="text-xl mt-0.5">{item.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium">{item.name}</div>
+                                            {item.description && (
+                                                <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                                            )}
+                                        </div>
+                                        {item.current && (
+                                            <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                        )}
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
                         </nav>
 
                         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
