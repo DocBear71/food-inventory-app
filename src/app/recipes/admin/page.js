@@ -1,4 +1,4 @@
-// file: /src/app/recipes/admin/page.js v2 - Updated with Category Selector
+// file: /src/app/recipes/admin/page.js v3 - Updated for Delimited Format
 
 'use client';
 
@@ -37,6 +37,7 @@ export default function AdminRecipes() {
     const [parsedRecipes, setParsedRecipes] = useState([]);
     const [importResults, setImportResults] = useState(null);
     const [selectedVolume, setSelectedVolume] = useState('1');
+    const [parseStats, setParseStats] = useState(null);
 
     if (status === 'loading') {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -54,6 +55,7 @@ export default function AdminRecipes() {
         setIsProcessing(true);
         setExtractedText('');
         setParsedRecipes([]);
+        setParseStats(null);
 
         try {
             const formData = new FormData();
@@ -71,24 +73,30 @@ export default function AdminRecipes() {
                 setExtractedText(data.extractedText);
                 setParsedRecipes(data.recipes || []);
 
-                // Show success message if recipes were parsed
-                if (data.recipes && data.recipes.length > 0) {
-                    console.log(`Successfully extracted ${data.recipes.length} recipes!`);
-                } else {
-                    console.log('File processed but no recipes were automatically detected. You can add recipes manually below.');
-                }
+                // Calculate parsing statistics
+                const stats = {
+                    totalRecipes: data.recipes?.length || 0,
+                    withDescriptions: data.recipes?.filter(r => r.description && r.description.trim()).length || 0,
+                    avgIngredients: data.recipes?.length > 0 ?
+                        Math.round(data.recipes.reduce((sum, r) => sum + (r.ingredients?.length || 0), 0) / data.recipes.length) : 0,
+                    avgInstructions: data.recipes?.length > 0 ?
+                        Math.round(data.recipes.reduce((sum, r) => sum + (r.instructions?.length || 0), 0) / data.recipes.length) : 0,
+                    categories: [...new Set(data.recipes?.map(r => r.category) || [])].length
+                };
+                setParseStats(stats);
+
+                console.log(`Successfully extracted ${data.recipes.length} recipes!`);
             } else {
                 console.error('Server error:', data.error);
                 setExtractedText(data.details || data.error || 'Unknown error occurred');
 
-                // Still allow manual entry even if extraction failed
                 if (!data.extractedText) {
-                    setExtractedText(`File upload failed: ${data.error}\n\nYou can still add recipes manually using the "Add Recipe Manually" button below.`);
+                    setExtractedText(`File upload failed: ${data.error}\n\nPlease check your file format and try again.`);
                 }
             }
         } catch (error) {
             console.error('Upload error:', error);
-            setExtractedText(`Network error: ${error.message}\n\nYou can still add recipes manually using the "Add Recipe Manually" button below.`);
+            setExtractedText(`Network error: ${error.message}\n\nPlease check your connection and try again.`);
         } finally {
             setIsProcessing(false);
         }
@@ -118,6 +126,7 @@ export default function AdminRecipes() {
                 setParsedRecipes([]);
                 setExtractedText('');
                 setUploadedFile(null);
+                setParseStats(null);
             } else {
                 alert('Error importing recipes: ' + data.error);
             }
@@ -144,9 +153,22 @@ export default function AdminRecipes() {
     const removeRecipe = (index) => {
         const updated = parsedRecipes.filter((_, i) => i !== index);
         setParsedRecipes(updated);
+
+        // Recalculate stats
+        if (updated.length > 0) {
+            const stats = {
+                totalRecipes: updated.length,
+                withDescriptions: updated.filter(r => r.description && r.description.trim()).length,
+                avgIngredients: Math.round(updated.reduce((sum, r) => sum + (r.ingredients?.length || 0), 0) / updated.length),
+                avgInstructions: Math.round(updated.reduce((sum, r) => sum + (r.instructions?.length || 0), 0) / updated.length),
+                categories: [...new Set(updated.map(r => r.category))].length
+            };
+            setParseStats(stats);
+        } else {
+            setParseStats(null);
+        }
     };
 
-    // New function to handle bulk category changes
     const handleBulkCategoryChange = (newCategory) => {
         if (!newCategory) return;
         const updated = parsedRecipes.map(recipe => ({
@@ -176,6 +198,7 @@ export default function AdminRecipes() {
                 setParsedRecipes([]);
                 setExtractedText('');
                 setUploadedFile(null);
+                setParseStats(null);
             } else {
                 alert('Error deleting recipes: ' + data.error);
             }
@@ -187,13 +210,11 @@ export default function AdminRecipes() {
         }
     };
 
-    // Helper function to get category label
     const getCategoryLabel = (categoryValue) => {
         const category = CATEGORY_OPTIONS.find(opt => opt.value === categoryValue);
         return category ? category.label : categoryValue;
     };
 
-    // Helper function to get category summary
     const getCategorySummary = () => {
         const summary = {};
         parsedRecipes.forEach(recipe => {
@@ -212,8 +233,44 @@ export default function AdminRecipes() {
                         Admin Recipe Import
                     </h1>
                     <p className="text-gray-600">
-                        Bulk import recipes from Doc Bear's Comfort Food Survival Guide cookbooks
+                        Bulk import recipes from Doc Bear's Comfort Food Survival Guide cookbooks using the new delimited format
                     </p>
+                </div>
+
+                {/* Format Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="text-lg font-medium text-blue-900 mb-3">📝 Required Recipe Format</h3>
+                    <div className="text-blue-800 space-y-2 text-sm">
+                        <p><strong>Your DOCX/PDF file must follow this exact format:</strong></p>
+                        <div className="bg-white p-4 rounded border font-mono text-xs">
+                            <div className="text-gray-600">Recipe Title<br/>
+                                <br/>
+                                --Description--<br/>
+                                Your recipe description here<br/>
+                                <br/>
+                                --Ingredients--<br/>
+                                1 cup flour<br/>
+                                2 tbsp butter<br/>
+                                1 tsp salt<br/>
+                                <br/>
+                                --Instructions--<br/>
+                                Mix ingredients together<br/>
+                                Bake for 30 minutes<br/>
+                                <br/>
+                                --Tags--<br/>
+                                baking, quick, family-friendly<br/>
+                                <br/>
+                                --RECIPE BREAK--</div>
+                        </div>
+                        <ul className="list-disc list-inside space-y-1">
+                            <li>Start each recipe with just the title</li>
+                            <li>Use <code>--Description--</code>, <code>--Ingredients--</code>, <code>--Instructions--</code>, <code>--Tags--</code> as section headers</li>
+                            <li>End each recipe with <code>--RECIPE BREAK--</code></li>
+                            <li>List ingredients one per line with amounts</li>
+                            <li>List instructions one step per line</li>
+                            <li>Tags should be comma-separated</li>
+                        </ul>
+                    </div>
                 </div>
 
                 {/* Upload Section */}
@@ -241,18 +298,17 @@ export default function AdminRecipes() {
                         {/* File Upload */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Upload PDF or DOCX File
+                                Upload DOCX File (Recommended)
                             </label>
                             <input
                                 type="file"
-                                accept=".pdf,.docx,.doc"
+                                accept=".docx,.doc"
                                 onChange={handleFileUpload}
                                 disabled={isProcessing}
                                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                                💡 For best results, use DOCX files. PDF extraction may not work perfectly with all
-                                formats.
+                                💡 <strong>DOCX files only for best results.</strong> Make sure your file follows the delimited format above.
                             </p>
                         </div>
 
@@ -280,9 +336,6 @@ export default function AdminRecipes() {
                             >
                                 ➕ Add Recipe Manually
                             </TouchEnhancedButton>
-                            <p className="mt-1 text-xs text-gray-500 text-center">
-                                Can't upload a file? Add recipes one by one manually
-                            </p>
                         </div>
 
                         {uploadedFile && (
@@ -294,11 +347,40 @@ export default function AdminRecipes() {
                         {isProcessing && (
                             <div className="flex items-center space-x-2 text-blue-600">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                <span>Processing file...</span>
+                                <span>Processing file and parsing recipes...</span>
                             </div>
                         )}
                     </div>
                 </div>
+
+                {/* Parsing Statistics */}
+                {parseStats && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-green-900 mb-2">📊 Parsing Results</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-700">{parseStats.totalRecipes}</div>
+                                <div className="text-green-600">Recipes Found</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-700">{parseStats.withDescriptions}</div>
+                                <div className="text-green-600">With Descriptions</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-700">{parseStats.avgIngredients}</div>
+                                <div className="text-green-600">Avg Ingredients</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-700">{parseStats.avgInstructions}</div>
+                                <div className="text-green-600">Avg Instructions</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-700">{parseStats.categories}</div>
+                                <div className="text-green-600">Categories</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Extracted Text Preview */}
                 {extractedText && (
@@ -364,7 +446,10 @@ export default function AdminRecipes() {
                             {parsedRecipes.map((recipe, index) => (
                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                                     <div className="flex justify-between items-start mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">Recipe {index + 1}</h3>
+                                        <h3 className="text-lg font-medium text-gray-900">
+                                            Recipe {index + 1}
+                                            {recipe.title && <span className="text-blue-600"> - {recipe.title}</span>}
+                                        </h3>
                                         <TouchEnhancedButton
                                             onClick={() => removeRecipe(index)}
                                             className="text-red-600 hover:text-red-800"
@@ -453,7 +538,9 @@ export default function AdminRecipes() {
 
                                     {/* Ingredients */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Ingredients (one per line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Ingredients ({recipe.ingredients?.length || 0}) (one per line)
+                                        </label>
                                         <textarea
                                             value={recipe.ingredients?.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim()).join('\n') || ''}
                                             onChange={(e) => {
@@ -467,7 +554,7 @@ export default function AdminRecipes() {
                                                 });
                                                 editRecipe(index, 'ingredients', ingredients);
                                             }}
-                                            rows="4"
+                                            rows="6"
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                             placeholder="2 cups flour&#10;1 tsp salt&#10;3 eggs"
                                         />
@@ -475,13 +562,32 @@ export default function AdminRecipes() {
 
                                     {/* Instructions */}
                                     <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700">Instructions (one step per line)</label>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Instructions ({recipe.instructions?.length || 0}) (one step per line)
+                                        </label>
                                         <textarea
                                             value={recipe.instructions?.join('\n') || ''}
                                             onChange={(e) => editRecipe(index, 'instructions', e.target.value.split('\n').filter(line => line.trim()))}
-                                            rows="4"
+                                            rows="6"
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                             placeholder="Preheat oven to 350°F&#10;Mix dry ingredients&#10;Add wet ingredients"
+                                        />
+                                    </div>
+
+                                    {/* Tags */}
+                                    <div className="mt-4">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Tags ({recipe.tags?.length || 0}) (comma-separated)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={recipe.tags?.join(', ') || ''}
+                                            onChange={(e) => {
+                                                const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                                                editRecipe(index, 'tags', tags);
+                                            }}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            placeholder="comfort-food, family-friendly, quick"
                                         />
                                     </div>
                                 </div>
@@ -495,17 +601,39 @@ export default function AdminRecipes() {
                     <div className="bg-white shadow rounded-lg p-6">
                         <h2 className="text-xl font-semibold mb-4">✅ Import Results</h2>
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-green-800">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-green-700">{importResults.imported}</div>
+                                    <div className="text-sm text-green-600">Successfully Imported</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-yellow-700">{importResults.duplicates || 0}</div>
+                                    <div className="text-sm text-yellow-600">Duplicates Skipped</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-red-700">{importResults.skipped || 0}</div>
+                                    <div className="text-sm text-red-600">Failed/Skipped</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-700">{importResults.successRate || 0}%</div>
+                                    <div className="text-sm text-blue-600">Success Rate</div>
+                                </div>
+                            </div>
+
+                            <p className="text-green-800 mb-2">
                                 Successfully imported {importResults.imported} recipes from Volume {selectedVolume}!
                             </p>
+
                             {importResults.errors?.length > 0 && (
-                                <div className="mt-2">
-                                    <p className="text-red-600 font-medium">Errors:</p>
-                                    <ul className="text-red-600 text-sm mt-1">
-                                        {importResults.errors.map((error, i) => (
-                                            <li key={i}>• {error}</li>
-                                        ))}
-                                    </ul>
+                                <div className="mt-4">
+                                    <p className="text-red-600 font-medium mb-2">Issues encountered:</p>
+                                    <div className="bg-red-50 border border-red-200 rounded p-3 max-h-64 overflow-y-auto">
+                                        <ul className="text-red-700 text-sm space-y-1">
+                                            {importResults.errors.map((error, i) => (
+                                                <li key={i}>• {error}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -513,8 +641,7 @@ export default function AdminRecipes() {
                         {/* Delete Volume Button */}
                         <div className="mt-4 pt-4 border-t border-gray-200">
                             <p className="text-sm text-gray-600 mb-2">
-                                ⚠️ If the recipes didn't import correctly, you can delete all recipes from this volume
-                                and try again:
+                                ⚠️ If the recipes didn't import correctly, you can delete all recipes from this volume and try again:
                             </p>
                             <TouchEnhancedButton
                                 onClick={handleDeleteVolume}
@@ -558,19 +685,43 @@ export default function AdminRecipes() {
                     </div>
                 )}
 
-                {/* Instructions */}
+                {/* Enhanced Instructions */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-blue-900 mb-2">📋 How to Use</h3>
-                    <ul className="text-blue-800 space-y-1 text-sm">
-                        <li>1. Select the volume of Doc Bear's Comfort Food Survival Guide</li>
-                        <li>2. Upload your PDF or DOCX file containing the recipes</li>
-                        <li>3. Review the extracted text to ensure proper parsing</li>
-                        <li>4. <strong>Review and adjust categories</strong> - Use bulk change or individual dropdowns</li>
-                        <li>5. Edit any recipes that need corrections</li>
-                        <li>6. Click "Import All Recipes" to add them to your database</li>
-                        <li>7. The recipes will be tagged with the appropriate volume source and category</li>
-                    </ul>
+                    <h3 className="text-lg font-medium text-blue-900 mb-2">📋 How to Use the New Format</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 className="font-medium text-blue-800 mb-2">Step-by-Step Process:</h4>
+                            <ol className="text-blue-800 space-y-1 text-sm list-decimal list-inside">
+                                <li>Format your recipes using the delimited format shown above</li>
+                                <li>Save as DOCX file (preferred) for best parsing results</li>
+                                <li>Select the appropriate volume for your cookbook</li>
+                                <li>Upload your file and wait for automatic parsing</li>
+                                <li>Review the parsing statistics and parsed recipes</li>
+                                <li>Adjust categories using bulk change or individual dropdowns</li>
+                                <li>Edit any recipes that need corrections</li>
+                                <li>Click "Import All Recipes" to add them to your database</li>
+                            </ol>
+                        </div>
+                        <div>
+                            <h4 className="font-medium text-blue-800 mb-2">Auto-Detection Features:</h4>
+                            <ul className="text-blue-800 space-y-1 text-sm list-disc list-inside">
+                                <li><strong>Smart Category Detection:</strong> Automatically categorizes recipes based on title, tags, and description</li>
+                                <li><strong>Ingredient Parsing:</strong> Handles fractions (1/2, 1 1/2), decimals (2.5), and various units</li>
+                                <li><strong>Duplicate Prevention:</strong> Won't import recipes with the same title</li>
+                                <li><strong>Format Validation:</strong> Ensures all recipes have required fields</li>
+                                <li><strong>Error Reporting:</strong> Detailed feedback on any parsing issues</li>
+                                <li><strong>Flexible Tags:</strong> Automatically adds volume tags and preserves your custom tags</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-yellow-800 text-sm">
+                            <strong>💡 Pro Tip:</strong> Test with a small file first (2-3 recipes) to ensure your format is correct before uploading all recipes from a volume.
+                        </p>
+                    </div>
                 </div>
+
                 <Footer />
             </div>
         </MobileOptimizedLayout>
