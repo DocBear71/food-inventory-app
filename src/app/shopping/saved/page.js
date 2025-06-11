@@ -111,6 +111,31 @@ export default function SavedShoppingListsPage() {
         }
     };
 
+    const unarchiveSavedLists = async (listIds) => {
+        try {
+            const response = await fetch('/api/shopping/saved/unarchive', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ listIds })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to unarchive lists');
+            }
+
+            setSelectedLists([]);
+            fetchSavedLists();
+
+            alert(`Successfully unarchived ${listIds.length} list${listIds.length !== 1 ? 's' : ''}`);
+
+        } catch (error) {
+            console.error('Error unarchiving lists:', error);
+            setError(error.message);
+        }
+    };
+
     const handleSelectList = (listId) => {
         setSelectedLists(prev =>
             prev.includes(listId)
@@ -407,7 +432,7 @@ export default function SavedShoppingListsPage() {
                                             </div>
                                         </div>
 
-                                        {/* Actions - FIXED: Mobile-first responsive button layout */}
+                                        {/* Actions - WITH UNARCHIVE OPTION */}
                                         <div className="flex flex-col sm:flex-row gap-2">
                                             <TouchEnhancedButton
                                                 onClick={() => loadSavedList(list.id)}
@@ -416,14 +441,27 @@ export default function SavedShoppingListsPage() {
                                                 📋 Load List
                                             </TouchEnhancedButton>
                                             <div className="flex gap-2 sm:flex-shrink-0">
-                                                <TouchEnhancedButton
-                                                    onClick={() => deleteSavedLists([list.id], true)}
-                                                    className="flex-1 sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
-                                                    title="Archive"
-                                                >
-                                                    📦
-                                                    <span className="sm:hidden">Archive</span>
-                                                </TouchEnhancedButton>
+                                                {/* Show unarchive button for archived lists */}
+                                                {list.isArchived ? (
+                                                    <TouchEnhancedButton
+                                                        onClick={() => unarchiveSavedLists([list.id])}
+                                                        className="flex-1 sm:w-auto bg-green-600 hover:bg-green-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
+                                                        title="Un-archive"
+                                                    >
+                                                        📤
+                                                        <span className="sm:hidden">Un-archive</span>
+                                                    </TouchEnhancedButton>
+                                                ) : (
+                                                    /* Show archive button for active lists */
+                                                    <TouchEnhancedButton
+                                                        onClick={() => deleteSavedLists([list.id], true)}
+                                                        className="flex-1 sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
+                                                        title="Archive"
+                                                    >
+                                                        📦
+                                                        <span className="sm:hidden">Archive</span>
+                                                    </TouchEnhancedButton>
+                                                )}
                                                 <TouchEnhancedButton
                                                     onClick={() => deleteSavedLists([list.id], false)}
                                                     className="flex-1 sm:w-auto bg-red-600 hover:bg-red-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
