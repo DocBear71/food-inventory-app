@@ -1,4 +1,4 @@
-// file: /src/app/auth/signup/page.js v3 - FIXED VERSION
+// file: /src/app/auth/signup/page.js v4 - WITH PASSWORD REQUIREMENTS DISPLAY
 
 'use client';
 
@@ -50,6 +50,17 @@ export default function SignUp() {
         }
 
         return errors;
+    };
+
+    // Check individual password requirements
+    const getPasswordRequirements = (password) => {
+        return {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*]/.test(password)
+        };
     };
 
     const handleSubmit = async (e) => {
@@ -167,6 +178,11 @@ export default function SignUp() {
         );
     };
 
+    // Get current password requirements status
+    const passwordReqs = getPasswordRequirements(formData.password);
+    const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
+    const passwordsDontMatch = formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword;
+
     return (
         <>
             <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -236,11 +252,60 @@ export default function SignUp() {
                                     type="password"
                                     required
                                     className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="Enter your password (min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)"
+                                    placeholder="Create a secure password"
                                     value={formData.password}
                                     onChange={handleChange}
                                 />
                             </div>
+
+                            {/* Password Requirements Display */}
+                            {formData.password && (
+                                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center text-xs">
+                                            <span className={`mr-2 ${passwordReqs.length ? 'text-green-600' : 'text-red-600'}`}>
+                                                {passwordReqs.length ? '✓' : '✗'}
+                                            </span>
+                                            <span className={passwordReqs.length ? 'text-green-700' : 'text-gray-600'}>
+                                                At least 8 characters
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center text-xs">
+                                            <span className={`mr-2 ${passwordReqs.uppercase ? 'text-green-600' : 'text-red-600'}`}>
+                                                {passwordReqs.uppercase ? '✓' : '✗'}
+                                            </span>
+                                            <span className={passwordReqs.uppercase ? 'text-green-700' : 'text-gray-600'}>
+                                                One uppercase letter (A-Z)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center text-xs">
+                                            <span className={`mr-2 ${passwordReqs.lowercase ? 'text-green-600' : 'text-red-600'}`}>
+                                                {passwordReqs.lowercase ? '✓' : '✗'}
+                                            </span>
+                                            <span className={passwordReqs.lowercase ? 'text-green-700' : 'text-gray-600'}>
+                                                One lowercase letter (a-z)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center text-xs">
+                                            <span className={`mr-2 ${passwordReqs.number ? 'text-green-600' : 'text-red-600'}`}>
+                                                {passwordReqs.number ? '✓' : '✗'}
+                                            </span>
+                                            <span className={passwordReqs.number ? 'text-green-700' : 'text-gray-600'}>
+                                                One number (0-9)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center text-xs">
+                                            <span className={`mr-2 ${passwordReqs.special ? 'text-green-600' : 'text-red-600'}`}>
+                                                {passwordReqs.special ? '✓' : '✗'}
+                                            </span>
+                                            <span className={passwordReqs.special ? 'text-green-700' : 'text-gray-600'}>
+                                                One special character (!@#$%^&*)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -256,6 +321,23 @@ export default function SignUp() {
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
                                 />
+
+                                {/* Password Match Indicator */}
+                                {formData.confirmPassword && (
+                                    <div className="mt-2">
+                                        {passwordsMatch ? (
+                                            <div className="flex items-center text-xs text-green-600">
+                                                <span className="mr-2">✓</span>
+                                                <span>Passwords match</span>
+                                            </div>
+                                        ) : passwordsDontMatch ? (
+                                            <div className="flex items-center text-xs text-red-600">
+                                                <span className="mr-2">✗</span>
+                                                <span>Passwords do not match</span>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
                             </div>
                         </div>
 

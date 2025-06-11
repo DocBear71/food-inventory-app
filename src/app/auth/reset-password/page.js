@@ -1,4 +1,4 @@
-// file: /src/app/auth/reset-password/page.js v2
+// file: /src/app/auth/reset-password/page.js v3 - WITH PASSWORD REQUIREMENTS DISPLAY
 
 'use client';
 
@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import Footer from '@/components/legal/Footer';
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -24,12 +25,6 @@ function ResetPasswordContent() {
         confirmPassword: ''
     });
 
-    // Password strength indicators
-    const [passwordStrength, setPasswordStrength] = useState({
-        score: 0,
-        feedback: []
-    });
-
     // Verify token on component mount
     useEffect(() => {
         if (token) {
@@ -39,16 +34,6 @@ function ResetPasswordContent() {
             setVerifying(false);
         }
     }, [token]);
-
-    // Check password strength - UPDATED with new requirements
-    useEffect(() => {
-        if (formData.password) {
-            const strength = checkPasswordStrength(formData.password);
-            setPasswordStrength(strength);
-        } else {
-            setPasswordStrength({ score: 0, feedback: [] });
-        }
-    }, [formData.password]);
 
     const verifyToken = async () => {
         try {
@@ -76,60 +61,6 @@ function ResetPasswordContent() {
     };
 
     // UPDATED: Strong password validation function
-    const checkPasswordStrength = (password) => {
-        let score = 0;
-        const feedback = [];
-
-        if (password.length >= 8) {
-            score += 1;
-        } else {
-            feedback.push('At least 8 characters');
-        }
-
-        if (/[a-z]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Include lowercase letters');
-        }
-
-        if (/[A-Z]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Include uppercase letters');
-        }
-
-        if (/[0-9]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Include numbers');
-        }
-
-        if (/[!@#$%^&*]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Include special characters (!@#$%^&*)');
-        }
-
-        return { score, feedback };
-    };
-
-    const getStrengthColor = (score) => {
-        if (score <= 1) return 'bg-red-500';
-        if (score <= 2) return 'bg-yellow-500';
-        if (score <= 3) return 'bg-blue-500';
-        if (score <= 4) return 'bg-green-500';
-        return 'bg-green-600';
-    };
-
-    const getStrengthText = (score) => {
-        if (score <= 1) return 'Very Weak';
-        if (score <= 2) return 'Weak';
-        if (score <= 3) return 'Fair';
-        if (score <= 4) return 'Good';
-        return 'Strong';
-    };
-
-    // UPDATED: Validation function for strong passwords
     const validatePassword = (password) => {
         const errors = [];
 
@@ -154,6 +85,17 @@ function ResetPasswordContent() {
         }
 
         return errors;
+    };
+
+    // Check individual password requirements
+    const getPasswordRequirements = (password) => {
+        return {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*]/.test(password)
+        };
     };
 
     const handleSubmit = async (e) => {
@@ -308,6 +250,11 @@ function ResetPasswordContent() {
         );
     }
 
+    // Get current password requirements status
+    const passwordReqs = getPasswordRequirements(formData.password);
+    const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
+    const passwordsDontMatch = formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword;
+
     return (
         <div className="flex items-start justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '3rem', paddingBottom: '2rem' }}>
             <div className="max-w-md w-full space-y-6">
@@ -339,44 +286,58 @@ function ResetPasswordContent() {
                             value={formData.password}
                             onChange={handleChange}
                             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            placeholder="Enter your new password (min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)"
+                            placeholder="Create a secure password"
                         />
+                    </div>
 
-                        {/* Password Strength Indicator */}
-                        {formData.password && (
-                            <div className="mt-2">
-                                <div className="flex items-center space-x-2">
-                                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-300 ${getStrengthColor(passwordStrength.score)}`}
-                                            style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                                        ></div>
-                                    </div>
-                                    <span className={`text-xs font-medium ${
-                                        passwordStrength.score <= 2 ? 'text-red-600' :
-                                            passwordStrength.score <= 3 ? 'text-yellow-600' :
-                                                'text-green-600'
-                                    }`}>
-                                        {getStrengthText(passwordStrength.score)}
+                    {/* Password Requirements Display */}
+                    {formData.password && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
+                            <div className="space-y-1">
+                                <div className="flex items-center text-xs">
+                                    <span className={`mr-2 ${passwordReqs.length ? 'text-green-600' : 'text-red-600'}`}>
+                                        {passwordReqs.length ? '✓' : '✗'}
+                                    </span>
+                                    <span className={passwordReqs.length ? 'text-green-700' : 'text-gray-600'}>
+                                        At least 8 characters
                                     </span>
                                 </div>
-
-                                {passwordStrength.feedback.length > 0 && (
-                                    <div className="mt-1">
-                                        <p className="text-xs text-gray-600 mb-1">Password requirements:</p>
-                                        <ul className="text-xs text-gray-500 space-y-1">
-                                            {passwordStrength.feedback.map((item, index) => (
-                                                <li key={index} className="flex items-center">
-                                                    <span className="text-red-400 mr-1">•</span>
-                                                    {item}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
+                                <div className="flex items-center text-xs">
+                                    <span className={`mr-2 ${passwordReqs.uppercase ? 'text-green-600' : 'text-red-600'}`}>
+                                        {passwordReqs.uppercase ? '✓' : '✗'}
+                                    </span>
+                                    <span className={passwordReqs.uppercase ? 'text-green-700' : 'text-gray-600'}>
+                                        One uppercase letter (A-Z)
+                                    </span>
+                                </div>
+                                <div className="flex items-center text-xs">
+                                    <span className={`mr-2 ${passwordReqs.lowercase ? 'text-green-600' : 'text-red-600'}`}>
+                                        {passwordReqs.lowercase ? '✓' : '✗'}
+                                    </span>
+                                    <span className={passwordReqs.lowercase ? 'text-green-700' : 'text-gray-600'}>
+                                        One lowercase letter (a-z)
+                                    </span>
+                                </div>
+                                <div className="flex items-center text-xs">
+                                    <span className={`mr-2 ${passwordReqs.number ? 'text-green-600' : 'text-red-600'}`}>
+                                        {passwordReqs.number ? '✓' : '✗'}
+                                    </span>
+                                    <span className={passwordReqs.number ? 'text-green-700' : 'text-gray-600'}>
+                                        One number (0-9)
+                                    </span>
+                                </div>
+                                <div className="flex items-center text-xs">
+                                    <span className={`mr-2 ${passwordReqs.special ? 'text-green-600' : 'text-red-600'}`}>
+                                        {passwordReqs.special ? '✓' : '✗'}
+                                    </span>
+                                    <span className={passwordReqs.special ? 'text-green-700' : 'text-gray-600'}>
+                                        One special character (!@#$%^&*)
+                                    </span>
+                                </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     <div>
                         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -395,18 +356,18 @@ function ResetPasswordContent() {
 
                         {/* Password Match Indicator */}
                         {formData.confirmPassword && (
-                            <div className="mt-1">
-                                {formData.password === formData.confirmPassword ? (
-                                    <p className="text-xs text-green-600 flex items-center">
-                                        <span className="mr-1">✓</span>
-                                        Passwords match
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-red-600 flex items-center">
-                                        <span className="mr-1">✗</span>
-                                        Passwords do not match
-                                    </p>
-                                )}
+                            <div className="mt-2">
+                                {passwordsMatch ? (
+                                    <div className="flex items-center text-xs text-green-600">
+                                        <span className="mr-2">✓</span>
+                                        <span>Passwords match</span>
+                                    </div>
+                                ) : passwordsDontMatch ? (
+                                    <div className="flex items-center text-xs text-red-600">
+                                        <span className="mr-2">✗</span>
+                                        <span>Passwords do not match</span>
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -414,7 +375,7 @@ function ResetPasswordContent() {
                     <div>
                         <TouchEnhancedButton
                             type="submit"
-                            disabled={loading || formData.password !== formData.confirmPassword || passwordStrength.score < 5}
+                            disabled={loading || !passwordsMatch || Object.values(passwordReqs).some(req => !req)}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Resetting Password...' : 'Reset Password'}
@@ -431,7 +392,9 @@ function ResetPasswordContent() {
                     </div>
                 </form>
             </div>
+            <Footer />
         </div>
+
     );
 }
 
