@@ -459,9 +459,10 @@ function parseDelimitedRecipe(section, volume) {
         console.log('❌ No instructions found');
         return null;
     }
-}
 
-console.log(`✅ Successfully parsed delimited recipe: "${recipe.title}" [${recipe.category}]`);
+    console.log(`✅ Successfully parsed delimited recipe: "${recipe.title}" [${recipe.category}]`);
+    return recipe;
+}
 
 // Parse ingredients that are all on one line (space or comma separated)
 function parseIngredientsFromSingleLine(ingredientsText) {
@@ -564,63 +565,63 @@ function parseIngredientsFromSingleLine(ingredientsText) {
         }
     }
 
+    return ingredients;
+}
+
 // Split long instruction lines that might be concatenated
-    function splitLongInstructionLine(instructionText) {
-        console.log(`  🔄 Splitting long instruction: "${instructionText.substring(0, 200)}..."`);
+function splitLongInstructionLine(instructionText) {
+    console.log(`  🔄 Splitting long instruction: "${instructionText.substring(0, 200)}..."`);
 
-        const instructions = [];
+    const instructions = [];
 
-        // Try splitting on sentence boundaries with instructional phrases
-        const sentenceEnders = /\.\s+(?=[A-Z]|[a-z]+(?:\s+[a-z]+)*\s+(?:until|for|about|in|on|over|at|to|and|then|next|after|while|when|add|place|heat|cook|stir|mix|blend|pour|remove|continue|repeat|bring|allow|set|transfer|using|with))/g;
+    // Try splitting on sentence boundaries with instructional phrases
+    const sentenceEnders = /\.\s+(?=[A-Z]|[a-z]+(?:\s+[a-z]+)*\s+(?:until|for|about|in|on|over|at|to|and|then|next|after|while|when|add|place|heat|cook|stir|mix|blend|pour|remove|continue|repeat|bring|allow|set|transfer|using|with))/g;
 
-        let splits = instructionText.split(sentenceEnders);
+    let splits = instructionText.split(sentenceEnders);
 
-        // If that didn't work well, try other patterns
-        if (splits.length < 2) {
-            // Try splitting on instructional phrase boundaries
-            const instructionBoundaries = /\.\s+(Add|Place|Heat|Cook|Stir|Mix|Blend|Pour|Remove|Continue|Repeat|Bring|Allow|Set|Transfer|Using|With|In a|After|While|When|Then|Next)/gi;
-            splits = instructionText.split(instructionBoundaries);
+    // If that didn't work well, try other patterns
+    if (splits.length < 2) {
+        // Try splitting on instructional phrase boundaries
+        const instructionBoundaries = /\.\s+(Add|Place|Heat|Cook|Stir|Mix|Blend|Pour|Remove|Continue|Repeat|Bring|Allow|Set|Transfer|Using|With|In a|After|While|When|Then|Next)/gi;
+        splits = instructionText.split(instructionBoundaries);
 
-            // Rejoin with the split words
-            const rejoined = [];
-            for (let i = 0; i < splits.length; i++) {
-                if (i === 0) {
-                    rejoined.push(splits[i].trim());
+        // Rejoin with the split words
+        const rejoined = [];
+        for (let i = 0; i < splits.length; i++) {
+            if (i === 0) {
+                rejoined.push(splits[i].trim());
+            } else {
+                // The split word is in the next iteration, but we need to add it back
+                const match = instructionText.match(instructionBoundaries);
+                if (match && match[i - 1]) {
+                    rejoined.push(match[i - 1].trim() + ' ' + splits[i].trim());
                 } else {
-                    // The split word is in the next iteration, but we need to add it back
-                    const match = instructionText.match(instructionBoundaries);
-                    if (match && match[i - 1]) {
-                        rejoined.push(match[i - 1].trim() + ' ' + splits[i].trim());
-                    } else {
-                        rejoined.push(splits[i].trim());
-                    }
+                    rejoined.push(splits[i].trim());
                 }
             }
-            splits = rejoined;
         }
-
-        // Clean up and filter the splits
-        for (let split of splits) {
-            split = split.trim();
-            if (split.length > 10) { // Only keep reasonably long instructions
-                // Make sure it ends with a period if it doesn't already
-                if (!split.endsWith('.') && !split.endsWith('!') && !split.endsWith('?')) {
-                    split += '.';
-                }
-                instructions.push(split);
-            }
-        }
-
-        // If we still don't have good splits, just return the original as one instruction
-        if (instructions.length === 0) {
-            instructions.push(instructionText);
-        }
-
-        console.log(`    📝 Split into ${instructions.length} instructions`);
-        return instructions;
+        splits = rejoined;
     }
 
-    return recipe;
+    // Clean up and filter the splits
+    for (let split of splits) {
+        split = split.trim();
+        if (split.length > 10) { // Only keep reasonably long instructions
+            // Make sure it ends with a period if it doesn't already
+            if (!split.endsWith('.') && !split.endsWith('!') && !split.endsWith('?')) {
+                split += '.';
+            }
+            instructions.push(split);
+        }
+    }
+
+    // If we still don't have good splits, just return the original as one instruction
+    if (instructions.length === 0) {
+        instructions.push(instructionText);
+    }
+
+    console.log(`    📝 Split into ${instructions.length} instructions`);
+    return instructions;
 }
 
 // Parse individual ingredient line with better fraction handling
