@@ -1,4 +1,4 @@
-// file: /src/app/auth/signup/page.js v2 - FIXED VERSION
+// file: /src/app/auth/signup/page.js v3 - FIXED VERSION
 
 'use client';
 
@@ -26,6 +26,32 @@ export default function SignUp() {
     const [showTermsModal, setShowTermsModal] = useState(false);
     const router = useRouter();
 
+    const validatePassword = (password) => {
+        const errors = [];
+
+        if (password.length < 8) {
+            errors.push('at least 8 characters');
+        }
+
+        if (!/[A-Z]/.test(password)) {
+            errors.push('one uppercase letter');
+        }
+
+        if (!/[a-z]/.test(password)) {
+            errors.push('one lowercase letter');
+        }
+
+        if (!/[0-9]/.test(password)) {
+            errors.push('one number');
+        }
+
+        if (!/[!@#$%^&*]/.test(password)) {
+            errors.push('one special character (!@#$%^&*)');
+        }
+
+        return errors;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -39,8 +65,10 @@ export default function SignUp() {
             return;
         }
 
-        if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters long');
+        // Validate password strength
+        const passwordErrors = validatePassword(formData.password);
+        if (passwordErrors.length > 0) {
+            setError(`Password must contain ${passwordErrors.join(', ')}`);
             setLoading(false);
             return;
         }
@@ -208,7 +236,7 @@ export default function SignUp() {
                                     type="password"
                                     required
                                     className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="Enter your password (min 6 characters)"
+                                    placeholder="Enter your password (min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)"
                                     value={formData.password}
                                     onChange={handleChange}
                                 />

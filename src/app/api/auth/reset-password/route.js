@@ -1,19 +1,50 @@
-
-// file: /src/app/api/auth/reset-password/route.js
+// file: /src/app/api/auth/reset-password/route.js v2
 
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
+
+// Strong password validation function (same as register)
+const validatePassword = (password) => {
+    const errors = [];
+
+    if (!password || typeof password !== 'string') {
+        return ['Password is required'];
+    }
+
+    if (password.length < 8) {
+        errors.push('at least 8 characters');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+        errors.push('one uppercase letter');
+    }
+
+    if (!/[a-z]/.test(password)) {
+        errors.push('one lowercase letter');
+    }
+
+    if (!/[0-9]/.test(password)) {
+        errors.push('one number');
+    }
+
+    if (!/[!@#$%^&*]/.test(password)) {
+        errors.push('one special character (!@#$%^&*)');
+    }
+
+    return errors;
+};
 
 export async function POST(request) {
     try {
         const { token, password, confirmPassword } = await request.json();
 
+        // Validation
         if (!token || !password || !confirmPassword) {
             return NextResponse.json(
-                { error: 'All fields are required' },
+                { error: 'Token, password, and confirm password are required' },
                 { status: 400 }
             );
         }
@@ -25,22 +56,24 @@ export async function POST(request) {
             );
         }
 
-        if (password.length < 6) {
+        // Strong password validation
+        const passwordErrors = validatePassword(password);
+        if (passwordErrors.length > 0) {
             return NextResponse.json(
-                { error: 'Password must be at least 6 characters long' },
+                { error: `Password must contain ${passwordErrors.join(', ')}` },
                 { status: 400 }
             );
         }
 
-        // Hash the token to compare with stored hash
-        const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
         await connectDB();
 
-        // Find user with valid reset token that hasn't expired
+        // Hash the token to match stored version
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Find user with valid reset token
         const user = await User.findOne({
-            passwordResetToken: resetTokenHash,
-            passwordResetExpires: { $gt: new Date() }
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: Date.now() }
         });
 
         if (!user) {
@@ -50,27 +83,22 @@ export async function POST(request) {
             );
         }
 
-        // Hash new password
+        // Hash the new password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Update password and remove reset token fields
-        await User.findByIdAndUpdate(user._id, {
-            password: hashedPassword,
-            passwordResetToken: undefined,
-            passwordResetExpires: undefined,
-            updatedAt: new Date()
-        });
+        // Update user password and clear reset fields
+        user.password = hashedPassword;
+        await user.clearPasswordReset();
 
-        // Log password reset for audit trail
-        console.log(`Password reset completed for user ${user.email} at ${new Date().toISOString()}`);
+        console.log(`Password reset successful for user: ${user.email}`);
 
         return NextResponse.json({
             success: true,
-            message: 'Password reset successfully. You can now sign in with your new password.'
+            message: 'Password has been reset successfully'
         });
 
     } catch (error) {
-        console.error('Reset password error:', error);
+        console.error('Password reset error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

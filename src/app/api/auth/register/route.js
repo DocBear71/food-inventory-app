@@ -1,9 +1,40 @@
-// file: /src/app/api/auth/register/route.js v2
+// file: /src/app/api/auth/register/route.js v3
 
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
+
+// Strong password validation function
+const validatePassword = (password) => {
+    const errors = [];
+
+    if (!password || typeof password !== 'string') {
+        return ['Password is required'];
+    }
+
+    if (password.length < 8) {
+        errors.push('at least 8 characters');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+        errors.push('one uppercase letter');
+    }
+
+    if (!/[a-z]/.test(password)) {
+        errors.push('one lowercase letter');
+    }
+
+    if (!/[0-9]/.test(password)) {
+        errors.push('one number');
+    }
+
+    if (!/[!@#$%^&*]/.test(password)) {
+        errors.push('one special character (!@#$%^&*)');
+    }
+
+    return errors;
+};
 
 export async function POST(request) {
     try {
@@ -16,25 +47,35 @@ export async function POST(request) {
             acceptanceDate
         } = await request.json();
 
-        // Validation
-        if (!name || !email || !password) {
+        // Basic validation
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return NextResponse.json(
-                { error: 'Name, email, and password are required' },
+                { error: 'Name is required' },
                 { status: 400 }
             );
         }
 
-        if (password.length < 6) {
+        if (!email || typeof email !== 'string') {
             return NextResponse.json(
-                { error: 'Password must be at least 6 characters long' },
+                { error: 'Email is required' },
                 { status: 400 }
             );
         }
 
+        // Email format validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return NextResponse.json(
                 { error: 'Please enter a valid email address' },
+                { status: 400 }
+            );
+        }
+
+        // Strong password validation
+        const passwordErrors = validatePassword(password);
+        if (passwordErrors.length > 0) {
+            return NextResponse.json(
+                { error: `Password must contain ${passwordErrors.join(', ')}` },
                 { status: 400 }
             );
         }
@@ -65,12 +106,12 @@ export async function POST(request) {
             );
         }
 
-        // Hash password
+        // Hash password with higher cost for better security
         const hashedPassword = await bcrypt.hash(password, 12);
 
         // Create user with legal acceptance tracking
         const user = new User({
-            name,
+            name: name.trim(),
             email: email.toLowerCase(),
             password: hashedPassword,
             legalAcceptance: {
@@ -109,6 +150,15 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Registration error:', error);
+
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            return NextResponse.json(
+                { error: 'User with this email already exists' },
+                { status: 400 }
+            );
+        }
+
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

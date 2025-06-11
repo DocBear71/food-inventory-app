@@ -1,4 +1,4 @@
-// file: /src/app/api/auth/forgot-password/route.js - UPDATED WITH EMAIL SENDING
+// file: /src/app/api/auth/forgot-password/route.js v2 - UPDATED WITH EMAIL SENDING
 
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
@@ -10,7 +10,7 @@ export async function POST(request) {
     try {
         const { email } = await request.json();
 
-        if (!email) {
+        if (!email || typeof email !== 'string') {
             return NextResponse.json(
                 { error: 'Email is required' },
                 { status: 400 }

@@ -1,5 +1,4 @@
-
-// file: /src/app/auth/reset-password/page.js
+// file: /src/app/auth/reset-password/page.js v2
 
 'use client';
 
@@ -41,7 +40,7 @@ function ResetPasswordContent() {
         }
     }, [token]);
 
-    // Check password strength
+    // Check password strength - UPDATED with new requirements
     useEffect(() => {
         if (formData.password) {
             const strength = checkPasswordStrength(formData.password);
@@ -76,6 +75,7 @@ function ResetPasswordContent() {
         }
     };
 
+    // UPDATED: Strong password validation function
     const checkPasswordStrength = (password) => {
         let score = 0;
         const feedback = [];
@@ -104,10 +104,10 @@ function ResetPasswordContent() {
             feedback.push('Include numbers');
         }
 
-        if (/[^A-Za-z0-9]/.test(password)) {
+        if (/[!@#$%^&*]/.test(password)) {
             score += 1;
         } else {
-            feedback.push('Include special characters');
+            feedback.push('Include special characters (!@#$%^&*)');
         }
 
         return { score, feedback };
@@ -129,6 +129,33 @@ function ResetPasswordContent() {
         return 'Strong';
     };
 
+    // UPDATED: Validation function for strong passwords
+    const validatePassword = (password) => {
+        const errors = [];
+
+        if (password.length < 8) {
+            errors.push('at least 8 characters');
+        }
+
+        if (!/[A-Z]/.test(password)) {
+            errors.push('one uppercase letter');
+        }
+
+        if (!/[a-z]/.test(password)) {
+            errors.push('one lowercase letter');
+        }
+
+        if (!/[0-9]/.test(password)) {
+            errors.push('one number');
+        }
+
+        if (!/[!@#$%^&*]/.test(password)) {
+            errors.push('one special character (!@#$%^&*)');
+        }
+
+        return errors;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -148,8 +175,10 @@ function ResetPasswordContent() {
             return;
         }
 
-        if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters long');
+        // UPDATED: Strong password validation
+        const passwordErrors = validatePassword(formData.password);
+        if (passwordErrors.length > 0) {
+            setError(`Password must contain ${passwordErrors.join(', ')}`);
             setLoading(false);
             return;
         }
@@ -204,8 +233,8 @@ function ResetPasswordContent() {
 
     if (!validToken) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md w-full space-y-8">
+            <div className="flex items-start justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '3rem', paddingBottom: '2rem' }}>
+                <div className="max-w-md w-full space-y-6">
                     <div className="text-center">
                         <div className="mx-auto h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                             <span className="text-2xl">❌</span>
@@ -248,8 +277,8 @@ function ResetPasswordContent() {
 
     if (success) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md w-full space-y-8">
+            <div className="flex items-start justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '3rem', paddingBottom: '2rem' }}>
+                <div className="max-w-md w-full space-y-6">
                     <div className="text-center">
                         <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                             <span className="text-2xl">✅</span>
@@ -280,8 +309,8 @@ function ResetPasswordContent() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
+        <div className="flex items-start justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '3rem', paddingBottom: '2rem' }}>
+            <div className="max-w-md w-full space-y-6">
                 <div className="text-center">
                     <h2 className="text-3xl font-extrabold text-gray-900">
                         Reset Your Password
@@ -297,7 +326,7 @@ function ResetPasswordContent() {
                     </div>
                 )}
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <form className="space-y-6" onSubmit={handleSubmit}>
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                             New Password
@@ -310,7 +339,7 @@ function ResetPasswordContent() {
                             value={formData.password}
                             onChange={handleChange}
                             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            placeholder="Enter your new password"
+                            placeholder="Enter your new password (min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)"
                         />
 
                         {/* Password Strength Indicator */}
@@ -334,7 +363,7 @@ function ResetPasswordContent() {
 
                                 {passwordStrength.feedback.length > 0 && (
                                     <div className="mt-1">
-                                        <p className="text-xs text-gray-600 mb-1">To improve strength:</p>
+                                        <p className="text-xs text-gray-600 mb-1">Password requirements:</p>
                                         <ul className="text-xs text-gray-500 space-y-1">
                                             {passwordStrength.feedback.map((item, index) => (
                                                 <li key={index} className="flex items-center">
@@ -385,7 +414,7 @@ function ResetPasswordContent() {
                     <div>
                         <TouchEnhancedButton
                             type="submit"
-                            disabled={loading || formData.password !== formData.confirmPassword || formData.password.length < 6}
+                            disabled={loading || formData.password !== formData.confirmPassword || passwordStrength.score < 5}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Resetting Password...' : 'Reset Password'}
