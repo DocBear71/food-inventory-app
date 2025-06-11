@@ -69,14 +69,14 @@ const AboutUs = () => {
 
                     <div style={{
                         display: 'flex',
-                        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                        alignItems: window.innerWidth < 768 ? 'center' : 'flex-start',
+                        flexDirection: 'column',
+                        alignItems: 'center',
                         marginBottom: '2rem'
                     }}>
                         <div style={{
                             textAlign: 'center',
                             marginBottom: '2rem',
-                            marginRight: window.innerWidth < 768 ? '0' : '2rem'
+                            marginRight: '0'
                         }}>
                             <div style={{
                                 width: '200px',
@@ -89,10 +89,27 @@ const AboutUs = () => {
                                 margin: '0 auto 1rem auto',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 border: '4px solid #f8f9fa',
+                                overflow: 'hidden'
                             }}>
-                                <img alt="Edward McKeown Picture" className="w-full h-full object-cover"
-                                     src="/icons/edmckeown.jpg"/>
-                                <span style="display: none"{{fontSize: '24px', color: '#6c757d'}}>👨‍🍳</span>
+                                <img
+                                        alt="Edward McKeown Picture"
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            borderRadius: '50%'
+                                        }}
+                                        src="/icons/edmckeown.jpg"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'block';
+                                        }}
+                                />
+                                <span style={{
+                                    fontSize: '24px',
+                                    color: '#6c757d',
+                                    display: 'none'
+                                }}>👨‍🍳</span>
                             </div>
                             <h3 style={{fontSize: '20px', color: '#2c3e50', marginBottom: '0.5rem'}}>Dr. Edward McKeown</h3>
                             <p style={{ fontSize: '16px', color: '#7f8c8d', fontStyle: 'italic', margin: '0' }}>
@@ -101,7 +118,11 @@ const AboutUs = () => {
                             </p>
                         </div>
 
-                        <div style={{ flex: 1 }}>
+                        <div style={{
+                            flex: 1,
+                            maxWidth: '800px',
+                            textAlign: 'left'
+                        }}>
                             <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
                                 Dr. Edward McKeown, a United States Marine Corps veteran, is the founder and creator of Doc Bear's Comfort Food application. Born in Mexico, Missouri, Dr. McKeown brings over 30 years of experience in hospitality management, food safety, and business operations to this innovative platform.
                             </p>
@@ -115,6 +136,7 @@ const AboutUs = () => {
                             </p>
                         </div>
                     </div>
+
 
                     <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #ffc107' }}>
                         <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Professional Background</h3>
