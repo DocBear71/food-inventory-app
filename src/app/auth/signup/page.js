@@ -1,4 +1,4 @@
-// file: /src/app/auth/signup/page.js - COMPLETELY CLEAN VERSION
+// file: /src/app/auth/signup/page.js v2 - FIXED VERSION
 
 'use client';
 
@@ -141,17 +141,18 @@ export default function SignUp() {
 
     return (
         <>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md w-full space-y-8">
-                    <div>
-                        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-md w-full space-y-6">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-extrabold text-gray-900">
                             Create your Doc Bear's Comfort Food account
                         </h2>
-                        <p className="mt-2 text-center text-sm text-gray-600">
+                        <p className="mt-2 text-sm text-gray-600">
                             Join thousands managing their food inventory smartly
                         </p>
                     </div>
-                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+                    <form className="space-y-6" onSubmit={handleSubmit}>
                         {error && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                                 {error}
@@ -230,7 +231,7 @@ export default function SignUp() {
                             </div>
                         </div>
 
-                        <div className="space-y-4 border-t border-gray-200 pt-4">
+                        <div className="border-t border-gray-200 pt-4">
                             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                                 <h3 className="text-sm font-medium text-blue-900 mb-2">
                                     📋 Legal Requirements
@@ -240,15 +241,15 @@ export default function SignUp() {
                                 </p>
 
                                 <div className="space-y-3">
-                                    <div className="flex items-start">
+                                    <div className="flex items-center">
                                         <input
                                             id="acceptPrivacy"
                                             type="checkbox"
                                             checked={acceptedPrivacy}
                                             onChange={(e) => setAcceptedPrivacy(e.target.checked)}
-                                            className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0"
                                         />
-                                        <label htmlFor="acceptPrivacy" className="ml-2 text-sm text-gray-700">
+                                        <label htmlFor="acceptPrivacy" className="ml-3 text-sm text-gray-700 leading-5">
                                             I have read and accept the{' '}
                                             <TouchEnhancedButton
                                                 type="button"
@@ -260,15 +261,15 @@ export default function SignUp() {
                                         </label>
                                     </div>
 
-                                    <div className="flex items-start">
+                                    <div className="flex items-center">
                                         <input
                                             id="acceptTerms"
                                             type="checkbox"
                                             checked={acceptedTerms}
                                             onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                            className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0"
                                         />
-                                        <label htmlFor="acceptTerms" className="ml-2 text-sm text-gray-700">
+                                        <label htmlFor="acceptTerms" className="ml-3 text-sm text-gray-700 leading-5">
                                             I have read and accept the{' '}
                                             <TouchEnhancedButton
                                                 type="button"
@@ -309,10 +310,10 @@ export default function SignUp() {
                         </div>
                     </form>
                 </div>
-                <br/>
-
             </div>
+
             <Footer />
+
             <Modal
                 isOpen={showPrivacyModal}
                 onClose={closeModal}
@@ -329,6 +330,5 @@ export default function SignUp() {
                 <TermsOfUse />
             </Modal>
         </>
-
     );
 }
