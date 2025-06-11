@@ -193,18 +193,18 @@ export default function Home() {
                                 </h2>
                                 <div className="mt-8 max-w-3xl mx-auto">
                                     <div className="flex items-center justify-center mb-6">
-                                        <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+                                        <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg bg-gray-300 relative">
                                             <img
                                                 alt="Dr. Edward McKeown"
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover absolute inset-0"
                                                 src="/icons/edmckeown.jpg"
                                                 onError={(e) => {
                                                     e.target.style.display = 'none';
-                                                    e.target.nextSibling.style.display = 'flex';
+                                                    e.target.parentElement.querySelector('.fallback-emoji').style.display = 'flex';
                                                 }}
                                             />
                                             <div
-                                                className="w-full h-full bg-gray-300 rounded-full flex items-center justify-center text-3xl"
+                                                className="fallback-emoji w-full h-full rounded-full flex items-center justify-center text-3xl"
                                                 style={{ display: 'none' }}
                                             >
                                                 👨‍🍳

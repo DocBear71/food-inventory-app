@@ -1,8 +1,9 @@
-// file: /src/components/layout/MobileDashboardLayout.js - Enhanced mobile layout with PWA banner support and What Can I Make?
+// file: /src/components/layout/MobileDashboardLayout.js v2 - Enhanced mobile layout with PWA banner support and Sign Out
+
 'use client';
 
 import {useState, useEffect} from 'react';
-import {useSession} from 'next-auth/react';
+import {useSession, signOut} from 'next-auth/react';
 import {useRouter, usePathname} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
@@ -54,7 +55,7 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
-    // NEW: Additional menu items for hamburger menu only
+    // Additional menu items for hamburger menu only
     const additionalMenuItems = [
         {
             name: 'What Can I Make?',
@@ -73,6 +74,12 @@ export default function MobileDashboardLayout({children}) {
     const toggleMobileMenu = () => {
         MobileHaptics.medium();
         setMobileMenuOpen(!mobileMenuOpen);
+    };
+
+    const handleSignOut = () => {
+        MobileHaptics.medium();
+        setMobileMenuOpen(false);
+        signOut({ callbackUrl: '/' });
     };
 
     // Calculate bottom padding based on whether PWA banner is shown
@@ -224,14 +231,61 @@ export default function MobileDashboardLayout({children}) {
                             </div>
                         </nav>
 
-                        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
-                            <TouchEnhancedButton
-                                onClick={() => handleNavigation('/profile')}
-                                className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
-                            >
-                                <span className="text-xl">⚙️</span>
-                                <span className="font-medium">Profile Settings</span>
-                            </TouchEnhancedButton>
+                        {/* User Profile & Sign Out Section */}
+                        <div className="absolute bottom-0 left-0 right-0 border-t bg-gray-50">
+                            {/* User Info */}
+                            {session && (
+                                <div className="px-4 py-3 border-b border-gray-200">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
+                                            {session?.user?.avatar ? (
+                                                <img
+                                                    src={`/api/user/avatar/${session.user.avatar}`}
+                                                    alt="Profile"
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextElementSibling.style.display = 'flex';
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <span
+                                                className="text-indigo-600 text-sm font-medium"
+                                                style={{display: session?.user?.avatar ? 'none' : 'flex'}}
+                                            >
+                                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-gray-900 truncate">
+                                                {session.user.name}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {session.user.email}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Navigation Buttons */}
+                            <div className="p-4 space-y-2">
+                                <TouchEnhancedButton
+                                    onClick={() => handleNavigation('/profile')}
+                                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
+                                >
+                                    <span className="text-xl">⚙️</span>
+                                    <span className="font-medium">Profile Settings</span>
+                                </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={handleSignOut}
+                                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-white bg-red-600 hover:bg-red-700 active:bg-red-800 transition-all touch-friendly"
+                                >
+                                    <span className="text-xl">🚪</span>
+                                    <span className="font-medium">Sign Out</span>
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
                     </div>
                 </div>

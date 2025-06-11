@@ -52,15 +52,15 @@ export default function SignIn() {
 
     return (
         <MobileOptimizedLayout>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md w-full space-y-6">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+                <div className="max-w-md w-full space-y-4">
                     <div className="text-center">
                         <h2 className="text-3xl font-extrabold text-gray-900">
                             Sign in to Doc Bear's Comfort Kitchen
                         </h2>
                     </div>
 
-                    <form className="space-y-6" onSubmit={handleSubmit}>
+                    <form className="space-y-4" onSubmit={handleSubmit}>
                         {error && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                                 {error}
