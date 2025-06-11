@@ -62,13 +62,6 @@ export default function MobileDashboardLayout({children}) {
             icon: '💡',
             current: pathname === '/recipes/suggestions',
             description: 'Find recipes based on your inventory'
-        },
-        {
-            name: 'Recipe Import',
-            href: '/recipes/admin',
-            icon: '⚙️',
-            current: pathname === '/recipes/admin',
-            description: 'Import recipes from external sources'
         }
     ];
 
