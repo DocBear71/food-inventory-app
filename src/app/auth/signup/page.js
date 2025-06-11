@@ -24,6 +24,7 @@ export default function SignUp() {
     const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
     const router = useRouter();
 
     const validatePassword = (password) => {
@@ -255,11 +256,13 @@ export default function SignUp() {
                                     placeholder="Create a secure password"
                                     value={formData.password}
                                     onChange={handleChange}
+                                    onFocus={() => setPasswordFocused(true)}
+                                    onBlur={() => setPasswordFocused(false)}
                                 />
                             </div>
 
                             {/* Password Requirements Display */}
-                            {formData.password && (
+                            {(passwordFocused || formData.password) && (
                                 <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
                                     <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
                                     <div className="space-y-1">
