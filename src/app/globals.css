@@ -52,7 +52,6 @@ button {
     -webkit-appearance: none !important;
     appearance: none !important;
     border: none !important;
-    background: transparent !important;
     cursor: pointer !important;
 }
 
