@@ -84,10 +84,11 @@ export default function DashboardLayout({ children }) {
                             Doc Bear's<br/>
                             Comfort Kitchen
                         </h1>
+
                         {/* Mobile close button */}
                         <TouchEnhancedButton
                             onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden text-white hover:text-gray-200 p-1"
+                            className="text-white hover:text-gray-200 p-1"
                         >
                             <span className="text-xl">×</span>
                         </TouchEnhancedButton>
