@@ -430,21 +430,28 @@ export default function ShoppingPage() {
                 {/* Search and Filter Bar */}
                 <div className="bg-white rounded-lg shadow-md border border-gray-200 mb-6 overflow-hidden">
                     <div className="p-6">
-                        {/* Search Bar */}
+                        {/* Search Bar - Enhanced to match inventory style */}
                         <div className="mb-4">
+                            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                                🔍 Search Recipes
+                            </label>
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="Search recipes by name or description..."
+                                    id="search"
+                                    placeholder="Search by name, description, or ingredients..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg text-base bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base bg-white focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                                 />
-                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
+                                {searchQuery && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    >
+                                        ✕
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
                         </div>
 
