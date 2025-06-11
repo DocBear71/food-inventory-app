@@ -240,26 +240,29 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     </div>
                 )}
 
-                {/* Compact Tabs - Mobile Scrollable */}
+                {/* Compact Tabs - Mobile Optimized - NO HORIZONTAL SCROLL */}
                 <div className="border-b border-gray-200 bg-white">
-                    <div className="flex overflow-x-auto scrollbar-hide">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
                         {[
-                            { id: 'overview', label: 'Overview', icon: '📋' },
-                            { id: 'batch', label: 'Batch Cook', icon: '🍳' },
-                            { id: 'prep', label: 'Prep Tasks', icon: '🔪' },
-                            { id: 'schedule', label: 'Schedule', icon: '📅' }
+                            { id: 'overview', label: 'Overview', icon: '📋', shortLabel: 'Info' },
+                            { id: 'batch', label: 'Batch Cook', icon: '🍳', shortLabel: 'Batch' },
+                            { id: 'prep', label: 'Prep Tasks', icon: '🔪', shortLabel: 'Prep' },
+                            { id: 'schedule', label: 'Schedule', icon: '📅', shortLabel: 'Plan' }
                         ].map(tab => (
                             <TouchEnhancedButton
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 ${
+                                className={`px-2 py-3 text-xs font-medium border-b-2 text-center ${
                                     activeTab === tab.id
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        ? 'border-blue-600 text-blue-600 bg-blue-50'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                                 }`}
                             >
-                                <span className="mr-1">{tab.icon}</span>
-                                <span className="whitespace-nowrap">{tab.label}</span>
+                                <div className="flex flex-col items-center gap-1">
+                                    <span className="text-sm">{tab.icon}</span>
+                                    <span className="hidden sm:inline">{tab.label}</span>
+                                    <span className="sm:hidden">{tab.shortLabel}</span>
+                                </div>
                             </TouchEnhancedButton>
                         ))}
                     </div>

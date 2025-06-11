@@ -1,4 +1,4 @@
-// file: /src/app/shopping/saved/page.js v2 - Fixed button styling and mobile layout
+// file: /src/app/shopping/saved/page.js v3 - Final fixes for button layout and mobile responsiveness
 
 'use client';
 
@@ -254,20 +254,20 @@ export default function SavedShoppingListsPage() {
 
                 {/* Bulk Actions - FIXED BUTTON STYLING */}
                 {selectedLists.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div className="text-blue-800 font-medium">
                             {selectedLists.length} list{selectedLists.length !== 1 ? 's' : ''} selected
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full sm:w-auto">
                             <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, true)}
-                                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                                className="flex-1 sm:flex-initial bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
                                 📦 Archive
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => deleteSavedLists(selectedLists, false)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                                className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
                                 🗑️ Delete
                             </TouchEnhancedButton>
@@ -407,28 +407,32 @@ export default function SavedShoppingListsPage() {
                                             </div>
                                         </div>
 
-                                        {/* Actions - FIXED BUTTON STYLING */}
-                                        <div className="flex gap-2">
+                                        {/* Actions - FIXED: Mobile-first responsive button layout */}
+                                        <div className="flex flex-col sm:flex-row gap-2">
                                             <TouchEnhancedButton
                                                 onClick={() => loadSavedList(list.id)}
                                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
                                             >
                                                 📋 Load List
                                             </TouchEnhancedButton>
-                                            <TouchEnhancedButton
-                                                onClick={() => deleteSavedLists([list.id], true)}
-                                                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-3 rounded-md text-sm transition-colors"
-                                                title="Archive"
-                                            >
-                                                📦
-                                            </TouchEnhancedButton>
-                                            <TouchEnhancedButton
-                                                onClick={() => deleteSavedLists([list.id], false)}
-                                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-3 rounded-md text-sm transition-colors"
-                                                title="Delete"
-                                            >
-                                                🗑️
-                                            </TouchEnhancedButton>
+                                            <div className="flex gap-2 sm:flex-shrink-0">
+                                                <TouchEnhancedButton
+                                                    onClick={() => deleteSavedLists([list.id], true)}
+                                                    className="flex-1 sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
+                                                    title="Archive"
+                                                >
+                                                    📦
+                                                    <span className="sm:hidden">Archive</span>
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={() => deleteSavedLists([list.id], false)}
+                                                    className="flex-1 sm:w-auto bg-red-600 hover:bg-red-700 text-white px-3 py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-1"
+                                                    title="Delete"
+                                                >
+                                                    🗑️
+                                                    <span className="sm:hidden">Delete</span>
+                                                </TouchEnhancedButton>
+                                            </div>
                                         </div>
                                     </div>
 
