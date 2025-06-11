@@ -178,6 +178,7 @@ function parseRecipesFromText(text, volume) {
 
     try {
         console.log('Starting recipe parsing...');
+        console.log('Text length:', text.length);
         console.log('Text preview:', text.substring(0, 500));
 
         // Clean up the text first
@@ -187,8 +188,11 @@ function parseRecipesFromText(text, volume) {
             .replace(/\n{3,}/g, '\n\n')
             .trim();
 
-        // NEW: Check for delimited format first (look for --RECIPE BREAK--)
-        if (cleanText.includes('--RECIPE BREAK--') || cleanText.includes('--recipe break--')) {
+        console.log('After cleaning, text length:', cleanText.length);
+
+        // NEW: Check for delimited format first (look for various RECIPE BREAK formats)
+        if (cleanText.includes('--RECIPE BREAK--') || cleanText.includes('--recipe break--') ||
+            cleanText.includes('--- RECIPE BREAK ---') || cleanText.includes('---RECIPE BREAK---')) {
             console.log('✅ Detected new delimited format');
             return parseDelimitedFormat(cleanText, volume);
         }
@@ -207,19 +211,27 @@ function parseRecipesFromText(text, volume) {
 function parseDelimitedFormat(text, volume) {
     const recipes = [];
 
-    // Split by recipe breaks - handle both cases
-    const recipeSections = text.split(/--\s*RECIPE\s*BREAK\s*--/i)
+    console.log('=== STARTING DELIMITED FORMAT PARSING ===');
+    console.log('Full text length:', text.length);
+    console.log('Looking for recipe breaks...');
+
+    // Split by recipe breaks - handle multiple formats
+    const recipeSections = text.split(/---?\s*RECIPE\s*BREAK\s*---?/i)
         .map(section => section.trim())
         .filter(section => section.length > 0);
 
-    console.log(`Found ${recipeSections.length} recipe sections using delimited format`);
+    console.log(`Split by RECIPE BREAK found ${recipeSections.length} sections`);
+
+    // Log each section preview
+    recipeSections.forEach((section, index) => {
+        console.log(`Section ${index + 1} preview (${section.length} chars): "${section.substring(0, 200)}..."`);
+    });
 
     for (let i = 0; i < recipeSections.length; i++) {
         const section = recipeSections[i];
 
         console.log(`\n--- PROCESSING DELIMITED SECTION ${i + 1} ---`);
         console.log(`Section length: ${section.length}`);
-        console.log(`Section preview: "${section.substring(0, 200)}..."`);
 
         if (section.length < 20) {
             console.log('❌ Section too short, skipping');
@@ -234,6 +246,14 @@ function parseDelimitedFormat(text, volume) {
             console.log(`   - ${recipe.instructions.length} instructions`);
         } else {
             console.log(`❌ Failed to parse delimited section ${i + 1}`);
+
+            // Debug: show what went wrong
+            if (!recipe) {
+                console.log('   Reason: parseDelimitedRecipe returned null');
+            } else if (!recipe.title) {
+                console.log('   Reason: no title found');
+                console.log('   Recipe object:', recipe);
+            }
         }
     }
 
@@ -244,6 +264,7 @@ function parseDelimitedFormat(text, volume) {
 // NEW: Parse individual recipe using delimited sections
 function parseDelimitedRecipe(section, volume) {
     console.log('\n=== PARSING DELIMITED RECIPE ===');
+    console.log('Section start:', section.substring(0, 100));
 
     const recipe = {
         title: '',
@@ -262,6 +283,7 @@ function parseDelimitedRecipe(section, volume) {
 
     // Split into lines and process
     const lines = section.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    console.log(`Processing ${lines.length} lines`);
 
     let currentSection = 'title';
     let titleFound = false;
@@ -269,28 +291,28 @@ function parseDelimitedRecipe(section, volume) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        console.log(`Processing line ${i}: "${line}" (section: ${currentSection})`);
+        console.log(`Line ${i}: "${line}" (section: ${currentSection})`);
 
-        // Check for section delimiters
-        if (line.match(/^--\s*description\s*--$/i)) {
+        // Check for section delimiters (case insensitive, flexible dashes)
+        if (line.match(/^--+\s*description\s*--+$/i)) {
             currentSection = 'description';
             console.log('  ➡️ Switched to description section');
             continue;
         }
 
-        if (line.match(/^--\s*ingredients?\s*--$/i)) {
+        if (line.match(/^--+\s*ingredients?\s*--+$/i)) {
             currentSection = 'ingredients';
             console.log('  ➡️ Switched to ingredients section');
             continue;
         }
 
-        if (line.match(/^--\s*instructions?\s*--$/i)) {
+        if (line.match(/^--+\s*instructions?\s*--+$/i)) {
             currentSection = 'instructions';
             console.log('  ➡️ Switched to instructions section');
             continue;
         }
 
-        if (line.match(/^--\s*tags?\s*--$/i)) {
+        if (line.match(/^--+\s*tags?\s*--+$/i)) {
             currentSection = 'tags';
             console.log('  ➡️ Switched to tags section');
             continue;
@@ -308,13 +330,13 @@ function parseDelimitedRecipe(section, volume) {
                 break;
 
             case 'description':
-                if (line.length > 0 && !line.match(/^--\s*\w+\s*--$/i)) {
+                if (line.length > 0 && !line.match(/^--+\s*\w+\s*--+$/i)) {
                     if (recipe.description) {
                         recipe.description += ' ' + line;
                     } else {
                         recipe.description = line;
                     }
-                    console.log(`  📝 Added to description: "${line}"`);
+                    console.log(`  📝 Added to description: "${line.substring(0, 50)}..."`);
                 }
                 break;
 
@@ -358,6 +380,12 @@ function parseDelimitedRecipe(section, volume) {
 
     // Auto-detect category based on title, tags, and description
     recipe.category = detectRecipeCategory(recipe.title, recipe.tags, recipe.description);
+
+    console.log('\n--- RECIPE VALIDATION ---');
+    console.log(`Title: "${recipe.title}" (${recipe.title ? 'OK' : 'MISSING'})`);
+    console.log(`Ingredients: ${recipe.ingredients.length} (${recipe.ingredients.length > 0 ? 'OK' : 'MISSING'})`);
+    console.log(`Instructions: ${recipe.instructions.length} (${recipe.instructions.length > 0 ? 'OK' : 'MISSING'})`);
+    console.log(`Category: ${recipe.category}`);
 
     // Validation
     if (!recipe.title) {
