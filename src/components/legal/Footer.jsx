@@ -1,4 +1,4 @@
-// file: src/components/legal/Footer.jsx v1
+// file: src/components/legal/Footer.jsx v2
 
 import React, { useState } from 'react';
 import PrivacyPolicy from './PrivacyPolicy';
@@ -230,56 +230,62 @@ const Footer = () => {
                             gap: '1rem'
                         }}>
                             {/* Legal Links */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                gap: '2rem',
-                                flexWrap: 'wrap'
-                            }}>
-                                <TouchEnhancedButton
-                                        onClick={() => openModal('privacy')}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#bdc3c7',
-                                            fontSize: '14px',
-                                            cursor: 'pointer',
-                                            textDecoration: 'underline',
-                                            padding: '0'
-                                        }}
-                                >
-                                    Privacy Policy
-                                </TouchEnhancedButton>
-                                <span style={{ color: '#7f8c8d' }}>|</span>
-                                <TouchEnhancedButton
-                                        onClick={() => openModal('terms')}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#bdc3c7',
-                                            fontSize: '14px',
-                                            cursor: 'pointer',
-                                            textDecoration: 'underline',
-                                            padding: '0'
-                                        }}
-                                >
-                                    Terms of Use
-                                </TouchEnhancedButton>
-                                <span style={{ color: '#7f8c8d' }}>|</span>
-                                <TouchEnhancedButton
-                                        onClick={() => openModal('about')}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#bdc3c7',
-                                            fontSize: '14px',
-                                            cursor: 'pointer',
-                                            textDecoration: 'underline',
-                                            padding: '0'
-                                        }}
-                                >
-                                    About Us
-                                </TouchEnhancedButton>
+                            <div className="footer-legal-links">
+                                <div>
+                                    <TouchEnhancedButton
+                                            onClick={() => openModal('privacy')}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#bdc3c7',
+                                                fontSize: '14px',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                                padding: '8px 4px',
+                                                minHeight: '44px',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                    >
+                                        Privacy Policy
+                                    </TouchEnhancedButton>
+
+                                    <TouchEnhancedButton
+                                            onClick={() => openModal('terms')}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#bdc3c7',
+                                                fontSize: '14px',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                                padding: '8px 4px',
+                                                minHeight: '44px',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                    >
+                                        Terms of Use
+                                    </TouchEnhancedButton>
+
+                                    <TouchEnhancedButton
+                                            onClick={() => openModal('about')}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#bdc3c7',
+                                                fontSize: '14px',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                                padding: '8px 4px',
+                                                minHeight: '44px',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                    >
+                                        About Us
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
 
                             {/* Copyright */}

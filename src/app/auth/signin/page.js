@@ -130,9 +130,11 @@ export default function SignIn() {
                     </div>
                 </form>
             </div>
+
+
+        </div>
             <br/>
             <Footer />
-        </div>
         </MobileOptimizedLayout>
     );
 }

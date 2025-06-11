@@ -92,7 +92,7 @@ const AboutUs = () => {
                             }}>
                                 <img alt="Edward McKeown Picture" className="w-full h-full object-cover"
                                      src="/icons/edmckeown.jpg"/>
-                                <span style={{fontSize: '24px', color: '#6c757d'}}>👨‍🍳</span>
+                                <span style="display: none"{{fontSize: '24px', color: '#6c757d'}}>👨‍🍳</span>
                             </div>
                             <h3 style={{fontSize: '20px', color: '#2c3e50', marginBottom: '0.5rem'}}>Dr. Edward McKeown</h3>
                             <p style={{ fontSize: '16px', color: '#7f8c8d', fontStyle: 'italic', margin: '0' }}>

@@ -310,9 +310,9 @@ export default function SignUp() {
                     </form>
                 </div>
                 <br/>
-                <Footer />
-            </div>
 
+            </div>
+            <Footer />
             <Modal
                 isOpen={showPrivacyModal}
                 onClose={closeModal}
@@ -329,5 +329,6 @@ export default function SignUp() {
                 <TermsOfUse />
             </Modal>
         </>
+
     );
 }

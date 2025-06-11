@@ -61,7 +61,8 @@ export default function Home() {
                         </div>
                     </div>
                 </header>
-
+                <br/>
+                <br/>
                 {/* Hero section */}
                 <main className="flex-1">
                     <div className="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
@@ -89,7 +90,7 @@ export default function Home() {
                             </div>
                         </div>
                     </div>
-
+                    <br/>
                     {/* Features section */}
                     <div className="py-16 bg-white">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -213,7 +214,7 @@ export default function Home() {
                             </div>
                         </div>
                     </div>
-
+                    <br/>
                     {/* CTA section */}
                     <div className="bg-indigo-50">
                         <div
@@ -243,7 +244,7 @@ export default function Home() {
                         </div>
                     </div>
                 </main>
-
+                <br/>
                 {/* Footer with Legal Links */}
                 <Footer/>
             </div>

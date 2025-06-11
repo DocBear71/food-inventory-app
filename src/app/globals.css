@@ -2153,3 +2153,91 @@ div[style*="background-color: #f1f5f9"] {
     background-color: #f1f5f9 !important;
     border-bottom: 1px solid #f3f4f6 !important;
 }
+
+/* FOOTER LEGAL LINKS - RESPONSIVE SEPARATOR STYLING */
+.footer-legal-links {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 0 !important;
+}
+
+.footer-legal-links > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 0 !important;
+}
+
+/* Add separators using CSS pseudo-elements */
+.footer-legal-links button:not(:last-child)::after {
+    content: "|" !important;
+    color: #7f8c8d !important;
+    margin: 0 1rem !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+/* Mobile responsive behavior */
+@media (max-width: 640px) {
+    /* Stack buttons vertically on small screens */
+    .footer-legal-links > div {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        width: 100% !important;
+    }
+
+    /* Hide separators on mobile since buttons are stacked */
+    .footer-legal-links button::after {
+        display: none !important;
+    }
+
+    /* Make buttons more touch-friendly on mobile */
+    .footer-legal-links button {
+        padding: 12px 16px !important;
+        min-height: 44px !important;
+        width: auto !important;
+        text-align: center !important;
+    }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 641px) {
+    .footer-legal-links > div {
+        flex-direction: row !important;
+        gap: 0 !important;
+    }
+
+    /* Show separators on larger screens */
+    .footer-legal-links button::after {
+        display: inline !important;
+    }
+}
+
+/* Ensure proper spacing and alignment */
+.footer-legal-links button {
+    transition: color 0.2s ease !important;
+    white-space: nowrap !important;
+}
+
+.footer-legal-links button:hover {
+    color: #e74c3c !important;
+}
+
+/* Alternative mobile layout - horizontal with better wrapping */
+@media (max-width: 640px) {
+    .footer-legal-links-alt {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1rem !important;
+        justify-items: center !important;
+        width: 100% !important;
+    }
+
+    .footer-legal-links-alt button:nth-child(3) {
+        grid-column: 1 / -1 !important;
+        justify-self: center !important;
+    }
+}
