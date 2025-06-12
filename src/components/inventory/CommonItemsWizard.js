@@ -1,4 +1,4 @@
-// file: /src/components/inventory/CommonItemsWizard.js - v1
+// file: /src/components/inventory/CommonItemsWizard.js - v2 (Fixed quantity input handling)
 
 'use client';
 
@@ -29,17 +29,44 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         setSelectedItems(newSelectedItems);
     };
 
-    // Handle quantity change - FIXED: Better input handling
-    const updateQuantity = (itemId, quantity) => {
+    // FIXED: Handle quantity change with better validation
+    const updateQuantity = (itemId, value) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
 
-        // Allow empty/invalid during typing, but ensure minimum on blur/submit
-        let finalQuantity = quantity;
-        if (isNaN(finalQuantity) || finalQuantity === '' || finalQuantity < 0) {
-            finalQuantity = ''; // Allow empty during editing
+        // Store the raw value (allow empty string during editing)
+        newSelectedItems.set(itemId, {
+            ...item,
+            quantity: value === '' ? '' : value // Allow empty string
+        });
+        setSelectedItems(newSelectedItems);
+    };
+
+    // FIXED: Handle quantity blur with proper validation
+    const handleQuantityBlur = (itemId) => {
+        if (!selectedItems.has(itemId)) return;
+
+        const newSelectedItems = new Map(selectedItems);
+        const item = newSelectedItems.get(itemId);
+        const currentValue = item.quantity;
+
+        // Validate and fix the quantity
+        let finalQuantity;
+
+        if (currentValue === '' || currentValue === null || currentValue === undefined) {
+            // If empty, use default
+            finalQuantity = item.defaultQuantity || 1;
+        } else {
+            const numValue = parseFloat(currentValue);
+            if (isNaN(numValue) || numValue <= 0) {
+                // If invalid or zero/negative, use default
+                finalQuantity = item.defaultQuantity || 1;
+            } else {
+                // Valid number, use it
+                finalQuantity = numValue;
+            }
         }
 
         newSelectedItems.set(itemId, {
@@ -49,24 +76,10 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         setSelectedItems(newSelectedItems);
     };
 
-    // NEW: Handle quantity blur (when user leaves the field)
-    const handleQuantityBlur = (itemId, quantity) => {
-        if (!selectedItems.has(itemId)) return;
-
-        const newSelectedItems = new Map(selectedItems);
-        const item = newSelectedItems.get(itemId);
-
-        // Ensure valid quantity when field loses focus
-        let finalQuantity = parseFloat(quantity);
-        if (isNaN(finalQuantity) || finalQuantity <= 0) {
-            finalQuantity = item.defaultQuantity || 1; // Fallback to default
-        }
-
-        newSelectedItems.set(itemId, {
-            ...item,
-            quantity: finalQuantity
-        });
-        setSelectedItems(newSelectedItems);
+    // FIXED: Handle input focus to select all text
+    const handleQuantityFocus = (event) => {
+        // Select all text when focusing to make it easier to replace
+        event.target.select();
     };
 
     // Select all items in a category
@@ -121,21 +134,30 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         }).length;
     };
 
-    // Submit selected items - FIXED: Validate quantities before submission
+    // Submit selected items - FIXED: Better validation
     const handleSubmit = async () => {
         if (selectedItems.size === 0) {
             alert('Please select at least one item to add to your inventory.');
             return;
         }
 
-        // Validate all quantities before submission
+        // Validate and fix all quantities before submission
         const validatedItems = new Map();
-        let hasErrors = false;
+        let hasValidationErrors = false;
 
         selectedItems.forEach((item, itemId) => {
-            let quantity = parseFloat(item.quantity);
-            if (isNaN(quantity) || quantity <= 0) {
-                quantity = item.defaultQuantity || 1; // Use default if invalid
+            let quantity = item.quantity;
+
+            // Handle empty or invalid quantities
+            if (quantity === '' || quantity === null || quantity === undefined) {
+                quantity = item.defaultQuantity || 1;
+            } else {
+                const numValue = parseFloat(quantity);
+                if (isNaN(numValue) || numValue <= 0) {
+                    quantity = item.defaultQuantity || 1;
+                } else {
+                    quantity = numValue;
+                }
             }
 
             validatedItems.set(itemId, {
@@ -318,6 +340,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                     {category.items.map((item, index) => {
                                                         const itemId = `${categoryKey}-${index}`;
                                                         const isSelected = selectedItems.has(itemId);
+                                                        const currentItem = selectedItems.get(itemId);
 
                                                         return (
                                                             <div
@@ -347,6 +370,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                             {item.category} • {item.location}
                                                                         </div>
 
+                                                                        {/* FIXED: Improved quantity input */}
                                                                         {isSelected && (
                                                                             <div className="mt-2 flex items-center space-x-2">
                                                                                 <span className="text-xs text-gray-600">Qty:</span>
@@ -354,10 +378,13 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                     type="number"
                                                                                     min="0.1"
                                                                                     step="0.1"
-                                                                                    value={selectedItems.get(itemId)?.quantity || item.defaultQuantity}
-                                                                                    onChange={(e) => updateQuantity(itemId, parseFloat(e.target.value) || 0.1)}
+                                                                                    value={currentItem?.quantity || ''}
+                                                                                    onChange={(e) => updateQuantity(itemId, e.target.value)}
+                                                                                    onBlur={() => handleQuantityBlur(itemId)}
+                                                                                    onFocus={handleQuantityFocus}
                                                                                     onClick={(e) => e.stopPropagation()}
                                                                                     className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
+                                                                                    placeholder={item.defaultQuantity.toString()}
                                                                                 />
                                                                                 <span className="text-xs text-gray-500">{item.unit}</span>
                                                                             </div>
