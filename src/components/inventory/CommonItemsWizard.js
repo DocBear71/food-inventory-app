@@ -1,4 +1,4 @@
-// file: /src/components/inventory/CommonItemsWizard.js - v2 (Fixed quantity input handling)
+// file: /src/components/inventory/CommonItemsWizard.js - v3 (Fixed quantity input handling + dual unit support)
 
 'use client';
 
@@ -11,7 +11,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [currentStep, setCurrentStep] = useState('welcome'); // 'welcome', 'categories', 'review', 'adding'
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Handle item selection toggle
+    // Handle item selection toggle - UPDATED: Support dual units
     const toggleItem = (categoryKey, itemIndex, item) => {
         const itemId = `${categoryKey}-${itemIndex}`;
         const newSelectedItems = new Map(selectedItems);
@@ -22,47 +22,52 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
             newSelectedItems.set(itemId, {
                 ...item,
                 categoryKey,
-                quantity: item.defaultQuantity
+                quantity: item.defaultQuantity,
+                secondaryQuantity: item.defaultSecondaryQuantity || '', // NEW: Secondary quantity support
             });
         }
 
         setSelectedItems(newSelectedItems);
     };
 
-    // FIXED: Handle quantity change with better validation
-    const updateQuantity = (itemId, value) => {
+    // FIXED: Handle quantity change with better validation - UPDATED: Support both primary and secondary quantities
+    const updateQuantity = (itemId, value, isSecondary = false) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
 
         // Store the raw value (allow empty string during editing)
+        const updateKey = isSecondary ? 'secondaryQuantity' : 'quantity';
         newSelectedItems.set(itemId, {
             ...item,
-            quantity: value === '' ? '' : value // Allow empty string
+            [updateKey]: value === '' ? '' : value // Allow empty string
         });
         setSelectedItems(newSelectedItems);
     };
 
-    // FIXED: Handle quantity blur with proper validation
-    const handleQuantityBlur = (itemId) => {
+    // FIXED: Handle quantity blur with proper validation - UPDATED: Support both units
+    const handleQuantityBlur = (itemId, isSecondary = false) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
-        const currentValue = item.quantity;
+        const updateKey = isSecondary ? 'secondaryQuantity' : 'quantity';
+        const currentValue = item[updateKey];
 
         // Validate and fix the quantity
         let finalQuantity;
 
         if (currentValue === '' || currentValue === null || currentValue === undefined) {
             // If empty, use default
-            finalQuantity = item.defaultQuantity || 1;
+            const defaultKey = isSecondary ? 'defaultSecondaryQuantity' : 'defaultQuantity';
+            finalQuantity = item[defaultKey] || (isSecondary ? '' : 1); // Secondary can be empty
         } else {
             const numValue = parseFloat(currentValue);
             if (isNaN(numValue) || numValue <= 0) {
                 // If invalid or zero/negative, use default
-                finalQuantity = item.defaultQuantity || 1;
+                const defaultKey = isSecondary ? 'defaultSecondaryQuantity' : 'defaultQuantity';
+                finalQuantity = item[defaultKey] || (isSecondary ? '' : 1); // Secondary can be empty
             } else {
                 // Valid number, use it
                 finalQuantity = numValue;
@@ -71,7 +76,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
         newSelectedItems.set(itemId, {
             ...item,
-            quantity: finalQuantity
+            [updateKey]: finalQuantity
         });
         setSelectedItems(newSelectedItems);
     };
@@ -134,7 +139,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         }).length;
     };
 
-    // Submit selected items - FIXED: Better validation
+    // Submit selected items - FIXED: Better validation - UPDATED: Handle dual units in validation
     const handleSubmit = async () => {
         if (selectedItems.size === 0) {
             alert('Please select at least one item to add to your inventory.');
@@ -143,12 +148,11 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
         // Validate and fix all quantities before submission
         const validatedItems = new Map();
-        let hasValidationErrors = false;
 
         selectedItems.forEach((item, itemId) => {
+            // Validate primary quantity
             let quantity = item.quantity;
 
-            // Handle empty or invalid quantities
             if (quantity === '' || quantity === null || quantity === undefined) {
                 quantity = item.defaultQuantity || 1;
             } else {
@@ -160,9 +164,19 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                 }
             }
 
+            // Validate secondary quantity (optional)
+            let secondaryQuantity = '';
+            if (item.secondaryQuantity && item.secondaryQuantity !== '') {
+                const secQty = parseFloat(item.secondaryQuantity);
+                if (!isNaN(secQty) && secQty > 0) {
+                    secondaryQuantity = secQty;
+                }
+            }
+
             validatedItems.set(itemId, {
                 ...item,
-                quantity: quantity
+                quantity: quantity,
+                secondaryQuantity: secondaryQuantity
             });
         });
 
@@ -469,6 +483,12 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                 </div>
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {item.quantity} {item.unit}
+                                                    {/* NEW: Show secondary quantity if present */}
+                                                    {item.secondaryQuantity && item.secondaryUnit && (
+                                                        <div className="text-xs text-gray-600">
+                                                            ({item.secondaryQuantity} {item.secondaryUnit})
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <TouchEnhancedButton
                                                     onClick={() => {

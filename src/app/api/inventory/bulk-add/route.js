@@ -40,13 +40,20 @@ export async function POST(request) {
                 return;
             }
 
-            // Create validated item with defaults
+            // Create validated item with defaults - UPDATED: Support dual units
             const validatedItem = {
                 name: item.name.trim(),
                 brand: item.brand || '',
                 category: item.category || 'Other',
                 quantity: Math.max(item.quantity || 1, 0.1), // Ensure positive quantity
                 unit: item.unit || 'item',
+
+                // NEW: Secondary unit support
+                secondaryQuantity: item.secondaryQuantity && item.secondaryQuantity !== '' ?
+                    Math.max(parseFloat(item.secondaryQuantity), 0.1) : null,
+                secondaryUnit: item.secondaryQuantity && item.secondaryQuantity !== '' ?
+                    item.secondaryUnit : null,
+
                 location: item.location || 'pantry',
                 upc: item.upc || '',
                 expirationDate: item.expirationDate ? new Date(item.expirationDate) : null,
