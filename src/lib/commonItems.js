@@ -19,7 +19,8 @@ export const COMMON_ITEMS = {
             { name: 'White Vinegar', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Baking Soda', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Baking Powder', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Vanilla Extract', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Vanilla Extract', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Bread', category: 'Bread', unit: 'item', defaultQuantity: 1, location: 'pantry' },
         ]
     },
     'canned-jarred': {

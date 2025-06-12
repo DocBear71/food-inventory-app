@@ -154,7 +154,8 @@ function mapCategory(categoriesTags) {
         'Frozen Fruit': ['en:frozen-fruits', 'en:frozen-berries', 'en:frozen-strawberries', 'en:frozen-mango'],
 
         // Pantry staples
-        'Grains': ['en:cereals', 'en:bread', 'en:rice', 'en:quinoa', 'en:oats', 'en:flour', 'en:barley', 'en:bulgur', 'en:rice-mixes', 'en:rice-a-roni'],
+        'Breads': ['en:bread', 'en:sandwich-bread', 'en:white-bread', 'en:wheat-bread', 'en:hotdog-buns', 'en:hamburger-buns', 'en:baguettes', 'en:french-bread', 'en:pita', 'en:pita-bread', 'en:tortillas', 'en:flour-tortillas', 'en:corn-tortillas', 'en:bagels', 'en:rolls', 'en:croissants'],
+        'Grains': ['en:cereals', 'en:rice', 'en:quinoa', 'en:oats', 'en:flour', 'en:barley', 'en:bulgur', 'en:rice-mixes', 'en:rice-a-roni'],
         'Pasta': ['en:pasta', 'en:noodles', 'en:spaghetti', 'en:macaroni', 'en:penne', 'en:linguine', 'en:fettuccine', 'en:ravioli', 'en:lasagna'],
         'Stuffing & Sides': ['en:stuffing', 'en:stuffing-mix', 'en:instant-mashed-potatoes', 'en:mashed-potato-mix', 'en:au-gratin-potatoes', 'en:scalloped-potatoes', 'en:cornbread-mix', 'en:biscuit-mix', 'en:gravy-mix', 'en:side-dishes'],
         'Boxed Meals': ['en:meal-kits', 'en:hamburger-helper', 'en:boxed-dinners', 'en:mac-and-cheese', 'en:instant-meals'],
