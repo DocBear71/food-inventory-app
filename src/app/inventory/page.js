@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js - v7 (mobile enhanced) - FIXED
+// file: /src/app/inventory/page.js - v8 (with Common Items Wizard integration)
 
 'use client';
 
@@ -8,6 +8,7 @@ import {useSearchParams} from 'next/navigation';
 import UPCLookup from '@/components/inventory/UPCLookup';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import ConsumptionHistory from '@/components/inventory/ConsumptionHistory';
+import CommonItemsWizard from '@/components/inventory/CommonItemsWizard'; // NEW IMPORT
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -25,6 +26,7 @@ function InventoryContent() {
     const [editingItem, setEditingItem] = useState(null);
     const [consumingItem, setConsumingItem] = useState(null);
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
+    const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false); // NEW STATE
 
     // 🔧 ENHANCED: Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
@@ -68,6 +70,18 @@ function InventoryContent() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // NEW: Handle Common Items Wizard completion
+    const handleCommonItemsComplete = async (result) => {
+        if (result.success) {
+            // Show success message
+            alert(`🎉 Successfully added ${result.itemsAdded} common items to your inventory!`);
+
+            // Refresh inventory to show new items
+            await fetchInventory();
+        }
+        setShowCommonItemsWizard(false);
     };
 
     // Handle consumption of items
@@ -305,6 +319,7 @@ function InventoryContent() {
         }
     };
 
+    // ... [Continue with all the other existing handler functions - handleSubmit, handleEdit, etc.]
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -489,17 +504,39 @@ function InventoryContent() {
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Header - FIXED MOBILE LAYOUT */}
+                {/* Header - UPDATED WITH COMMON ITEMS WIZARD BUTTON */}
                 <div className="space-y-4">
                     {/* Title Row */}
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
                     </div>
 
-                    {/* Action Buttons Row - Mobile Responsive */}
+                    {/* Action Buttons Row - Mobile Responsive - UPDATED */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         {/* Left side buttons */}
                         <div className="flex gap-2 flex-1">
+                            {/* NEW: Common Items Wizard Button - Priority placement for new users */}
+                            {inventory.length === 0 && (
+                                <TouchEnhancedButton
+                                    onClick={() => setShowCommonItemsWizard(true)}
+                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                >
+                                    <span className="hidden sm:inline">🏠 Quick Start</span>
+                                    <span className="sm:hidden">🏠 Start</span>
+                                </TouchEnhancedButton>
+                            )}
+
+                            {/* Common Items Wizard Button - For existing users */}
+                            {inventory.length > 0 && (
+                                <TouchEnhancedButton
+                                    onClick={() => setShowCommonItemsWizard(true)}
+                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                    <span className="hidden sm:inline">🏠 Add Common Items</span>
+                                    <span className="sm:hidden">🏠 Common</span>
+                                </TouchEnhancedButton>
+                            )}
+
                             <TouchEnhancedButton
                                 onClick={() => setShowConsumptionHistory(true)}
                                 className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -742,6 +779,33 @@ function InventoryContent() {
                         )}
                     </div>
                 </div>
+
+                {/* Show Getting Started Message for Empty Inventory */}
+                {inventory.length === 0 && !loading && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
+                        <div className="text-4xl mb-4">🏠</div>
+                        <h3 className="text-lg font-semibold text-indigo-900 mb-2">
+                            Welcome to Doc Bear's Comfort Kitchen!
+                        </h3>
+                        <p className="text-indigo-700 mb-4">
+                            Your inventory is empty. Get started by adding some common household items or scanning products you already have.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                            <TouchEnhancedButton
+                                onClick={() => setShowCommonItemsWizard(true)}
+                                className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                            >
+                                🏠 Quick Start with Common Items
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setShowAddForm(true)}
+                                className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 font-medium"
+                            >
+                                📦 Add Individual Item
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                )}
 
                 {/* 🔧 FIXED: Add/Edit Form */}
                 {showAddForm && (
@@ -1070,6 +1134,13 @@ function InventoryContent() {
                         )}
                     </div>
                 </div>
+
+                {/* NEW: Common Items Wizard Modal */}
+                <CommonItemsWizard
+                    isOpen={showCommonItemsWizard}
+                    onClose={() => setShowCommonItemsWizard(false)}
+                    onComplete={handleCommonItemsComplete}
+                />
 
                 {/* Consumption Modal */}
                 {consumingItem && (
