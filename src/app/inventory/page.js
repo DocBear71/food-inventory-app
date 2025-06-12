@@ -516,6 +516,9 @@ function InventoryContent() {
         return null;
     }
 
+    const filteredInventory = getFilteredAndSortedInventory();
+    const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
+
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
