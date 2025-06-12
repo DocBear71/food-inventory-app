@@ -434,7 +434,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
                                                                                 {/* Helper text */}
                                                                                 <div className="text-xs text-gray-500 mt-1">
-                                                                                    At least one quantity must be > 0
+                                                                                    At least one quantity must be &gt; 0
                                                                                 </div>
                                                                             </div>
                                                                         )}
