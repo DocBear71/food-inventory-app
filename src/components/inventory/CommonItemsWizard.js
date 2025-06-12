@@ -29,15 +29,42 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         setSelectedItems(newSelectedItems);
     };
 
-    // Handle quantity change
+    // Handle quantity change - FIXED: Better input handling
     const updateQuantity = (itemId, quantity) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
+
+        // Allow empty/invalid during typing, but ensure minimum on blur/submit
+        let finalQuantity = quantity;
+        if (isNaN(finalQuantity) || finalQuantity === '' || finalQuantity < 0) {
+            finalQuantity = ''; // Allow empty during editing
+        }
+
         newSelectedItems.set(itemId, {
             ...item,
-            quantity: Math.max(0.1, quantity)
+            quantity: finalQuantity
+        });
+        setSelectedItems(newSelectedItems);
+    };
+
+    // NEW: Handle quantity blur (when user leaves the field)
+    const handleQuantityBlur = (itemId, quantity) => {
+        if (!selectedItems.has(itemId)) return;
+
+        const newSelectedItems = new Map(selectedItems);
+        const item = newSelectedItems.get(itemId);
+
+        // Ensure valid quantity when field loses focus
+        let finalQuantity = parseFloat(quantity);
+        if (isNaN(finalQuantity) || finalQuantity <= 0) {
+            finalQuantity = item.defaultQuantity || 1; // Fallback to default
+        }
+
+        newSelectedItems.set(itemId, {
+            ...item,
+            quantity: finalQuantity
         });
         setSelectedItems(newSelectedItems);
     };
@@ -94,18 +121,37 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         }).length;
     };
 
-    // Submit selected items
+    // Submit selected items - FIXED: Validate quantities before submission
     const handleSubmit = async () => {
         if (selectedItems.size === 0) {
             alert('Please select at least one item to add to your inventory.');
             return;
         }
 
+        // Validate all quantities before submission
+        const validatedItems = new Map();
+        let hasErrors = false;
+
+        selectedItems.forEach((item, itemId) => {
+            let quantity = parseFloat(item.quantity);
+            if (isNaN(quantity) || quantity <= 0) {
+                quantity = item.defaultQuantity || 1; // Use default if invalid
+            }
+
+            validatedItems.set(itemId, {
+                ...item,
+                quantity: quantity
+            });
+        });
+
+        // Update state with validated quantities
+        setSelectedItems(validatedItems);
+
         setIsSubmitting(true);
         setCurrentStep('adding');
 
         try {
-            const itemsToAdd = Array.from(selectedItems.values());
+            const itemsToAdd = Array.from(validatedItems.values());
 
             const response = await fetch('/api/inventory/bulk-add', {
                 method: 'POST',
