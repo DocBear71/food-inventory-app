@@ -1,4 +1,4 @@
-// file: /src/lib/commonItems.js - v2 (Added dual unit support)
+// file: /src/lib/commonItems.js - v3 (Fixed defaults for dual unit system)
 
 export const COMMON_ITEMS = {
     'pantry-staples': {
@@ -10,8 +10,8 @@ export const COMMON_ITEMS = {
                 category: 'Grains',
                 unit: 'lbs',
                 defaultQuantity: 2,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 4,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0, // User can specify individual packages if desired
                 location: 'pantry'
             },
             {
@@ -19,8 +19,8 @@ export const COMMON_ITEMS = {
                 category: 'Grains',
                 unit: 'lbs',
                 defaultQuantity: 1,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 2,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -29,7 +29,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 1,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 2,
+                defaultSecondaryQuantity: 0, // User can specify boxes if desired
                 location: 'pantry'
             },
             {
@@ -38,7 +38,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 1,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 2,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -46,8 +46,8 @@ export const COMMON_ITEMS = {
                 category: 'Grains',
                 unit: 'lbs',
                 defaultQuantity: 5,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 20,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0, // User can specify bags if desired
                 location: 'pantry'
             },
             {
@@ -55,8 +55,8 @@ export const COMMON_ITEMS = {
                 category: 'Other',
                 unit: 'lbs',
                 defaultQuantity: 4,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 9,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -64,8 +64,8 @@ export const COMMON_ITEMS = {
                 category: 'Other',
                 unit: 'lbs',
                 defaultQuantity: 1,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 2,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             { name: 'Salt', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
@@ -89,7 +89,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 4,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 60,
+                defaultSecondaryQuantity: 0, // User can specify can size if desired
                 location: 'pantry'
             },
             {
@@ -98,7 +98,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 3,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 43.5,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -107,7 +107,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 12,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -116,7 +116,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 4,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 56,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -125,7 +125,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 28,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -134,7 +134,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 30,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -143,7 +143,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 30,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -152,7 +152,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 30,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -161,7 +161,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 30,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -170,7 +170,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 2,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 30,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
@@ -179,7 +179,7 @@ export const COMMON_ITEMS = {
                 unit: 'can',
                 defaultQuantity: 4,
                 secondaryUnit: 'oz',
-                defaultSecondaryQuantity: 20,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             { name: 'Peanut Butter', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
@@ -195,17 +195,17 @@ export const COMMON_ITEMS = {
                 category: 'Dairy',
                 unit: 'item',
                 defaultQuantity: 1,
-                secondaryUnit: 'cup',
-                defaultSecondaryQuantity: 16,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 0, // User can specify gallon size if desired
                 location: 'fridge'
             },
             {
                 name: 'Eggs (Large)',
                 category: 'Eggs',
                 unit: 'item',
-                defaultQuantity: 1,
-                secondaryUnit: 'item',
-                defaultSecondaryQuantity: 12,
+                defaultQuantity: 12, // Default to 12 individual eggs
+                secondaryUnit: 'package',
+                defaultSecondaryQuantity: 0, // User can specify dozens if desired
                 location: 'fridge'
             },
             { name: 'Butter', category: 'Dairy', unit: 'item', defaultQuantity: 1, location: 'fridge' },
@@ -227,7 +227,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 2,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 6,
+                defaultSecondaryQuantity: 0, // User can specify count if desired
                 location: 'pantry'
             },
             { name: 'Garlic', category: 'Fresh Vegetables', unit: 'item', defaultQuantity: 1, location: 'pantry' },
@@ -237,7 +237,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 1,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 8,
+                defaultSecondaryQuantity: 0,
                 location: 'fridge'
             },
             { name: 'Celery', category: 'Fresh Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge' },
@@ -247,16 +247,16 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 3,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 6,
+                defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
             {
                 name: 'Bananas',
                 category: 'Fresh Fruits',
                 unit: 'item',
-                defaultQuantity: 1,
-                secondaryUnit: 'item',
-                defaultSecondaryQuantity: 6,
+                defaultQuantity: 6, // Default to individual bananas
+                secondaryUnit: 'lbs',
+                defaultSecondaryQuantity: 0, // User can specify weight if desired
                 location: 'pantry'
             },
             {
@@ -265,7 +265,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 2,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 6,
+                defaultSecondaryQuantity: 0,
                 location: 'fridge'
             },
             { name: 'Lemons', category: 'Fresh Fruits', unit: 'item', defaultQuantity: 3, location: 'fridge' },
@@ -276,7 +276,7 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 1,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 4,
+                defaultSecondaryQuantity: 0,
                 location: 'fridge'
             },
         ]
@@ -289,9 +289,25 @@ export const COMMON_ITEMS = {
             { name: 'Frozen Corn', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
             { name: 'Frozen Broccoli', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
             { name: 'Frozen Mixed Vegetables', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Frozen Berries', category: 'Frozen Fruit', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Chicken Breasts (Frozen)', category: 'Fresh/Frozen Poultry', unit: 'lbs', defaultQuantity: 2, location: 'freezer' },
-            { name: 'Ground Beef (Frozen)', category: 'Fresh/Frozen Beef', unit: 'lbs', defaultQuantity: 1, location: 'freezer' },
+            { name: 'Frozen Berries', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
+            {
+                name: 'Chicken Breasts (Frozen)',
+                category: 'Fresh/Frozen Poultry',
+                unit: 'lbs',
+                defaultQuantity: 2,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 0, // User can specify piece count if desired
+                location: 'freezer'
+            },
+            {
+                name: 'Ground Beef (Frozen)',
+                category: 'Fresh/Frozen Beef',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'package',
+                defaultSecondaryQuantity: 0, // User can specify package count if desired
+                location: 'freezer'
+            },
         ]
     },
     'spices-seasonings': {

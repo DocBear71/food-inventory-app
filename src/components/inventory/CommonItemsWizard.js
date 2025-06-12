@@ -1,4 +1,4 @@
-// file: /src/components/inventory/CommonItemsWizard.js - v4 (Fixed dual unit display detection)
+// file: /src/components/inventory/CommonItemsWizard.js - v5 (Fixed dual unit validation and smart defaults)
 
 'use client';
 
@@ -11,7 +11,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [currentStep, setCurrentStep] = useState('welcome'); // 'welcome', 'categories', 'review', 'adding'
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Handle item selection toggle - UPDATED: Support dual units
+    // Handle item selection toggle - UPDATED: Better dual unit support with smart defaults
     const toggleItem = (categoryKey, itemIndex, item) => {
         const itemId = `${categoryKey}-${itemIndex}`;
         const newSelectedItems = new Map(selectedItems);
@@ -23,60 +23,59 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                 ...item,
                 categoryKey,
                 quantity: item.defaultQuantity,
-                secondaryQuantity: item.defaultSecondaryQuantity || '', // NEW: Secondary quantity support
+                // FIXED: Secondary quantity defaults to 0, not the default value
+                secondaryQuantity: 0,
             });
         }
 
         setSelectedItems(newSelectedItems);
     };
 
-    // FIXED: Handle quantity change with better validation - UPDATED: Support both primary and secondary quantities
+    // FIXED: Handle quantity change with flexible validation - allows 0 in either field
     const updateQuantity = (itemId, value, isSecondary = false) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
 
-        // Store the raw value (allow empty string during editing)
+        // Allow any numeric value including 0, but not negative
         const updateKey = isSecondary ? 'secondaryQuantity' : 'quantity';
+        const numValue = value === '' ? 0 : parseFloat(value);
+
+        // Prevent negative values, but allow 0
+        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+
         newSelectedItems.set(itemId, {
             ...item,
-            [updateKey]: value === '' ? '' : value // Allow empty string
+            [updateKey]: finalValue
         });
         setSelectedItems(newSelectedItems);
     };
 
-    // FIXED: Handle quantity blur with proper validation - UPDATED: Support both units
+    // FIXED: Handle quantity blur with better validation - allows 0 values
     const handleQuantityBlur = (itemId, isSecondary = false) => {
         if (!selectedItems.has(itemId)) return;
 
         const newSelectedItems = new Map(selectedItems);
         const item = newSelectedItems.get(itemId);
         const updateKey = isSecondary ? 'secondaryQuantity' : 'quantity';
-        const currentValue = item[updateKey];
+        let currentValue = item[updateKey];
 
-        // Validate and fix the quantity
-        let finalQuantity;
-
+        // Convert empty string or invalid values to 0
         if (currentValue === '' || currentValue === null || currentValue === undefined) {
-            // If empty, use default
-            const defaultKey = isSecondary ? 'defaultSecondaryQuantity' : 'defaultQuantity';
-            finalQuantity = item[defaultKey] || (isSecondary ? '' : 1); // Secondary can be empty
+            currentValue = 0;
         } else {
             const numValue = parseFloat(currentValue);
-            if (isNaN(numValue) || numValue <= 0) {
-                // If invalid or zero/negative, use default
-                const defaultKey = isSecondary ? 'defaultSecondaryQuantity' : 'defaultQuantity';
-                finalQuantity = item[defaultKey] || (isSecondary ? '' : 1); // Secondary can be empty
+            if (isNaN(numValue) || numValue < 0) {
+                currentValue = 0;
             } else {
-                // Valid number, use it
-                finalQuantity = numValue;
+                currentValue = numValue;
             }
         }
 
         newSelectedItems.set(itemId, {
             ...item,
-            [updateKey]: finalQuantity
+            [updateKey]: currentValue
         });
         setSelectedItems(newSelectedItems);
     };
@@ -99,7 +98,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                 ...item,
                 categoryKey,
                 quantity: item.defaultQuantity,
-                secondaryQuantity: item.defaultSecondaryQuantity || '',
+                secondaryQuantity: 0, // FIXED: Default to 0
             });
         });
         setSelectedItems(newSelectedItems);
@@ -140,46 +139,49 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         }).length;
     };
 
-    // Submit selected items - FIXED: Better validation - UPDATED: Handle dual units in validation
+    // FIXED: Better validation - at least one quantity must be > 0
+    const validateItem = (item) => {
+        const primaryQty = parseFloat(item.quantity) || 0;
+        const secondaryQty = parseFloat(item.secondaryQuantity) || 0;
+
+        // At least one quantity must be greater than 0
+        return primaryQty > 0 || secondaryQty > 0;
+    };
+
+    // FIXED: Submit with better validation
     const handleSubmit = async () => {
         if (selectedItems.size === 0) {
             alert('Please select at least one item to add to your inventory.');
             return;
         }
 
-        // Validate and fix all quantities before submission
+        // Validate items - at least one quantity field must be > 0
+        const invalidItems = [];
         const validatedItems = new Map();
 
         selectedItems.forEach((item, itemId) => {
-            // Validate primary quantity
-            let quantity = item.quantity;
-
-            if (quantity === '' || quantity === null || quantity === undefined) {
-                quantity = item.defaultQuantity || 1;
-            } else {
-                const numValue = parseFloat(quantity);
-                if (isNaN(numValue) || numValue <= 0) {
-                    quantity = item.defaultQuantity || 1;
-                } else {
-                    quantity = numValue;
-                }
+            if (!validateItem(item)) {
+                invalidItems.push(item.name);
+                return;
             }
 
-            // Validate secondary quantity (optional)
-            let secondaryQuantity = '';
-            if (item.secondaryQuantity && item.secondaryQuantity !== '') {
-                const secQty = parseFloat(item.secondaryQuantity);
-                if (!isNaN(secQty) && secQty > 0) {
-                    secondaryQuantity = secQty;
-                }
-            }
+            // Clean up the quantities
+            const primaryQty = parseFloat(item.quantity) || 0;
+            const secondaryQty = parseFloat(item.secondaryQuantity) || 0;
 
             validatedItems.set(itemId, {
                 ...item,
-                quantity: quantity,
-                secondaryQuantity: secondaryQuantity
+                quantity: primaryQty,
+                // FIXED: Only include secondary quantity if > 0
+                secondaryQuantity: secondaryQty > 0 ? secondaryQty : null,
+                secondaryUnit: secondaryQty > 0 ? item.secondaryUnit : null
             });
         });
+
+        if (invalidItems.length > 0) {
+            alert(`Please set a quantity for: ${invalidItems.join(', ')}\n\nAt least one quantity field must be greater than 0.`);
+            return;
+        }
 
         // Update state with validated quantities
         setSelectedItems(validatedItems);
@@ -289,7 +291,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                             <div className="font-medium mb-2">✨ What you'll get:</div>
                                             <ul className="text-sm space-y-1 text-left">
                                                 <li>• Pre-organized categories of common items</li>
-                                                <li>• Suggested quantities based on typical household needs</li>
+                                                <li>• Flexible quantity tracking (by weight, count, or both)</li>
                                                 <li>• Proper storage locations (pantry, fridge, freezer)</li>
                                                 <li>• Instant inventory population</li>
                                             </ul>
@@ -356,7 +358,6 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                         const itemId = `${categoryKey}-${index}`;
                                                         const isSelected = selectedItems.has(itemId);
                                                         const currentItem = selectedItems.get(itemId);
-                                                        // FIXED: Better detection of dual unit items
                                                         const hasDualUnits = !!(item.secondaryUnit && item.defaultSecondaryQuantity);
 
                                                         return (
@@ -385,9 +386,8 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                         </div>
                                                                         <div className="mt-1 text-xs text-gray-500">
                                                                             {item.category} • {item.location}
-                                                                            {/* FIXED: Show dual unit indicator */}
                                                                             {hasDualUnits && (
-                                                                                <span className="ml-1 text-blue-600">• dual units</span>
+                                                                                <span className="ml-1 text-blue-600">• flexible units</span>
                                                                             )}
                                                                         </div>
 
@@ -396,10 +396,10 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                             <div className="mt-2 space-y-2">
                                                                                 {/* Primary quantity input */}
                                                                                 <div className="flex items-center space-x-2">
-                                                                                    <span className="text-xs text-gray-600 w-8">Qty:</span>
+                                                                                    <span className="text-xs text-gray-600 w-12">Primary:</span>
                                                                                     <input
                                                                                         type="number"
-                                                                                        min="0.1"
+                                                                                        min="0"
                                                                                         step="0.1"
                                                                                         value={currentItem?.quantity || ''}
                                                                                         onChange={(e) => updateQuantity(itemId, e.target.value, false)}
@@ -407,18 +407,18 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                         onFocus={handleQuantityFocus}
                                                                                         onClick={(e) => e.stopPropagation()}
                                                                                         className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
-                                                                                        placeholder={item.defaultQuantity.toString()}
+                                                                                        placeholder="0"
                                                                                     />
                                                                                     <span className="text-xs text-gray-500 flex-1">{item.unit}</span>
                                                                                 </div>
 
-                                                                                {/* FIXED: Secondary quantity input (better detection) */}
-                                                                                {hasDualUnits && (
+                                                                                {/* FIXED: Secondary quantity input - always available */}
+                                                                                {item.secondaryUnit && (
                                                                                     <div className="flex items-center space-x-2">
-                                                                                        <span className="text-xs text-gray-600 w-8">Alt:</span>
+                                                                                        <span className="text-xs text-gray-600 w-12">Alt:</span>
                                                                                         <input
                                                                                             type="number"
-                                                                                            min="0.1"
+                                                                                            min="0"
                                                                                             step="0.1"
                                                                                             value={currentItem?.secondaryQuantity || ''}
                                                                                             onChange={(e) => updateQuantity(itemId, e.target.value, true)}
@@ -426,11 +426,16 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                             onFocus={handleQuantityFocus}
                                                                                             onClick={(e) => e.stopPropagation()}
                                                                                             className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
-                                                                                            placeholder={item.defaultSecondaryQuantity?.toString() || ''}
+                                                                                            placeholder="0"
                                                                                         />
                                                                                         <span className="text-xs text-gray-500 flex-1">{item.secondaryUnit || 'unit'}</span>
                                                                                     </div>
                                                                                 )}
+
+                                                                                {/* Helper text */}
+                                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                                    At least one quantity must be > 0
+                                                                                </div>
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -503,35 +508,42 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                 <div className="space-y-4">
                                     <h4 className="font-medium text-gray-900">Selected Items</h4>
                                     <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                                        {Array.from(selectedItems.entries()).map(([itemId, item]) => (
-                                            <div key={itemId} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-gray-900">{item.name}</div>
-                                                    <div className="text-sm text-gray-600">
-                                                        {item.category} • {item.location}
-                                                    </div>
-                                                </div>
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {item.quantity} {item.unit}
-                                                    {/* NEW: Show secondary quantity if present */}
-                                                    {item.secondaryQuantity && item.secondaryUnit && (
-                                                        <div className="text-xs text-gray-600">
-                                                            ({item.secondaryQuantity} {item.secondaryUnit})
+                                        {Array.from(selectedItems.entries()).map(([itemId, item]) => {
+                                            const primaryQty = parseFloat(item.quantity) || 0;
+                                            const secondaryQty = parseFloat(item.secondaryQuantity) || 0;
+
+                                            return (
+                                                <div key={itemId} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">
+                                                    <div className="flex-1">
+                                                        <div className="font-medium text-gray-900">{item.name}</div>
+                                                        <div className="text-sm text-gray-600">
+                                                            {item.category} • {item.location}
                                                         </div>
-                                                    )}
+                                                    </div>
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {/* FIXED: Smart display of quantities */}
+                                                        {primaryQty > 0 && (
+                                                            <div>{primaryQty} {item.unit}</div>
+                                                        )}
+                                                        {secondaryQty > 0 && (
+                                                            <div className="text-xs text-gray-600">
+                                                                ({secondaryQty} {item.secondaryUnit})
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => {
+                                                            const newSelectedItems = new Map(selectedItems);
+                                                            newSelectedItems.delete(itemId);
+                                                            setSelectedItems(newSelectedItems);
+                                                        }}
+                                                        className="ml-3 text-red-600 hover:text-red-800"
+                                                    >
+                                                        ✕
+                                                    </TouchEnhancedButton>
                                                 </div>
-                                                <TouchEnhancedButton
-                                                    onClick={() => {
-                                                        const newSelectedItems = new Map(selectedItems);
-                                                        newSelectedItems.delete(itemId);
-                                                        setSelectedItems(newSelectedItems);
-                                                    }}
-                                                    className="ml-3 text-red-600 hover:text-red-800"
-                                                >
-                                                    ✕
-                                                </TouchEnhancedButton>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 

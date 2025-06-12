@@ -1,5 +1,3 @@
-// file: /src/app/inventory/page.js - v8 (with Common Items Wizard integration)
-
 'use client';
 
 import {useSession} from 'next-auth/react';
@@ -8,11 +6,19 @@ import {useSearchParams} from 'next/navigation';
 import UPCLookup from '@/components/inventory/UPCLookup';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import ConsumptionHistory from '@/components/inventory/ConsumptionHistory';
-import CommonItemsWizard from '@/components/inventory/CommonItemsWizard'; // NEW IMPORT
+import CommonItemsWizard from '@/components/inventory/CommonItemsWizard';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+// NEW: Import smart display utilities
+import {
+    formatInventoryDisplayText,
+    getPrimaryDisplayText,
+    getSecondaryDisplayText,
+    hasDualUnits,
+    getShortDisplayText
+} from '@/lib/inventoryDisplayUtils';
 
 // Separate component for search params to wrap in Suspense
 function InventoryContent() {
@@ -26,9 +32,9 @@ function InventoryContent() {
     const [editingItem, setEditingItem] = useState(null);
     const [consumingItem, setConsumingItem] = useState(null);
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
-    const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false); // NEW STATE
+    const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
-    // 🔧 ENHANCED: Advanced filtering and search
+    // Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterLocation, setFilterLocation] = useState('all');
     const [filterCategory, setFilterCategory] = useState('all');
@@ -40,14 +46,13 @@ function InventoryContent() {
         category: '',
         quantity: 1,
         unit: 'item',
-        // NEW: Add secondary unit fields
+        // Dual unit fields
         secondaryQuantity: '',
         secondaryUnit: '',
         location: 'pantry',
         expirationDate: '',
         upc: ''
     });
-
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -76,7 +81,7 @@ function InventoryContent() {
         }
     };
 
-    // NEW: Handle Common Items Wizard completion
+    // Handle Common Items Wizard completion
     const handleCommonItemsComplete = async (result) => {
         if (result.success) {
             // Show success message
@@ -194,7 +199,7 @@ function InventoryContent() {
         }
     };
 
-    // 🔧 ENHANCED: Advanced filter and sort inventory with search
+    // Advanced filter and sort inventory with search
     const getFilteredAndSortedInventory = () => {
         let filtered = [...inventory];
 
@@ -279,7 +284,7 @@ function InventoryContent() {
         return filtered;
     };
 
-    // 🔧 NEW: Get unique values for filter dropdowns
+    // Get unique values for filter dropdowns
     const getUniqueLocations = () => {
         const locations = [...new Set(inventory.map(item => item.location))].sort();
         return locations;
@@ -290,7 +295,7 @@ function InventoryContent() {
         return categories;
     };
 
-    // 🔧 NEW: Clear all filters
+    // Clear all filters
     const clearAllFilters = () => {
         setSearchQuery('');
         setFilterStatus('all');
@@ -299,7 +304,7 @@ function InventoryContent() {
         setSortBy('expiration');
     };
 
-    // 🔧 NEW: Quick filter presets
+    // Quick filter presets
     const applyQuickFilter = (type) => {
         clearAllFilters();
         switch (type) {
@@ -323,7 +328,7 @@ function InventoryContent() {
         }
     };
 
-    // ... [Continue with all the other existing handler functions - handleSubmit, handleEdit, etc.]
+    // Form submission handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -361,6 +366,8 @@ function InventoryContent() {
                     category: '',
                     quantity: 1,
                     unit: 'item',
+                    secondaryQuantity: '',
+                    secondaryUnit: '',
                     location: 'pantry',
                     expirationDate: '',
                     upc: ''
@@ -382,7 +389,7 @@ function InventoryContent() {
         }
     };
 
-    // UPDATED: Handle edit to include secondary units
+    // Handle edit to include secondary units
     const handleEdit = (item) => {
         setEditingItem(item);
         setFormData({
@@ -391,7 +398,7 @@ function InventoryContent() {
             category: item.category || '',
             quantity: item.quantity,
             unit: item.unit,
-            // NEW: Include secondary unit data
+            // Include secondary unit data
             secondaryQuantity: item.secondaryQuantity || '',
             secondaryUnit: item.secondaryUnit || '',
             location: item.location,
@@ -447,7 +454,7 @@ function InventoryContent() {
         }));
     };
 
-    // UPDATED: Reset form to include secondary units
+    // Reset form to include secondary units
     const resetForm = () => {
         setFormData({
             name: '',
@@ -455,7 +462,6 @@ function InventoryContent() {
             category: '',
             quantity: 1,
             unit: 'item',
-            // NEW: Reset secondary unit fields
             secondaryQuantity: '',
             secondaryUnit: '',
             location: 'pantry',
@@ -510,24 +516,21 @@ function InventoryContent() {
         return null;
     }
 
-    const filteredInventory = getFilteredAndSortedInventory();
-    const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
-
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Header - UPDATED WITH COMMON ITEMS WIZARD BUTTON */}
+                {/* Header - WITH COMMON ITEMS WIZARD BUTTON */}
                 <div className="space-y-4">
                     {/* Title Row */}
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
                     </div>
 
-                    {/* Action Buttons Row - Mobile Responsive - UPDATED */}
+                    {/* Action Buttons Row - Mobile Responsive */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         {/* Left side buttons */}
                         <div className="flex gap-2 flex-1">
-                            {/* NEW: Common Items Wizard Button - Priority placement for new users */}
+                            {/* Common Items Wizard Button - Priority placement for new users */}
                             {inventory.length === 0 && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowCommonItemsWizard(true)}
@@ -577,8 +580,7 @@ function InventoryContent() {
                         </TouchEnhancedButton>
                     </div>
                 </div>
-
-                {/* 🔧 ENHANCED: Advanced Search and Filtering */}
+                {/* Enhanced Search and Filtering */}
                 <div className="bg-white shadow rounded-lg p-4 space-y-4">
                     {/* Search Bar */}
                     <div>
@@ -819,7 +821,7 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {/* 🔧 FIXED: Add/Edit Form */}
+                {/* Add/Edit Form */}
                 {showAddForm && (
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
@@ -945,87 +947,90 @@ function InventoryContent() {
                                         </select>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Primary Quantity */}
-                                        <div>
-                                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-                                                Primary Quantity *
-                                            </label>
-                                            <div className="mt-1 flex rounded-md shadow-sm">
-                                                <input
-                                                    type="number"
-                                                    id="quantity"
-                                                    name="quantity"
-                                                    min="0"
-                                                    step="0.1"
-                                                    required
-                                                    value={formData.quantity}
-                                                    onChange={handleChange}
-                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                />
-                                                <select
-                                                    name="unit"
-                                                    value={formData.unit}
-                                                    onChange={handleChange}
-                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
-                                                >
-                                                    <option value="item">Item(s)</option>
-                                                    <option value="lbs">Pounds</option>
-                                                    <option value="oz">Ounces</option>
-                                                    <option value="kg">Kilograms</option>
-                                                    <option value="g">Grams</option>
-                                                    <option value="cup">Cup(s)</option>
-                                                    <option value="tbsp">Tablespoon(s)</option>
-                                                    <option value="tsp">Teaspoon(s)</option>
-                                                    <option value="ml">Milliliters</option>
-                                                    <option value="l">Liters</option>
-                                                    <option value="can">Can(s)</option>
-                                                    <option value="package">Package(s)</option>
-                                                </select>
+                                    {/* UPDATED: Dual Quantity Input Section */}
+                                    <div className="md:col-span-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Primary Quantity */}
+                                            <div>
+                                                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                                                    Primary Quantity *
+                                                </label>
+                                                <div className="mt-1 flex rounded-md shadow-sm">
+                                                    <input
+                                                        type="number"
+                                                        id="quantity"
+                                                        name="quantity"
+                                                        min="0"
+                                                        step="0.1"
+                                                        required
+                                                        value={formData.quantity}
+                                                        onChange={handleChange}
+                                                        className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    />
+                                                    <select
+                                                        name="unit"
+                                                        value={formData.unit}
+                                                        onChange={handleChange}
+                                                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                    >
+                                                        <option value="item">Item(s)</option>
+                                                        <option value="lbs">Pounds</option>
+                                                        <option value="oz">Ounces</option>
+                                                        <option value="kg">Kilograms</option>
+                                                        <option value="g">Grams</option>
+                                                        <option value="cup">Cup(s)</option>
+                                                        <option value="tbsp">Tablespoon(s)</option>
+                                                        <option value="tsp">Teaspoon(s)</option>
+                                                        <option value="ml">Milliliters</option>
+                                                        <option value="l">Liters</option>
+                                                        <option value="can">Can(s)</option>
+                                                        <option value="package">Package(s)</option>
+                                                    </select>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {/* Secondary Quantity (Optional) */}
-                                        <div>
-                                            <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
-                                                Alternative Quantity <span className="text-gray-500">(Optional)</span>
-                                            </label>
-                                            <div className="mt-1 flex rounded-md shadow-sm">
-                                                <input
-                                                    type="number"
-                                                    id="secondaryQuantity"
-                                                    name="secondaryQuantity"
-                                                    min="0"
-                                                    step="0.1"
-                                                    value={formData.secondaryQuantity}
-                                                    onChange={handleChange}
-                                                    placeholder="e.g., 6"
-                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                />
-                                                <select
-                                                    name="secondaryUnit"
-                                                    value={formData.secondaryUnit}
-                                                    onChange={handleChange}
-                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
-                                                >
-                                                    <option value="">Select unit</option>
-                                                    <option value="item">Item(s)</option>
-                                                    <option value="lbs">Pounds</option>
-                                                    <option value="oz">Ounces</option>
-                                                    <option value="kg">Kilograms</option>
-                                                    <option value="g">Grams</option>
-                                                    <option value="cup">Cup(s)</option>
-                                                    <option value="tbsp">Tablespoon(s)</option>
-                                                    <option value="tsp">Teaspoon(s)</option>
-                                                    <option value="ml">Milliliters</option>
-                                                    <option value="l">Liters</option>
-                                                    <option value="can">Can(s)</option>
-                                                    <option value="package">Package(s)</option>
-                                                </select>
+                                            {/* Secondary Quantity (Optional) */}
+                                            <div>
+                                                <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
+                                                    Alternative Quantity <span className="text-gray-500">(Optional)</span>
+                                                </label>
+                                                <div className="mt-1 flex rounded-md shadow-sm">
+                                                    <input
+                                                        type="number"
+                                                        id="secondaryQuantity"
+                                                        name="secondaryQuantity"
+                                                        min="0"
+                                                        step="0.1"
+                                                        value={formData.secondaryQuantity}
+                                                        onChange={handleChange}
+                                                        placeholder="0"
+                                                        className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    />
+                                                    <select
+                                                        name="secondaryUnit"
+                                                        value={formData.secondaryUnit}
+                                                        onChange={handleChange}
+                                                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                    >
+                                                        <option value="">Select unit</option>
+                                                        <option value="item">Item(s)</option>
+                                                        <option value="lbs">Pounds</option>
+                                                        <option value="oz">Ounces</option>
+                                                        <option value="kg">Kilograms</option>
+                                                        <option value="g">Grams</option>
+                                                        <option value="cup">Cup(s)</option>
+                                                        <option value="tbsp">Tablespoon(s)</option>
+                                                        <option value="tsp">Teaspoon(s)</option>
+                                                        <option value="ml">Milliliters</option>
+                                                        <option value="l">Liters</option>
+                                                        <option value="can">Can(s)</option>
+                                                        <option value="package">Package(s)</option>
+                                                    </select>
+                                                </div>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Add an alternative unit for tracking (e.g., "2 lbs" and "6 tomatoes")
+                                                </p>
                                             </div>
-                                            <p className="mt-1 text-xs text-gray-500">
-                                                Add an alternative unit for tracking (e.g., "2 lbs" and "6 tomatoes")
-                                            </p>
                                         </div>
                                     </div>
 
@@ -1071,7 +1076,7 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {/* Inventory Grid Display */}
+                {/* UPDATED: Inventory Grid Display with Smart Units */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -1128,16 +1133,10 @@ function InventoryContent() {
                                                 )}
                                             </div>
 
-                                            {/* Quantity and Location Row - UPDATED: Show dual units */}
+                                            {/* UPDATED: Smart Quantity Display with Dual Units */}
                                             <div className="flex justify-between items-center mb-3">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {item.quantity} {item.unit}
-                                                    {/* NEW: Show secondary quantity if present */}
-                                                    {item.secondaryQuantity && item.secondaryUnit && (
-                                                        <div className="text-xs text-gray-600">
-                                                            ({item.secondaryQuantity} {item.secondaryUnit})
-                                                        </div>
-                                                    )}
+                                                    {formatInventoryDisplayText(item)}
                                                 </div>
                                                 <span
                                                     className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
@@ -1193,7 +1192,7 @@ function InventoryContent() {
                     </div>
                 </div>
 
-                {/* NEW: Common Items Wizard Modal */}
+                {/* Common Items Wizard Modal */}
                 <CommonItemsWizard
                     isOpen={showCommonItemsWizard}
                     onClose={() => setShowCommonItemsWizard(false)}
