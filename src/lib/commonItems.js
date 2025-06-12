@@ -1,17 +1,73 @@
-// file: /src/lib/commonItems.js - v1
+// file: /src/lib/commonItems.js - v2 (Added dual unit support)
 
 export const COMMON_ITEMS = {
     'pantry-staples': {
         name: '🏠 Pantry Staples',
         icon: '🏠',
         items: [
-            { name: 'Rice (White)', category: 'Grains', unit: 'lbs', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Rice (Brown)', category: 'Grains', unit: 'lbs', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Pasta (Spaghetti)', category: 'Pasta', unit: 'lbs', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Pasta (Penne)', category: 'Pasta', unit: 'lbs', defaultQuantity: 1, location: 'pantry' },
-            { name: 'All-Purpose Flour', category: 'Grains', unit: 'lbs', defaultQuantity: 5, location: 'pantry' },
-            { name: 'Sugar (Granulated)', category: 'Other', unit: 'lbs', defaultQuantity: 4, location: 'pantry' },
-            { name: 'Brown Sugar', category: 'Other', unit: 'lbs', defaultQuantity: 1, location: 'pantry' },
+            {
+                name: 'Rice (White)',
+                category: 'Grains',
+                unit: 'lbs',
+                defaultQuantity: 2,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 4,
+                location: 'pantry'
+            },
+            {
+                name: 'Rice (Brown)',
+                category: 'Grains',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 2,
+                location: 'pantry'
+            },
+            {
+                name: 'Pasta (Spaghetti)',
+                category: 'Pasta',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 2,
+                location: 'pantry'
+            },
+            {
+                name: 'Pasta (Penne)',
+                category: 'Pasta',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 2,
+                location: 'pantry'
+            },
+            {
+                name: 'All-Purpose Flour',
+                category: 'Grains',
+                unit: 'lbs',
+                defaultQuantity: 5,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 20,
+                location: 'pantry'
+            },
+            {
+                name: 'Sugar (Granulated)',
+                category: 'Other',
+                unit: 'lbs',
+                defaultQuantity: 4,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 9,
+                location: 'pantry'
+            },
+            {
+                name: 'Brown Sugar',
+                category: 'Other',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 2,
+                location: 'pantry'
+            },
             { name: 'Salt', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Black Pepper', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Olive Oil', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
@@ -27,17 +83,105 @@ export const COMMON_ITEMS = {
         name: '🥫 Canned & Jarred',
         icon: '🥫',
         items: [
-            { name: 'Tomato Sauce', category: 'Canned Sauces', unit: 'can', defaultQuantity: 4, location: 'pantry' },
-            { name: 'Diced Tomatoes', category: 'Canned Tomatoes', unit: 'can', defaultQuantity: 3, location: 'pantry' },
-            { name: 'Tomato Paste', category: 'Canned Tomatoes', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Chicken Broth', category: 'Stock/Broth', unit: 'can', defaultQuantity: 4, location: 'pantry' },
-            { name: 'Vegetable Broth', category: 'Stock/Broth', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Black Beans', category: 'Canned Beans', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Kidney Beans', category: 'Canned Beans', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Chickpeas/Garbanzo Beans', category: 'Canned Beans', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Corn (Canned)', category: 'Canned Vegetables', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Green Beans (Canned)', category: 'Canned Vegetables', unit: 'can', defaultQuantity: 2, location: 'pantry' },
-            { name: 'Tuna', category: 'Canned Meat', unit: 'can', defaultQuantity: 4, location: 'pantry' },
+            {
+                name: 'Tomato Sauce',
+                category: 'Canned Sauces',
+                unit: 'can',
+                defaultQuantity: 4,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 60,
+                location: 'pantry'
+            },
+            {
+                name: 'Diced Tomatoes',
+                category: 'Canned Tomatoes',
+                unit: 'can',
+                defaultQuantity: 3,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 43.5,
+                location: 'pantry'
+            },
+            {
+                name: 'Tomato Paste',
+                category: 'Canned Tomatoes',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 12,
+                location: 'pantry'
+            },
+            {
+                name: 'Chicken Broth',
+                category: 'Stock/Broth',
+                unit: 'can',
+                defaultQuantity: 4,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 56,
+                location: 'pantry'
+            },
+            {
+                name: 'Vegetable Broth',
+                category: 'Stock/Broth',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 28,
+                location: 'pantry'
+            },
+            {
+                name: 'Black Beans',
+                category: 'Canned Beans',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 30,
+                location: 'pantry'
+            },
+            {
+                name: 'Kidney Beans',
+                category: 'Canned Beans',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 30,
+                location: 'pantry'
+            },
+            {
+                name: 'Chickpeas/Garbanzo Beans',
+                category: 'Canned Beans',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 30,
+                location: 'pantry'
+            },
+            {
+                name: 'Corn (Canned)',
+                category: 'Canned Vegetables',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 30,
+                location: 'pantry'
+            },
+            {
+                name: 'Green Beans (Canned)',
+                category: 'Canned Vegetables',
+                unit: 'can',
+                defaultQuantity: 2,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 30,
+                location: 'pantry'
+            },
+            {
+                name: 'Tuna',
+                category: 'Canned Meat',
+                unit: 'can',
+                defaultQuantity: 4,
+                secondaryUnit: 'oz',
+                defaultSecondaryQuantity: 20,
+                location: 'pantry'
+            },
             { name: 'Peanut Butter', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Jelly/Jam', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
         ]
@@ -46,8 +190,24 @@ export const COMMON_ITEMS = {
         name: '🥛 Dairy & Eggs',
         icon: '🥛',
         items: [
-            { name: 'Milk (Whole)', category: 'Dairy', unit: 'item', defaultQuantity: 1, location: 'fridge' },
-            { name: 'Eggs (Large)', category: 'Eggs', unit: 'item', defaultQuantity: 1, location: 'fridge' },
+            {
+                name: 'Milk (Whole)',
+                category: 'Dairy',
+                unit: 'item',
+                defaultQuantity: 1,
+                secondaryUnit: 'cup',
+                defaultSecondaryQuantity: 16,
+                location: 'fridge'
+            },
+            {
+                name: 'Eggs (Large)',
+                category: 'Eggs',
+                unit: 'item',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 12,
+                location: 'fridge'
+            },
             { name: 'Butter', category: 'Dairy', unit: 'item', defaultQuantity: 1, location: 'fridge' },
             { name: 'Cheddar Cheese', category: 'Cheese', unit: 'item', defaultQuantity: 1, location: 'fridge' },
             { name: 'Mozzarella Cheese', category: 'Cheese', unit: 'item', defaultQuantity: 1, location: 'fridge' },
@@ -61,16 +221,64 @@ export const COMMON_ITEMS = {
         name: '🥕 Fresh Produce',
         icon: '🥕',
         items: [
-            { name: 'Onions (Yellow)', category: 'Fresh Vegetables', unit: 'lbs', defaultQuantity: 2, location: 'pantry' },
+            {
+                name: 'Onions (Yellow)',
+                category: 'Fresh Vegetables',
+                unit: 'lbs',
+                defaultQuantity: 2,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 6,
+                location: 'pantry'
+            },
             { name: 'Garlic', category: 'Fresh Vegetables', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Carrots', category: 'Fresh Vegetables', unit: 'lbs', defaultQuantity: 1, location: 'fridge' },
+            {
+                name: 'Carrots',
+                category: 'Fresh Vegetables',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 8,
+                location: 'fridge'
+            },
             { name: 'Celery', category: 'Fresh Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge' },
-            { name: 'Potatoes (Russet)', category: 'Fresh Vegetables', unit: 'lbs', defaultQuantity: 3, location: 'pantry' },
-            { name: 'Bananas', category: 'Fresh Fruits', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Apples', category: 'Fresh Fruits', unit: 'lbs', defaultQuantity: 2, location: 'fridge' },
+            {
+                name: 'Potatoes (Russet)',
+                category: 'Fresh Vegetables',
+                unit: 'lbs',
+                defaultQuantity: 3,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 6,
+                location: 'pantry'
+            },
+            {
+                name: 'Bananas',
+                category: 'Fresh Fruits',
+                unit: 'item',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 6,
+                location: 'pantry'
+            },
+            {
+                name: 'Apples',
+                category: 'Fresh Fruits',
+                unit: 'lbs',
+                defaultQuantity: 2,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 6,
+                location: 'fridge'
+            },
             { name: 'Lemons', category: 'Fresh Fruits', unit: 'item', defaultQuantity: 3, location: 'fridge' },
             { name: 'Bell Peppers', category: 'Fresh Vegetables', unit: 'item', defaultQuantity: 3, location: 'fridge' },
-            { name: 'Tomatoes', category: 'Fresh Vegetables', unit: 'lbs', defaultQuantity: 1, location: 'fridge' },
+            {
+                name: 'Tomatoes',
+                category: 'Fresh Vegetables',
+                unit: 'lbs',
+                defaultQuantity: 1,
+                secondaryUnit: 'item',
+                defaultSecondaryQuantity: 4,
+                location: 'fridge'
+            },
         ]
     },
     'frozen-foods': {
@@ -127,27 +335,4 @@ export const COMMON_ITEMS = {
             { name: 'Bottled Water', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'pantry' },
         ]
     }
-};
-
-export const getAllCommonItems = () => {
-    const allItems = [];
-    Object.entries(COMMON_ITEMS).forEach(([categoryKey, categoryData]) => {
-        categoryData.items.forEach(item => {
-            allItems.push({
-                ...item,
-                categoryKey,
-                categoryName: categoryData.name,
-                id: `${categoryKey}-${item.name.toLowerCase().replace(/\s+/g, '-')}`
-            });
-        });
-    });
-    return allItems;
-};
-
-export const getItemsByCategory = (categoryKey) => {
-    return COMMON_ITEMS[categoryKey]?.items || [];
-};
-
-export const getCategoryInfo = (categoryKey) => {
-    return COMMON_ITEMS[categoryKey] || null;
 };
