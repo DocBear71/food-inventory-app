@@ -1,3 +1,5 @@
+// file: /src/app/inventory/page.js - v9 (Smart dual unit display with enhanced UX)
+
 'use client';
 
 import {useSession} from 'next-auth/react';
@@ -389,7 +391,7 @@ function InventoryContent() {
         }
     };
 
-    // Handle edit to include secondary units
+    // UPDATED: Handle edit with auto-scroll to form
     const handleEdit = (item) => {
         setEditingItem(item);
         setFormData({
@@ -406,6 +408,17 @@ function InventoryContent() {
             upc: item.upc || ''
         });
         setShowAddForm(true);
+
+        // Auto-scroll to the form after a brief delay to ensure it's rendered
+        setTimeout(() => {
+            const formElement = document.querySelector('form');
+            if (formElement) {
+                formElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }, 100);
     };
 
     const handleDelete = async (itemId) => {
@@ -515,9 +528,6 @@ function InventoryContent() {
     if (!session) {
         return null;
     }
-
-    const filteredInventory = getFilteredAndSortedInventory();
-    const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
 
     return (
         <MobileOptimizedLayout>
@@ -995,7 +1005,7 @@ function InventoryContent() {
                                             {/* Secondary Quantity (Optional) */}
                                             <div>
                                                 <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
-                                                    Alternative Quantity <span className="text-gray-500">(Optional)</span>
+                                                    Secondary Quantity <span className="text-gray-500">(Optional)</span>
                                                 </label>
                                                 <div className="mt-1 flex rounded-md shadow-sm">
                                                     <input

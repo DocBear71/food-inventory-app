@@ -415,7 +415,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                 {/* FIXED: Secondary quantity input - always available */}
                                                                                 {item.secondaryUnit && (
                                                                                     <div className="flex items-center space-x-2">
-                                                                                        <span className="text-xs text-gray-600 w-12">Alt:</span>
+                                                                                        <span className="text-xs text-gray-600 w-12">Secondary:</span>
                                                                                         <input
                                                                                             type="number"
                                                                                             min="0"
@@ -432,10 +432,12 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                     </div>
                                                                                 )}
 
-                                                                                {/* Helper text */}
-                                                                                <div className="text-xs text-gray-500 mt-1">
-                                                                                    At least one quantity must be &gt; 0
-                                                                                </div>
+                                                                                {/* FIXED: Helper text - only show for dual unit items */}
+                                                                                {item.secondaryUnit && (
+                                                                                    <div className="text-xs text-gray-500 mt-1">
+                                                                                        At least one quantity must be &gt; 0
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
