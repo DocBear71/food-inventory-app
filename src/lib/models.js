@@ -290,8 +290,15 @@ const InventoryItemSchema = new mongoose.Schema({
     name: { type: String, required: true },
     brand: String,
     category: String,
+
+    // Primary quantity and unit (required)
     quantity: { type: Number, default: 1 },
     unit: { type: String, default: 'item' },
+
+    // NEW: Secondary quantity and unit (optional)
+    secondaryQuantity: { type: Number, default: null },
+    secondaryUnit: { type: String, default: null },
+
     expirationDate: Date,
     addedDate: { type: Date, default: Date.now },
     location: {
