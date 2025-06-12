@@ -135,15 +135,40 @@ export function formatInventoryDisplayText(item) {
         return `${secondaryQty} ${smartUnit}`;
     }
 
-    // If both quantities exist
+    // If both quantities exist - UPDATED: Add "each" for per-unit measurements
     if (primaryQty > 0 && secondaryQty > 0) {
         const primarySmartUnit = getSmartUnitName(item.name, item.unit, primaryQty);
         const secondarySmartUnit = getSmartUnitName(item.name, item.secondaryUnit, secondaryQty);
-        return `${primaryQty} ${primarySmartUnit} (${secondaryQty} ${secondarySmartUnit})`;
+
+        // Check if it's likely a per-unit measurement (cans + weight, packages + weight, etc.)
+        const isPerUnitMeasurement = isLikelyPerUnitMeasurement(item.unit, item.secondaryUnit);
+
+        if (isPerUnitMeasurement) {
+            return `${primaryQty} ${primarySmartUnit} (${secondaryQty} ${secondarySmartUnit} each)`;
+        } else {
+            return `${primaryQty} ${primarySmartUnit} (${secondaryQty} ${secondarySmartUnit})`;
+        }
     }
 
     // Fallback if no quantities
     return `${item.quantity || 0} ${item.unit}`;
+}
+
+/**
+ * Check if the unit combination suggests a per-unit measurement
+ * @param {string} primaryUnit - The primary unit (e.g., 'can', 'package', 'item')
+ * @param {string} secondaryUnit - The secondary unit (e.g., 'oz', 'g', 'ml')
+ * @returns {boolean} - True if it's likely a per-unit measurement
+ */
+function isLikelyPerUnitMeasurement(primaryUnit, secondaryUnit) {
+    // Count units paired with weight/volume units = per-unit measurement
+    const countUnits = ['can', 'package', 'item', 'box', 'bag', 'bottle', 'jar'];
+    const measurementUnits = ['oz', 'g', 'kg', 'lbs', 'ml', 'l'];
+
+    const isPrimaryCount = countUnits.includes(primaryUnit?.toLowerCase());
+    const isSecondaryMeasurement = measurementUnits.includes(secondaryUnit?.toLowerCase());
+
+    return isPrimaryCount && isSecondaryMeasurement;
 }
 
 /**
