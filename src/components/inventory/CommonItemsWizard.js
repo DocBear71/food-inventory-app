@@ -1,4 +1,4 @@
-// file: /src/components/inventory/CommonItemsWizard.js - v3 (Fixed quantity input handling + dual unit support)
+// file: /src/components/inventory/CommonItemsWizard.js - v4 (Fixed dual unit display detection)
 
 'use client';
 
@@ -98,7 +98,8 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
             newSelectedItems.set(itemId, {
                 ...item,
                 categoryKey,
-                quantity: item.defaultQuantity
+                quantity: item.defaultQuantity,
+                secondaryQuantity: item.defaultSecondaryQuantity || '',
             });
         });
         setSelectedItems(newSelectedItems);
@@ -355,6 +356,8 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                         const itemId = `${categoryKey}-${index}`;
                                                         const isSelected = selectedItems.has(itemId);
                                                         const currentItem = selectedItems.get(itemId);
+                                                        // FIXED: Better detection of dual unit items
+                                                        const hasDualUnits = !!(item.secondaryUnit && item.defaultSecondaryQuantity);
 
                                                         return (
                                                             <div
@@ -382,25 +385,52 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                         </div>
                                                                         <div className="mt-1 text-xs text-gray-500">
                                                                             {item.category} • {item.location}
+                                                                            {/* FIXED: Show dual unit indicator */}
+                                                                            {hasDualUnits && (
+                                                                                <span className="ml-1 text-blue-600">• dual units</span>
+                                                                            )}
                                                                         </div>
 
-                                                                        {/* FIXED: Improved quantity input */}
+                                                                        {/* FIXED: Improved dual unit input display */}
                                                                         {isSelected && (
-                                                                            <div className="mt-2 flex items-center space-x-2">
-                                                                                <span className="text-xs text-gray-600">Qty:</span>
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min="0.1"
-                                                                                    step="0.1"
-                                                                                    value={currentItem?.quantity || ''}
-                                                                                    onChange={(e) => updateQuantity(itemId, e.target.value)}
-                                                                                    onBlur={() => handleQuantityBlur(itemId)}
-                                                                                    onFocus={handleQuantityFocus}
-                                                                                    onClick={(e) => e.stopPropagation()}
-                                                                                    className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
-                                                                                    placeholder={item.defaultQuantity.toString()}
-                                                                                />
-                                                                                <span className="text-xs text-gray-500">{item.unit}</span>
+                                                                            <div className="mt-2 space-y-2">
+                                                                                {/* Primary quantity input */}
+                                                                                <div className="flex items-center space-x-2">
+                                                                                    <span className="text-xs text-gray-600 w-8">Qty:</span>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0.1"
+                                                                                        step="0.1"
+                                                                                        value={currentItem?.quantity || ''}
+                                                                                        onChange={(e) => updateQuantity(itemId, e.target.value, false)}
+                                                                                        onBlur={() => handleQuantityBlur(itemId, false)}
+                                                                                        onFocus={handleQuantityFocus}
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
+                                                                                        placeholder={item.defaultQuantity.toString()}
+                                                                                    />
+                                                                                    <span className="text-xs text-gray-500 flex-1">{item.unit}</span>
+                                                                                </div>
+
+                                                                                {/* FIXED: Secondary quantity input (better detection) */}
+                                                                                {hasDualUnits && (
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <span className="text-xs text-gray-600 w-8">Alt:</span>
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            min="0.1"
+                                                                                            step="0.1"
+                                                                                            value={currentItem?.secondaryQuantity || ''}
+                                                                                            onChange={(e) => updateQuantity(itemId, e.target.value, true)}
+                                                                                            onBlur={() => handleQuantityBlur(itemId, true)}
+                                                                                            onFocus={handleQuantityFocus}
+                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                            className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
+                                                                                            placeholder={item.defaultSecondaryQuantity?.toString() || ''}
+                                                                                        />
+                                                                                        <span className="text-xs text-gray-500 flex-1">{item.secondaryUnit || 'unit'}</span>
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
