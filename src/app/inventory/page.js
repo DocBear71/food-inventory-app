@@ -40,10 +40,14 @@ function InventoryContent() {
         category: '',
         quantity: 1,
         unit: 'item',
+        // NEW: Add secondary unit fields
+        secondaryQuantity: '',
+        secondaryUnit: '',
         location: 'pantry',
         expirationDate: '',
         upc: ''
     });
+
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -378,6 +382,7 @@ function InventoryContent() {
         }
     };
 
+    // UPDATED: Handle edit to include secondary units
     const handleEdit = (item) => {
         setEditingItem(item);
         setFormData({
@@ -386,6 +391,9 @@ function InventoryContent() {
             category: item.category || '',
             quantity: item.quantity,
             unit: item.unit,
+            // NEW: Include secondary unit data
+            secondaryQuantity: item.secondaryQuantity || '',
+            secondaryUnit: item.secondaryUnit || '',
             location: item.location,
             expirationDate: item.expirationDate ? item.expirationDate.split('T')[0] : '',
             upc: item.upc || ''
@@ -439,6 +447,7 @@ function InventoryContent() {
         }));
     };
 
+    // UPDATED: Reset form to include secondary units
     const resetForm = () => {
         setFormData({
             name: '',
@@ -446,6 +455,9 @@ function InventoryContent() {
             category: '',
             quantity: 1,
             unit: 'item',
+            // NEW: Reset secondary unit fields
+            secondaryQuantity: '',
+            secondaryUnit: '',
             location: 'pantry',
             expirationDate: '',
             upc: ''
@@ -933,48 +945,88 @@ function InventoryContent() {
                                         </select>
                                     </div>
 
-                                    <div>
-                                        <label htmlFor="quantity"
-                                               className="block text-sm font-medium text-gray-700">
-                                            Quantity
-                                        </label>
-                                        <input
-                                            type="number"
-                                            id="quantity"
-                                            name="quantity"
-                                            min="0"
-                                            step="0.1"
-                                            value={formData.quantity}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        />
-                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Primary Quantity */}
+                                        <div>
+                                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                                                Primary Quantity *
+                                            </label>
+                                            <div className="mt-1 flex rounded-md shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    id="quantity"
+                                                    name="quantity"
+                                                    min="0"
+                                                    step="0.1"
+                                                    required
+                                                    value={formData.quantity}
+                                                    onChange={handleChange}
+                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                />
+                                                <select
+                                                    name="unit"
+                                                    value={formData.unit}
+                                                    onChange={handleChange}
+                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                >
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="lbs">Pounds</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="cup">Cup(s)</option>
+                                                    <option value="tbsp">Tablespoon(s)</option>
+                                                    <option value="tsp">Teaspoon(s)</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="can">Can(s)</option>
+                                                    <option value="package">Package(s)</option>
+                                                </select>
+                                            </div>
+                                        </div>
 
-                                    <div>
-                                        <label htmlFor="unit"
-                                               className="block text-sm font-medium text-gray-700">
-                                            Unit
-                                        </label>
-                                        <select
-                                            id="unit"
-                                            name="unit"
-                                            value={formData.unit}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        >
-                                            <option value="item">Item(s)</option>
-                                            <option value="lbs">Pounds</option>
-                                            <option value="oz">Ounces</option>
-                                            <option value="kg">Kilograms</option>
-                                            <option value="g">Grams</option>
-                                            <option value="cup">Cup(s)</option>
-                                            <option value="tbsp">Tablespoon(s)</option>
-                                            <option value="tsp">Teaspoon(s)</option>
-                                            <option value="ml">Milliliters</option>
-                                            <option value="l">Liters</option>
-                                            <option value="can">Can(s)</option>
-                                            <option value="package">Package(s)</option>
-                                        </select>
+                                        {/* Secondary Quantity (Optional) */}
+                                        <div>
+                                            <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
+                                                Alternative Quantity <span className="text-gray-500">(Optional)</span>
+                                            </label>
+                                            <div className="mt-1 flex rounded-md shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    id="secondaryQuantity"
+                                                    name="secondaryQuantity"
+                                                    min="0"
+                                                    step="0.1"
+                                                    value={formData.secondaryQuantity}
+                                                    onChange={handleChange}
+                                                    placeholder="e.g., 6"
+                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                />
+                                                <select
+                                                    name="secondaryUnit"
+                                                    value={formData.secondaryUnit}
+                                                    onChange={handleChange}
+                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                >
+                                                    <option value="">Select unit</option>
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="lbs">Pounds</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="cup">Cup(s)</option>
+                                                    <option value="tbsp">Tablespoon(s)</option>
+                                                    <option value="tsp">Teaspoon(s)</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="can">Can(s)</option>
+                                                    <option value="package">Package(s)</option>
+                                                </select>
+                                            </div>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Add an alternative unit for tracking (e.g., "2 lbs" and "6 tomatoes")
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <div className="md:col-span-2">
