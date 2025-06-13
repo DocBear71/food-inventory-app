@@ -26,6 +26,7 @@ export default function ReceiptScan() {
     const [step, setStep] = useState('upload'); // 'upload', 'processing', 'review', 'adding'
     const [processingStatus, setProcessingStatus] = useState('');
     const [cameraError, setCameraError] = useState(null);
+    const [debugLog, setDebugLog] = useState([]);
 
     // Cleanup effect
     useEffect(() => {
@@ -53,47 +54,66 @@ export default function ReceiptScan() {
         );
     }
 
+    // Add debug logging function
+    function addDebugLog(message) {
+        console.log(message);
+        setDebugLog(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
+    }
+
     // Simple camera start function
     async function startCamera() {
-        console.log('🎥 Starting simple camera...');
+        addDebugLog('🔥 Take Photo button clicked!');
+        addDebugLog('🎥 startCamera function called');
         setCameraError(null);
 
         try {
+            addDebugLog('📱 Checking for navigator.mediaDevices...');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported');
+            }
+            addDebugLog('✅ Camera API is supported');
+
             // Stop any existing stream
             if (streamRef.current) {
+                addDebugLog('🛑 Stopping existing stream');
                 streamRef.current.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
             }
 
+            addDebugLog('📞 Calling getUserMedia...');
             // Get user media
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' }
             });
 
-            console.log('✅ Got camera stream:', stream);
+            addDebugLog('✅ Got camera stream');
             streamRef.current = stream;
 
             // Wait for video element
             if (!videoRef.current) {
-                console.error('❌ No video element');
+                addDebugLog('❌ No video element');
+                setCameraError('Video element not found');
                 return;
             }
+            addDebugLog('✅ Video element found');
 
+            addDebugLog('📺 Setting video srcObject...');
             // Set video source
             videoRef.current.srcObject = stream;
 
+            addDebugLog('⏳ Waiting for video to load...');
             // Wait for video to load
             await new Promise((resolve, reject) => {
                 const video = videoRef.current;
 
                 const onLoadedMetadata = () => {
-                    console.log('📺 Video loaded:', video.videoWidth, 'x', video.videoHeight);
+                    addDebugLog(`📺 Video loaded: ${video.videoWidth} x ${video.videoHeight}`);
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     resolve();
                 };
 
                 const onError = (e) => {
-                    console.error('❌ Video error:', e);
+                    addDebugLog('❌ Video error: ' + e.message);
                     video.removeEventListener('error', onError);
                     reject(e);
                 };
@@ -101,15 +121,19 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
+                addDebugLog('🎬 Attempting to play video...');
                 // Force play
-                video.play().catch(console.log);
+                video.play()
+                    .then(() => addDebugLog('✅ Video play succeeded'))
+                    .catch(e => addDebugLog('⚠️ Video play failed: ' + e.message));
             });
 
+            addDebugLog('🎉 Setting showCamera to true');
             setShowCamera(true);
-            console.log('✅ Camera started successfully');
+            addDebugLog('✅ Camera started successfully');
 
         } catch (error) {
-            console.error('❌ Camera error:', error);
+            addDebugLog('❌ Camera error: ' + error.message);
             setCameraError('Failed to start camera: ' + error.message);
         }
     }
@@ -515,6 +539,18 @@ export default function ReceiptScan() {
                                     onChange={handleFileUpload}
                                     className="hidden"
                                 />
+
+                                {/* Visible Debug Log */}
+                                <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs max-h-40 overflow-y-auto">
+                                    <div className="font-semibold mb-2 text-green-300">📱 Real-time Debug Log:</div>
+                                    {debugLog.length === 0 ? (
+                                        <div className="text-gray-500">Waiting for actions...</div>
+                                    ) : (
+                                        debugLog.map((log, index) => (
+                                            <div key={index} className="mb-1">{log}</div>
+                                        ))
+                                    )}
+                                </div>
 
                                 {/* Error display */}
                                 {cameraError && (
