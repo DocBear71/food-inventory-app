@@ -114,11 +114,12 @@ export default function ReceiptScan() {
 
             console.log('🎥 Video element found, requesting camera permissions...');
 
-            // Request camera access with fallback constraints
+            // Request camera access with fallback constraints - using working pattern from UPC scanner
             let stream;
 
             try {
                 // Try with environment camera first (back camera on mobile)
+                console.log('📱 Attempting environment camera...');
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'environment',
@@ -132,6 +133,7 @@ export default function ReceiptScan() {
 
                 try {
                     // Fallback to any available camera
+                    console.log('📱 Attempting any available camera...');
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: {
                             width: { ideal: 1280, max: 1920 },
@@ -143,6 +145,7 @@ export default function ReceiptScan() {
                     console.log('⚠️ Any camera failed, trying basic constraints:', anyError.message);
 
                     // Last resort - basic video constraint
+                    console.log('📱 Attempting basic video constraint...');
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: true
                     });
@@ -154,64 +157,160 @@ export default function ReceiptScan() {
                 throw new Error('Failed to get camera stream');
             }
 
-            console.log('🎥 Camera stream obtained, setting up video element...');
+            console.log('🎥 Camera stream obtained:', {
+                id: stream.id,
+                active: stream.active,
+                tracks: stream.getTracks().length
+            });
+
+            // Log track details
+            stream.getTracks().forEach((track, index) => {
+                console.log(`📹 Track ${index}:`, {
+                    kind: track.kind,
+                    label: track.label,
+                    enabled: track.enabled,
+                    muted: track.muted,
+                    readyState: track.readyState
+                });
+            });
 
             // Store stream first
             setCameraStream(stream);
 
-            // Set up video element
+            // Set up video element with enhanced error handling
             const video = videoRef.current;
+
+            // Clear any existing source first
+            if (video.srcObject) {
+                console.log('🧹 Clearing existing video source');
+                video.srcObject = null;
+            }
+
+            console.log('📺 Setting video srcObject...');
             video.srcObject = stream;
 
-            // Create a promise that resolves when video is ready
+            // Enhanced video setup promise with better error handling
             const videoReadyPromise = new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
+                    console.error('❌ Video setup timeout after 15 seconds');
                     reject(new Error('Video setup timeout'));
-                }, 10000); // 10 second timeout
+                }, 15000); // Increased timeout
+
+                let resolved = false;
 
                 const handleVideoReady = () => {
-                    console.log('✅ Video ready, showing camera interface');
+                    if (resolved) return;
+                    resolved = true;
+
+                    console.log('✅ Video ready event fired');
                     console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
                     console.log('📺 Video ready state:', video.readyState);
                     console.log('📺 Video paused:', video.paused);
+                    console.log('📺 Video muted:', video.muted);
+                    console.log('📺 Video current time:', video.currentTime);
 
                     clearTimeout(timeout);
                     video.removeEventListener('loadedmetadata', handleVideoReady);
                     video.removeEventListener('canplay', handleVideoReady);
+                    video.removeEventListener('loadeddata', handleVideoReady);
 
                     resolve();
                 };
 
-                // Listen for video ready events
+                const handleVideoError = (error) => {
+                    if (resolved) return;
+                    resolved = true;
+
+                    console.error('❌ Video error event:', error);
+                    clearTimeout(timeout);
+                    video.removeEventListener('loadedmetadata', handleVideoReady);
+                    video.removeEventListener('canplay', handleVideoReady);
+                    video.removeEventListener('loadeddata', handleVideoReady);
+                    video.removeEventListener('error', handleVideoError);
+
+                    reject(new Error('Video element error: ' + (error.message || 'Unknown video error')));
+                };
+
+                // Listen for multiple video ready events
                 video.addEventListener('loadedmetadata', handleVideoReady);
                 video.addEventListener('canplay', handleVideoReady);
+                video.addEventListener('loadeddata', handleVideoReady);
+                video.addEventListener('error', handleVideoError);
 
-                // Force video to play and add error handling
+                // Force video attributes
+                video.autoplay = true;
+                video.playsInline = true;
+                video.muted = true;
+
+                console.log('📺 Starting video play...');
+                // Force video to play with better error handling
                 video.play()
                     .then(() => {
-                        console.log('✅ Video playing successfully');
+                        console.log('✅ Video.play() succeeded');
+                        // Sometimes play succeeds but we still need to wait for video dimensions
+                        if (video.videoWidth > 0 && video.videoHeight > 0) {
+                            console.log('📺 Video has dimensions immediately after play');
+                            if (!resolved) {
+                                handleVideoReady();
+                            }
+                        }
                     })
                     .catch(e => {
-                        console.log('⚠️ Video play failed (this is often normal on mobile):', e.message);
-                        // Don't reject here as autoplay issues are common but don't prevent camera from working
+                        console.log('⚠️ Video.play() failed:', e.message);
+                        // Don't reject here - autoplay issues are common but don't prevent camera from working
+                        // The video might still work once user interacts
                     });
+
+                // Fallback check after a delay
+                setTimeout(() => {
+                    if (!resolved && video.readyState >= 2) {
+                        console.log('⏰ Fallback: Video seems ready based on readyState');
+                        handleVideoReady();
+                    }
+                }, 3000);
             });
 
             // Wait for video to be ready
+            console.log('⏳ Waiting for video to be ready...');
             await videoReadyPromise;
 
-            // Double-check video is actually showing content
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                console.warn('⚠️ Video has no dimensions, waiting a bit more...');
+            // Enhanced video dimension check with retry logic
+            let retryCount = 0;
+            while ((video.videoWidth === 0 || video.videoHeight === 0) && retryCount < 5) {
+                retryCount++;
+                console.warn(`⚠️ Video has no dimensions (attempt ${retryCount}/5), waiting...`);
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
-                if (video.videoWidth === 0 || video.videoHeight === 0) {
-                    console.error('❌ Video still has no dimensions after waiting');
-                    throw new Error('Camera video feed not available');
+                // Try to trigger video events again
+                if (video.paused) {
+                    try {
+                        await video.play();
+                        console.log('📺 Video play retry succeeded');
+                    } catch (e) {
+                        console.log('📺 Video play retry failed:', e.message);
+                    }
                 }
             }
 
-            console.log('📺 Final video check - dimensions:', video.videoWidth, 'x', video.videoHeight);
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.error('❌ Video still has no dimensions after retries');
+                console.log('📺 Final video state:', {
+                    videoWidth: video.videoWidth,
+                    videoHeight: video.videoHeight,
+                    readyState: video.readyState,
+                    paused: video.paused,
+                    currentTime: video.currentTime,
+                    duration: video.duration
+                });
+                throw new Error('Camera video feed not displaying properly');
+            }
+
+            console.log('📺 Final video check - SUCCESS:', {
+                dimensions: `${video.videoWidth} x ${video.videoHeight}`,
+                readyState: video.readyState,
+                paused: video.paused,
+                currentTime: video.currentTime
+            });
 
             setShowCamera(true);
             console.log('✅ Camera setup completed successfully');
