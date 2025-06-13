@@ -43,7 +43,7 @@ export default function ReceiptScan() {
         );
     }
 
-    // Initialize camera with enhanced error handling
+    // Initialize camera with enhanced error handling and proper video setup
     const startCamera = async () => {
         try {
             console.log('🎥 Starting camera initialization...');
@@ -53,7 +53,13 @@ export default function ReceiptScan() {
                 throw new Error('Camera API not supported in this browser');
             }
 
-            console.log('🎥 Requesting camera permissions...');
+            // Check if video element exists
+            if (!videoRef.current) {
+                console.error('❌ Video element not found');
+                throw new Error('Video element not available');
+            }
+
+            console.log('🎥 Video element found, requesting camera permissions...');
 
             // Request camera access with fallback constraints
             let stream;
@@ -91,26 +97,43 @@ export default function ReceiptScan() {
                 }
             }
 
-            if (videoRef.current && stream) {
-                console.log('🎥 Setting video stream...');
-                videoRef.current.srcObject = stream;
-
-                // Wait for video to load
-                videoRef.current.onloadedmetadata = () => {
-                    console.log('✅ Video metadata loaded');
-                    console.log('📏 Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
-                };
-
-                videoRef.current.oncanplay = () => {
-                    console.log('✅ Video can play');
-                };
-
-                setCameraStream(stream);
-                setShowCamera(true);
-                console.log('✅ Camera successfully initialized');
-            } else {
-                throw new Error('Video element not available or stream is null');
+            if (!stream) {
+                throw new Error('Failed to get camera stream');
             }
+
+            console.log('🎥 Camera stream obtained, setting up video element...');
+
+            // Store stream first
+            setCameraStream(stream);
+
+            // Set up video element
+            const video = videoRef.current;
+            video.srcObject = stream;
+
+            // Wait for video to be ready before showing camera
+            const handleVideoReady = () => {
+                console.log('✅ Video ready, showing camera interface');
+                console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                setShowCamera(true);
+
+                // Remove event listeners
+                video.removeEventListener('loadedmetadata', handleVideoReady);
+                video.removeEventListener('canplay', handleVideoReady);
+            };
+
+            // Listen for video ready events
+            video.addEventListener('loadedmetadata', handleVideoReady);
+            video.addEventListener('canplay', handleVideoReady);
+
+            // Fallback timeout in case events don't fire
+            setTimeout(() => {
+                if (!showCamera && stream.active) {
+                    console.log('⏰ Timeout reached, showing camera anyway');
+                    setShowCamera(true);
+                }
+            }, 3000);
+
+            console.log('✅ Camera setup completed');
 
         } catch (error) {
             console.error('❌ Camera access error:', error);
@@ -541,6 +564,15 @@ export default function ReceiptScan() {
                                     onChange={handleFileUpload}
                                     className="hidden"
                                 />
+
+                                {/* Debug info for troubleshooting */}
+                                <div className="text-xs text-gray-400 text-center space-y-1">
+                                    <div>🔧 Debug Info:</div>
+                                    <div>Video ref: {videoRef.current ? '✅ Available' : '❌ Not available'}</div>
+                                    <div>Canvas ref: {canvasRef.current ? '✅ Available' : '❌ Not available'}</div>
+                                    <div>Camera stream: {cameraStream ? '✅ Active' : '❌ Inactive'}</div>
+                                    <div>Show camera: {showCamera ? '✅ True' : '❌ False'}</div>
+                                </div>
 
                                 {/* Tips */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
