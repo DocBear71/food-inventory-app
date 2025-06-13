@@ -370,16 +370,56 @@ export default function ReceiptScan() {
 
         try {
             const response = await fetch(`/api/upc/lookup?upc=${item.upc}`);
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    alert('❌ Invalid UPC format');
+                } else if (response.status === 404) {
+                    alert('❌ Product not found in Open Food Facts database');
+                } else if (response.status === 500) {
+                    alert('❌ UPC lookup service error. Please try again later.');
+                } else {
+                    alert(`❌ UPC lookup failed with status: ${response.status}`);
+                }
+                return;
+            }
+
             const data = await response.json();
 
-            if (data.success && data.product.found) {
-                updateItem(item.id, 'name', data.product.name);
-                updateItem(item.id, 'category', data.product.category);
-                updateItem(item.id, 'brand', data.product.brand);
+            if (data.success && data.product && data.product.found) {
+                // Update item with product information
+                if (data.product.name && data.product.name !== 'Unknown Product') {
+                    updateItem(item.id, 'name', data.product.name);
+                }
+
+                if (data.product.category && data.product.category !== 'Other') {
+                    updateItem(item.id, 'category', data.product.category);
+                }
+
+                if (data.product.brand) {
+                    updateItem(item.id, 'brand', data.product.brand);
+                }
+
                 updateItem(item.id, 'needsReview', false);
+
+                // Show success message with product details
+                let successMessage = `✅ Product found: ${data.product.name}`;
+                if (data.product.brand) {
+                    successMessage += ` (${data.product.brand})`;
+                }
+                if (data.product.category && data.product.category !== 'Other') {
+                    successMessage += `\nCategory: ${data.product.category}`;
+                }
+
+                alert(successMessage);
+            } else if (data.found === false) {
+                alert('❌ Product not found in Open Food Facts database');
+            } else {
+                alert('❌ Unable to retrieve product information');
             }
         } catch (error) {
             console.error('UPC lookup error:', error);
+            alert('❌ Network error during UPC lookup. Please check your connection and try again.');
         }
     }
 
@@ -759,12 +799,12 @@ export default function ReceiptScan() {
                                                         </div>
                                                     </div>
 
-                                                    {/* UPC Lookup Button */}
+                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */}
                                                     {item.upc && (
                                                         <TouchEnhancedButton
                                                             onClick={() => lookupByUPC(item)}
                                                             className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                                            title="Lookup product details by UPC"
+                                                            title={`Lookup product details for UPC: ${item.upc}`}
                                                         >
                                                             🔍 Lookup
                                                         </TouchEnhancedButton>
