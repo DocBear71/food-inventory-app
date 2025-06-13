@@ -290,7 +290,65 @@ export default function ReceiptScan() {
             }
         }
 
-        return items;
+        // Combine duplicate items based on UPC code
+        return combineDuplicateItems(items);
+    }
+
+    // Combine items with the same UPC code
+    function combineDuplicateItems(items) {
+        const upcGroups = {};
+        const nonUpcItems = [];
+
+        // Group items by UPC code
+        items.forEach(item => {
+            if (item.upc && item.upc.length >= 11) {
+                // Clean UPC for consistent matching
+                const cleanUPC = item.upc.replace(/\D/g, '');
+
+                if (!upcGroups[cleanUPC]) {
+                    upcGroups[cleanUPC] = [];
+                }
+                upcGroups[cleanUPC].push(item);
+            } else {
+                // Items without UPC codes are kept separate
+                nonUpcItems.push(item);
+            }
+        });
+
+        const combinedItems = [];
+
+        // Process UPC groups
+        Object.values(upcGroups).forEach(group => {
+            if (group.length === 1) {
+                // Single item, no combining needed
+                combinedItems.push(group[0]);
+            } else {
+                // Multiple items with same UPC - combine them
+                const firstItem = group[0];
+                const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
+                const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
+                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+
+                // Create combined item
+                const combinedItem = {
+                    ...firstItem,
+                    quantity: totalQuantity,
+                    price: totalPrice,
+                    unitPrice: unitPrice,
+                    rawText: `${group.length} identical items combined: ${firstItem.rawText}`,
+                    id: Date.now() + Math.random() // New ID for combined item
+                };
+
+                combinedItems.push(combinedItem);
+
+                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name} (Total qty: ${totalQuantity})`);
+            }
+        });
+
+        // Add non-UPC items as-is
+        combinedItems.push(...nonUpcItems);
+
+        return combinedItems;
     }
 
     // Clean up item names
