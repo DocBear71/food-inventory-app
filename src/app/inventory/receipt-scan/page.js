@@ -420,6 +420,7 @@ export default function ReceiptScan() {
 
             // Bottle deposit lines - these are fees, not inventory items
             /btl\s+dep/i,        // "BTL DEP"
+            /btl\.\s+dep/i,        // "BTL.DEP"
             /bottle\s+deposit/i,  // "BOTTLE DEPOSIT"
             /deposit/i,           // Generic deposit
             /^\.?\d+\s*fs?\s*btl\s*dep/i, // ".30 FS BTL DEP"
