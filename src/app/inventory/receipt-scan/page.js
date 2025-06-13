@@ -262,7 +262,22 @@ export default function ReceiptScan() {
             /^#?\s*items?\s+sold/i,
             /^\d+\s+items?\s+sold/i,
             // Barcode numbers (standalone)
-            /^[\d\s]{15,}$/
+            /^[\d\s]{15,}$/,
+            // Hy-Vee specific patterns
+            /^(sub-total|net amount|total)$/i,
+            /^(sub total|net amount|amount)$/i,
+            // Weight and measurement lines (like "5.74 x $2.99")
+            /^\d+\.?\d*\s*x\s*\$?\d+\.?\d*$/i,
+            // Discount/savings lines (negative amounts or percentage discounts)
+            /^\d+%?\s*(off|discount|save)/i,
+            /^\(\$\d+\.\d{2}\)$/,  // Negative amounts in parentheses
+            /^-\$?\d+\.\d{2}$/,    // Negative amounts with minus sign
+            // Product codes that aren't actual items (long number sequences)
+            /^\d{10,}$/,
+            // Weight only lines (like "5.7x", "6x", etc.)
+            /^\d+\.?\d*x?$/i,
+            // Lines that are just numbers and measurement units
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i
         ];
 
         for (let i = 0; i < lines.length; i++) {
@@ -273,13 +288,39 @@ export default function ReceiptScan() {
                 continue;
             }
 
+            // Additional checks for problematic lines that might have prices
+            // Skip discount lines (negative amounts or percentage-based)
+            if (line.match(/^\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                continue; // Lines like "13708E5 Cheez It Pizza 0%: ($1.00)"
+            }
+
+            // Skip measurement calculation lines
+            if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
+                continue; // Lines like "5.74 x $2.99"
+            }
+
+            // Skip lines that are just weights/measurements
+            if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
+                continue; // Lines like "56x", "5.7x"
+            }
+
             // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
                 const price = parseFloat(priceMatch[1]);
 
+                // Skip very high prices that are likely totals (over $100)
+                if (price > 100) {
+                    continue;
+                }
+
                 // Extract item name (everything before the price)
-                const nameMatch = line.replace(pricePattern, '').trim();
+                let nameMatch = line.replace(pricePattern, '').trim();
+
+                // Clean up the name - remove product codes and discount info
+                nameMatch = nameMatch.replace(/^\d{10,}/, '').trim(); // Remove long product codes
+                nameMatch = nameMatch.replace(/\d+%:?/, '').trim(); // Remove percentage info
+                nameMatch = nameMatch.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
 
                 // Check for UPC in current or nearby lines
                 const upcMatch = line.match(upcPattern) ||
@@ -289,7 +330,8 @@ export default function ReceiptScan() {
                 // Check for quantity pattern
                 const qtyMatch = line.match(quantityPattern);
 
-                if (nameMatch && nameMatch.length > 2) {
+                // Only process if we have a meaningful item name (more than 2 characters, not just numbers)
+                if (nameMatch && nameMatch.length > 2 && !nameMatch.match(/^\d+\.?\d*$/)) {
                     const item = {
                         id: Date.now() + Math.random(),
                         name: cleanItemName(nameMatch),
