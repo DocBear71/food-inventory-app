@@ -591,26 +591,24 @@ export default function ReceiptScan() {
                         {showCamera && (
                             <div className="space-y-4">
                                 <div className="relative bg-black rounded-lg overflow-hidden">
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        playsInline
-                                        muted
-                                        className="w-full h-64 md:h-96 object-cover"
-                                        onLoadedMetadata={() => {
-                                            console.log('📱 Video loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-                                        }}
-                                        onError={(e) => {
-                                            console.error('Video error:', e);
-                                            alert('Video playback error. Please try again or use file upload.');
-                                            stopCamera();
-                                        }}
-                                    />
-                                    <div className="absolute inset-0 border-2 border-white border-dashed opacity-50 m-4 rounded-lg"></div>
+                                    {/* Use the hidden video element but make it visible here */}
+                                    <div className="w-full h-64 md:h-96 bg-black flex items-center justify-center relative">
+                                        {videoRef.current && (
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                                className="w-full h-full object-cover"
+                                                style={{ display: 'block' }}
+                                            />
+                                        )}
+                                        <div className="absolute inset-0 border-2 border-white border-dashed opacity-50 m-4 rounded-lg pointer-events-none"></div>
 
-                                    {/* Camera status indicator */}
-                                    <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                        {cameraStream ? '🟢 Camera Active' : '🔴 Camera Inactive'}
+                                        {/* Camera status indicator */}
+                                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            {cameraStream ? '🟢 Camera Active' : '🔴 Camera Inactive'}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -848,8 +846,25 @@ export default function ReceiptScan() {
                     </div>
                 </div>
 
-                {/* Hidden canvas for photo capture */}
+                {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden" />
+
+                {/* Hidden video element - Always rendered but initially hidden */}
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="hidden"
+                    onLoadedMetadata={() => {
+                        console.log('📱 Video loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+                    }}
+                    onError={(e) => {
+                        console.error('Video error:', e);
+                        alert('Video playback error. Please try again or use file upload.');
+                        stopCamera();
+                    }}
+                />
 
                 <Footer />
             </div>
