@@ -1,8 +1,8 @@
-// file: /src/components/inventory/UPCLookup.js - v5
+// file: /src/components/inventory/UPCLookup.js - v6 Enhanced with text search functionality
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
@@ -62,11 +62,23 @@ function standardizeNutritionData(nutrition) {
 }
 
 export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = '' }) {
+    const [activeTab, setActiveTab] = useState('upc'); // 'upc' or 'search'
     const [isLooking, setIsLooking] = useState(false);
     const [lookupResult, setLookupResult] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
     const [cameraAvailable, setCameraAvailable] = useState(true);
     const [showNutrition, setShowNutrition] = useState(false);
+
+    // Text search specific state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchPage, setSearchPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [isSearching, setIsSearching] = useState(false);
+    const [autocompleteResults, setAutocompleteResults] = useState([]);
+    const [showAutocomplete, setShowAutocomplete] = useState(false);
+    const searchTimeoutRef = useRef(null);
+    const autocompleteTimeoutRef = useRef(null);
 
     // Check if camera is available
     const checkCameraAvailability = () => {
@@ -125,6 +137,170 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
+    // NEW: Text search functionality
+    const performTextSearch = async (query, page = 1) => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            setTotalPages(0);
+            return;
+        }
+
+        setIsSearching(true);
+        console.log(`Searching Open Food Facts for: "${query}" (page ${page})`);
+
+        try {
+            // Use Open Food Facts V1 search API for full text search
+            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&page=${page}`;
+
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'DocBearsComfortKitchen/1.0 (food-inventory@docbear.com)',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Search API returned ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`Search returned ${data.count} total results, showing page ${page}`);
+
+            // Transform results to match our format
+            const transformedResults = data.products?.map(product => ({
+                found: true,
+                upc: product.code || '',
+                name: product.product_name || product.product_name_en || 'Unknown Product',
+                brand: product.brands || product.brand_owner || '',
+                category: product.categories_tags?.[0]?.replace('en:', '') || 'Other',
+                image: product.image_front_url || product.image_front_small_url || product.image_url || '',
+                nutrition: standardizeNutritionData({
+                    energy_100g: product.nutriments?.['energy-kcal_100g'] || product.nutriments?.energy_100g,
+                    fat_100g: product.nutriments?.fat_100g,
+                    carbohydrates_100g: product.nutriments?.carbohydrates_100g,
+                    proteins_100g: product.nutriments?.proteins_100g,
+                    salt_100g: product.nutriments?.salt_100g,
+                    sugars_100g: product.nutriments?.sugars_100g,
+                    fiber_100g: product.nutriments?.fiber_100g,
+                }),
+                scores: {
+                    nutriscore: product.nutriscore_grade || product.nutrition_grade_fr || null,
+                    nova_group: product.nova_group || null,
+                },
+                openFoodFactsUrl: `https://world.openfoodfacts.org/product/${product.code}`,
+            })) || [];
+
+            // Prioritize results with images
+            const resultsWithImages = transformedResults.filter(r => r.image);
+            const resultsWithoutImages = transformedResults.filter(r => !r.image);
+            const prioritizedResults = [...resultsWithImages, ...resultsWithoutImages];
+
+            setSearchResults(prioritizedResults);
+            setTotalPages(Math.ceil(data.count / 15));
+
+        } catch (error) {
+            console.error('Text search error:', error);
+            setSearchResults([]);
+            setTotalPages(0);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // NEW: Autocomplete functionality
+    const performAutocomplete = async (query) => {
+        if (!query.trim() || query.length < 2) {
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+            return;
+        }
+
+        try {
+            // Use a lighter search for autocomplete
+            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5`;
+
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'DocBearsComfortKitchen/1.0 (food-inventory@docbear.com)',
+                },
+            });
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const suggestions = data.products?.slice(0, 5).map(product => ({
+                name: product.product_name || product.product_name_en || 'Unknown Product',
+                brand: product.brands || '',
+                image: product.image_front_small_url || product.image_front_url || '',
+            })) || [];
+
+            setAutocompleteResults(suggestions);
+            setShowAutocomplete(suggestions.length > 0);
+
+        } catch (error) {
+            console.log('Autocomplete error:', error);
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+        }
+    };
+
+    // NEW: Handle search input changes
+    const handleSearchInputChange = (e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        // Clear existing timeouts
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+        if (autocompleteTimeoutRef.current) {
+            clearTimeout(autocompleteTimeoutRef.current);
+        }
+
+        // Debounced autocomplete
+        if (query.length >= 2) {
+            autocompleteTimeoutRef.current = setTimeout(() => {
+                performAutocomplete(query);
+            }, 300);
+        } else {
+            setShowAutocomplete(false);
+            setAutocompleteResults([]);
+        }
+
+        // Debounced search
+        if (query.trim()) {
+            searchTimeoutRef.current = setTimeout(() => {
+                setSearchPage(1);
+                performTextSearch(query, 1);
+            }, 800);
+        } else {
+            setSearchResults([]);
+            setTotalPages(0);
+        }
+    };
+
+    // NEW: Handle autocomplete selection
+    const handleAutocompleteSelect = (suggestion) => {
+        setSearchQuery(suggestion.name);
+        setShowAutocomplete(false);
+        setSearchPage(1);
+        performTextSearch(suggestion.name, 1);
+    };
+
+    // NEW: Handle search result selection
+    const handleSearchResultSelect = (product) => {
+        setLookupResult({ success: true, product });
+        onProductFound(product);
+        // Clear search results to show the selected product
+        setSearchResults([]);
+        setSearchQuery('');
+    };
+
+    // NEW: Handle pagination
+    const handlePageChange = (newPage) => {
+        setSearchPage(newPage);
+        performTextSearch(searchQuery, newPage);
+    };
+
     const handleUPCInput = (e) => {
         const upc = e.target.value;
         onUPCChange(upc);
@@ -154,11 +330,10 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(false);
     };
 
-    // 🔧 FIXED: Prevent form submission when toggling nutrition display
+    // Handle nutrition display toggle
     const handleToggleNutrition = (e) => {
-        e.preventDefault(); // Prevent form submission
-        e.stopPropagation(); // Stop event bubbling
-        console.log('Toggling nutrition display:', !showNutrition);
+        e.preventDefault();
+        e.stopPropagation();
         setShowNutrition(!showNutrition);
     };
 
@@ -168,51 +343,256 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
     return (
         <div className="space-y-4">
-            {/* UPC Input Section */}
-            <div>
-                <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                    UPC/Barcode
-                </label>
-                <div className="flex space-x-2">
-                    <input
-                        type="text"
-                        id="upc"
-                        name="upc"
-                        value={currentUPC}
-                        onChange={handleUPCInput}
-                        placeholder="Enter or scan UPC code"
-                        className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
                     <TouchEnhancedButton
                         type="button"
-                        onClick={handleScannerClick}
-                        disabled={isLooking}
-                        className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
-                            cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
+                        onClick={() => {
+                            setActiveTab('upc');
+                            setLookupResult(null);
+                            setSearchResults([]);
+                            setSearchQuery('');
+                        }}
+                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                            activeTab === 'upc'
+                                ? 'border-indigo-500 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
-                        title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
                     >
-                        📷 {cameraAvailable ? 'Scan' : 'No Camera'}
+                        📷 UPC/Barcode
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         type="button"
-                        onClick={handleManualLookup}
-                        disabled={!currentUPC || isLooking}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
+                        onClick={() => {
+                            setActiveTab('search');
+                            setLookupResult(null);
+                            onUPCChange('');
+                        }}
+                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                            activeTab === 'search'
+                                ? 'border-indigo-500 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
                     >
-                        {isLooking ? '🔍' : '🔍'} Lookup
+                        🔍 Search by Name
                     </TouchEnhancedButton>
-                </div>
+                </nav>
             </div>
 
-            {/* Scanner Section */}
-            <BarcodeScanner
-                isActive={showScanner}
-                onBarcodeDetected={handleBarcodeDetected}
-                onClose={handleScannerClose}
-            />
+            {/* UPC Tab Content */}
+            {activeTab === 'upc' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
+                            UPC/Barcode
+                        </label>
+                        <div className="flex space-x-2">
+                            <input
+                                type="text"
+                                id="upc"
+                                name="upc"
+                                value={currentUPC}
+                                onChange={handleUPCInput}
+                                placeholder="Enter or scan UPC code"
+                                className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleScannerClick}
+                                disabled={isLooking}
+                                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
+                                    cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
+                                }`}
+                                title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
+                            >
+                                📷 {cameraAvailable ? 'Scan' : 'No Camera'}
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleManualLookup}
+                                disabled={!currentUPC || isLooking}
+                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
+                            >
+                                {isLooking ? '🔍' : '🔍'} Lookup
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
 
-            {/* Loading State */}
+                    {/* Scanner Component */}
+                    <BarcodeScanner
+                        isActive={showScanner}
+                        onBarcodeDetected={handleBarcodeDetected}
+                        onClose={handleScannerClose}
+                    />
+                </div>
+            )}
+
+            {/* Text Search Tab Content */}
+            {activeTab === 'search' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                            Search by Product Name
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="search"
+                                value={searchQuery}
+                                onChange={handleSearchInputChange}
+                                placeholder="Type product name (e.g., 'Cheerios', 'Campbell's Soup')"
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+
+                            {/* Autocomplete dropdown */}
+                            {showAutocomplete && autocompleteResults.length > 0 && (
+                                <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                    {autocompleteResults.map((suggestion, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            type="button"
+                                            onClick={() => handleAutocompleteSelect(suggestion)}
+                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2"
+                                        >
+                                            {suggestion.image && (
+                                                <img
+                                                    src={suggestion.image}
+                                                    alt=""
+                                                    className="w-8 h-8 object-cover rounded flex-shrink-0"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {suggestion.name}
+                                                </div>
+                                                {suggestion.brand && (
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {suggestion.brand}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Help text */}
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            <div>💡 <strong>Search Tips:</strong></div>
+                            <div>• Try brand + product name (e.g., "Campbell's Tomato Soup")</div>
+                            <div>• Use specific terms (e.g., "Honey Nut Cheerios" vs "cereal")</div>
+                            <div>• Results prioritize products with images for easy identification</div>
+                        </div>
+                    </div>
+
+                    {/* Search loading */}
+                    {isSearching && (
+                        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-blue-700">Searching products...</span>
+                        </div>
+                    )}
+
+                    {/* Search Results */}
+                    {searchResults.length > 0 && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-lg font-medium text-gray-900">
+                                    Search Results ({searchResults.length} found)
+                                </h4>
+                                {totalPages > 1 && (
+                                    <div className="text-sm text-gray-500">
+                                        Page {searchPage} of {totalPages}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {searchResults.map((product, index) => (
+                                    <TouchEnhancedButton
+                                        key={index}
+                                        type="button"
+                                        onClick={() => handleSearchResultSelect(product)}
+                                        className="text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-md transition-all"
+                                    >
+                                        <div className="flex items-start space-x-3">
+                                            {product.image ? (
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-gray-400 text-xs">No Image</span>
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">
+                                                    {product.name}
+                                                </h5>
+                                                {product.brand && (
+                                                    <p className="text-xs text-gray-600 mb-1">{product.brand}</p>
+                                                )}
+                                                <p className="text-xs text-gray-500">{product.category}</p>
+                                                {product.scores?.nutriscore && (
+                                                    <div className="mt-1">
+                                                        <span className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
+                                                              style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}>
+                                                            {product.scores.nutriscore.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center space-x-2 mt-4">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage - 1)}
+                                        disabled={searchPage <= 1}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Previous
+                                    </TouchEnhancedButton>
+
+                                    <span className="text-sm text-gray-600">
+                                        Page {searchPage} of {totalPages}
+                                    </span>
+
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage + 1)}
+                                        disabled={searchPage >= totalPages}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Next
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* No results message */}
+                    {searchQuery && !isSearching && searchResults.length === 0 && (
+                        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="text-yellow-600 font-medium">No products found for "{searchQuery}"</div>
+                            <div className="text-sm text-yellow-600 mt-1">
+                                Try different search terms or check spelling
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Loading State for UPC */}
             {isLooking && (
                 <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -220,7 +600,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 </div>
             )}
 
-            {/* Lookup Results */}
+            {/* Lookup Results (shared between UPC and search) */}
             {lookupResult && (
                 <div className={`p-4 rounded-lg ${
                     lookupResult.success ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
@@ -228,7 +608,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                     {lookupResult.success ? (
                         <div>
                             <div className="flex items-center mb-3">
-                                <span className="text-green-600 font-medium">✅ Product Found in Open Food Facts!</span>
+                                <span className="text-green-600 font-medium">✅ Product Found!</span>
                                 {hasNutrition && (
                                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                         🥗 Nutrition Available
@@ -282,7 +662,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 <div className="mt-4 pt-4 border-t border-green-200">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-green-800 font-medium">🥗 Nutrition Information</span>
-                                        {/* 🔧 FIXED: Added proper event handling */}
                                         <TouchEnhancedButton
                                             type="button"
                                             onClick={handleToggleNutrition}
@@ -389,7 +768,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 <span className="text-yellow-600 font-medium">⚠️ {lookupResult.message}</span>
                             </div>
                             <div className="text-sm text-gray-600">
-                                You can still add this item manually by filling out the form below, or try a different UPC code.
+                                You can still add this item manually by filling out the form below, or try a different search.
                             </div>
                         </div>
                     )}
@@ -399,9 +778,19 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             {/* Usage Tips - Enhanced */}
             <div className="text-xs text-gray-500 space-y-1">
                 <div>💡 <strong>Tips:</strong></div>
-                <div>• UPC codes are usually 12-14 digits long</div>
-                <div>• Camera scanning works best in good lighting</div>
-                <div>• Hold your device steady when scanning</div>
+                {activeTab === 'upc' ? (
+                    <>
+                        <div>• UPC codes are usually 12-14 digits long</div>
+                        <div>• Camera scanning works best in good lighting</div>
+                        <div>• Hold your device steady when scanning</div>
+                    </>
+                ) : (
+                    <>
+                        <div>• Try specific product names for better results</div>
+                        <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
+                        <div>• Results with images appear first for easier identification</div>
+                    </>
+                )}
                 <div>• Data comes from Open Food Facts community database</div>
                 <div>• Nutrition information included when available</div>
                 <div>• If not found, you can still add the item manually</div>
