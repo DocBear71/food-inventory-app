@@ -1,4 +1,4 @@
-// file: /src/app/inventory/receipt-scan/page.js - v2 Receipt scanning with OCR - Fixed React hooks issues
+// file: /src/app/inventory/receipt-scan/page.js - v3 Receipt scanning with OCR - Simplified camera approach
 
 'use client';
 
@@ -15,6 +15,7 @@ export default function ReceiptScan() {
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+    const streamRef = useRef(null);
 
     // State management - ALL HOOKS FIRST
     const [isProcessing, setIsProcessing] = useState(false);
@@ -22,21 +23,17 @@ export default function ReceiptScan() {
     const [capturedImage, setCapturedImage] = useState(null);
     const [extractedItems, setExtractedItems] = useState([]);
     const [showCamera, setShowCamera] = useState(false);
-    const [cameraStream, setCameraStream] = useState(null);
     const [step, setStep] = useState('upload'); // 'upload', 'processing', 'review', 'adding'
     const [processingStatus, setProcessingStatus] = useState('');
-    const [cameraInitializing, setCameraInitializing] = useState(false);
+    const [cameraError, setCameraError] = useState(null);
 
-    // Cleanup camera stream on component unmount
+    // Cleanup effect
     useEffect(() => {
         return () => {
-            setCameraStream(currentStream => {
-                if (currentStream) {
-                    console.log('🧹 Cleaning up camera stream on unmount');
-                    currentStream.getTracks().forEach(track => track.stop());
-                }
-                return null;
-            });
+            if (streamRef.current) {
+                console.log('🧹 Cleaning up camera stream on unmount');
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
         };
     }, []);
 
@@ -56,306 +53,88 @@ export default function ReceiptScan() {
         );
     }
 
-    // Stop camera and clean up properly
+    // Simple camera start function
+    async function startCamera() {
+        console.log('🎥 Starting simple camera...');
+        setCameraError(null);
+
+        try {
+            // Stop any existing stream
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+
+            // Get user media
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+
+            console.log('✅ Got camera stream:', stream);
+            streamRef.current = stream;
+
+            // Wait for video element
+            if (!videoRef.current) {
+                console.error('❌ No video element');
+                return;
+            }
+
+            // Set video source
+            videoRef.current.srcObject = stream;
+
+            // Wait for video to load
+            await new Promise((resolve, reject) => {
+                const video = videoRef.current;
+
+                const onLoadedMetadata = () => {
+                    console.log('📺 Video loaded:', video.videoWidth, 'x', video.videoHeight);
+                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                    resolve();
+                };
+
+                const onError = (e) => {
+                    console.error('❌ Video error:', e);
+                    video.removeEventListener('error', onError);
+                    reject(e);
+                };
+
+                video.addEventListener('loadedmetadata', onLoadedMetadata);
+                video.addEventListener('error', onError);
+
+                // Force play
+                video.play().catch(console.log);
+            });
+
+            setShowCamera(true);
+            console.log('✅ Camera started successfully');
+
+        } catch (error) {
+            console.error('❌ Camera error:', error);
+            setCameraError('Failed to start camera: ' + error.message);
+        }
+    }
+
+    // Simple camera stop function
     function stopCamera() {
         console.log('🛑 Stopping camera...');
 
-        setCameraStream(currentStream => {
-            if (currentStream) {
-                console.log('🧹 Stopping camera tracks');
-                currentStream.getTracks().forEach(track => {
-                    console.log('🔇 Stopping track:', track.kind);
-                    track.stop();
-                });
-            }
-            return null;
-        });
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
 
         if (videoRef.current) {
-            console.log('📹 Clearing video src');
             videoRef.current.srcObject = null;
         }
 
         setShowCamera(false);
-        setCameraInitializing(false);
-        console.log('✅ Camera stopped and cleaned up');
+        setCameraError(null);
     }
 
-    // Initialize camera with enhanced error handling and proper video setup
-    async function startCamera() {
-        // Prevent multiple simultaneous camera initializations
-        if (cameraInitializing) {
-            console.log('⚠️ Camera already initializing, ignoring request');
-            return;
-        }
-
-        try {
-            console.log('🎥 Starting camera initialization...');
-            setCameraInitializing(true);
-
-            // Stop any existing camera first
-            if (cameraStream) {
-                console.log('🛑 Stopping existing camera first');
-                stopCamera();
-                // Wait a bit for cleanup
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-
-            // Check if browser supports camera
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera API not supported in this browser');
-            }
-
-            // Check if video element exists
-            if (!videoRef.current) {
-                console.error('❌ Video element not found');
-                throw new Error('Video element not available');
-            }
-
-            console.log('🎥 Video element found, requesting camera permissions...');
-
-            // Request camera access with fallback constraints - using working pattern from UPC scanner
-            let stream;
-
-            try {
-                // Try with environment camera first (back camera on mobile)
-                console.log('📱 Attempting environment camera...');
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1920, max: 1920 },
-                        height: { ideal: 1080, max: 1080 }
-                    }
-                });
-                console.log('✅ Environment camera access granted');
-            } catch (envError) {
-                console.log('⚠️ Environment camera failed, trying any camera:', envError.message);
-
-                try {
-                    // Fallback to any available camera
-                    console.log('📱 Attempting any available camera...');
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            width: { ideal: 1280, max: 1920 },
-                            height: { ideal: 720, max: 1080 }
-                        }
-                    });
-                    console.log('✅ Any camera access granted');
-                } catch (anyError) {
-                    console.log('⚠️ Any camera failed, trying basic constraints:', anyError.message);
-
-                    // Last resort - basic video constraint
-                    console.log('📱 Attempting basic video constraint...');
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: true
-                    });
-                    console.log('✅ Basic camera access granted');
-                }
-            }
-
-            if (!stream) {
-                throw new Error('Failed to get camera stream');
-            }
-
-            console.log('🎥 Camera stream obtained:', {
-                id: stream.id,
-                active: stream.active,
-                tracks: stream.getTracks().length
-            });
-
-            // Log track details
-            stream.getTracks().forEach((track, index) => {
-                console.log(`📹 Track ${index}:`, {
-                    kind: track.kind,
-                    label: track.label,
-                    enabled: track.enabled,
-                    muted: track.muted,
-                    readyState: track.readyState
-                });
-            });
-
-            // Store stream first
-            setCameraStream(stream);
-
-            // Set up video element with enhanced error handling
-            const video = videoRef.current;
-
-            // Clear any existing source first
-            if (video.srcObject) {
-                console.log('🧹 Clearing existing video source');
-                video.srcObject = null;
-            }
-
-            console.log('📺 Setting video srcObject...');
-            video.srcObject = stream;
-
-            // Enhanced video setup promise with better error handling
-            const videoReadyPromise = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    console.error('❌ Video setup timeout after 15 seconds');
-                    reject(new Error('Video setup timeout'));
-                }, 15000); // Increased timeout
-
-                let resolved = false;
-
-                const handleVideoReady = () => {
-                    if (resolved) return;
-                    resolved = true;
-
-                    console.log('✅ Video ready event fired');
-                    console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-                    console.log('📺 Video ready state:', video.readyState);
-                    console.log('📺 Video paused:', video.paused);
-                    console.log('📺 Video muted:', video.muted);
-                    console.log('📺 Video current time:', video.currentTime);
-
-                    clearTimeout(timeout);
-                    video.removeEventListener('loadedmetadata', handleVideoReady);
-                    video.removeEventListener('canplay', handleVideoReady);
-                    video.removeEventListener('loadeddata', handleVideoReady);
-
-                    resolve();
-                };
-
-                const handleVideoError = (error) => {
-                    if (resolved) return;
-                    resolved = true;
-
-                    console.error('❌ Video error event:', error);
-                    clearTimeout(timeout);
-                    video.removeEventListener('loadedmetadata', handleVideoReady);
-                    video.removeEventListener('canplay', handleVideoReady);
-                    video.removeEventListener('loadeddata', handleVideoReady);
-                    video.removeEventListener('error', handleVideoError);
-
-                    reject(new Error('Video element error: ' + (error.message || 'Unknown video error')));
-                };
-
-                // Listen for multiple video ready events
-                video.addEventListener('loadedmetadata', handleVideoReady);
-                video.addEventListener('canplay', handleVideoReady);
-                video.addEventListener('loadeddata', handleVideoReady);
-                video.addEventListener('error', handleVideoError);
-
-                // Force video attributes
-                video.autoplay = true;
-                video.playsInline = true;
-                video.muted = true;
-
-                console.log('📺 Starting video play...');
-                // Force video to play with better error handling
-                video.play()
-                    .then(() => {
-                        console.log('✅ Video.play() succeeded');
-                        // Sometimes play succeeds but we still need to wait for video dimensions
-                        if (video.videoWidth > 0 && video.videoHeight > 0) {
-                            console.log('📺 Video has dimensions immediately after play');
-                            if (!resolved) {
-                                handleVideoReady();
-                            }
-                        }
-                    })
-                    .catch(e => {
-                        console.log('⚠️ Video.play() failed:', e.message);
-                        // Don't reject here - autoplay issues are common but don't prevent camera from working
-                        // The video might still work once user interacts
-                    });
-
-                // Fallback check after a delay
-                setTimeout(() => {
-                    if (!resolved && video.readyState >= 2) {
-                        console.log('⏰ Fallback: Video seems ready based on readyState');
-                        handleVideoReady();
-                    }
-                }, 3000);
-            });
-
-            // Wait for video to be ready
-            console.log('⏳ Waiting for video to be ready...');
-            await videoReadyPromise;
-
-            // Enhanced video dimension check with retry logic
-            let retryCount = 0;
-            while ((video.videoWidth === 0 || video.videoHeight === 0) && retryCount < 5) {
-                retryCount++;
-                console.warn(`⚠️ Video has no dimensions (attempt ${retryCount}/5), waiting...`);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Try to trigger video events again
-                if (video.paused) {
-                    try {
-                        await video.play();
-                        console.log('📺 Video play retry succeeded');
-                    } catch (e) {
-                        console.log('📺 Video play retry failed:', e.message);
-                    }
-                }
-            }
-
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                console.error('❌ Video still has no dimensions after retries');
-                console.log('📺 Final video state:', {
-                    videoWidth: video.videoWidth,
-                    videoHeight: video.videoHeight,
-                    readyState: video.readyState,
-                    paused: video.paused,
-                    currentTime: video.currentTime,
-                    duration: video.duration
-                });
-                throw new Error('Camera video feed not displaying properly');
-            }
-
-            console.log('📺 Final video check - SUCCESS:', {
-                dimensions: `${video.videoWidth} x ${video.videoHeight}`,
-                readyState: video.readyState,
-                paused: video.paused,
-                currentTime: video.currentTime
-            });
-
-            setShowCamera(true);
-            console.log('✅ Camera setup completed successfully');
-
-        } catch (error) {
-            console.error('❌ Camera access error:', error);
-
-            let errorMessage = 'Unable to access camera. ';
-
-            if (error.name === 'NotAllowedError') {
-                errorMessage += 'Camera permission was denied. Please allow camera access in your browser settings and try again.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage += 'No camera was found on this device.';
-            } else if (error.name === 'NotSupportedError') {
-                errorMessage += 'Camera is not supported by this browser.';
-            } else if (error.name === 'NotReadableError') {
-                errorMessage += 'Camera is already being used by another application.';
-            } else if (error.name === 'OverconstrainedError') {
-                errorMessage += 'Camera constraints could not be satisfied.';
-            } else {
-                errorMessage += error.message || 'Unknown camera error occurred.';
-            }
-
-            alert(errorMessage + '\n\nPlease use the file upload option instead.');
-
-            // Clean up on error
-            stopCamera();
-        } finally {
-            setCameraInitializing(false);
-        }
-    }
-
-    // Capture photo from camera with enhanced error handling
+    // Capture photo function
     function capturePhoto() {
-        console.log('📸 Attempting to capture photo...');
-
-        if (!videoRef.current || !canvasRef.current) {
-            console.error('❌ Video or canvas ref not available');
-            alert('Camera capture failed. Video or canvas not ready.');
-            return;
-        }
-
-        if (!cameraStream) {
-            console.error('❌ No camera stream available');
-            alert('No camera stream available. Please restart the camera.');
+        if (!videoRef.current || !canvasRef.current || !streamRef.current) {
+            alert('Camera not ready');
             return;
         }
 
@@ -363,41 +142,22 @@ export default function ReceiptScan() {
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
 
-        // Check if video is ready
-        if (video.videoWidth === 0 || video.videoHeight === 0) {
-            console.error('❌ Video not ready for capture');
-            alert('Camera is not ready yet. Please wait a moment and try again.');
-            return;
-        }
+        // Set canvas size to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
-        console.log('📏 Capturing from video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        // Draw video frame to canvas
+        context.drawImage(video, 0, 0);
 
-        try {
-            // Set canvas size to match video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // Draw video frame to canvas
-            context.drawImage(video, 0, 0);
-
-            // Convert to blob
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    console.log('✅ Photo captured successfully, blob size:', blob.size);
-                    const imageUrl = URL.createObjectURL(blob);
-                    setCapturedImage(imageUrl);
-                    stopCamera();
-                    processImage(blob);
-                } else {
-                    console.error('❌ Failed to create blob from canvas');
-                    alert('Failed to capture photo. Please try again.');
-                }
-            }, 'image/jpeg', 0.9); // Higher quality
-
-        } catch (error) {
-            console.error('❌ Error during photo capture:', error);
-            alert('Error capturing photo: ' + error.message);
-        }
+        // Convert to blob and process
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const imageUrl = URL.createObjectURL(blob);
+                setCapturedImage(imageUrl);
+                stopCamera();
+                processImage(blob);
+            }
+        }, 'image/jpeg', 0.9);
     }
 
     // Handle file upload
@@ -662,7 +422,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // Reset to start over - FIXED with proper cleanup
+    // Reset to start over
     function resetScan() {
         console.log('🔄 Resetting scan state...');
 
@@ -672,7 +432,6 @@ export default function ReceiptScan() {
         // Reset all state
         setStep('upload');
         setCapturedImage(prevImage => {
-            // Clean up any object URLs
             if (prevImage) {
                 URL.revokeObjectURL(prevImage);
             }
@@ -682,7 +441,7 @@ export default function ReceiptScan() {
         setIsProcessing(false);
         setOcrProgress(0);
         setProcessingStatus('');
-        setCameraInitializing(false);
+        setCameraError(null);
 
         // Clear file input
         if (fileInputRef.current) {
@@ -731,15 +490,10 @@ export default function ReceiptScan() {
                                     {/* Camera Option */}
                                     <TouchEnhancedButton
                                         onClick={startCamera}
-                                        disabled={cameraInitializing}
-                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
                                     >
-                                        <div className="text-4xl mb-2">
-                                            {cameraInitializing ? '⏳' : '📷'}
-                                        </div>
-                                        <div className="text-lg font-medium text-indigo-700">
-                                            {cameraInitializing ? 'Starting Camera...' : 'Take Photo'}
-                                        </div>
+                                        <div className="text-4xl mb-2">📷</div>
+                                        <div className="text-lg font-medium text-indigo-700">Take Photo</div>
                                         <div className="text-sm text-gray-500">Use device camera</div>
                                     </TouchEnhancedButton>
 
@@ -762,14 +516,20 @@ export default function ReceiptScan() {
                                     className="hidden"
                                 />
 
-                                {/* Debug info for troubleshooting */}
+                                {/* Error display */}
+                                {cameraError && (
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                        <div className="text-red-700">❌ {cameraError}</div>
+                                    </div>
+                                )}
+
+                                {/* Simple debug info */}
                                 <div className="text-xs text-gray-400 text-center space-y-1 bg-gray-50 p-4 rounded-lg">
                                     <div className="font-semibold mb-2">🔧 Debug Info:</div>
                                     <div>Video ref: {videoRef.current ? '✅ Available' : '❌ Not available'}</div>
                                     <div>Canvas ref: {canvasRef.current ? '✅ Available' : '❌ Not available'}</div>
-                                    <div>Camera stream: {cameraStream ? '✅ Active' : '❌ Inactive'}</div>
+                                    <div>Camera stream: {streamRef.current ? '✅ Active' : '❌ Inactive'}</div>
                                     <div>Show camera: {showCamera ? '✅ True' : '❌ False'}</div>
-                                    <div>Camera initializing: {cameraInitializing ? '⏳ True' : '❌ False'}</div>
                                     <div>Step: {step}</div>
                                 </div>
 
@@ -786,64 +546,31 @@ export default function ReceiptScan() {
                             </div>
                         )}
 
-                        {/* Camera View */}
+                        {/* Camera View - Simplified */}
                         {showCamera && (
                             <div className="space-y-4">
-                                <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
-                                    {/* Camera container with proper sizing */}
-                                    <div className="w-full bg-black flex items-center justify-center relative" style={{ height: '400px' }}>
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            playsInline
-                                            muted
-                                            className="w-full h-full object-cover"
-                                            style={{
-                                                display: 'block',
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                backgroundColor: 'black'
-                                            }}
-                                        />
+                                <div className="text-center">
+                                    <h3 className="text-lg font-medium mb-4">📷 Camera View</h3>
+                                </div>
 
-                                        {/* Scanning reticle overlay */}
-                                        <div className="absolute inset-0 pointer-events-none">
-                                            {/* Dark overlay with transparent center */}
-                                            <div className="absolute inset-0">
-                                                {/* Top overlay */}
-                                                <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-50" style={{ height: 'calc(50% - 100px)' }}></div>
-                                                {/* Bottom overlay */}
-                                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50" style={{ height: 'calc(50% - 100px)' }}></div>
-                                                {/* Left overlay */}
-                                                <div className="absolute left-0 bg-black bg-opacity-50" style={{ top: 'calc(50% - 100px)', height: '200px', width: 'calc(50% - 150px)' }}></div>
-                                                {/* Right overlay */}
-                                                <div className="absolute right-0 bg-black bg-opacity-50" style={{ top: 'calc(50% - 100px)', height: '200px', width: 'calc(50% - 150px)' }}></div>
-                                            </div>
+                                <div className="relative bg-black rounded-lg overflow-hidden">
+                                    {/* Simple video container */}
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="w-full h-96 object-cover bg-black"
+                                        style={{
+                                            display: 'block',
+                                            minHeight: '400px'
+                                        }}
+                                    />
 
-                                            {/* Receipt scanning frame - larger than barcode frame */}
-                                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48">
-                                                <div className="w-full h-full border-2 border-white border-dashed rounded-lg relative">
-                                                    {/* Corner brackets */}
-                                                    <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-white"></div>
-                                                    <div className="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-white"></div>
-                                                    <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-white"></div>
-                                                    <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-white"></div>
-                                                </div>
-                                            </div>
-
-                                            {/* Instructions overlay */}
-                                            <div className="absolute top-4 left-4 right-4">
-                                                <div className="bg-black bg-opacity-75 text-white text-sm p-3 rounded-lg text-center">
-                                                    <div className="font-medium">📄 Position receipt within the frame</div>
-                                                    <div className="text-xs mt-1 opacity-90">Keep receipt flat and well-lit</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Camera status indicator */}
+                                    {/* Simple overlay */}
+                                    <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
                                         <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                            {cameraStream?.active ? '🟢 Camera Active' : '🔴 Camera Inactive'}
+                                            📱 Position receipt here
                                         </div>
                                     </div>
                                 </div>
@@ -851,8 +578,7 @@ export default function ReceiptScan() {
                                 <div className="flex justify-center space-x-4">
                                     <TouchEnhancedButton
                                         onClick={capturePhoto}
-                                        disabled={!cameraStream || !cameraStream.active}
-                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
                                     >
                                         📸 Capture Receipt
                                     </TouchEnhancedButton>
@@ -864,25 +590,16 @@ export default function ReceiptScan() {
                                     </TouchEnhancedButton>
                                 </div>
 
-                                {/* Debug info */}
-                                <div className="text-xs text-gray-500 text-center bg-gray-50 p-2 rounded">
-                                    <div className="grid grid-cols-2 gap-2 text-left">
-                                        <div>Video Element:</div>
-                                        <div>{videoRef.current ? `${videoRef.current.videoWidth || 0} x ${videoRef.current.videoHeight || 0}` : 'Not available'}</div>
-
-                                        <div>Video Ready State:</div>
-                                        <div>{videoRef.current ? videoRef.current.readyState : 'N/A'}</div>
-
-                                        <div>Stream Tracks:</div>
-                                        <div>{cameraStream ? cameraStream.getTracks().length : 0}</div>
-
-                                        <div>Stream Active:</div>
-                                        <div>{cameraStream?.active ? 'Yes' : 'No'}</div>
-                                    </div>
+                                {/* Simple debug for camera view */}
+                                <div className="text-xs text-center bg-gray-100 p-2 rounded">
+                                    Video: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0} |
+                                    Ready: {videoRef.current?.readyState || 0} |
+                                    Stream: {streamRef.current ? 'Active' : 'None'}
                                 </div>
                             </div>
                         )}
 
+                        {/* Rest of the component remains the same... */}
                         {/* Step 2: Processing */}
                         {step === 'processing' && (
                             <div className="text-center space-y-6">
@@ -1092,23 +809,6 @@ export default function ReceiptScan() {
 
                 {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden" />
-
-                {/* Hidden video element - Always rendered but initially hidden */}
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="hidden"
-                    onLoadedMetadata={() => {
-                        console.log('📱 Video loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-                    }}
-                    onError={(e) => {
-                        console.error('Video error:', e);
-                        alert('Video playback error. Please try again or use file upload.');
-                        stopCamera();
-                    }}
-                />
 
                 <Footer />
             </div>
