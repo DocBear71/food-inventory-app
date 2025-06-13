@@ -1,4 +1,4 @@
-// file: /src/app/api/receipt-issue-report/route.js - Receipt issue reporting with Resend
+// file: /src/app/api/receipt-issue-report/route.js - v2 Receipt issue reporting with Resend - Fixed variable ordering
 
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
@@ -26,6 +26,39 @@ export async function POST(request) {
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         const timestamp = new Date().toISOString();
 
+        // FIXED: Calculate attachment info BEFORE using it in email template
+        const additionalFileCount = Array.from(formData.keys())
+            .filter(key => key.startsWith('additionalFile_')).length;
+
+        // FIXED: Prepare attachments BEFORE email template
+        const attachments = [];
+
+        // Add receipt image if available
+        if (receiptImage) {
+            const buffer = Buffer.from(await receiptImage.arrayBuffer());
+            attachments.push({
+                filename: `receipt-${Date.now()}.jpg`,
+                content: buffer,
+                contentType: 'image/jpeg'
+            });
+        }
+
+        // Add additional files
+        for (let i = 0; i < additionalFileCount; i++) {
+            const file = formData.get(`additionalFile_${i}`);
+            if (file && file.size > 0) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const fileExtension = file.name.split('.').pop() || 'jpg';
+                const contentType = file.type || 'image/jpeg';
+
+                attachments.push({
+                    filename: `screenshot-${i + 1}-${Date.now()}.${fileExtension}`,
+                    content: buffer,
+                    contentType: contentType
+                });
+            }
+        }
+
         // Prepare email content
         const issueTypeMap = {
             'camera-not-working': '📷 Camera Not Working',
@@ -40,7 +73,7 @@ export async function POST(request) {
 
         const issueTitle = issueTypeMap[issue] || issue;
 
-        // Create email HTML content
+        // Create email HTML content (NOW with properly defined variables)
         const emailHtml = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #4f46e5;">🧾 Receipt Scanner Issue Report</h2>
@@ -74,42 +107,10 @@ export async function POST(request) {
             </div>
         `;
 
-        // Prepare attachments
-        const attachments = [];
-
-        // Add receipt image if available
-        if (receiptImage) {
-            const buffer = Buffer.from(await receiptImage.arrayBuffer());
-            attachments.push({
-                filename: `receipt-${Date.now()}.jpg`,
-                content: buffer,
-                contentType: 'image/jpeg'
-            });
-        }
-
-        // Add additional files
-        const additionalFileCount = Array.from(formData.keys())
-            .filter(key => key.startsWith('additionalFile_')).length;
-
-        for (let i = 0; i < additionalFileCount; i++) {
-            const file = formData.get(`additionalFile_${i}`);
-            if (file && file.size > 0) {
-                const buffer = Buffer.from(await file.arrayBuffer());
-                const fileExtension = file.name.split('.').pop() || 'jpg';
-                const contentType = file.type || 'image/jpeg';
-
-                attachments.push({
-                    filename: `screenshot-${i + 1}-${Date.now()}.${fileExtension}`,
-                    content: buffer,
-                    contentType: contentType
-                });
-            }
-        }
-
         // Send email via Resend
         const emailData = {
-            from: 'Receipt Scanner <noreply@yourdomain.com>', // Replace with your verified Resend domain
-            to: ['your.email@example.com'], // Replace with your email address
+            from: 'Receipt Scanner <noreply@docbearscomfort.kitchen>',
+            to: ['edward@doctormckeown.com'],
             subject: `🧾 Receipt Scanner Issue: ${issueTitle}`,
             html: emailHtml,
             ...(attachments.length > 0 && { attachments })
@@ -130,7 +131,8 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             message: 'Issue report sent successfully',
-            emailId: data.id
+            emailId: data.id,
+            attachmentCount: attachments.length
         });
 
     } catch (error) {
