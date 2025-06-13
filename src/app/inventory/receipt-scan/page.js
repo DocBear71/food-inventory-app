@@ -89,13 +89,28 @@ export default function ReceiptScan() {
             addDebugLog('✅ Got camera stream');
             streamRef.current = stream;
 
-            // Wait for video element
+            // Show camera first to ensure video element is rendered
+            addDebugLog('🎬 Showing camera view to render video element...');
+            setShowCamera(true);
+
+            // Wait a bit for React to render the video element
+            addDebugLog('⏳ Waiting for video element to render...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Now check for video element with retries
+            let retries = 0;
+            while (!videoRef.current && retries < 10) {
+                addDebugLog(`🔍 Looking for video element (attempt ${retries + 1}/10)...`);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+
             if (!videoRef.current) {
-                addDebugLog('❌ No video element');
-                setCameraError('Video element not found');
+                addDebugLog('❌ Video element still not found after retries');
+                setCameraError('Video element not found after waiting');
                 return;
             }
-            addDebugLog('✅ Video element found');
+            addDebugLog('✅ Video element found!');
 
             addDebugLog('📺 Setting video srcObject...');
             // Set video source
@@ -128,8 +143,6 @@ export default function ReceiptScan() {
                     .catch(e => addDebugLog('⚠️ Video play failed: ' + e.message));
             });
 
-            addDebugLog('🎉 Setting showCamera to true');
-            setShowCamera(true);
             addDebugLog('✅ Camera started successfully');
 
         } catch (error) {
