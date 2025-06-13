@@ -137,7 +137,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Text search functionality
+    // NEW: Text search functionality using our API proxy
     const performTextSearch = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -146,67 +146,49 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
 
         setIsSearching(true);
-        console.log(`Searching Open Food Facts for: "${query}" (page ${page})`);
+        console.log(`Searching for products: "${query}" (page ${page})`);
 
         try {
-            // Use Open Food Facts V1 search API for full text search
-            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&page=${page}`;
+            // Use our new API endpoint to avoid CORS issues
+            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`;
 
-            const response = await fetch(searchUrl, {
-                headers: {
-                    'User-Agent': 'DocBearsComfortKitchen/1.0 (food-inventory@docbear.com)',
-                },
-            });
+            const response = await fetch(searchUrl);
+            const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(`Search API returned ${response.status}`);
+                throw new Error(data.error || `Search API returned ${response.status}`);
             }
 
-            const data = await response.json();
-            console.log(`Search returned ${data.count} total results, showing page ${page}`);
+            if (data.success) {
+                console.log(`Search returned ${data.pagination.totalResults} total results, showing page ${page}`);
 
-            // Transform results to match our format
-            const transformedResults = data.products?.map(product => ({
-                found: true,
-                upc: product.code || '',
-                name: product.product_name || product.product_name_en || 'Unknown Product',
-                brand: product.brands || product.brand_owner || '',
-                category: product.categories_tags?.[0]?.replace('en:', '') || 'Other',
-                image: product.image_front_url || product.image_front_small_url || product.image_url || '',
-                nutrition: standardizeNutritionData({
-                    energy_100g: product.nutriments?.['energy-kcal_100g'] || product.nutriments?.energy_100g,
-                    fat_100g: product.nutriments?.fat_100g,
-                    carbohydrates_100g: product.nutriments?.carbohydrates_100g,
-                    proteins_100g: product.nutriments?.proteins_100g,
-                    salt_100g: product.nutriments?.salt_100g,
-                    sugars_100g: product.nutriments?.sugars_100g,
-                    fiber_100g: product.nutriments?.fiber_100g,
-                }),
-                scores: {
-                    nutriscore: product.nutriscore_grade || product.nutrition_grade_fr || null,
-                    nova_group: product.nova_group || null,
-                },
-                openFoodFactsUrl: `https://world.openfoodfacts.org/product/${product.code}`,
-            })) || [];
+                // Results are already in the correct format from our API
+                const results = data.results || [];
 
-            // Prioritize results with images
-            const resultsWithImages = transformedResults.filter(r => r.image);
-            const resultsWithoutImages = transformedResults.filter(r => !r.image);
-            const prioritizedResults = [...resultsWithImages, ...resultsWithoutImages];
-
-            setSearchResults(prioritizedResults);
-            setTotalPages(Math.ceil(data.count / 15));
+                // Results are already prioritized by images in the API
+                setSearchResults(results);
+                setTotalPages(data.pagination.totalPages);
+            } else {
+                throw new Error(data.error || 'Search failed');
+            }
 
         } catch (error) {
             console.error('Text search error:', error);
             setSearchResults([]);
             setTotalPages(0);
+
+            // Show user-friendly error message
+            if (error.message.includes('timeout')) {
+                alert('Search is taking longer than usual. Please try again.');
+            } else {
+                console.log('Search error details:', error.message);
+            }
         } finally {
             setIsSearching(false);
         }
     };
 
-    // NEW: Autocomplete functionality
+    // NEW: Autocomplete functionality using our API proxy
     const performAutocomplete = async (query) => {
         if (!query.trim() || query.length < 2) {
             setAutocompleteResults([]);
@@ -215,26 +197,25 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
 
         try {
-            // Use a lighter search for autocomplete
-            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5`;
+            // Use our API endpoint with smaller page size for autocomplete
+            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=5`;
 
-            const response = await fetch(searchUrl, {
-                headers: {
-                    'User-Agent': 'DocBearsComfortKitchen/1.0 (food-inventory@docbear.com)',
-                },
-            });
-
-            if (!response.ok) return;
-
+            const response = await fetch(searchUrl);
             const data = await response.json();
-            const suggestions = data.products?.slice(0, 5).map(product => ({
-                name: product.product_name || product.product_name_en || 'Unknown Product',
-                brand: product.brands || '',
-                image: product.image_front_small_url || product.image_front_url || '',
-            })) || [];
 
-            setAutocompleteResults(suggestions);
-            setShowAutocomplete(suggestions.length > 0);
+            if (response.ok && data.success) {
+                const suggestions = data.results?.slice(0, 5).map(product => ({
+                    name: product.name,
+                    brand: product.brand,
+                    image: product.image,
+                })) || [];
+
+                setAutocompleteResults(suggestions);
+                setShowAutocomplete(suggestions.length > 0);
+            } else {
+                setAutocompleteResults([]);
+                setShowAutocomplete(false);
+            }
 
         } catch (error) {
             console.log('Autocomplete error:', error);
