@@ -30,12 +30,16 @@ export default function ReceiptScan() {
     // Cleanup camera stream on component unmount
     useEffect(() => {
         return () => {
-            if (cameraStream) {
-                console.log('🧹 Cleaning up camera stream on unmount');
-                cameraStream.getTracks().forEach(track => track.stop());
-            }
+            // Access current camera stream via ref to avoid stale closure
+            setCameraStream(currentStream => {
+                if (currentStream) {
+                    console.log('🧹 Cleaning up camera stream on unmount');
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                return null;
+            });
         };
-    }, [cameraStream]);
+    }, []);
 
     // Redirect if not authenticated
     if (status === 'unauthenticated') {
@@ -58,14 +62,17 @@ export default function ReceiptScan() {
     const stopCamera = useCallback(() => {
         console.log('🛑 Stopping camera...');
 
-        if (cameraStream) {
-            console.log('🧹 Stopping camera tracks');
-            cameraStream.getTracks().forEach(track => {
-                console.log('🔇 Stopping track:', track.kind);
-                track.stop();
-            });
-            setCameraStream(null);
-        }
+        // Use current state directly instead of dependency
+        setCameraStream(currentStream => {
+            if (currentStream) {
+                console.log('🧹 Stopping camera tracks');
+                currentStream.getTracks().forEach(track => {
+                    console.log('🔇 Stopping track:', track.kind);
+                    track.stop();
+                });
+            }
+            return null;
+        });
 
         if (videoRef.current) {
             console.log('📹 Clearing video src');
@@ -75,7 +82,7 @@ export default function ReceiptScan() {
         setShowCamera(false);
         setCameraInitializing(false);
         console.log('✅ Camera stopped and cleaned up');
-    }, [cameraStream]);
+    }, []); // Empty dependency array since we use functional updates
 
     // Initialize camera with enhanced error handling and proper video setup
     const startCamera = async () => {
@@ -549,7 +556,13 @@ export default function ReceiptScan() {
 
         // Reset all state
         setStep('upload');
-        setCapturedImage(null);
+        setCapturedImage(prevImage => {
+            // Clean up any object URLs
+            if (prevImage) {
+                URL.revokeObjectURL(prevImage);
+            }
+            return null;
+        });
         setExtractedItems([]);
         setIsProcessing(false);
         setOcrProgress(0);
@@ -561,13 +574,8 @@ export default function ReceiptScan() {
             fileInputRef.current.value = '';
         }
 
-        // Clean up any object URLs
-        if (capturedImage) {
-            URL.revokeObjectURL(capturedImage);
-        }
-
         console.log('✅ Scan state reset complete');
-    }, [stopCamera, capturedImage]);
+    }, [stopCamera]); // Only depend on stopCamera which now has empty deps
 
     return (
         <MobileOptimizedLayout>
