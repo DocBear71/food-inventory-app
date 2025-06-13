@@ -31,7 +31,8 @@ export default function ReceiptScan() {
         issue: '',
         description: '',
         email: '',
-        receiptImage: null
+        receiptImage: null,
+        additionalFiles: []
     });
 
     // Cleanup effect
@@ -798,9 +799,42 @@ export default function ReceiptScan() {
             issue: '',
             description: '',
             email: session?.user?.email || '',
-            receiptImage: capturedImage
+            receiptImage: capturedImage,
+            additionalFiles: []
         });
         setShowReportModal(true);
+    }
+
+    function handleFileUpload(event) {
+        const files = Array.from(event.target.files);
+        const validFiles = files.filter(file => {
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+
+            if (!validTypes.includes(file.type)) {
+                alert(`File ${file.name} is not a supported image type.`);
+                return false;
+            }
+
+            if (file.size > maxSize) {
+                alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+                return false;
+            }
+
+            return true;
+        });
+
+        setReportData(prev => ({
+            ...prev,
+            additionalFiles: [...prev.additionalFiles, ...validFiles]
+        }));
+    }
+
+    function removeFile(index) {
+        setReportData(prev => ({
+            ...prev,
+            additionalFiles: prev.additionalFiles.filter((_, i) => i !== index)
+        }));
     }
 
     async function submitIssueReport() {
@@ -822,6 +856,11 @@ export default function ReceiptScan() {
                 const blob = await response.blob();
                 formData.append('receiptImage', blob, 'receipt.jpg');
             }
+
+            // Add additional files
+            reportData.additionalFiles.forEach((file, index) => {
+                formData.append(`additionalFile_${index}`, file, file.name);
+            });
 
             const response = await fetch('/api/receipt-issue-report', {
                 method: 'POST',
@@ -1334,13 +1373,61 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Additional Screenshots/Images
+                                        </label>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleFileUpload}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                            <p className="text-xs text-gray-500">
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max 10MB each)
+                                            </p>
+
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-gray-700">
+                                                        Files to be sent ({reportData.additionalFiles.length}):
+                                                    </p>
+                                                    {reportData.additionalFiles.map((file, index) => (
+                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-sm">📸</span>
+                                                                <span className="text-sm text-gray-700 truncate">
+                                                                    {file.name}
+                                                                </span>
+                                                                <span className="text-xs text-gray-500">
+                                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
+                                                                </span>
+                                                            </div>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => removeFile(index)}
+                                                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                            >
+                                                                Remove
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                         <p className="text-sm text-blue-800">
                                             📝 <strong>Your report will include:</strong>
                                         </p>
                                         <ul className="text-sm text-blue-700 mt-1 space-y-1">
                                             <li>• Your issue description</li>
-                                            <li>• Receipt image (if available)</li>
+                                            {capturedImage && <li>• Receipt image</li>}
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                            )}
                                             <li>• Browser and device information</li>
                                             <li>• No personal information from your account</li>
                                         </ul>
