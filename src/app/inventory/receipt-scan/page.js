@@ -1,8 +1,8 @@
-// file: /src/app/inventory/receipt-scan/page.js - v1 Receipt scanning with OCR
+// file: /src/app/inventory/receipt-scan/page.js - v2 Receipt scanning with OCR - Fixed camera state management
 
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -25,6 +25,17 @@ export default function ReceiptScan() {
     const [cameraStream, setCameraStream] = useState(null);
     const [step, setStep] = useState('upload'); // 'upload', 'processing', 'review', 'adding'
     const [processingStatus, setProcessingStatus] = useState('');
+    const [cameraInitializing, setCameraInitializing] = useState(false);
+
+    // Cleanup camera stream on component unmount
+    useEffect(() => {
+        return () => {
+            if (cameraStream) {
+                console.log('🧹 Cleaning up camera stream on unmount');
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [cameraStream]);
 
     // Redirect if not authenticated
     if (status === 'unauthenticated') {
@@ -43,10 +54,48 @@ export default function ReceiptScan() {
         );
     }
 
+    // Stop camera and clean up properly
+    const stopCamera = useCallback(() => {
+        console.log('🛑 Stopping camera...');
+
+        if (cameraStream) {
+            console.log('🧹 Stopping camera tracks');
+            cameraStream.getTracks().forEach(track => {
+                console.log('🔇 Stopping track:', track.kind);
+                track.stop();
+            });
+            setCameraStream(null);
+        }
+
+        if (videoRef.current) {
+            console.log('📹 Clearing video src');
+            videoRef.current.srcObject = null;
+        }
+
+        setShowCamera(false);
+        setCameraInitializing(false);
+        console.log('✅ Camera stopped and cleaned up');
+    }, [cameraStream]);
+
     // Initialize camera with enhanced error handling and proper video setup
     const startCamera = async () => {
+        // Prevent multiple simultaneous camera initializations
+        if (cameraInitializing) {
+            console.log('⚠️ Camera already initializing, ignoring request');
+            return;
+        }
+
         try {
             console.log('🎥 Starting camera initialization...');
+            setCameraInitializing(true);
+
+            // Stop any existing camera first
+            if (cameraStream) {
+                console.log('🛑 Stopping existing camera first');
+                stopCamera();
+                // Wait a bit for cleanup
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
 
             // Check if browser supports camera
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -110,30 +159,39 @@ export default function ReceiptScan() {
             const video = videoRef.current;
             video.srcObject = stream;
 
-            // Wait for video to be ready before showing camera
-            const handleVideoReady = () => {
-                console.log('✅ Video ready, showing camera interface');
-                console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-                setShowCamera(true);
+            // Create a promise that resolves when video is ready
+            const videoReadyPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Video setup timeout'));
+                }, 10000); // 10 second timeout
 
-                // Remove event listeners
-                video.removeEventListener('loadedmetadata', handleVideoReady);
-                video.removeEventListener('canplay', handleVideoReady);
-            };
+                const handleVideoReady = () => {
+                    console.log('✅ Video ready, showing camera interface');
+                    console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
 
-            // Listen for video ready events
-            video.addEventListener('loadedmetadata', handleVideoReady);
-            video.addEventListener('canplay', handleVideoReady);
+                    clearTimeout(timeout);
+                    video.removeEventListener('loadedmetadata', handleVideoReady);
+                    video.removeEventListener('canplay', handleVideoReady);
 
-            // Fallback timeout in case events don't fire
-            setTimeout(() => {
-                if (!showCamera && stream.active) {
-                    console.log('⏰ Timeout reached, showing camera anyway');
-                    setShowCamera(true);
-                }
-            }, 3000);
+                    resolve();
+                };
 
-            console.log('✅ Camera setup completed');
+                // Listen for video ready events
+                video.addEventListener('loadedmetadata', handleVideoReady);
+                video.addEventListener('canplay', handleVideoReady);
+
+                // Also try to play the video
+                video.play().catch(e => {
+                    console.log('📹 Video play failed (this is often normal):', e.message);
+                    // Don't reject here as this is often expected on mobile
+                });
+            });
+
+            // Wait for video to be ready
+            await videoReadyPromise;
+
+            setShowCamera(true);
+            console.log('✅ Camera setup completed successfully');
 
         } catch (error) {
             console.error('❌ Camera access error:', error);
@@ -155,16 +213,12 @@ export default function ReceiptScan() {
             }
 
             alert(errorMessage + '\n\nPlease use the file upload option instead.');
-        }
-    };
 
-    // Stop camera
-    const stopCamera = () => {
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-            setCameraStream(null);
+            // Clean up on error
+            stopCamera();
+        } finally {
+            setCameraInitializing(false);
         }
-        setShowCamera(false);
     };
 
     // Capture photo from camera with enhanced error handling
@@ -287,7 +341,6 @@ export default function ReceiptScan() {
     const parseReceiptText = (text) => {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
-        let currentItem = null;
 
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
@@ -487,18 +540,34 @@ export default function ReceiptScan() {
         }
     };
 
-    // Reset to start over
-    const resetScan = () => {
+    // Reset to start over - FIXED with proper cleanup
+    const resetScan = useCallback(() => {
+        console.log('🔄 Resetting scan state...');
+
+        // Stop camera first
+        stopCamera();
+
+        // Reset all state
         setStep('upload');
         setCapturedImage(null);
         setExtractedItems([]);
         setIsProcessing(false);
         setOcrProgress(0);
         setProcessingStatus('');
+        setCameraInitializing(false);
+
+        // Clear file input
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
-    };
+
+        // Clean up any object URLs
+        if (capturedImage) {
+            URL.revokeObjectURL(capturedImage);
+        }
+
+        console.log('✅ Scan state reset complete');
+    }, [stopCamera, capturedImage]);
 
     return (
         <MobileOptimizedLayout>
@@ -539,10 +608,15 @@ export default function ReceiptScan() {
                                     {/* Camera Option */}
                                     <TouchEnhancedButton
                                         onClick={startCamera}
-                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                                        disabled={cameraInitializing}
+                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <div className="text-4xl mb-2">📷</div>
-                                        <div className="text-lg font-medium text-indigo-700">Take Photo</div>
+                                        <div className="text-4xl mb-2">
+                                            {cameraInitializing ? '⏳' : '📷'}
+                                        </div>
+                                        <div className="text-lg font-medium text-indigo-700">
+                                            {cameraInitializing ? 'Starting Camera...' : 'Take Photo'}
+                                        </div>
                                         <div className="text-sm text-gray-500">Use device camera</div>
                                     </TouchEnhancedButton>
 
@@ -566,12 +640,14 @@ export default function ReceiptScan() {
                                 />
 
                                 {/* Debug info for troubleshooting */}
-                                <div className="text-xs text-gray-400 text-center space-y-1">
-                                    <div>🔧 Debug Info:</div>
+                                <div className="text-xs text-gray-400 text-center space-y-1 bg-gray-50 p-4 rounded-lg">
+                                    <div className="font-semibold mb-2">🔧 Debug Info:</div>
                                     <div>Video ref: {videoRef.current ? '✅ Available' : '❌ Not available'}</div>
                                     <div>Canvas ref: {canvasRef.current ? '✅ Available' : '❌ Not available'}</div>
                                     <div>Camera stream: {cameraStream ? '✅ Active' : '❌ Inactive'}</div>
                                     <div>Show camera: {showCamera ? '✅ True' : '❌ False'}</div>
+                                    <div>Camera initializing: {cameraInitializing ? '⏳ True' : '❌ False'}</div>
+                                    <div>Step: {step}</div>
                                 </div>
 
                                 {/* Tips */}
@@ -591,23 +667,20 @@ export default function ReceiptScan() {
                         {showCamera && (
                             <div className="space-y-4">
                                 <div className="relative bg-black rounded-lg overflow-hidden">
-                                    {/* Use the hidden video element but make it visible here */}
                                     <div className="w-full h-64 md:h-96 bg-black flex items-center justify-center relative">
-                                        {videoRef.current && (
-                                            <video
-                                                ref={videoRef}
-                                                autoPlay
-                                                playsInline
-                                                muted
-                                                className="w-full h-full object-cover"
-                                                style={{ display: 'block' }}
-                                            />
-                                        )}
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            className="w-full h-full object-cover"
+                                            style={{ display: 'block' }}
+                                        />
                                         <div className="absolute inset-0 border-2 border-white border-dashed opacity-50 m-4 rounded-lg pointer-events-none"></div>
 
                                         {/* Camera status indicator */}
                                         <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                            {cameraStream ? '🟢 Camera Active' : '🔴 Camera Inactive'}
+                                            {cameraStream?.active ? '🟢 Camera Active' : '🔴 Camera Inactive'}
                                         </div>
                                     </div>
                                 </div>
@@ -615,7 +688,7 @@ export default function ReceiptScan() {
                                 <div className="flex justify-center space-x-4">
                                     <TouchEnhancedButton
                                         onClick={capturePhoto}
-                                        disabled={!cameraStream}
+                                        disabled={!cameraStream || !cameraStream.active}
                                         className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-400"
                                     >
                                         📸 Capture Receipt
@@ -629,10 +702,16 @@ export default function ReceiptScan() {
                                 </div>
 
                                 {/* Debug info */}
-                                <div className="text-xs text-gray-500 text-center">
+                                <div className="text-xs text-gray-500 text-center bg-gray-50 p-2 rounded">
                                     {videoRef.current && (
                                         <div>
                                             Video: {videoRef.current.videoWidth || 0} x {videoRef.current.videoHeight || 0}
+                                            {cameraStream && (
+                                                <span className="ml-2">
+                                                    | Tracks: {cameraStream.getTracks().length}
+                                                    | Active: {cameraStream.active ? 'Yes' : 'No'}
+                                                </span>
+                                            )}
                                         </div>
                                     )}
                                 </div>
