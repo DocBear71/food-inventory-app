@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js v2 - Enhanced mobile layout with PWA banner support and Sign Out
+// file: /src/components/layout/MobileDashboardLayout.js v3 - Added Common Items Wizard to hamburger menu
 
 'use client';
 
@@ -55,8 +55,15 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
-    // Additional menu items for hamburger menu only
+    // Additional menu items for hamburger menu only - UPDATED: Added Common Items Wizard
     const additionalMenuItems = [
+        {
+            name: 'Common Items Wizard',
+            href: '/inventory?wizard=true',
+            icon: '🏠',
+            current: false, // This doesn't have its own page, it's a modal
+            description: 'Quickly add common household items to your inventory'
+        },
         {
             name: 'What Can I Make?',
             href: '/recipes/suggestions',
@@ -201,7 +208,7 @@ export default function MobileDashboardLayout({children}) {
                                 ))}
                             </div>
 
-                            {/* Additional menu items */}
+                            {/* Additional menu items - UPDATED: Now includes Common Items Wizard */}
                             <div className="mb-6">
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
                                     Tools & Features

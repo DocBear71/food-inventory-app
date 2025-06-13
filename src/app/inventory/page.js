@@ -68,6 +68,13 @@ function InventoryContent() {
         }
     }, [session]);
 
+    useEffect(() => {
+        const shouldOpenWizard = searchParams.get('wizard') === 'true';
+        if (shouldOpenWizard) {
+            setShowCommonItemsWizard(true);
+        }
+    }, [searchParams]);
+
     const fetchInventory = async () => {
         try {
             const response = await fetch('/api/inventory');
