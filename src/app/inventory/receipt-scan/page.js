@@ -60,7 +60,7 @@ export default function ReceiptScan() {
         );
     }
 
-    // Simple camera start function
+    // Enhanced camera start function with better quality settings
     async function startCamera() {
         setCameraError(null);
 
@@ -76,10 +76,39 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            // Get user media
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
+            // Enhanced camera constraints for better OCR quality
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1920, min: 1280 }, // Higher resolution
+                    height: { ideal: 1080, min: 720 },
+                    aspectRatio: { ideal: 16/9 },
+                    focusMode: 'continuous', // Continuous autofocus
+                    exposureMode: 'continuous', // Auto exposure
+                    whiteBalanceMode: 'continuous', // Auto white balance
+                    advanced: [
+                        { focusMode: 'continuous' },
+                        { exposureMode: 'continuous' },
+                        { whiteBalanceMode: 'continuous' }
+                    ]
+                }
+            };
+
+            // Try enhanced constraints first, fall back to basic if needed
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (enhancedError) {
+                console.log('Enhanced constraints failed, trying basic constraints:', enhancedError);
+                // Fallback to basic constraints
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+            }
 
             streamRef.current = stream;
 
@@ -104,12 +133,16 @@ export default function ReceiptScan() {
             // Set video source
             videoRef.current.srcObject = stream;
 
-            // Wait for video to load
+            // Wait for video to load with better settings
             await new Promise((resolve, reject) => {
                 const video = videoRef.current;
 
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
+
+                    // Log actual video dimensions for debugging
+                    console.log(`Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
+
                     resolve();
                 };
 
@@ -121,7 +154,7 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // Force play
+                // Force play with better settings
                 video.play().catch(() => {
                     // Ignore play errors - common on mobile
                 });
@@ -131,6 +164,7 @@ export default function ReceiptScan() {
             setCameraError('Failed to start camera: ' + error.message);
         }
     }
+
 
     // Simple camera stop function
     function stopCamera() {
@@ -147,7 +181,7 @@ export default function ReceiptScan() {
         setCameraError(null);
     }
 
-    // Capture photo function
+    // Enhanced photo capture with better quality and processing
     function capturePhoto() {
         if (!videoRef.current || !canvasRef.current || !streamRef.current) {
             alert('Camera not ready');
@@ -158,37 +192,62 @@ export default function ReceiptScan() {
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
 
-        // Set canvas size to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // Use full video resolution for better OCR
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+
+        console.log(`Capturing at resolution: ${width}x${height}`);
+
+        // Set canvas size to match video (high resolution)
+        canvas.width = width;
+        canvas.height = height;
+
+        // Enhanced canvas drawing with better quality settings
+        context.imageSmoothingEnabled = false; // Disable smoothing for sharper text
+        context.textRenderingOptimization = 'optimizeLegibility';
 
         // Draw video frame to canvas
-        context.drawImage(video, 0, 0);
+        context.drawImage(video, 0, 0, width, height);
 
-        // Convert to blob and process
+        // Optional: Apply image enhancements for better OCR
+        const imageData = context.getImageData(0, 0, width, height);
+        const enhancedImageData = enhanceImageForOCR(imageData);
+        context.putImageData(enhancedImageData, 0, 0);
+
+        // Convert to blob with high quality settings
         canvas.toBlob((blob) => {
             if (blob) {
+                console.log(`Captured image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+
                 const imageUrl = URL.createObjectURL(blob);
                 setCapturedImage(imageUrl);
                 stopCamera();
                 processImage(blob);
             }
-        }, 'image/jpeg', 0.9);
+        }, 'image/jpeg', 0.95); // Higher quality (95% instead of 90%)
     }
 
-    // FIXED: Handle receipt file upload (renamed to avoid conflict)
-    function handleReceiptFileUpload(event) {
-        const file = event.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const imageUrl = URL.createObjectURL(file);
-            setCapturedImage(imageUrl);
-            processImage(file);
-        } else {
-            alert('Please select a valid image file.');
+    // Image enhancement function for better OCR
+    function enhanceImageForOCR(imageData) {
+        const data = imageData.data;
+        const length = data.length;
+
+        // Apply contrast and brightness enhancement
+        const contrast = 1.2; // Increase contrast
+        const brightness = 10; // Slight brightness increase
+
+        for (let i = 0; i < length; i += 4) {
+            // Apply contrast and brightness to RGB channels
+            data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));     // Red
+            data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness)); // Green
+            data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness)); // Blue
+            // Alpha channel (data[i + 3]) remains unchanged
         }
+
+        return imageData;
     }
 
-    // Process image with OCR
+    // Enhanced OCR processing with better settings
     async function processImage(imageFile) {
         setIsProcessing(true);
         setStep('processing');
@@ -202,24 +261,37 @@ export default function ReceiptScan() {
 
             setProcessingStatus('Processing image...');
 
+            // Enhanced OCR options for better accuracy
+            const ocrOptions = {
+                logger: (m) => {
+                    if (m.status === 'recognizing text') {
+                        const progress = Math.round(m.progress * 100);
+                        setOcrProgress(progress);
+                        setProcessingStatus(`Extracting text... ${progress}%`);
+                    }
+                },
+                // Enhanced OCR parameters
+                tessedit_pageseg_mode: '6', // Uniform block of text
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+                preserve_interword_spaces: '1',
+                user_defined_dpi: '300' // Higher DPI for better recognition
+            };
+
             const { data: { text } } = await Tesseract.recognize(
                 imageFile,
                 'eng',
-                {
-                    logger: (m) => {
-                        if (m.status === 'recognizing text') {
-                            const progress = Math.round(m.progress * 100);
-                            setOcrProgress(progress);
-                            setProcessingStatus(`Extracting text... ${progress}%`);
-                        }
-                    }
-                }
+                ocrOptions
             );
 
             setProcessingStatus('Analyzing receipt...');
 
             // Parse extracted text into items
             const items = parseReceiptText(text);
+
+            // Log results for debugging
+            console.log('OCR Text:', text);
+            console.log('Parsed Items:', items);
+
             setExtractedItems(items);
 
             setProcessingStatus('Complete!');
@@ -234,6 +306,66 @@ export default function ReceiptScan() {
             setOcrProgress(0);
         }
     }
+
+
+    // FIXED: Handle receipt file upload (renamed to avoid conflict)
+    function handleReceiptFileUpload(event) {
+        const file = event.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const imageUrl = URL.createObjectURL(file);
+            setCapturedImage(imageUrl);
+            processImage(file);
+        } else {
+            alert('Please select a valid image file.');
+        }
+    }
+
+    // Process image with OCR
+    // async function processImage(imageFile) {
+    //     setIsProcessing(true);
+    //     setStep('processing');
+    //     setOcrProgress(0);
+    //     setProcessingStatus('Initializing OCR...');
+    //
+    //     try {
+    //         // Dynamically import Tesseract.js
+    //         setProcessingStatus('Loading OCR engine...');
+    //         const Tesseract = (await import('tesseract.js')).default;
+    //
+    //         setProcessingStatus('Processing image...');
+    //
+    //         const { data: { text } } = await Tesseract.recognize(
+    //             imageFile,
+    //             'eng',
+    //             {
+    //                 logger: (m) => {
+    //                     if (m.status === 'recognizing text') {
+    //                         const progress = Math.round(m.progress * 100);
+    //                         setOcrProgress(progress);
+    //                         setProcessingStatus(`Extracting text... ${progress}%`);
+    //                     }
+    //                 }
+    //             }
+    //         );
+    //
+    //         setProcessingStatus('Analyzing receipt...');
+    //
+    //         // Parse extracted text into items
+    //         const items = parseReceiptText(text);
+    //         setExtractedItems(items);
+    //
+    //         setProcessingStatus('Complete!');
+    //         setStep('review');
+    //
+    //     } catch (error) {
+    //         console.error('OCR processing error:', error);
+    //         alert('Error processing receipt. Please try again with a clearer image.');
+    //         setStep('upload');
+    //     } finally {
+    //         setIsProcessing(false);
+    //         setOcrProgress(0);
+    //     }
+    // }
 
     // Parse receipt text into structured items
     function parseReceiptText(text) {
@@ -1032,6 +1164,12 @@ export default function ReceiptScan() {
                                         <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📱 Position receipt here
                                         </div>
+                                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            📱 Keep receipt flat and well-lit
+                                        </div>
+                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            📏 Fill frame completely
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1053,6 +1191,17 @@ export default function ReceiptScan() {
                                 {/* Simple debug for camera view */}
                                 <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                     Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 1.5: Preview and accept or retake */}
+                        {capturedImage && step === 'preview' && (
+                            <div className="space-y-4">
+                                <img src={capturedImage} alt="Captured receipt" className="w-full rounded-lg" />
+                                <div className="flex space-x-4">
+                                    <button onClick={retakePhoto}>📷 Retake</button>
+                                    <button onClick={() => processImage(capturedBlob)}>✅ Use This Photo</button>
                                 </div>
                             </div>
                         )}
