@@ -263,9 +263,10 @@ export default function ReceiptScan() {
             /^\d+\s+items?\s+sold/i,
             // Barcode numbers (standalone)
             /^[\d\s]{15,}$/,
-            // Hy-Vee specific patterns
-            /^(sub-total|net amount|total)$/i,
-            /^(sub total|net amount|amount)$/i,
+            // Hy-Vee specific patterns - Enhanced
+            /^(sub-total|subtotal|sub total)/i,
+            /^(net amount|netamount|net)/i,
+            /^(total|amount)$/i,
             // Weight and measurement lines (like "5.74 x $2.99")
             /^\d+\.?\d*\s*x\s*\$?\d+\.?\d*$/i,
             // Discount/savings lines (negative amounts or percentage discounts)
@@ -277,7 +278,9 @@ export default function ReceiptScan() {
             // Weight only lines (like "5.7x", "6x", etc.)
             /^\d+\.?\d*x?$/i,
             // Lines that are just numbers and measurement units
-            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
+            // Discount lines with product codes and percentages
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i
         ];
 
         for (let i = 0; i < lines.length; i++) {
@@ -291,17 +294,32 @@ export default function ReceiptScan() {
             // Additional checks for problematic lines that might have prices
             // Skip discount lines (negative amounts or percentage-based)
             if (line.match(/^\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                console.log(`Skipping discount line: ${line}`);
                 continue; // Lines like "13708E5 Cheez It Pizza 0%: ($1.00)"
+            }
+
+            // Skip lines that contain discount codes with percentages
+            if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                console.log(`Skipping discount code line: ${line}`);
+                continue;
             }
 
             // Skip measurement calculation lines
             if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
+                console.log(`Skipping measurement line: ${line}`);
                 continue; // Lines like "5.74 x $2.99"
             }
 
             // Skip lines that are just weights/measurements
             if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
+                console.log(`Skipping weight line: ${line}`);
                 continue; // Lines like "56x", "5.7x"
+            }
+
+            // Skip specific total lines (case insensitive)
+            if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
+                console.log(`Skipping total line: ${line}`);
+                continue;
             }
 
             // Check if line contains a price
@@ -311,6 +329,7 @@ export default function ReceiptScan() {
 
                 // Skip very high prices that are likely totals (over $100)
                 if (price > 100) {
+                    console.log(`Skipping high price line (likely total): ${line}`);
                     continue;
                 }
 
@@ -332,6 +351,7 @@ export default function ReceiptScan() {
 
                 // Only process if we have a meaningful item name (more than 2 characters, not just numbers)
                 if (nameMatch && nameMatch.length > 2 && !nameMatch.match(/^\d+\.?\d*$/)) {
+                    console.log(`Processing item: ${nameMatch} - ${price}`);
                     const item = {
                         id: Date.now() + Math.random(),
                         name: cleanItemName(nameMatch),
@@ -347,6 +367,8 @@ export default function ReceiptScan() {
                     };
 
                     items.push(item);
+                } else {
+                    console.log(`Skipping line with insufficient name: ${line}`);
                 }
             }
         }
@@ -355,12 +377,13 @@ export default function ReceiptScan() {
         return combineDuplicateItems(items);
     }
 
-    // Combine items with the same UPC code
+    // Combine items with the same UPC code or identical names
     function combineDuplicateItems(items) {
         const upcGroups = {};
-        const nonUpcItems = [];
+        const nameGroups = {};
+        const standaloneItems = [];
 
-        // Group items by UPC code
+        // First pass: Group by UPC code (most reliable)
         items.forEach(item => {
             if (item.upc && item.upc.length >= 11) {
                 // Clean UPC for consistent matching
@@ -371,8 +394,13 @@ export default function ReceiptScan() {
                 }
                 upcGroups[cleanUPC].push(item);
             } else {
-                // Items without UPC codes are kept separate
-                nonUpcItems.push(item);
+                // Items without UPC codes - check for name matching
+                const cleanName = item.name.toLowerCase().trim();
+
+                if (!nameGroups[cleanName]) {
+                    nameGroups[cleanName] = [];
+                }
+                nameGroups[cleanName].push(item);
             }
         });
 
@@ -396,7 +424,7 @@ export default function ReceiptScan() {
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
-                    rawText: `${group.length} identical items combined: ${firstItem.rawText}`,
+                    rawText: `${group.length} identical items combined (UPC): ${firstItem.rawText}`,
                     id: Date.now() + Math.random() // New ID for combined item
                 };
 
@@ -406,8 +434,33 @@ export default function ReceiptScan() {
             }
         });
 
-        // Add non-UPC items as-is
-        combinedItems.push(...nonUpcItems);
+        // Process name groups (items without UPC)
+        Object.values(nameGroups).forEach(group => {
+            if (group.length === 1) {
+                // Single item, no combining needed
+                combinedItems.push(group[0]);
+            } else {
+                // Multiple items with same name - combine them
+                const firstItem = group[0];
+                const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
+                const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
+                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+
+                // Create combined item
+                const combinedItem = {
+                    ...firstItem,
+                    quantity: totalQuantity,
+                    price: totalPrice,
+                    unitPrice: unitPrice,
+                    rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
+                    id: Date.now() + Math.random() // New ID for combined item
+                };
+
+                combinedItems.push(combinedItem);
+
+                console.log(`Combined ${group.length} items by name: ${firstItem.name} (Total qty: ${totalQuantity})`);
+            }
+        });
 
         return combinedItems;
     }
