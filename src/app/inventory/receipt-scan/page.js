@@ -43,25 +43,95 @@ export default function ReceiptScan() {
         );
     }
 
-    // Initialize camera
+    // Initialize camera with enhanced error handling
     const startCamera = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                }
-            });
+            console.log('🎥 Starting camera initialization...');
 
-            if (videoRef.current) {
+            // Check if browser supports camera
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported in this browser');
+            }
+
+            console.log('🎥 Requesting camera permissions...');
+
+            // Request camera access with fallback constraints
+            let stream;
+
+            try {
+                // Try with environment camera first (back camera on mobile)
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 }
+                    }
+                });
+                console.log('✅ Environment camera access granted');
+            } catch (envError) {
+                console.log('⚠️ Environment camera failed, trying any camera:', envError.message);
+
+                try {
+                    // Fallback to any available camera
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 }
+                        }
+                    });
+                    console.log('✅ Any camera access granted');
+                } catch (anyError) {
+                    console.log('⚠️ Any camera failed, trying basic constraints:', anyError.message);
+
+                    // Last resort - basic video constraint
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+                    console.log('✅ Basic camera access granted');
+                }
+            }
+
+            if (videoRef.current && stream) {
+                console.log('🎥 Setting video stream...');
                 videoRef.current.srcObject = stream;
+
+                // Wait for video to load
+                videoRef.current.onloadedmetadata = () => {
+                    console.log('✅ Video metadata loaded');
+                    console.log('📏 Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                };
+
+                videoRef.current.oncanplay = () => {
+                    console.log('✅ Video can play');
+                };
+
                 setCameraStream(stream);
                 setShowCamera(true);
+                console.log('✅ Camera successfully initialized');
+            } else {
+                throw new Error('Video element not available or stream is null');
             }
+
         } catch (error) {
-            console.error('Camera access error:', error);
-            alert('Unable to access camera. Please use file upload instead.');
+            console.error('❌ Camera access error:', error);
+
+            let errorMessage = 'Unable to access camera. ';
+
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Camera permission was denied. Please allow camera access in your browser settings and try again.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera was found on this device.';
+            } else if (error.name === 'NotSupportedError') {
+                errorMessage += 'Camera is not supported by this browser.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage += 'Camera is already being used by another application.';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage += 'Camera constraints could not be satisfied.';
+            } else {
+                errorMessage += error.message || 'Unknown camera error occurred.';
+            }
+
+            alert(errorMessage + '\n\nPlease use the file upload option instead.');
         }
     };
 
@@ -74,13 +144,36 @@ export default function ReceiptScan() {
         setShowCamera(false);
     };
 
-    // Capture photo from camera
+    // Capture photo from camera with enhanced error handling
     const capturePhoto = () => {
-        if (videoRef.current && canvasRef.current) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            const context = canvas.getContext('2d');
+        console.log('📸 Attempting to capture photo...');
 
+        if (!videoRef.current || !canvasRef.current) {
+            console.error('❌ Video or canvas ref not available');
+            alert('Camera capture failed. Video or canvas not ready.');
+            return;
+        }
+
+        if (!cameraStream) {
+            console.error('❌ No camera stream available');
+            alert('No camera stream available. Please restart the camera.');
+            return;
+        }
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+
+        // Check if video is ready
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.error('❌ Video not ready for capture');
+            alert('Camera is not ready yet. Please wait a moment and try again.');
+            return;
+        }
+
+        console.log('📏 Capturing from video dimensions:', video.videoWidth, 'x', video.videoHeight);
+
+        try {
             // Set canvas size to match video
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -91,12 +184,20 @@ export default function ReceiptScan() {
             // Convert to blob
             canvas.toBlob((blob) => {
                 if (blob) {
+                    console.log('✅ Photo captured successfully, blob size:', blob.size);
                     const imageUrl = URL.createObjectURL(blob);
                     setCapturedImage(imageUrl);
                     stopCamera();
                     processImage(blob);
+                } else {
+                    console.error('❌ Failed to create blob from canvas');
+                    alert('Failed to capture photo. Please try again.');
                 }
-            }, 'image/jpeg', 0.8);
+            }, 'image/jpeg', 0.9); // Higher quality
+
+        } catch (error) {
+            console.error('❌ Error during photo capture:', error);
+            alert('Error capturing photo: ' + error.message);
         }
     };
 
@@ -462,15 +563,30 @@ export default function ReceiptScan() {
                                         ref={videoRef}
                                         autoPlay
                                         playsInline
+                                        muted
                                         className="w-full h-64 md:h-96 object-cover"
+                                        onLoadedMetadata={() => {
+                                            console.log('📱 Video loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+                                        }}
+                                        onError={(e) => {
+                                            console.error('Video error:', e);
+                                            alert('Video playback error. Please try again or use file upload.');
+                                            stopCamera();
+                                        }}
                                     />
                                     <div className="absolute inset-0 border-2 border-white border-dashed opacity-50 m-4 rounded-lg"></div>
+
+                                    {/* Camera status indicator */}
+                                    <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        {cameraStream ? '🟢 Camera Active' : '🔴 Camera Inactive'}
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-center space-x-4">
                                     <TouchEnhancedButton
                                         onClick={capturePhoto}
-                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                                        disabled={!cameraStream}
+                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-400"
                                     >
                                         📸 Capture Receipt
                                     </TouchEnhancedButton>
@@ -480,6 +596,15 @@ export default function ReceiptScan() {
                                     >
                                         Cancel
                                     </TouchEnhancedButton>
+                                </div>
+
+                                {/* Debug info */}
+                                <div className="text-xs text-gray-500 text-center">
+                                    {videoRef.current && (
+                                        <div>
+                                            Video: {videoRef.current.videoWidth || 0} x {videoRef.current.videoHeight || 0}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
