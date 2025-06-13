@@ -172,6 +172,8 @@ export default function ReceiptScan() {
                 const handleVideoReady = () => {
                     console.log('✅ Video ready, showing camera interface');
                     console.log('📏 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                    console.log('📺 Video ready state:', video.readyState);
+                    console.log('📺 Video paused:', video.paused);
 
                     clearTimeout(timeout);
                     video.removeEventListener('loadedmetadata', handleVideoReady);
@@ -184,15 +186,32 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', handleVideoReady);
                 video.addEventListener('canplay', handleVideoReady);
 
-                // Also try to play the video
-                video.play().catch(e => {
-                    console.log('📹 Video play failed (this is often normal):', e.message);
-                    // Don't reject here as this is often expected on mobile
-                });
+                // Force video to play and add error handling
+                video.play()
+                    .then(() => {
+                        console.log('✅ Video playing successfully');
+                    })
+                    .catch(e => {
+                        console.log('⚠️ Video play failed (this is often normal on mobile):', e.message);
+                        // Don't reject here as autoplay issues are common but don't prevent camera from working
+                    });
             });
 
             // Wait for video to be ready
             await videoReadyPromise;
+
+            // Double-check video is actually showing content
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.warn('⚠️ Video has no dimensions, waiting a bit more...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                    console.error('❌ Video still has no dimensions after waiting');
+                    throw new Error('Camera video feed not available');
+                }
+            }
+
+            console.log('📺 Final video check - dimensions:', video.videoWidth, 'x', video.videoHeight);
 
             setShowCamera(true);
             console.log('✅ Camera setup completed successfully');
@@ -671,17 +690,57 @@ export default function ReceiptScan() {
                         {/* Camera View */}
                         {showCamera && (
                             <div className="space-y-4">
-                                <div className="relative bg-black rounded-lg overflow-hidden">
-                                    <div className="w-full h-64 md:h-96 bg-black flex items-center justify-center relative">
+                                <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+                                    {/* Camera container with proper sizing */}
+                                    <div className="w-full bg-black flex items-center justify-center relative" style={{ height: '400px' }}>
                                         <video
                                             ref={videoRef}
                                             autoPlay
                                             playsInline
                                             muted
                                             className="w-full h-full object-cover"
-                                            style={{ display: 'block' }}
+                                            style={{
+                                                display: 'block',
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                backgroundColor: 'black'
+                                            }}
                                         />
-                                        <div className="absolute inset-0 border-2 border-white border-dashed opacity-50 m-4 rounded-lg pointer-events-none"></div>
+
+                                        {/* Scanning reticle overlay */}
+                                        <div className="absolute inset-0 pointer-events-none">
+                                            {/* Dark overlay with transparent center */}
+                                            <div className="absolute inset-0">
+                                                {/* Top overlay */}
+                                                <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-50" style={{ height: 'calc(50% - 100px)' }}></div>
+                                                {/* Bottom overlay */}
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50" style={{ height: 'calc(50% - 100px)' }}></div>
+                                                {/* Left overlay */}
+                                                <div className="absolute left-0 bg-black bg-opacity-50" style={{ top: 'calc(50% - 100px)', height: '200px', width: 'calc(50% - 150px)' }}></div>
+                                                {/* Right overlay */}
+                                                <div className="absolute right-0 bg-black bg-opacity-50" style={{ top: 'calc(50% - 100px)', height: '200px', width: 'calc(50% - 150px)' }}></div>
+                                            </div>
+
+                                            {/* Receipt scanning frame - larger than barcode frame */}
+                                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48">
+                                                <div className="w-full h-full border-2 border-white border-dashed rounded-lg relative">
+                                                    {/* Corner brackets */}
+                                                    <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-white"></div>
+                                                    <div className="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-white"></div>
+                                                    <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-white"></div>
+                                                    <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-white"></div>
+                                                </div>
+                                            </div>
+
+                                            {/* Instructions overlay */}
+                                            <div className="absolute top-4 left-4 right-4">
+                                                <div className="bg-black bg-opacity-75 text-white text-sm p-3 rounded-lg text-center">
+                                                    <div className="font-medium">📄 Position receipt within the frame</div>
+                                                    <div className="text-xs mt-1 opacity-90">Keep receipt flat and well-lit</div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         {/* Camera status indicator */}
                                         <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
@@ -694,7 +753,7 @@ export default function ReceiptScan() {
                                     <TouchEnhancedButton
                                         onClick={capturePhoto}
                                         disabled={!cameraStream || !cameraStream.active}
-                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-400"
+                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         📸 Capture Receipt
                                     </TouchEnhancedButton>
@@ -708,17 +767,19 @@ export default function ReceiptScan() {
 
                                 {/* Debug info */}
                                 <div className="text-xs text-gray-500 text-center bg-gray-50 p-2 rounded">
-                                    {videoRef.current && (
-                                        <div>
-                                            Video: {videoRef.current.videoWidth || 0} x {videoRef.current.videoHeight || 0}
-                                            {cameraStream && (
-                                                <span className="ml-2">
-                                                    | Tracks: {cameraStream.getTracks().length}
-                                                    | Active: {cameraStream.active ? 'Yes' : 'No'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                    <div className="grid grid-cols-2 gap-2 text-left">
+                                        <div>Video Element:</div>
+                                        <div>{videoRef.current ? `${videoRef.current.videoWidth || 0} x ${videoRef.current.videoHeight || 0}` : 'Not available'}</div>
+
+                                        <div>Video Ready State:</div>
+                                        <div>{videoRef.current ? videoRef.current.readyState : 'N/A'}</div>
+
+                                        <div>Stream Tracks:</div>
+                                        <div>{cameraStream ? cameraStream.getTracks().length : 0}</div>
+
+                                        <div>Stream Active:</div>
+                                        <div>{cameraStream?.active ? 'Yes' : 'No'}</div>
+                                    </div>
                                 </div>
                             </div>
                         )}
