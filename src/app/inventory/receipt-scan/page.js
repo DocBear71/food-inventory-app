@@ -239,11 +239,30 @@ export default function ReceiptScan() {
 
         // Skip header/footer lines (store name, totals, etc.)
         const skipPatterns = [
-            /^(walmart|target|kroger|publix|safeway)/i,
+            /^(walmart|target|kroger|publix|safeway|hy-vee|hyvee)/i,
             /^(total|subtotal|tax|change|card|cash)/i,
             /^(thank you|receipt|store|phone|address)/i,
             /^\d{2}\/\d{2}\/\d{4}/,
-            /^[\d\s\-\(\)]+$/
+            /^[\d\s\-\(\)]+$/,
+            // Payment and transaction lines
+            /^(debit|credit|card|cash|tend|tender)/i,
+            /^(debit tend|credit tend|cash tend)/i,
+            /^(payment|transaction|approval)/i,
+            /^(ref|reference|auth|authorization)/i,
+            // Receipt footer information
+            /^(change due|amount due|balance)/i,
+            /^(customer|member|rewards)/i,
+            /^(save|saved|you saved)/i,
+            /^(coupon|discount|promotion)/i,
+            // Store operation codes and IDs
+            /^(st#|store|op|operator|te|terminal)/i,
+            /^(tc#|transaction|seq|sequence)/i,
+            /^[\d\s]{10,}$/, // Long strings of numbers and spaces
+            // Items sold counter
+            /^#?\s*items?\s+sold/i,
+            /^\d+\s+items?\s+sold/i,
+            // Barcode numbers (standalone)
+            /^[\d\s]{15,}$/
         ];
 
         for (let i = 0; i < lines.length; i++) {
