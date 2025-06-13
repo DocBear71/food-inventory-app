@@ -364,59 +364,103 @@ export default function ReceiptScan() {
         ));
     }
 
-    // Lookup item by UPC
+    // Lookup item by UPC with check digit handling
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
-        try {
-            const response = await fetch(`/api/upc/lookup?upc=${item.upc}`);
-
+        // Function to try UPC lookup with a specific code
+        async function tryUPCLookup(upcCode) {
+            const response = await fetch(`/api/upc/lookup?upc=${upcCode}`);
             if (!response.ok) {
-                if (response.status === 400) {
-                    alert('❌ Invalid UPC format');
-                } else if (response.status === 404) {
-                    alert('❌ Product not found in Open Food Facts database');
-                } else if (response.status === 500) {
-                    alert('❌ UPC lookup service error. Please try again later.');
-                } else {
-                    alert(`❌ UPC lookup failed with status: ${response.status}`);
-                }
-                return;
+                return null;
             }
-
             const data = await response.json();
+            return data;
+        }
 
-            if (data.success && data.product && data.product.found) {
-                // Update item with product information
-                if (data.product.name && data.product.name !== 'Unknown Product') {
-                    updateItem(item.id, 'name', data.product.name);
+        try {
+            const originalUPC = item.upc;
+            const upcVariations = [];
+
+            // Add original UPC
+            upcVariations.push(originalUPC);
+
+            // If UPC is 12 digits, try adding check digits 0-9
+            if (originalUPC.length === 12) {
+                for (let i = 0; i <= 9; i++) {
+                    upcVariations.push(originalUPC + i);
                 }
-
-                if (data.product.category && data.product.category !== 'Other') {
-                    updateItem(item.id, 'category', data.product.category);
-                }
-
-                if (data.product.brand) {
-                    updateItem(item.id, 'brand', data.product.brand);
-                }
-
-                updateItem(item.id, 'needsReview', false);
-
-                // Show success message with product details
-                let successMessage = `✅ Product found: ${data.product.name}`;
-                if (data.product.brand) {
-                    successMessage += ` (${data.product.brand})`;
-                }
-                if (data.product.category && data.product.category !== 'Other') {
-                    successMessage += `\nCategory: ${data.product.category}`;
-                }
-
-                alert(successMessage);
-            } else if (data.found === false) {
-                alert('❌ Product not found in Open Food Facts database');
-            } else {
-                alert('❌ Unable to retrieve product information');
             }
+
+            // If UPC is 11 digits, try adding check digits 0-9 (pad with leading zero first)
+            if (originalUPC.length === 11) {
+                const paddedUPC = '0' + originalUPC;
+                upcVariations.push(paddedUPC);
+                for (let i = 0; i <= 9; i++) {
+                    upcVariations.push(paddedUPC + i);
+                }
+            }
+
+            // If UPC is 13 digits, try removing last digit
+            if (originalUPC.length === 13) {
+                const truncatedUPC = originalUPC.slice(0, -1);
+                upcVariations.push(truncatedUPC);
+                // Also try variations of the truncated version
+                for (let i = 0; i <= 9; i++) {
+                    upcVariations.push(truncatedUPC + i);
+                }
+            }
+
+            console.log(`Trying UPC variations for ${originalUPC}:`, upcVariations);
+
+            // Try each variation until we find a match
+            for (const upcCode of upcVariations) {
+                try {
+                    const data = await tryUPCLookup(upcCode);
+
+                    if (data && data.success && data.product && data.product.found) {
+                        // Update item with product information
+                        if (data.product.name && data.product.name !== 'Unknown Product') {
+                            updateItem(item.id, 'name', data.product.name);
+                        }
+
+                        if (data.product.category && data.product.category !== 'Other') {
+                            updateItem(item.id, 'category', data.product.category);
+                        }
+
+                        if (data.product.brand) {
+                            updateItem(item.id, 'brand', data.product.brand);
+                        }
+
+                        // Update the UPC with the working version
+                        updateItem(item.id, 'upc', upcCode);
+                        updateItem(item.id, 'needsReview', false);
+
+                        // Show success message with product details
+                        let successMessage = `✅ Product found: ${data.product.name}`;
+                        if (data.product.brand) {
+                            successMessage += ` (${data.product.brand})`;
+                        }
+                        if (data.product.category && data.product.category !== 'Other') {
+                            successMessage += `\nCategory: ${data.product.category}`;
+                        }
+                        if (upcCode !== originalUPC) {
+                            successMessage += `\nCorrected UPC: ${originalUPC} → ${upcCode}`;
+                        }
+
+                        alert(successMessage);
+                        return; // Success, exit function
+                    }
+                } catch (error) {
+                    // Continue to next variation if this one fails
+                    console.log(`UPC variation ${upcCode} failed:`, error.message);
+                    continue;
+                }
+            }
+
+            // If we get here, none of the variations worked
+            alert(`❌ Product not found for UPC ${originalUPC} (tried ${upcVariations.length} variations)`);
+
         } catch (error) {
             console.error('UPC lookup error:', error);
             alert('❌ Network error during UPC lookup. Please check your connection and try again.');
