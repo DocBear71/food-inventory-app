@@ -1,4 +1,4 @@
-// file: /src/app/inventory/receipt-scan/page.js - v3 Receipt scanning with OCR - Simplified camera approach
+// file: /src/app/inventory/receipt-scan/page.js - v4 Receipt scanning with OCR - Fixed function naming conflicts
 
 'use client';
 
@@ -176,8 +176,8 @@ export default function ReceiptScan() {
         }, 'image/jpeg', 0.9);
     }
 
-    // Handle file upload
-    function handleFileUpload(event) {
+    // FIXED: Handle receipt file upload (renamed to avoid conflict)
+    function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
             const imageUrl = URL.createObjectURL(file);
@@ -805,7 +805,8 @@ export default function ReceiptScan() {
         setShowReportModal(true);
     }
 
-    function handleFileUpload(event) {
+    // FIXED: Handle report modal file uploads (renamed to avoid conflict)
+    function handleReportFileUpload(event) {
         const files = Array.from(event.target.files);
         const validFiles = files.filter(file => {
             const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -878,6 +879,7 @@ export default function ReceiptScan() {
             alert('❌ Failed to send issue report. Please try again.');
         }
     }
+
     function resetScan() {
         // Stop camera first
         stopCamera();
@@ -963,7 +965,7 @@ export default function ReceiptScan() {
                                     ref={fileInputRef}
                                     type="file"
                                     accept="image/*"
-                                    onChange={handleFileUpload}
+                                    onChange={handleReceiptFileUpload}
                                     className="hidden"
                                 />
 
@@ -1055,7 +1057,6 @@ export default function ReceiptScan() {
                             </div>
                         )}
 
-                        {/* Rest of the component remains the same... */}
                         {/* Step 2: Processing */}
                         {step === 'processing' && (
                             <div className="text-center space-y-6">
@@ -1382,7 +1383,7 @@ export default function ReceiptScan() {
                                                 type="file"
                                                 multiple
                                                 accept="image/*"
-                                                onChange={handleFileUpload}
+                                                onChange={handleReportFileUpload}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
