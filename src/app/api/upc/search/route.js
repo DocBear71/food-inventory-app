@@ -140,8 +140,20 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Text search error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Query that caused error:', query);
 
-        // Handle timeout errors specifically
+        // Handle rate limiting errors specifically
+        if (error.message.includes('429') || response?.status === 429) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Search service is busy. Please wait a moment and try again.',
+                    details: 'Rate limit exceeded'
+                },
+                { status: 429 }
+            );
+        }
         if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
             return NextResponse.json(
                 {
@@ -153,11 +165,23 @@ export async function GET(request) {
             );
         }
 
+        // Handle fetch errors
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Unable to connect to search service',
+                    details: 'Network connectivity issue'
+                },
+                { status: 503 }
+            );
+        }
+
         return NextResponse.json(
             {
                 success: false,
                 error: 'Failed to search for products',
-                details: error.message
+                details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
             },
             { status: 500 }
         );

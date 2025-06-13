@@ -178,7 +178,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             setTotalPages(0);
 
             // Show user-friendly error message
-            if (error.message.includes('timeout')) {
+            if (error.message.includes('429') || error.message.includes('Rate limit') || error.message.includes('busy')) {
+                alert('Search service is busy. Please wait a moment before searching again.');
+            } else if (error.message.includes('timeout')) {
                 alert('Search is taking longer than usual. Please try again.');
             } else {
                 console.log('Search error details:', error.message);
@@ -188,9 +190,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Autocomplete functionality using our API proxy
+    // NEW: Autocomplete functionality with rate limiting protection
     const performAutocomplete = async (query) => {
-        if (!query.trim() || query.length < 2) {
+        if (!query.trim() || query.length < 3) { // Increased from 2 to 3
             setAutocompleteResults([]);
             setShowAutocomplete(false);
             return;
@@ -198,13 +200,13 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         try {
             // Use our API endpoint with smaller page size for autocomplete
-            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=5`;
+            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=3`; // Reduced from 5 to 3
 
             const response = await fetch(searchUrl);
             const data = await response.json();
 
             if (response.ok && data.success) {
-                const suggestions = data.results?.slice(0, 5).map(product => ({
+                const suggestions = data.results?.slice(0, 3).map(product => ({ // Reduced from 5 to 3
                     name: product.name,
                     brand: product.brand,
                     image: product.image,
@@ -213,18 +215,20 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 setAutocompleteResults(suggestions);
                 setShowAutocomplete(suggestions.length > 0);
             } else {
+                // Don't show errors for autocomplete - just silently fail
                 setAutocompleteResults([]);
                 setShowAutocomplete(false);
             }
 
         } catch (error) {
-            console.log('Autocomplete error:', error);
+            // Silently handle autocomplete errors to avoid user disruption
+            console.log('Autocomplete skipped due to rate limiting or network issue');
             setAutocompleteResults([]);
             setShowAutocomplete(false);
         }
     };
 
-    // NEW: Handle search input changes
+    // NEW: Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
@@ -237,25 +241,27 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             clearTimeout(autocompleteTimeoutRef.current);
         }
 
-        // Debounced autocomplete
-        if (query.length >= 2) {
+        // Debounced autocomplete with longer delay to avoid rate limiting
+        if (query.length >= 3) { // Increased from 2 to 3 characters
             autocompleteTimeoutRef.current = setTimeout(() => {
                 performAutocomplete(query);
-            }, 300);
+            }, 800); // Increased from 300ms to 800ms
         } else {
             setShowAutocomplete(false);
             setAutocompleteResults([]);
         }
 
-        // Debounced search
-        if (query.trim()) {
+        // Debounced search with longer delay
+        if (query.trim() && query.length >= 3) { // Only search after 3+ characters
             searchTimeoutRef.current = setTimeout(() => {
                 setSearchPage(1);
                 performTextSearch(query, 1);
-            }, 800);
+            }, 1200); // Increased from 800ms to 1200ms
         } else {
             setSearchResults([]);
             setTotalPages(0);
+            setShowAutocomplete(false);
+            setAutocompleteResults([]);
         }
     };
 
@@ -263,6 +269,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const handleAutocompleteSelect = (suggestion) => {
         setSearchQuery(suggestion.name);
         setShowAutocomplete(false);
+        setAutocompleteResults([]);
         setSearchPage(1);
         performTextSearch(suggestion.name, 1);
     };
@@ -274,6 +281,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         // Clear search results to show the selected product
         setSearchResults([]);
         setSearchQuery('');
+        // Hide autocomplete dropdown
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
     };
 
     // NEW: Handle pagination
@@ -462,9 +472,11 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                         {/* Help text */}
                         <div className="mt-2 text-xs text-gray-500 space-y-1">
                             <div>💡 <strong>Search Tips:</strong></div>
+                            <div>• Type at least 3 characters to start searching</div>
                             <div>• Try brand + product name (e.g., "Campbell's Tomato Soup")</div>
                             <div>• Use specific terms (e.g., "Honey Nut Cheerios" vs "cereal")</div>
                             <div>• Results prioritize products with images for easy identification</div>
+                            <div>• Wait between searches to avoid rate limits</div>
                         </div>
                     </div>
 
