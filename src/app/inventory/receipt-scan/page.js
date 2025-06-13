@@ -439,9 +439,7 @@ export default function ReceiptScan() {
             /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
             /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
 
-            // Ground beef pattern fix (the current one isn't working properly)
-            // The OCR is reading "80% 20% F1 GRD RE" and the pattern should catch this:
-            /^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i,                 // "80% 20% F1 GRD RE" pattern
+
 
             // Also add these additional OCR artifact patterns:
             /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
@@ -721,8 +719,8 @@ export default function ReceiptScan() {
 
                 // Enhanced ground beef detection and cleaning
                 // Convert "80% 20% FT GRD BF" to "80/20 Ground Beef"
-                if (nameMatch.match(/\d+%\s*\d+%\s*ft\s*grd\s*(bf|beef)/i)) {
-                    const percentMatch = nameMatch.match(/(\d+)%\s*(\d+)%\s*ft\s*grd\s*(bf|beef)/i);
+                if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
+                    const percentMatch = nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i);
                     if (percentMatch) {
                         nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
                     }
