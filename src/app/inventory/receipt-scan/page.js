@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -548,7 +548,7 @@ export default function ReceiptScan() {
     };
 
     // Reset to start over - FIXED with proper cleanup
-    const resetScan = useCallback(() => {
+    const resetScan = () => {
         console.log('🔄 Resetting scan state...');
 
         // Stop camera first
@@ -575,7 +575,7 @@ export default function ReceiptScan() {
         }
 
         console.log('✅ Scan state reset complete');
-    }, [stopCamera]); // Only depend on stopCamera which now has empty deps
+    };
 
     return (
         <MobileOptimizedLayout>
