@@ -283,7 +283,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                     </h3>
                                     <p className="text-gray-600 max-w-2xl mx-auto mb-6">
                                         This wizard will help you quickly populate your inventory with common household items.
-                                        You can select items by category and adjust quantities as needed.
+                                        You can select items by category and adjust quantities as needed. After the items are entered into inventory, you can edit them to change information, add brand names, expiration dates, and more.
                                     </p>
 
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
@@ -319,6 +319,16 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                         {/* Categories Step */}
                         {currentStep === 'categories' && (
                             <div className="space-y-6">
+                                {/* Helpful reminder at the top of categories step */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-start space-x-3">
+                                        <div className="text-blue-600 text-lg">💡</div>
+                                        <div className="text-blue-800 text-sm">
+                                            <div className="font-medium mb-1">Quick Setup Tip:</div>
+                                            <div>Don't worry about getting everything perfect - you can edit items later to add brands, expiration dates, and adjust quantities once they're in your inventory.</div>
+                                        </div>
+                                    </div>
+                                </div>
                                 {Object.entries(COMMON_ITEMS).map(([categoryKey, category]) => {
                                     const selectedCount = getSelectedCountInCategory(categoryKey);
                                     const totalCount = category.items.length;
@@ -400,7 +410,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                     <input
                                                                                         type="number"
                                                                                         min="0"
-                                                                                        step="0.1"
+                                                                                        step="0.01"
                                                                                         value={currentItem?.quantity || ''}
                                                                                         onChange={(e) => updateQuantity(itemId, e.target.value, false)}
                                                                                         onBlur={() => handleQuantityBlur(itemId, false)}
@@ -419,7 +429,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                                                         <input
                                                                                             type="number"
                                                                                             min="0"
-                                                                                            step="0.1"
+                                                                                            step="0.01"
                                                                                             value={currentItem?.secondaryQuantity || ''}
                                                                                             onChange={(e) => updateQuantity(itemId, e.target.value, true)}
                                                                                             onBlur={() => handleQuantityBlur(itemId, true)}
