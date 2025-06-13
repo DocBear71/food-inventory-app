@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js v3 - Added Common Items Wizard to hamburger menu
+// file: /src/components/layout/MobileDashboardLayout.js v4 - Added Receipt Scanner to header and hamburger menu
 
 'use client';
 
@@ -55,8 +55,15 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
-    // Additional menu items for hamburger menu only - UPDATED: Added Common Items Wizard
+    // Additional menu items for hamburger menu only - UPDATED: Added Receipt Scanner
     const additionalMenuItems = [
+        {
+            name: 'Receipt Scanner',
+            href: '/inventory/receipt-scan',
+            icon: '📄',
+            current: pathname === '/inventory/receipt-scan',
+            description: 'Scan receipts to quickly add multiple items to inventory'
+        },
         {
             name: 'Common Items Wizard',
             href: '/inventory?wizard=true',
@@ -123,6 +130,18 @@ export default function MobileDashboardLayout({children}) {
                     </div>
 
                     <div className="flex items-center space-x-2 flex-shrink-0">
+                        {/* Receipt Scanner Button */}
+                        <TouchEnhancedButton
+                            onClick={() => handleNavigation('/inventory/receipt-scan')}
+                            className="p-2 rounded-lg bg-purple-600 text-white shadow-md hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
+                            aria-label="Scan receipt"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </TouchEnhancedButton>
+
                         {/* Quick add Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add')}
@@ -208,7 +227,7 @@ export default function MobileDashboardLayout({children}) {
                                 ))}
                             </div>
 
-                            {/* Additional menu items - UPDATED: Now includes Common Items Wizard */}
+                            {/* Additional menu items - UPDATED: Now includes Receipt Scanner */}
                             <div className="mb-6">
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
                                     Tools & Features

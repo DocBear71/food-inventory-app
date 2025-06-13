@@ -1,4 +1,4 @@
-// file: src/app/dashboard/page.js v13 - Enhanced with Expiration Notifications
+// file: src/app/dashboard/page.js v14 - Added Receipt Scanner to Quick Actions
 
 'use client';
 
@@ -169,7 +169,7 @@ export default function Dashboard() {
                     <ExpirationNotifications onItemsUpdated={handleItemsUpdated} />
                 )}
 
-                {/* Quick actions - Fixed mobile layout */}
+                {/* Quick actions - Fixed mobile layout with Receipt Scanner */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -177,6 +177,18 @@ export default function Dashboard() {
                         </h3>
                         {/* Mobile: 1 column, MD: 2 columns, LG: 4 columns - Custom CSS */}
                         <div className="mobile-stack">
+                            {/* Receipt Scanner - NEW */}
+                            <a
+                                href="/inventory/receipt-scan"
+                                className="flex items-center p-6 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[100px]"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">📄</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-purple-900 text-base">Scan Receipt</div>
+                                    <div className="text-sm text-purple-700">Add items from receipt</div>
+                                </div>
+                            </a>
+
                             <a
                                 href="/inventory?action=add"
                                 className="flex items-center p-6 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[100px]"
@@ -212,16 +224,16 @@ export default function Dashboard() {
 
                             <a
                                 href="/recipes/suggestions"
-                                className="flex items-center p-6 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[100px]"
+                                className="flex items-center p-6 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors min-h-[100px]"
                             >
                                 <div className="text-4xl mr-4 flex-shrink-0">💡</div>
                                 <div className="min-w-0">
-                                    <div className="font-medium text-purple-900 text-base">What Can I Make?</div>
-                                    <div className="text-sm text-purple-700">Recipe suggestions</div>
+                                    <div className="font-medium text-orange-900 text-base">What Can I Make?</div>
+                                    <div className="text-sm text-orange-700">Recipe suggestions</div>
                                 </div>
                             </a>
 
-                            {/* New Expiration Management Quick Action */}
+                            {/* Expiration Management Quick Action */}
                             <TouchEnhancedButton
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="flex items-center p-6 bg-red-50 rounded-lg hover:bg-red-100 transition-colors min-h-[100px] w-full text-left"
