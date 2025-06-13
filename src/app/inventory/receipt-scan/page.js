@@ -425,6 +425,41 @@ export default function ReceiptScan() {
             /deposit/i,           // Generic deposit
             /^\.?\d+\s*fs?\s*btl\s*dep/i, // ".30 FS BTL DEP"
 
+            // Bottle deposit with OCR periods/punctuation
+            /btl\.\s+dep/i,        // "BTL.DEP" - OCR adds periods
+            /btl\s*\.\s*dep/i,     // "BTL . DEP" - OCR with spaced periods
+            /bottle\.\s+deposit/i, // "BOTTLE.DEPOSIT"
+
+            // Tax reference fragments (OCR splitting)
+            /^x\s+\d+\s+\d+\s+\d+$/i,    // "X 6 1 44" - tax calculation fragments
+            /^[tx]\s+\d+(\s+\d+)*$/i,    // "T 23" or "X 6 1 44" patterns
+
+            // Subtotal/total fragments (OCR number splitting)
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,  // "1 1 0 24" - numbers split by OCR
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i, // Specific pattern for split totals
+
+            // Receipt formatting artifacts
+            /^[\d\s]+\d{2}$/i,           // Lines that are just spaced numbers ending in 2 digits
+            /^[a-z]\s+[\d\s]+$/i,        // Single letter followed by spaced numbers
+
+            // Mathematical operation fragments
+            /^@\s*\d+\.\d+%/i,           // "@ 6.000%" - calculation fragments
+            /^=\s*[\d\s]+$/i,            // "= 1 44" - result fragments
+            /^\d+\.\d+%\s*=?$/i,         // "6.000% =" - percentage fragments
+
+            // OCR misreads of common receipt elements
+            /^sub\s*total\s*[\[\d\]]*$/i, // "SUB TOTAL [18]" or variations
+            /^total\s*[\[\d\]]*$/i,       // "TOTAL [18]" or variations
+
+            // Additional Hy-Vee specific OCR issues
+            /employee\s*owned/i,          // Header text
+            /storeman/i,                  // "StoreManagement" fragments
+            /group.*hy.*vee/i,           // URL fragments
+
+            // Generic OCR line-splitting artifacts
+            /^[\d\s]{3,}$/,              // Lines of just numbers and spaces (3+ chars)
+            /^[a-z]{1,2}\s+[\d\s]+$/i,   // 1-2 letters followed by spaced numbers
+
             // Tax calculation lines
             /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i, // "23.93 @ 6.000% = 1.44"
             /^[tx]\s+\d+\.\d+\s*@/i, // "T 23.93 @"
