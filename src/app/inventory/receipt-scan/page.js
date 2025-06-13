@@ -26,6 +26,13 @@ export default function ReceiptScan() {
     const [step, setStep] = useState('upload'); // 'upload', 'processing', 'review', 'adding'
     const [processingStatus, setProcessingStatus] = useState('');
     const [cameraError, setCameraError] = useState(null);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportData, setReportData] = useState({
+        issue: '',
+        description: '',
+        email: '',
+        receiptImage: null
+    });
 
     // Cleanup effect
     useEffect(() => {
@@ -785,7 +792,53 @@ export default function ReceiptScan() {
         }
     }
 
-    // Reset to start over
+    // Report issue functionality
+    function openReportModal() {
+        setReportData({
+            issue: '',
+            description: '',
+            email: session?.user?.email || '',
+            receiptImage: capturedImage
+        });
+        setShowReportModal(true);
+    }
+
+    async function submitIssueReport() {
+        if (!reportData.issue || !reportData.description) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('issue', reportData.issue);
+            formData.append('description', reportData.description);
+            formData.append('email', reportData.email);
+
+            // If there's a receipt image, include it
+            if (reportData.receiptImage) {
+                // Convert image URL to blob
+                const response = await fetch(reportData.receiptImage);
+                const blob = await response.blob();
+                formData.append('receiptImage', blob, 'receipt.jpg');
+            }
+
+            const response = await fetch('/api/receipt-issue-report', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('✅ Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.');
+                setShowReportModal(false);
+            } else {
+                throw new Error('Failed to send report');
+            }
+        } catch (error) {
+            console.error('Error sending issue report:', error);
+            alert('❌ Failed to send issue report. Please try again.');
+        }
+    }
     function resetScan() {
         // Stop camera first
         stopCamera();
@@ -895,6 +948,20 @@ export default function ReceiptScan() {
                                         <li>• Higher resolution images work better</li>
                                     </ul>
                                 </div>
+
+                                {/* Report Issue Section */}
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
+                                    <p className="text-sm text-yellow-800 mb-3">
+                                        If the receipt scanner isn't working properly with your receipt, you can report the issue to help us improve it.
+                                    </p>
+                                    <TouchEnhancedButton
+                                        onClick={openReportModal}
+                                        className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                                    >
+                                        📧 Report Receipt Issue
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
                         )}
 
@@ -1001,6 +1068,12 @@ export default function ReceiptScan() {
                                             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                         >
                                             Start Over
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={openReportModal}
+                                            className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                                        >
+                                            📧 Report Issue
                                         </TouchEnhancedButton>
                                         <TouchEnhancedButton
                                             onClick={addItemsToInventory}
@@ -1184,6 +1257,114 @@ export default function ReceiptScan() {
 
                 {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden" />
+
+                {/* Report Issue Modal */}
+                {showReportModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                    >
+                                        ×
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            What type of issue are you experiencing? *
+                                        </label>
+                                        <select
+                                            value={reportData.issue}
+                                            onChange={(e) => setReportData(prev => ({ ...prev, issue: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                            <option value="">Select an issue...</option>
+                                            <option value="camera-not-working">Camera not working</option>
+                                            <option value="ocr-poor-accuracy">Poor text recognition</option>
+                                            <option value="wrong-items-detected">Wrong items detected</option>
+                                            <option value="missing-items">Items not detected</option>
+                                            <option value="categories-wrong">Wrong categories assigned</option>
+                                            <option value="upc-lookup-failed">UPC lookup not working</option>
+                                            <option value="app-crash">App crashed/froze</option>
+                                            <option value="other">Other issue</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Please describe the issue in detail *
+                                        </label>
+                                        <textarea
+                                            value={reportData.description}
+                                            onChange={(e) => setReportData(prev => ({ ...prev, description: e.target.value }))}
+                                            placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            rows={4}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Your email (for follow-up)
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={reportData.email}
+                                            onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
+                                            placeholder="your.email@example.com"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+
+                                    {capturedImage && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Receipt Image (will be included)
+                                            </label>
+                                            <img
+                                                src={capturedImage}
+                                                alt="Receipt to be sent"
+                                                className="max-w-full h-32 object-contain border rounded"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                        <p className="text-sm text-blue-800">
+                                            📝 <strong>Your report will include:</strong>
+                                        </p>
+                                        <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                                            <li>• Your issue description</li>
+                                            <li>• Receipt image (if available)</li>
+                                            <li>• Browser and device information</li>
+                                            <li>• No personal information from your account</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="flex space-x-3 mt-6">
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={submitIssueReport}
+                                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                    >
+                                        📧 Send Report
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <Footer />
             </div>

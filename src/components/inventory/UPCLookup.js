@@ -1,8 +1,8 @@
-// file: /src/components/inventory/UPCLookup.js - v6 Enhanced with text search functionality
+// file: /src/components/inventory/UPCLookup.js - v7 Enhanced with autocomplete dropdown fixes and better UX
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
@@ -79,6 +79,30 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const [showAutocomplete, setShowAutocomplete] = useState(false);
     const searchTimeoutRef = useRef(null);
     const autocompleteTimeoutRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const autocompleteRef = useRef(null);
+
+    // NEW: Handle clicks outside autocomplete to close it
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (autocompleteRef.current && !autocompleteRef.current.contains(event.target) &&
+                searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+                setShowAutocomplete(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // NEW: Close autocomplete when search results are displayed
+    useEffect(() => {
+        if (searchResults.length > 0) {
+            setShowAutocomplete(false);
+        }
+    }, [searchResults]);
 
     // Check if camera is available
     const checkCameraAvailability = () => {
@@ -146,6 +170,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
 
         setIsSearching(true);
+        // UPDATED: Hide autocomplete when starting search
+        setShowAutocomplete(false);
         console.log(`Searching for products: "${query}" (page ${page})`);
 
         try {
@@ -292,6 +318,19 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         performTextSearch(searchQuery, newPage);
     };
 
+    // NEW: Manual close function for autocomplete
+    const handleCloseAutocomplete = () => {
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+    };
+
+    // NEW: Handle input focus to show autocomplete again if there are results
+    const handleSearchInputFocus = () => {
+        if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
+            setShowAutocomplete(true);
+        }
+    };
+
     const handleUPCInput = (e) => {
         const upc = e.target.value;
         onUPCChange(upc);
@@ -344,6 +383,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             setLookupResult(null);
                             setSearchResults([]);
                             setSearchQuery('');
+                            // UPDATED: Close autocomplete when switching tabs
+                            setShowAutocomplete(false);
+                            setAutocompleteResults([]);
                         }}
                         className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
                             activeTab === 'upc'
@@ -359,6 +401,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             setActiveTab('search');
                             setLookupResult(null);
                             onUPCChange('');
+                            // UPDATED: Close autocomplete when switching tabs
+                            setShowAutocomplete(false);
+                            setAutocompleteResults([]);
                         }}
                         className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
                             activeTab === 'search'
@@ -428,23 +473,42 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                         </label>
                         <div className="relative">
                             <input
+                                ref={searchInputRef}
                                 type="text"
                                 id="search"
                                 value={searchQuery}
                                 onChange={handleSearchInputChange}
+                                onFocus={handleSearchInputFocus}
                                 placeholder="Type product name (e.g., 'Cheerios', 'Campbell's Soup')"
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
 
-                            {/* Autocomplete dropdown */}
+                            {/* UPDATED: Autocomplete dropdown with close button and better z-index */}
                             {showAutocomplete && autocompleteResults.length > 0 && (
-                                <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                <div
+                                    ref={autocompleteRef}
+                                    className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
+                                >
+                                    {/* UPDATED: Header with close button */}
+                                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                        <span className="text-xs font-medium text-gray-600">Quick suggestions</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleCloseAutocomplete}
+                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            title="Close suggestions"
+                                        >
+                                            <span className="text-sm">✕</span>
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Autocomplete results */}
                                     {autocompleteResults.map((suggestion, index) => (
                                         <TouchEnhancedButton
                                             key={index}
                                             type="button"
                                             onClick={() => handleAutocompleteSelect(suggestion)}
-                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2"
+                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-b border-gray-100 last:border-b-0"
                                         >
                                             {suggestion.image && (
                                                 <img
