@@ -977,7 +977,7 @@ function InventoryContent() {
                                                         id="quantity"
                                                         name="quantity"
                                                         min="0"
-                                                        step="0.1"
+                                                        step="0.01"
                                                         required
                                                         value={formData.quantity}
                                                         onChange={handleChange}
@@ -1016,7 +1016,7 @@ function InventoryContent() {
                                                         id="secondaryQuantity"
                                                         name="secondaryQuantity"
                                                         min="0"
-                                                        step="0.1"
+                                                        step="0.01"
                                                         value={formData.secondaryQuantity}
                                                         onChange={handleChange}
                                                         placeholder="0"
