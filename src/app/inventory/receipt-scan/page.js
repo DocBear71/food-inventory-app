@@ -364,7 +364,25 @@ export default function ReceiptScan() {
         ));
     }
 
-    // Lookup item by UPC with check digit handling
+    // Calculate UPC check digit using standard algorithm
+    function calculateUPCCheckDigit(upc12) {
+        if (upc12.length !== 12) return null;
+
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            const digit = parseInt(upc12[i]);
+            if (i % 2 === 0) {
+                sum += digit * 1; // Even positions (0,2,4,6,8,10) multiply by 1
+            } else {
+                sum += digit * 3; // Odd positions (1,3,5,7,9,11) multiply by 3
+            }
+        }
+
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return checkDigit;
+    }
+
+    // Lookup item by UPC with intelligent check digit calculation
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
@@ -381,39 +399,45 @@ export default function ReceiptScan() {
         try {
             const originalUPC = item.upc;
             const upcVariations = [];
+            let calculatedVariation = null;
 
-            // Add original UPC
+            // Strategy 1: Try original UPC first
             upcVariations.push(originalUPC);
 
-            // If UPC is 12 digits, try adding check digits 0-9
+            // Strategy 2: If 12 digits, calculate the correct check digit
             if (originalUPC.length === 12) {
-                for (let i = 0; i <= 9; i++) {
-                    upcVariations.push(originalUPC + i);
+                const checkDigit = calculateUPCCheckDigit(originalUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = originalUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
             }
 
-            // If UPC is 11 digits, try adding check digits 0-9 (pad with leading zero first)
+            // Strategy 3: If 11 digits, pad with zero and calculate check digit
             if (originalUPC.length === 11) {
                 const paddedUPC = '0' + originalUPC;
                 upcVariations.push(paddedUPC);
-                for (let i = 0; i <= 9; i++) {
-                    upcVariations.push(paddedUPC + i);
+
+                const checkDigit = calculateUPCCheckDigit(paddedUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = paddedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
             }
 
-            // If UPC is 13 digits, try removing last digit
+            // Strategy 4: If 13 digits, try removing last digit and recalculating
             if (originalUPC.length === 13) {
                 const truncatedUPC = originalUPC.slice(0, -1);
-                upcVariations.push(truncatedUPC);
-                // Also try variations of the truncated version
-                for (let i = 0; i <= 9; i++) {
-                    upcVariations.push(truncatedUPC + i);
+                const checkDigit = calculateUPCCheckDigit(truncatedUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = truncatedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
             }
 
-            console.log(`Trying UPC variations for ${originalUPC}:`, upcVariations);
+            console.log(`Smart UPC lookup for ${originalUPC}. Calculated variation: ${calculatedVariation}`);
 
-            // Try each variation until we find a match
+            // Try the smart variations first (original + calculated)
             for (const upcCode of upcVariations) {
                 try {
                     const data = await tryUPCLookup(upcCode);
@@ -436,7 +460,7 @@ export default function ReceiptScan() {
                         updateItem(item.id, 'upc', upcCode);
                         updateItem(item.id, 'needsReview', false);
 
-                        // Show success message with product details
+                        // Show success message
                         let successMessage = `✅ Product found: ${data.product.name}`;
                         if (data.product.brand) {
                             successMessage += ` (${data.product.brand})`;
@@ -452,14 +476,65 @@ export default function ReceiptScan() {
                         return; // Success, exit function
                     }
                 } catch (error) {
-                    // Continue to next variation if this one fails
-                    console.log(`UPC variation ${upcCode} failed:`, error.message);
+                    console.log(`UPC ${upcCode} failed:`, error.message);
                     continue;
                 }
             }
 
-            // If we get here, none of the variations worked
-            alert(`❌ Product not found for UPC ${originalUPC} (tried ${upcVariations.length} variations)`);
+            // Strategy 5: Only if smart calculation fails, try brute force (with user confirmation)
+            const shouldTryAll = confirm(`❓ Smart UPC lookup failed for ${originalUPC}.\n\nTry checking all possible check digits? This will make multiple API calls.`);
+
+            if (shouldTryAll && originalUPC.length === 12) {
+                console.log('User approved brute force UPC search');
+
+                // Try all possible check digits 0-9 (excluding calculated one already tried)
+                for (let i = 0; i <= 9; i++) {
+                    const testUPC = originalUPC + i;
+
+                    // Skip if we already tried this one
+                    if (calculatedVariation && testUPC === calculatedVariation) {
+                        continue;
+                    }
+
+                    try {
+                        const data = await tryUPCLookup(testUPC);
+
+                        if (data && data.success && data.product && data.product.found) {
+                            // Update item with product information
+                            if (data.product.name && data.product.name !== 'Unknown Product') {
+                                updateItem(item.id, 'name', data.product.name);
+                            }
+
+                            if (data.product.category && data.product.category !== 'Other') {
+                                updateItem(item.id, 'category', data.product.category);
+                            }
+
+                            if (data.product.brand) {
+                                updateItem(item.id, 'brand', data.product.brand);
+                            }
+
+                            updateItem(item.id, 'upc', testUPC);
+                            updateItem(item.id, 'needsReview', false);
+
+                            let successMessage = `✅ Product found: ${data.product.name}`;
+                            if (data.product.brand) {
+                                successMessage += ` (${data.product.brand})`;
+                            }
+                            successMessage += `\nCorrected UPC: ${originalUPC} → ${testUPC}`;
+                            successMessage += `\n(Found via brute force search)`;
+
+                            alert(successMessage);
+                            return;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+            }
+
+            // If we get here, nothing worked
+            const attemptedCount = shouldTryAll ? 'all variations' : `${upcVariations.length} smart variations`;
+            alert(`❌ Product not found for UPC ${originalUPC} (tried ${attemptedCount})`);
 
         } catch (error) {
             console.error('UPC lookup error:', error);
@@ -800,14 +875,39 @@ export default function ReceiptScan() {
                                                                 <option value="Other">Other</option>
                                                                 <option value="Fresh Vegetables">Fresh Vegetables</option>
                                                                 <option value="Fresh Fruits">Fresh Fruits</option>
+                                                                <option value="Fresh Spices">Fresh Spices</option>
                                                                 <option value="Dairy">Dairy</option>
+                                                                <option value="Cheese">Cheese</option>
+                                                                <option value="Eggs">Eggs</option>
                                                                 <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
                                                                 <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
+                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
+                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
+                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
+                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
+                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                                                <option value="Beans">Beans</option>
+                                                                <option value="Canned Meat">Canned/Jarred Meat</option>
+                                                                <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
+                                                                <option value="Canned Fruit">Canned/Jarred Fruit</option>
+                                                                <option value="Canned Sauces">Canned/Jarred Sauces</option>
+                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
+                                                                <option value="Canned Beans">Canned/Jarred Beans</option>
+                                                                <option value="Canned Meals">Canned/Jarred Meals</option>
+                                                                <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                                                <option value="Frozen Fruit">Frozen Fruit</option>
                                                                 <option value="Grains">Grains</option>
+                                                                <option value="Breads">Breads</option>
                                                                 <option value="Pasta">Pasta</option>
-                                                                <option value="Canned Meals">Canned Meals</option>
+                                                                <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                                                <option value="Boxed Meals">Boxed Meals</option>
+                                                                <option value="Seasonings">Seasonings</option>
+                                                                <option value="Spices">Spices</option>
+                                                                <option value="Bouillon">Bouillon</option>
+                                                                <option value="Stock/Broth">Stock/Broth</option>
                                                                 <option value="Beverages">Beverages</option>
                                                                 <option value="Snacks">Snacks</option>
+                                                                <option value="Condiments">Condiments</option>
                                                             </select>
                                                         </div>
 

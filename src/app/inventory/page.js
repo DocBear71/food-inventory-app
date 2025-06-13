@@ -927,16 +927,17 @@ function InventoryContent() {
                                                 Seafood
                                             </option>
                                             <option value="Beans">Beans</option>
-                                            <option value="Canned Meat">Canned Meat</option>
-                                            <option value="Canned Vegetables">Canned Vegetables</option>
-                                            <option value="Canned Fruit">Canned Fruit</option>
-                                            <option value="Canned Sauces">Canned Sauces</option>
-                                            <option value="Canned Tomatoes">Canned Tomatoes</option>
-                                            <option value="Canned Beans">Canned Beans</option>
-                                            <option value="Canned Meals">Canned Meals</option>
+                                            <option value="Canned Meat">Canned/Jarred Meat</option>
+                                            <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
+                                            <option value="Canned Fruit">Canned/Jarred Fruit</option>
+                                            <option value="Canned Sauces">Canned/Jarred Sauces</option>
+                                            <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
+                                            <option value="Canned Beans">Canned/Jarred Beans</option>
+                                            <option value="Canned Meals">Canned/Jarred Meals</option>
                                             <option value="Frozen Vegetables">Frozen Vegetables</option>
                                             <option value="Frozen Fruit">Frozen Fruit</option>
                                             <option value="Grains">Grains</option>
+                                            <option value="Breads">Breads</option>
                                             <option value="Pasta">Pasta</option>
                                             <option value="Stuffing & Sides">Stuffing & Sides</option>
                                             <option value="Boxed Meals">Boxed Meals</option>
