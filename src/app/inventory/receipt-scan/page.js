@@ -1,4 +1,4 @@
-// file: /src/app/inventory/receipt-scan/page.js - v2 Receipt scanning with OCR - Fixed camera state management
+// file: /src/app/inventory/receipt-scan/page.js - v2 Receipt scanning with OCR - Fixed React hooks issues
 
 'use client';
 
@@ -16,7 +16,7 @@ export default function ReceiptScan() {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
-    // State management
+    // State management - ALL HOOKS FIRST
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
     const [capturedImage, setCapturedImage] = useState(null);
@@ -30,7 +30,6 @@ export default function ReceiptScan() {
     // Cleanup camera stream on component unmount
     useEffect(() => {
         return () => {
-            // Access current camera stream via ref to avoid stale closure
             setCameraStream(currentStream => {
                 if (currentStream) {
                     console.log('🧹 Cleaning up camera stream on unmount');
@@ -41,13 +40,12 @@ export default function ReceiptScan() {
         };
     }, []);
 
-    // Redirect if not authenticated
+    // Early returns AFTER all hooks are defined
     if (status === 'unauthenticated') {
         router.push('/auth/signin');
         return null;
     }
 
-    // Loading state
     if (status === 'loading') {
         return (
             <MobileOptimizedLayout>
@@ -59,10 +57,9 @@ export default function ReceiptScan() {
     }
 
     // Stop camera and clean up properly
-    const stopCamera = useCallback(() => {
+    function stopCamera() {
         console.log('🛑 Stopping camera...');
 
-        // Use current state directly instead of dependency
         setCameraStream(currentStream => {
             if (currentStream) {
                 console.log('🧹 Stopping camera tracks');
@@ -82,10 +79,10 @@ export default function ReceiptScan() {
         setShowCamera(false);
         setCameraInitializing(false);
         console.log('✅ Camera stopped and cleaned up');
-    }, []); // Empty dependency array since we use functional updates
+    }
 
     // Initialize camera with enhanced error handling and proper video setup
-    const startCamera = async () => {
+    async function startCamera() {
         // Prevent multiple simultaneous camera initializations
         if (cameraInitializing) {
             console.log('⚠️ Camera already initializing, ignoring request');
@@ -226,10 +223,10 @@ export default function ReceiptScan() {
         } finally {
             setCameraInitializing(false);
         }
-    };
+    }
 
     // Capture photo from camera with enhanced error handling
-    const capturePhoto = () => {
+    function capturePhoto() {
         console.log('📸 Attempting to capture photo...');
 
         if (!videoRef.current || !canvasRef.current) {
@@ -283,10 +280,10 @@ export default function ReceiptScan() {
             console.error('❌ Error during photo capture:', error);
             alert('Error capturing photo: ' + error.message);
         }
-    };
+    }
 
     // Handle file upload
-    const handleFileUpload = (event) => {
+    function handleFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
             const imageUrl = URL.createObjectURL(file);
@@ -295,10 +292,10 @@ export default function ReceiptScan() {
         } else {
             alert('Please select a valid image file.');
         }
-    };
+    }
 
     // Process image with OCR
-    const processImage = async (imageFile) => {
+    async function processImage(imageFile) {
         setIsProcessing(true);
         setStep('processing');
         setOcrProgress(0);
@@ -342,10 +339,10 @@ export default function ReceiptScan() {
             setIsProcessing(false);
             setOcrProgress(0);
         }
-    };
+    }
 
     // Parse receipt text into structured items
-    const parseReceiptText = (text) => {
+    function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
 
@@ -408,10 +405,10 @@ export default function ReceiptScan() {
         }
 
         return items;
-    };
+    }
 
     // Clean up item names
-    const cleanItemName = (name) => {
+    function cleanItemName(name) {
         return name
             .replace(/[^\w\s\-&']/g, ' ') // Remove special chars except common ones
             .replace(/\s+/g, ' ') // Normalize whitespace
@@ -419,10 +416,10 @@ export default function ReceiptScan() {
             .split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
-    };
+    }
 
     // Guess category based on item name
-    const guessCategory = (name) => {
+    function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
         if (nameLower.includes('milk') || nameLower.includes('cheese') || nameLower.includes('yogurt')) {
@@ -451,10 +448,10 @@ export default function ReceiptScan() {
         }
 
         return 'Other';
-    };
+    }
 
     // Guess storage location
-    const guessLocation = (name) => {
+    function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
         if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
@@ -465,24 +462,24 @@ export default function ReceiptScan() {
         }
 
         return 'pantry';
-    };
+    }
 
     // Update item in the list
-    const updateItem = (itemId, field, value) => {
+    function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? { ...item, [field]: value } : item
         ));
-    };
+    }
 
     // Toggle item selection
-    const toggleItemSelection = (itemId) => {
+    function toggleItemSelection(itemId) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? { ...item, selected: !item.selected } : item
         ));
-    };
+    }
 
     // Lookup item by UPC
-    const lookupByUPC = async (item) => {
+    async function lookupByUPC(item) {
         if (!item.upc) return;
 
         try {
@@ -498,10 +495,10 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('UPC lookup error:', error);
         }
-    };
+    }
 
     // Add selected items to inventory
-    const addItemsToInventory = async () => {
+    async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
 
         if (selectedItems.length === 0) {
@@ -545,10 +542,10 @@ export default function ReceiptScan() {
             alert('Error adding some items. Please try again.');
             setStep('review');
         }
-    };
+    }
 
     // Reset to start over - FIXED with proper cleanup
-    const resetScan = () => {
+    function resetScan() {
         console.log('🔄 Resetting scan state...');
 
         // Stop camera first
@@ -575,7 +572,7 @@ export default function ReceiptScan() {
         }
 
         console.log('✅ Scan state reset complete');
-    };
+    }
 
     return (
         <MobileOptimizedLayout>
