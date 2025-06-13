@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v6
+// file: /src/components/inventory/BarcodeScanner.js v7 - Enhanced validation and error handling for accurate UPC detection
 
 'use client';
 
@@ -17,8 +17,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const mountedRef = useRef(true);
     const detectionHandlerRef = useRef(null);
     const scanCountRef = useRef(0);
+    const lastValidCodeRef = useRef(null);
+    const detectionHistoryRef = useRef([]);
 
-    console.log('🆕 BarcodeScanner v6 loaded - SYNTAX FIXED VERSION');
+    console.log('🆕 BarcodeScanner v7 loaded - ENHANCED VALIDATION VERSION');
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -43,6 +45,97 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         return () => {
             mountedRef.current = false;
         };
+    }, []);
+
+    // Enhanced UPC validation function
+    const validateUPC = useCallback((code) => {
+        console.log(`🔍 Validating UPC: "${code}"`);
+
+        // Clean the code - remove all non-digits
+        const cleanCode = code.replace(/\D/g, '');
+        console.log(`🧹 Cleaned code: "${cleanCode}" (length: ${cleanCode.length})`);
+
+        // Check length - must be valid UPC length
+        const validLengths = [8, 12, 13, 14]; // UPC-E, UPC-A, EAN-13, ITF-14
+        if (!validLengths.includes(cleanCode.length)) {
+            console.log(`❌ Invalid length: ${cleanCode.length}, expected one of ${validLengths.join(', ')}`);
+            return { valid: false, reason: 'invalid_length' };
+        }
+
+        // Check for obviously invalid patterns
+        if (cleanCode.match(/^0+$/)) {
+            console.log('❌ All zeros detected');
+            return { valid: false, reason: 'all_zeros' };
+        }
+
+        if (/^(.)\1+$/.test(cleanCode)) {
+            console.log('❌ All same digit detected');
+            return { valid: false, reason: 'all_same' };
+        }
+
+        // Check for minimum digit variation (at least 3 different digits for codes 10+ digits)
+        if (cleanCode.length >= 10) {
+            const uniqueDigits = new Set(cleanCode).size;
+            if (uniqueDigits < 3) {
+                console.log(`❌ Insufficient digit variation: only ${uniqueDigits} unique digits`);
+                return { valid: false, reason: 'insufficient_variation' };
+            }
+        }
+
+        // Enhanced pattern checks for common invalid sequences
+        const invalidPatterns = [
+            /^123456/, // Sequential start
+            /^111111/, // Repeated digits
+            /^000000/, // Leading zeros beyond normal
+            /^999999/, // Repeated 9s
+            /1234567890/, // Sequential pattern
+        ];
+
+        for (const pattern of invalidPatterns) {
+            if (pattern.test(cleanCode)) {
+                console.log(`❌ Invalid pattern detected: ${pattern}`);
+                return { valid: false, reason: 'invalid_pattern' };
+            }
+        }
+
+        // UPC-A checksum validation for 12-digit codes
+        if (cleanCode.length === 12) {
+            const checkDigit = parseInt(cleanCode[11]);
+            let sum = 0;
+
+            for (let i = 0; i < 11; i++) {
+                const digit = parseInt(cleanCode[i]);
+                sum += (i % 2 === 0) ? digit : digit * 3;
+            }
+
+            const calculatedCheck = (10 - (sum % 10)) % 10;
+
+            if (checkDigit !== calculatedCheck) {
+                console.log(`❌ UPC-A checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
+                return { valid: false, reason: 'checksum_failed' };
+            }
+        }
+
+        // EAN-13 checksum validation for 13-digit codes
+        if (cleanCode.length === 13) {
+            const checkDigit = parseInt(cleanCode[12]);
+            let sum = 0;
+
+            for (let i = 0; i < 12; i++) {
+                const digit = parseInt(cleanCode[i]);
+                sum += (i % 2 === 0) ? digit : digit * 3;
+            }
+
+            const calculatedCheck = (10 - (sum % 10)) % 10;
+
+            if (checkDigit !== calculatedCheck) {
+                console.log(`❌ EAN-13 checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
+                return { valid: false, reason: 'checksum_failed' };
+            }
+        }
+
+        console.log(`✅ UPC validation passed: "${cleanCode}"`);
+        return { valid: true, cleanCode };
     }, []);
 
     // Enhanced cleanup function
@@ -80,11 +173,13 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         setError(null);
         cooldownRef.current = false;
         scanCountRef.current = 0;
+        lastValidCodeRef.current = null;
+        detectionHistoryRef.current = [];
 
         console.log('✅ Scanner cleanup completed');
     }, []);
 
-    // Enhanced barcode detection handler
+    // Enhanced barcode detection handler with better validation
     const handleBarcodeDetection = useCallback((result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -99,36 +194,53 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         console.log(`📱 Raw barcode detected: "${code}" (format: ${format}, scan #${scanCountRef.current})`);
 
-        // Enhanced validation
-        const cleanCode = code.replace(/\D/g, '');
-        console.log(`🧹 Cleaned code: "${cleanCode}" (length: ${cleanCode.length})`);
-
-        const isValidLength = [8, 12, 13, 14].includes(cleanCode.length);
-        const isNotAllZeros = !cleanCode.match(/^0+$/);
-        const isNotAllSame = !/^(.)\1+$/.test(cleanCode);
-        const hasMinimumVariation = cleanCode.length < 8 || new Set(cleanCode).size >= 2;
-
-        if (!isValidLength || !isNotAllZeros || !isNotAllSame || !hasMinimumVariation) {
-            console.log('❌ Invalid UPC validation failed');
-            return;
-        }
-
-        // Check confidence
+        // Enhanced confidence checking
         if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
             const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
-            if (avgError > 0.15) {
-                console.log(`❌ High error rate: ${avgError}`);
+            console.log(`📊 Average decode error: ${avgError.toFixed(3)}`);
+
+            if (avgError > 0.1) { // Stricter error threshold
+                console.log(`❌ High error rate rejected: ${avgError.toFixed(3)} > 0.1`);
                 return;
             }
         }
 
-        console.log(`✅ Valid UPC detected: "${cleanCode}"`);
+        // Validate the UPC
+        const validation = validateUPC(code);
+        if (!validation.valid) {
+            console.log(`❌ UPC validation failed: ${validation.reason}`);
+            return;
+        }
 
-        // Set cooldown
+        const cleanCode = validation.cleanCode;
+
+        // Check against recent detection history to avoid duplicates
+        const now = Date.now();
+        detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000); // Keep last 5 seconds
+
+        const recentDetection = detectionHistoryRef.current.find(entry => entry.code === cleanCode);
+        if (recentDetection) {
+            console.log(`⏩ Duplicate detection ignored: "${cleanCode}" was detected ${now - recentDetection.timestamp}ms ago`);
+            return;
+        }
+
+        // Add to detection history
+        detectionHistoryRef.current.push({ code: cleanCode, timestamp: now });
+
+        // Check if this is the same as the last valid code (additional safety)
+        if (lastValidCodeRef.current === cleanCode) {
+            console.log(`⏩ Same code as last detection, ignoring: "${cleanCode}"`);
+            return;
+        }
+
+        console.log(`✅ Valid UPC accepted: "${cleanCode}"`);
+        lastValidCodeRef.current = cleanCode;
+
+        // Set cooldown to prevent multiple rapid detections
         cooldownRef.current = true;
         setIsScanning(false);
 
-        // Enhanced visual feedback for mobile
+        // Enhanced visual feedback
         playBeepSound();
 
         if (scannerRef.current && mountedRef.current) {
@@ -144,17 +256,16 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }, 500);
         }
 
-        // Process result
+        // Process result with a longer delay to ensure user sees the feedback
         setTimeout(() => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
-                // Don't cleanup here - let parent component handle closing
                 onBarcodeDetected(cleanCode);
             }
-        }, 600);
-    }, [isScanning, cleanupScanner, onBarcodeDetected]);
+        }, 800); // Increased delay
+    }, [isScanning, validateUPC, onBarcodeDetected]);
 
-    // Main scanner initialization effect
+    // Main scanner initialization effect (unchanged from previous version)
     useEffect(() => {
         let Quagga;
         let initTimeoutId;
@@ -171,6 +282,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 setIsScanning(true);
                 cooldownRef.current = false;
                 scanCountRef.current = 0;
+                lastValidCodeRef.current = null;
+                detectionHistoryRef.current = [];
 
                 // Enhanced camera availability check
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -219,7 +332,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 if (!scannerRef.current) {
                     console.log('❌ Scanner ref is null, waiting...');
-                    // Wait a bit and try again
                     await new Promise(resolve => setTimeout(resolve, 500));
                     if (!scannerRef.current) {
                         console.log('❌ Scanner ref still null after wait');
@@ -248,7 +360,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     parent: scannerRef.current.parentElement ? 'exists' : 'missing'
                 });
 
-                // Mobile-optimized configuration with fallbacks
+                // Enhanced mobile-optimized configuration
                 const baseConfig = {
                     inputStream: {
                         name: "Live",
@@ -262,15 +374,21 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         patchSize: "large",
                         halfSample: false
                     },
-                    numOfWorkers: 1, // Conservative for mobile
-                    frequency: 5, // More conservative frequency
+                    numOfWorkers: 1,
+                    frequency: 3, // Reduced frequency to avoid false positives
                     decoder: {
                         readers: [
-                            "ean_reader",
-                            "upc_reader",
-                            "upc_e_reader"
+                            "ean_reader",      // EAN-13, EAN-8
+                            "upc_reader",      // UPC-A
+                            "upc_e_reader"     // UPC-E
                         ],
-                        multiple: false
+                        multiple: false,
+                        debug: {
+                            drawBoundingBox: false,
+                            showFrequency: false,
+                            drawScanline: false,
+                            showPattern: false
+                        }
                     },
                     locate: true,
                     debug: {
@@ -337,7 +455,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         }
                     },
                     numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
-                    frequency: 10
+                    frequency: 5
                 };
 
                 const configsToTry = isMobile ? mobileConfigs : [desktopConfig];
@@ -387,7 +505,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             detectionHandlerRef.current = handleBarcodeDetection;
                             Quagga.onDetected(detectionHandlerRef.current);
 
-                            console.log('🎯 Detection handler registered successfully');
+                            console.log('🎯 Enhanced detection handler registered successfully');
 
                             // Enhanced video element detection and styling
                             const styleVideoElements = () => {
@@ -515,7 +633,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     console.log('Scanner ref exists:', !!scannerRef.current);
                     console.log('IsLoading:', isLoading);
                 }
-            }, 500); // Increased timeout to 500ms
+            }, 500);
         } else {
             console.log('🚫 Not scheduling init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
         }
@@ -528,7 +646,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 cleanupScanner();
             }
         };
-    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]); // 🔧 REMOVED isLoading dependency
+    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]);
 
     useEffect(() => {
         return () => {
@@ -559,7 +677,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
     if (!isActive) return null;
 
-    // Mobile-optimized layout
+    // Mobile-optimized layout (keeping the same UI as before)
     if (isMobile) {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -632,7 +750,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                     <div className="text-lg">Starting camera...</div>
                                     <div className="text-sm mt-2 opacity-75">
-                                        Scan #{scanCountRef.current + 1}
+                                        Enhanced validation active
                                     </div>
                                 </div>
                             </div>
@@ -727,9 +845,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                                 <div>
                                                     <div className="font-semibold text-lg mb-1">📱 Position barcode in the red frame</div>
                                                     <div className="text-xs opacity-90">Hold steady • Ensure good lighting • Keep barcode flat</div>
+                                                    <div className="text-xs opacity-75 mt-1">✅ Enhanced validation active</div>
                                                 </div>
                                             ) : (
-                                                <div className="font-semibold text-green-400 text-lg">✅ Barcode detected! Processing...</div>
+                                                <div className="font-semibold text-green-400 text-lg">✅ Valid barcode detected! Processing...</div>
                                             )}
                                         </div>
                                     </div>
@@ -822,6 +941,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             <div className="text-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                                 <div className="text-gray-600">Starting camera...</div>
+                                <div className="text-xs text-gray-500 mt-2">Enhanced validation enabled</div>
                             </div>
                         )}
 
@@ -848,9 +968,9 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                                     <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                                         {isScanning ? (
-                                            <>📱 Position barcode within the red frame</>
+                                            <>📱 Position barcode within the red frame • ✅ Enhanced validation active</>
                                         ) : (
-                                            <>✅ Barcode detected! Processing...</>
+                                            <>✅ Valid barcode detected! Processing...</>
                                         )}
                                     </div>
                                 </>

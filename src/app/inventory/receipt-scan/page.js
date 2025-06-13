@@ -430,6 +430,23 @@ export default function ReceiptScan() {
             /btl\s*\.\s*dep/i,     // "BTL . DEP" - OCR with spaced periods
             /bottle\.\s+deposit/i, // "BOTTLE.DEPOSIT"
 
+            // Tax calculation lines (based on actual OCR output)
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i, // "; X 23.93 @ 6.000% = 1.44"
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,        // "I 23.93 @ 1.000% = 0.24"
+
+            // Variations with punctuation and OCR artifacts
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
+
+            // Ground beef pattern fix (the current one isn't working properly)
+            // The OCR is reading "80% 20% F1 GRD RE" and the pattern should catch this:
+            /^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i,                 // "80% 20% F1 GRD RE" pattern
+
+            // Also add these additional OCR artifact patterns:
+            /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,                // Weight calculation line
+
             // Tax reference fragments (OCR splitting)
             /^x\s+\d+\s+\d+\s+\d+$/i,    // "X 6 1 44" - tax calculation fragments
             /^[tx]\s+\d+(\s+\d+)*$/i,    // "T 23" or "X 6 1 44" patterns
