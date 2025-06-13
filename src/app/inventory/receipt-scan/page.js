@@ -280,7 +280,31 @@ export default function ReceiptScan() {
             // Lines that are just numbers and measurement units
             /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
             // Discount lines with product codes and percentages
-            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
+            // Fuel rewards and loyalty programs
+            /fuel\s*saver/i,
+            /fuel\s*reward/i,
+            /\d+\s+fuel\s+saver/i,
+            /hormel\s*loins/i,
+            /\d+\s+hormel\s*loins/i,
+            // Tax lines (state and county taxes)
+            /^(ia|iowa)\s+state/i,
+            /^linn\s+county/i,
+            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%/i,
+            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%/i,
+            // Cart and spending promotions
+            /bottom\s*of\s*cart/i,
+            /spend\s*\$?\d+/i,
+            /\d+x\s*\d+of\d+/i, // Lines like "3x 1of3"
+            // Payment information section
+            /^payment\s*information/i,
+            /^total\s*paid/i,
+            // OCR parsing errors (single characters, weird combinations)
+            /^[a-z]\s*—?\s*$/i, // Single letters with dashes
+            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i, // Price + single letter + dash
+            // Deals and coupons section
+            /deals\s*&?\s*coupons/i,
+            /view\s*coupons/i
         ];
 
         for (let i = 0; i < lines.length; i++) {
