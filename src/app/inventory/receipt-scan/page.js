@@ -26,13 +26,11 @@ export default function ReceiptScan() {
     const [step, setStep] = useState('upload'); // 'upload', 'processing', 'review', 'adding'
     const [processingStatus, setProcessingStatus] = useState('');
     const [cameraError, setCameraError] = useState(null);
-    const [debugLog, setDebugLog] = useState([]);
 
     // Cleanup effect
     useEffect(() => {
         return () => {
             if (streamRef.current) {
-                console.log('🧹 Cleaning up camera stream on unmount');
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
         };
@@ -54,81 +52,60 @@ export default function ReceiptScan() {
         );
     }
 
-    // Add debug logging function
-    function addDebugLog(message) {
-        console.log(message);
-        setDebugLog(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
-    }
-
     // Simple camera start function
     async function startCamera() {
-        addDebugLog('🔥 Take Photo button clicked!');
-        addDebugLog('🎥 startCamera function called');
         setCameraError(null);
 
         try {
-            addDebugLog('📱 Checking for navigator.mediaDevices...');
+            // Check camera support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('Camera API not supported');
             }
-            addDebugLog('✅ Camera API is supported');
 
             // Stop any existing stream
             if (streamRef.current) {
-                addDebugLog('🛑 Stopping existing stream');
                 streamRef.current.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
             }
 
-            addDebugLog('📞 Calling getUserMedia...');
             // Get user media
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' }
             });
 
-            addDebugLog('✅ Got camera stream');
             streamRef.current = stream;
 
             // Show camera first to ensure video element is rendered
-            addDebugLog('🎬 Showing camera view to render video element...');
             setShowCamera(true);
 
-            // Wait a bit for React to render the video element
-            addDebugLog('⏳ Waiting for video element to render...');
+            // Wait for video element to render
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Now check for video element with retries
+            // Wait for video element with retries
             let retries = 0;
             while (!videoRef.current && retries < 10) {
-                addDebugLog(`🔍 Looking for video element (attempt ${retries + 1}/10)...`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 retries++;
             }
 
             if (!videoRef.current) {
-                addDebugLog('❌ Video element still not found after retries');
                 setCameraError('Video element not found after waiting');
                 return;
             }
-            addDebugLog('✅ Video element found!');
 
-            addDebugLog('📺 Setting video srcObject...');
             // Set video source
             videoRef.current.srcObject = stream;
 
-            addDebugLog('⏳ Waiting for video to load...');
             // Wait for video to load
             await new Promise((resolve, reject) => {
                 const video = videoRef.current;
 
                 const onLoadedMetadata = () => {
-                    addDebugLog(`📺 Video loaded: ${video.videoWidth} x ${video.videoHeight}`);
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     resolve();
                 };
 
                 const onError = (e) => {
-                    addDebugLog('❌ Video error: ' + e.message);
                     video.removeEventListener('error', onError);
                     reject(e);
                 };
@@ -136,25 +113,19 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                addDebugLog('🎬 Attempting to play video...');
                 // Force play
-                video.play()
-                    .then(() => addDebugLog('✅ Video play succeeded'))
-                    .catch(e => addDebugLog('⚠️ Video play failed: ' + e.message));
+                video.play().catch(() => {
+                    // Ignore play errors - common on mobile
+                });
             });
 
-            addDebugLog('✅ Camera started successfully');
-
         } catch (error) {
-            addDebugLog('❌ Camera error: ' + error.message);
             setCameraError('Failed to start camera: ' + error.message);
         }
     }
 
     // Simple camera stop function
     function stopCamera() {
-        console.log('🛑 Stopping camera...');
-
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -461,8 +432,6 @@ export default function ReceiptScan() {
 
     // Reset to start over
     function resetScan() {
-        console.log('🔄 Resetting scan state...');
-
         // Stop camera first
         stopCamera();
 
@@ -484,8 +453,6 @@ export default function ReceiptScan() {
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
-
-        console.log('✅ Scan state reset complete');
     }
 
     return (
@@ -553,34 +520,15 @@ export default function ReceiptScan() {
                                     className="hidden"
                                 />
 
-                                {/* Visible Debug Log */}
-                                <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs max-h-40 overflow-y-auto">
-                                    <div className="font-semibold mb-2 text-green-300">📱 Real-time Debug Log:</div>
-                                    {debugLog.length === 0 ? (
-                                        <div className="text-gray-500">Waiting for actions...</div>
-                                    ) : (
-                                        debugLog.map((log, index) => (
-                                            <div key={index} className="mb-1">{log}</div>
-                                        ))
-                                    )}
-                                </div>
-
                                 {/* Error display */}
                                 {cameraError && (
                                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                         <div className="text-red-700">❌ {cameraError}</div>
+                                        <div className="text-sm text-red-600 mt-2">
+                                            Please try using the upload option instead, or check your camera permissions.
+                                        </div>
                                     </div>
                                 )}
-
-                                {/* Simple debug info */}
-                                <div className="text-xs text-gray-400 text-center space-y-1 bg-gray-50 p-4 rounded-lg">
-                                    <div className="font-semibold mb-2">🔧 Debug Info:</div>
-                                    <div>Video ref: {videoRef.current ? '✅ Available' : '❌ Not available'}</div>
-                                    <div>Canvas ref: {canvasRef.current ? '✅ Available' : '❌ Not available'}</div>
-                                    <div>Camera stream: {streamRef.current ? '✅ Active' : '❌ Inactive'}</div>
-                                    <div>Show camera: {showCamera ? '✅ True' : '❌ False'}</div>
-                                    <div>Step: {step}</div>
-                                </div>
 
                                 {/* Tips */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -640,10 +588,8 @@ export default function ReceiptScan() {
                                 </div>
 
                                 {/* Simple debug for camera view */}
-                                <div className="text-xs text-center bg-gray-100 p-2 rounded">
-                                    Video: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0} |
-                                    Ready: {videoRef.current?.readyState || 0} |
-                                    Stream: {streamRef.current ? 'Active' : 'None'}
+                                <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
+                                    Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
                                 </div>
                             </div>
                         )}
