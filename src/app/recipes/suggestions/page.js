@@ -100,15 +100,16 @@ export default function RecipeSuggestions() {
         protein: [
             'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'eggs',
             'ground beef', 'ground turkey', 'chicken breast', 'pork chops', 'steak',
-            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils', 'stew meat',
+            'bacon', 'sausage', 'ham', 'tofu', 'lentils', 'stew meat',
             'hamburger patties', 'ribeye', 'new york steak', 'chicken nuggets',
-            'chicken patties', 'chicken wing', 'spareribs', 'pork loin', 'pork tenderloin'
+            'chicken patties', 'chicken wing', 'spareribs', 'pork loin', 'pork tenderloin',
+            'black beans', 'kidney beans', 'black eyed peas', 'red beans', 'refried beans'
         ],
 
         // STARCHES - Pure starches without other classifications
         starch: [
-            'potatoes', 'rice', 'pasta', 'bread', 'quinoa', 'noodles', 'mashed potatoes',
-            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas',
+            'potatoes', 'quinoa', 'mashed potatoes',
+            'sweet potatoes', 'couscous', 'barley',
             'stuffing', 'tater tots', 'frozen potatoes'
         ],
 
@@ -133,9 +134,9 @@ export default function RecipeSuggestions() {
 
         // PASTA SPECIFICALLY
         pasta: [
-            'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
+            'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
             'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
-            'shell macaroni', 'enriched macaroni'
+            'shell macaroni', 'enriched macaroni', 'noodles'
         ],
 
         // BREAD SPECIFICALLY
