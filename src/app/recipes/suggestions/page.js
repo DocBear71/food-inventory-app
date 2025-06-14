@@ -108,22 +108,31 @@ export default function RecipeSuggestions() {
 
         // STARCHES - Pure starches without other classifications
         starch: [
-            'potatoes', 'quinoa', 'mashed potatoes',
-            'sweet potatoes', 'couscous', 'barley',
-            'stuffing', 'tater tots', 'frozen potatoes'
+            'potatoes', 'quinoa', 'mashed potatoes', 'butternut squash', 'corn', 'peas',
+            'sweet potatoes', 'couscous', 'barley', 'lentils', 'chickpeas', 'kidney beans',
+            'stuffing', 'tater tots', 'frozen potatoes', 'navy beans', 'pinto beans', 'black beans',
+            'cannellini beans'
         ],
 
         // VEGETABLES - Fresh, frozen, canned vegetables
         vegetable: [
             'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
             'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
-            'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli'
+            'cauliflower', 'cabbage', 'brussels sprouts', 'celery',
+            'kale', 'radishes', 'beets', 'bell peppers', 'cucumbers',
+            'eggplant', 'lima beans', 'okra', 'summer squash', 'tomatillos',
+            'collard greens', 'parsnips', 'potatoes', 'pumpkin',
+            'sweet potatoes', 'swiss chard', 'turnips', 'winter squash', 'leeks',
+            'rutabagas', 'romaine lettuce', 'escarole', 'yellow squash'
         ],
 
         // FRUITS
         fruits: [
             'oranges', 'pineapple', 'peaches', 'fruit cocktail', 'mandarin oranges',
-            'sliced peaches', 'pineapple tidbits'
+            'sliced peaches', 'pineapple tidbits', 'apples', 'bananas', 'grapes',
+            'strawberries', 'blueberries', 'lemons', 'limes', 'grapefruit',
+            'watermelon', 'cantaloupe', 'cherries', 'pears', 'plums',
+            'raspberries', 'blackberries', 'kiwi', 'mango', 'avocado'
         ],
 
         // RICE SPECIFICALLY
@@ -136,7 +145,9 @@ export default function RecipeSuggestions() {
         pasta: [
             'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
             'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
-            'shell macaroni', 'enriched macaroni', 'noodles'
+            'shell macaroni', 'enriched macaroni', 'noodles', 'pappardelle', 'ziti',
+            'cavatappi', 'farfalle', 'fusilli', 'rotelle', 'alphabet pasta', 'ditali',
+            'farfalline', 'cannelloni', 'manicotti'
         ],
 
         // BREAD SPECIFICALLY
@@ -161,7 +172,7 @@ export default function RecipeSuggestions() {
 
         // SAUCES - Cooking sauces (NOT condiments)
         sauce: [
-            'marinara', 'tomato sauce', 'alfredo', 'pesto',
+            'marinara', 'alfredo', 'pesto',
             'pasta sauce', 'cheese sauce', 'cream sauce'
         ],
 
@@ -170,14 +181,13 @@ export default function RecipeSuggestions() {
             'cheddar cheese', 'mozzarella cheese', 'swiss cheese', 'american cheese',
             'cream cheese', 'feta cheese', 'goat cheese', 'string cheese',
             'parmesan cheese', 'blue cheese', 'brie cheese'
-            // Removed generic 'cheese' and 'parmesan' to avoid matching composite items
         ],
 
         // CONDIMENTS - Table condiments
         condiment: [
             'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
-            'vinaigrette', 'pickle', 'relish','soy sauce', 'teriyaki sauce',
-            'barbecue sauce', 'hot sauce','worcestershire'
+            'vinaigrette', 'pickle', 'relish','soy sauce',
+            'barbecue sauce', 'hot sauce'
         ],
 
         // SEASONINGS - Spices and herbs
@@ -189,7 +199,7 @@ export default function RecipeSuggestions() {
 
         // BASIC INGREDIENTS - Baking/cooking basics
         ingredients: [
-            'flour', 'all-purpose flour', 'brown sugar', 'sugar', 'honey', 'vinegar',
+            'flour', 'all-purpose flour', 'brown sugar', 'sugar', 'honey', 'vinegar', 'tomato sauce',
             'baking powder', 'baking soda', 'white vinegar', 'granulated sugar', 'enchilada sauce'
         ],
     };
