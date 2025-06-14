@@ -175,9 +175,9 @@ export default function RecipeSuggestions() {
 
         // CONDIMENTS - Table condiments
         condiment: [
-            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
+            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
             'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
-            'barbecue sauce', 'hot sauce','worcestershire'
+            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'
         ],
 
         // SEASONINGS - Spices and herbs
@@ -331,7 +331,9 @@ export default function RecipeSuggestions() {
                             console.log(`✅ SOUP: "${item.name}"`);
                         }
                         // Strict condiment matching
-                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'pickle', 'relish'].some(condiment =>
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
+                            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
+                            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'].some(condiment =>
                             itemName.includes(condiment)
                         );
                         if (isCondiment) {
@@ -341,7 +343,9 @@ export default function RecipeSuggestions() {
                         }
                     } else if (category === 'sauce') {
                         // Don't categorize as sauce if it's already a condiment or gravy
-                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch'].some(condiment =>
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
+                            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
+                            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'].some(condiment =>
                             itemName.includes(condiment)
                         );
                         const isGravy = itemName.includes('gravy');
