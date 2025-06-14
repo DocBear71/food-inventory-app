@@ -960,7 +960,7 @@ export default function RecipeSuggestions() {
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                             >
-                                🍽️ Simple Meals ({simpleMealSuggestions.length})
+                                🍽️ Simple Meals (alpha version) ({simpleMealSuggestions.length})
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => setActiveTab('recipes')}
@@ -980,7 +980,7 @@ export default function RecipeSuggestions() {
                         {activeTab === 'simple' && (
                             <div>
                                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                    Simple Meal Ideas ({simpleMealSuggestions.length})
+                                    Simple Meal Ideas ({simpleMealSuggestions.length}) <strong>[This functionality is still being refined]</strong>
                                 </h3>
 
                                 {loading ? (
