@@ -1,4 +1,4 @@
-// file: /src/app/shopping/page.js v7 - Enhanced with beautiful colors and icons
+// file: /src/app/shopping/page.js v8 - Enhanced with alphabetical tag browser
 
 'use client';
 
@@ -28,9 +28,72 @@ export default function ShoppingPage() {
     const [maxCookTime, setMaxCookTime] = useState('');
     const [showFilters, setShowFilters] = useState(false);
 
+    // NEW: Tag browser states
+    const [showTagBrowser, setShowTagBrowser] = useState(false);
+    const [selectedTagSection, setSelectedTagSection] = useState('');
+    const [selectedTagLetter, setSelectedTagLetter] = useState('');
+
     // Available filter options (extracted from recipes)
     const [availableTags, setAvailableTags] = useState([]);
     const [availableIngredients, setAvailableIngredients] = useState([]);
+
+    // NEW: Tag sections and organization
+    const tagSections = [
+        { id: 'A-G', label: 'A-G', letters: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] },
+        { id: 'H-N', label: 'H-N', letters: ['H', 'I', 'J', 'K', 'L', 'M', 'N'] },
+        { id: 'O-U', label: 'O-U', letters: ['O', 'P', 'Q', 'R', 'S', 'T', 'U'] },
+        { id: 'V-Z', label: 'V-Z', letters: ['V', 'W', 'X', 'Y', 'Z'] },
+        { id: '0-9', label: '0-9', letters: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] }
+    ];
+
+    // NEW: Organize tags by letter
+    const organizeTagsByLetter = (tags) => {
+        const organized = {};
+
+        tags.forEach(tag => {
+            const firstChar = tag.charAt(0).toUpperCase();
+            if (!organized[firstChar]) {
+                organized[firstChar] = [];
+            }
+            organized[firstChar].push(tag);
+        });
+
+        // Sort tags within each letter
+        Object.keys(organized).forEach(letter => {
+            organized[letter].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        });
+
+        return organized;
+    };
+
+    // NEW: Get tags for a specific section
+    const getTagsForSection = (sectionId) => {
+        const section = tagSections.find(s => s.id === sectionId);
+        if (!section) return {};
+
+        const organizedTags = organizeTagsByLetter(availableTags);
+        const sectionTags = {};
+
+        section.letters.forEach(letter => {
+            if (organizedTags[letter]) {
+                sectionTags[letter] = organizedTags[letter];
+            }
+        });
+
+        return sectionTags;
+    };
+
+    // NEW: Get available letters for a section (letters that have tags)
+    const getAvailableLettersForSection = (sectionId) => {
+        const sectionTags = getTagsForSection(sectionId);
+        return Object.keys(sectionTags).sort();
+    };
+
+    // NEW: Get tags for a specific letter
+    const getTagsForLetter = (letter) => {
+        const organizedTags = organizeTagsByLetter(availableTags);
+        return organizedTags[letter] || [];
+    };
 
     // Enhanced ingredient normalization and matching (borrowed from your API)
     const normalizeIngredient = (ingredient) => {
@@ -272,6 +335,10 @@ export default function ShoppingPage() {
         setSelectedDifficulty('');
         setSelectedIngredient('');
         setMaxCookTime('');
+        // NEW: Reset tag browser
+        setShowTagBrowser(false);
+        setSelectedTagSection('');
+        setSelectedTagLetter('');
     };
 
     // Handle tag selection
@@ -281,6 +348,21 @@ export default function ShoppingPage() {
                 ? prev.filter(t => t !== tag)
                 : [...prev, tag]
         );
+    };
+
+    // NEW: Handle tag browser navigation
+    const handleTagSectionSelect = (sectionId) => {
+        setSelectedTagSection(sectionId);
+        setSelectedTagLetter('');
+    };
+
+    const handleTagLetterSelect = (letter) => {
+        setSelectedTagLetter(letter);
+    };
+
+    const resetTagBrowser = () => {
+        setSelectedTagSection('');
+        setSelectedTagLetter('');
     };
 
     const handleRecipeToggle = (recipeId) => {
@@ -552,27 +634,203 @@ export default function ShoppingPage() {
                             </span>
                         </div>
 
-                        {/* Tags Filter */}
+                        {/* NEW: Alphabetical Tag Browser */}
                         {availableTags.length > 0 && (
                             <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-3">
-                                    🏷️ Recipe Tags
-                                </label>
-                                <div className="flex flex-wrap gap-2">
-                                    {availableTags.map(tag => (
-                                        <TouchEnhancedButton
-                                            key={tag}
-                                            onClick={() => handleTagToggle(tag)}
-                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                                selectedTags.includes(tag)
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            }`}
-                                        >
-                                            {tag}
-                                        </TouchEnhancedButton>
-                                    ))}
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        🏷️ Recipe Tags ({availableTags.length} total)
+                                    </label>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowTagBrowser(!showTagBrowser)}
+                                        className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                            showTagBrowser
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-600 text-white'
+                                        }`}
+                                    >
+                                        📚 Browse Tags
+                                        <span className="text-xs">
+                                            {showTagBrowser ? '▲' : '▼'}
+                                        </span>
+                                    </TouchEnhancedButton>
                                 </div>
+
+                                {/* Show selected tags */}
+                                {selectedTags.length > 0 && (
+                                    <div className="mb-3">
+                                        <div className="text-xs text-gray-600 mb-2">Selected Tags:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTags.map(tag => (
+                                                <TouchEnhancedButton
+                                                    key={tag}
+                                                    onClick={() => handleTagToggle(tag)}
+                                                    className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white flex items-center gap-1"
+                                                >
+                                                    {tag}
+                                                    <span className="text-xs">✕</span>
+                                                </TouchEnhancedButton>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Tag Browser */}
+                                {showTagBrowser && (
+                                    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                        {/* Breadcrumb Navigation */}
+                                        <div className="flex items-center gap-2 mb-4 text-sm">
+                                            <TouchEnhancedButton
+                                                onClick={resetTagBrowser}
+                                                className={`px-3 py-1 rounded ${!selectedTagSection ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                            >
+                                                📚 All Sections
+                                            </TouchEnhancedButton>
+                                            {selectedTagSection && (
+                                                <>
+                                                    <span className="text-gray-400">→</span>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => setSelectedTagLetter('')}
+                                                        className={`px-3 py-1 rounded ${!selectedTagLetter ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                                    >
+                                                        🔤 {selectedTagSection}
+                                                    </TouchEnhancedButton>
+                                                </>
+                                            )}
+                                            {selectedTagLetter && (
+                                                <>
+                                                    <span className="text-gray-400">→</span>
+                                                    <span className="px-3 py-1 rounded bg-blue-600 text-white">
+                                                        🅰️ {selectedTagLetter}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Section View - Show all sections */}
+                                        {!selectedTagSection && (
+                                            <div>
+                                                <h4 className="font-medium text-gray-800 mb-3">Choose a Letter Range:</h4>
+                                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                                    {tagSections.map(section => {
+                                                        const availableLetters = getAvailableLettersForSection(section.id);
+                                                        const hasContent = availableLetters.length > 0;
+
+                                                        return (
+                                                            <TouchEnhancedButton
+                                                                key={section.id}
+                                                                onClick={() => hasContent && handleTagSectionSelect(section.id)}
+                                                                disabled={!hasContent}
+                                                                className={`p-3 rounded-lg text-center transition-colors ${
+                                                                    hasContent
+                                                                        ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300'
+                                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                                                }`}
+                                                            >
+                                                                <div className="font-semibold text-lg">{section.label}</div>
+                                                                <div className="text-xs mt-1">
+                                                                    {hasContent
+                                                                        ? `${availableLetters.length} letters`
+                                                                        : 'No tags'
+                                                                    }
+                                                                </div>
+                                                            </TouchEnhancedButton>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Letter View - Show letters in selected section */}
+                                        {selectedTagSection && !selectedTagLetter && (
+                                            <div>
+                                                <h4 className="font-medium text-gray-800 mb-3">
+                                                    Choose a Letter from {selectedTagSection}:
+                                                </h4>
+                                                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                                                    {tagSections.find(s => s.id === selectedTagSection)?.letters.map(letter => {
+                                                        const letterTags = getTagsForLetter(letter);
+                                                        const hasContent = letterTags.length > 0;
+
+                                                        return (
+                                                            <TouchEnhancedButton
+                                                                key={letter}
+                                                                onClick={() => hasContent && handleTagLetterSelect(letter)}
+                                                                disabled={!hasContent}
+                                                                className={`p-3 rounded-lg text-center transition-colors ${
+                                                                    hasContent
+                                                                        ? 'bg-green-100 hover:bg-green-200 text-green-800 border border-green-300'
+                                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                                                }`}
+                                                            >
+                                                                <div className="font-bold text-xl">{letter}</div>
+                                                                <div className="text-xs mt-1">
+                                                                    {hasContent
+                                                                        ? `${letterTags.length} tags`
+                                                                        : 'No tags'
+                                                                    }
+                                                                </div>
+                                                            </TouchEnhancedButton>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Tags View - Show tags for selected letter */}
+                                        {selectedTagLetter && (
+                                            <div>
+                                                <h4 className="font-medium text-gray-800 mb-3">
+                                                    Tags starting with "{selectedTagLetter}":
+                                                </h4>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
+                                                    {getTagsForLetter(selectedTagLetter).map(tag => (
+                                                        <TouchEnhancedButton
+                                                            key={tag}
+                                                            onClick={() => handleTagToggle(tag)}
+                                                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
+                                                                selectedTags.includes(tag)
+                                                                    ? 'bg-indigo-600 text-white'
+                                                                    : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
+                                                            }`}
+                                                        >
+                                                            {selectedTags.includes(tag) && (
+                                                                <span className="mr-1">✓</span>
+                                                            )}
+                                                            {tag}
+                                                        </TouchEnhancedButton>
+                                                    ))}
+                                                </div>
+
+                                                {/* Quick actions for letter view */}
+                                                <div className="mt-3 flex gap-2">
+                                                    <TouchEnhancedButton
+                                                        onClick={() => {
+                                                            const letterTags = getTagsForLetter(selectedTagLetter);
+                                                            letterTags.forEach(tag => {
+                                                                if (!selectedTags.includes(tag)) {
+                                                                    setSelectedTags(prev => [...prev, tag]);
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                    >
+                                                        ✅ Select All {selectedTagLetter} Tags
+                                                    </TouchEnhancedButton>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => {
+                                                            const letterTags = getTagsForLetter(selectedTagLetter);
+                                                            setSelectedTags(prev => prev.filter(tag => !letterTags.includes(tag)));
+                                                        }}
+                                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                    >
+                                                        ❌ Deselect All {selectedTagLetter} Tags
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
