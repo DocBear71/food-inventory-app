@@ -546,12 +546,12 @@ export default function MealPlanningCalendar() {
         return (
             <div
                 key={`${meal.recipeId || meal.simpleMeal?.name}-${mealTypeIndex}`}
-                className={`meal-card ${
-                    meal.entryType === 'simple' ? 'bg-green-50 border-green-200' : ''
+                className={`p-3 border rounded-lg relative ${
+                    meal.entryType === 'simple' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
                 } ${hasConflicts ? 'border-orange-300 bg-orange-50' : ''}`}
             >
-                <div className="meal-recipe-content">
-                    <div className="meal-recipe-name">
+                <div className="pr-6">
+                    <div className="font-medium text-gray-900 text-sm">
                         {meal.entryType === 'simple' && (
                             <span className="text-green-600 mr-1">🍽️</span>
                         )}
@@ -560,7 +560,7 @@ export default function MealPlanningCalendar() {
                         )}
                         {getMealDisplayName(meal)}
                     </div>
-                    <div className="meal-recipe-details">
+                    <div className="text-xs text-gray-600 mt-1">
                         {getMealDisplayDetails(meal)}
                     </div>
                     {meal.entryType === 'simple' && meal.simpleMeal?.description && (
@@ -577,7 +577,7 @@ export default function MealPlanningCalendar() {
 
                 <TouchEnhancedButton
                     onClick={() => removeMealFromSlot(day, actualIndex)}
-                    className="meal-remove-btn"
+                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-lg leading-none"
                     title="Remove meal"
                 >
                     ×
@@ -644,7 +644,6 @@ export default function MealPlanningCalendar() {
             </div>
         );
     }
-
     // Mobile Layout
     if (isMobile) {
         return (
@@ -662,8 +661,7 @@ export default function MealPlanningCalendar() {
                                         {userDietaryRestrictions.length > 0 && (
                                             <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                         )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
-                                            <span> • </span>}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
                                         {userAvoidIngredients.length > 0 && (
                                             <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                         )}
@@ -677,10 +675,8 @@ export default function MealPlanningCalendar() {
                                 title="Week Settings"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                             </TouchEnhancedButton>
                         </div>
@@ -792,9 +788,7 @@ export default function MealPlanningCalendar() {
                         <div className="flex items-start">
                             <div className="flex-shrink-0">
                                 <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd"
-                                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                          clipRule="evenodd"/>
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                 </svg>
                             </div>
                             <div className="ml-3 flex-1">
@@ -805,10 +799,8 @@ export default function MealPlanningCalendar() {
                                     <p>
                                         Click the <span className="inline-flex items-center mx-1">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </span> settings icon to choose which day starts your week and which meal types to show.
                                     </p>
@@ -821,9 +813,7 @@ export default function MealPlanningCalendar() {
                                     title="Dismiss notification"
                                 >
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd"
-                                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                              clipRule="evenodd"/>
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                     </svg>
                                 </TouchEnhancedButton>
                             </div>
@@ -831,31 +821,22 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* Desktop Calendar Grid */}
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    {/* Header Row */}
-                    <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-                        {weekDays.map((day, index) => (
-                            <div key={day} className="p-4 text-center">
-                                <div className="font-semibold text-gray-900">{getDayName(day)}</div>
-                                <div className="text-sm text-gray-600">{getFormattedDate(index)}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Meal Type Rows */}
-                    {mealTypes.map(mealType => (
-                        <div key={mealType} className="border-b border-gray-200 last:border-b-0">
-                            {/* Meal Type Label */}
-                            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                                <h3 className="font-medium text-gray-900 capitalize">{mealType}</h3>
+                {/* Mobile Day-by-Day Layout */}
+                <div className="space-y-4">
+                    {weekDays.map((day, dayIndex) => (
+                        <div key={day} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            {/* Day Header */}
+                            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                                <h3 className="font-semibold text-gray-900">
+                                    {getDayName(day)} - {getFormattedDate(dayIndex)}
+                                </h3>
                             </div>
 
-                            {/* Day Columns */}
-                            <div className="grid grid-cols-7">
-                                {weekDays.map(day => (
-                                    <div key={`${day}-${mealType}`}
-                                         className="p-3 border-r border-gray-200 last:border-r-0 min-h-24">
+                            {/* Meals for this day */}
+                            <div className="p-4 space-y-4">
+                                {mealTypes.map(mealType => (
+                                    <div key={`${day}-${mealType}`}>
+                                        <h4 className="font-medium text-gray-800 capitalize mb-2">{mealType}</h4>
                                         <div className="space-y-2">
                                             {/* Existing Meals - UPDATED with dietary warnings */}
                                             {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
@@ -878,7 +859,7 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
-                {/* Week Settings Modal - Same as mobile */}
+                {/* Week Settings Modal */}
                 {showWeekSettings && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
@@ -937,7 +918,7 @@ export default function MealPlanningCalendar() {
                                                             updateMealTypePreferences(updatedMealTypes);
                                                         }
                                                     }}
-                                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
+                                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                                 />
                                                 <label
                                                     htmlFor={`meal-type-${mealType}`}
@@ -949,12 +930,11 @@ export default function MealPlanningCalendar() {
                                         ))}
                                     </div>
                                     <p className="text-xs text-gray-500 mt-2">
-                                        Select which meal types you want to see in your calendar. You must have at least
-                                        one selected.
+                                        Select which meal types you want to see in your calendar. You must have at least one selected.
                                     </p>
                                 </div>
 
-                                {/* Show current dietary preferences */}
+                                {/* NEW: Show current dietary preferences */}
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -963,14 +943,12 @@ export default function MealPlanningCalendar() {
                                         <div className="text-sm text-gray-600 space-y-1">
                                             {userDietaryRestrictions.length > 0 && (
                                                 <div>
-                                                    <span
-                                                        className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                                    <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                                 </div>
                                             )}
                                             {userAvoidIngredients.length > 0 && (
                                                 <div>
-                                                    <span
-                                                        className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                                    <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                                 </div>
                                             )}
                                         </div>
@@ -981,23 +959,21 @@ export default function MealPlanningCalendar() {
                                 )}
 
                                 <div className="text-xs text-gray-500">
-                                    These settings will apply to all your meal plans and will update the calendar
-                                    layout.
+                                    These settings will apply to all your meal plans and will update the calendar layout.
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Desktop Recipe Selection Modal - UPDATED to use filtered recipes */}
+                {/* Mobile Recipe Selection Modal - UPDATED to use filtered recipes */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
+                        <div className="bg-white rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden">
                             <div className="p-4 border-b border-gray-200">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        Select Recipe
-                                        for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                        Add Recipe to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                     </h3>
                                     <TouchEnhancedButton
                                         onClick={() => {
@@ -1009,11 +985,10 @@ export default function MealPlanningCalendar() {
                                         ×
                                     </TouchEnhancedButton>
                                 </div>
-                                {/* Show filtering info */}
+                                {/* NEW: Show filtering info */}
                                 {filteredRecipes.length < recipes.length && (
                                     <div className="mt-2 text-sm text-orange-600">
-                                        Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by
-                                        dietary preferences)
+                                        Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary preferences)
                                     </div>
                                 )}
                             </div>
@@ -1028,25 +1003,25 @@ export default function MealPlanningCalendar() {
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         {filteredRecipes.map(recipe => (
                                             <TouchEnhancedButton
                                                 key={recipe._id}
                                                 onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
-                                                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                             >
-                                                <div className="font-medium text-gray-900">{recipe.title}</div>
-                                                <div className="text-sm text-gray-600">
+                                                <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
+                                                <div className="text-sm text-gray-600 mb-2">
                                                     {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
                                                     • {recipe.difficulty}
                                                 </div>
                                                 {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                    <div className="flex flex-wrap gap-1">
                                                         {recipe.tags.slice(0, 3).map(tag => (
                                                             <span key={tag}
                                                                   className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                        {tag}
-                                                    </span>
+                                                                {tag}
+                                                            </span>
                                                         ))}
                                                     </div>
                                                 )}
@@ -1059,7 +1034,7 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* Simple Meal Builder Modal - Desktop */}
+                {/* Simple Meal Builder Modal - Pass dietary preferences */}
                 {showSimpleMealBuilder && (
                     <SimpleMealBuilder
                         isOpen={showSimpleMealBuilder}
@@ -1088,16 +1063,17 @@ export default function MealPlanningCalendar() {
                     <div className="text-center py-12 bg-gray-50 rounded-lg mt-6">
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
-                        <div className="space-y-4">
-                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
-                                meals.</p>
+                        <div className="space-y-2">
+                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
                             {mealPlan && (
-                                <TemplateLibraryButton
-                                    mealPlanId={mealPlan._id}
-                                    mealPlanName={mealPlan.name}
-                                    onTemplateApplied={handleTemplateApplied}
-                                    disabled={false}
-                                />
+                                <div className="mt-4">
+                                    <TemplateLibraryButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        onTemplateApplied={handleTemplateApplied}
+                                        disabled={false}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1105,4 +1081,453 @@ export default function MealPlanningCalendar() {
             </div>
         );
     }
+    // Desktop Layout
+    return (
+        <div className="max-w-7xl mx-auto p-6">
+            {/* Header */}
+            <div className="mb-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">📅 Meal Planning</h1>
+                        <p className="text-gray-600 mt-1">Plan your meals for the week</p>
+                        {/* NEW: Show dietary preferences summary on desktop */}
+                        {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
+                            <div className="text-sm text-gray-500 mt-1">
+                                {userDietaryRestrictions.length > 0 && (
+                                    <span>Diet: {userDietaryRestrictions.join(', ')}</span>
+                                )}
+                                {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                {userAvoidIngredients.length > 0 && (
+                                    <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action Buttons - Desktop */}
+                    <div className="flex items-center space-x-3">
+                        <div className="text-sm text-gray-500">
+                            Meals: {mealsPlanned ? 'Yes' : 'No'}
+                        </div>
+
+                        <TouchEnhancedButton
+                            onClick={() => setShowWeekSettings(true)}
+                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Week Settings"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </TouchEnhancedButton>
+
+                        {mealPlan && (
+                            <TemplateLibraryButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                onTemplateApplied={handleTemplateApplied}
+                                disabled={false}
+                            />
+                        )}
+
+                        {mealsPlanned && (
+                            <TouchEnhancedButton
+                                onClick={() => setShowShoppingList(true)}
+                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="Generate shopping list from your meal plan"
+                            >
+                                🛒 Shopping List
+                            </TouchEnhancedButton>
+                        )}
+
+                        {mealPlan && (
+                            <MealPrepButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                disabled={!mealsPlanned}
+                            />
+                        )}
+
+                        {mealPlan && (
+                            <NutritionAnalysisButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                disabled={!mealsPlanned}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* Week Navigation */}
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <TouchEnhancedButton
+                            onClick={goToPreviousWeek}
+                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </TouchEnhancedButton>
+
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            {getWeekStart(currentWeek).toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                            })} - {(() => {
+                            const weekEnd = new Date(getWeekStart(currentWeek));
+                            weekEnd.setDate(weekEnd.getDate() + 6);
+                            return weekEnd.toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                            });
+                        })()}
+                        </h2>
+
+                        <TouchEnhancedButton
+                            onClick={goToNextWeek}
+                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </TouchEnhancedButton>
+                    </div>
+
+                    <TouchEnhancedButton
+                        onClick={goToToday}
+                        className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                        Today
+                    </TouchEnhancedButton>
+                </div>
+            </div>
+
+            {/* NEW: Dietary filtering notification for desktop */}
+            {dietaryWarningMessage && (
+                <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                        <span className="text-orange-500 mr-2">⚠️</span>
+                        <div className="text-sm text-orange-700 flex-1">
+                            {dietaryWarningMessage}
+                        </div>
+                        <TouchEnhancedButton
+                            onClick={() => setDietaryWarningMessage('')}
+                            className="ml-2 text-orange-500 hover:text-orange-700"
+                        >
+                            Dismiss
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            )}
+
+            {/* Week Start Notification */}
+            {showWeekNotification && (
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-medium text-blue-800">
+                                💡 Customize Your Week
+                            </h3>
+                            <div className="mt-1 text-sm text-blue-700">
+                                <p>
+                                    Click the <span className="inline-flex items-center mx-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </span> settings icon to choose which day starts your week and which meal types to show.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="ml-4 flex-shrink-0">
+                            <TouchEnhancedButton
+                                onClick={dismissWeekNotification}
+                                className="bg-blue-50 rounded-md text-blue-400 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                title="Dismiss notification"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Desktop Calendar Grid */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {/* Header Row */}
+                <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+                    {weekDays.map((day, index) => (
+                        <div key={day} className="p-4 text-center">
+                            <div className="font-semibold text-gray-900">{getDayName(day)}</div>
+                            <div className="text-sm text-gray-600">{getFormattedDate(index)}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Meal Type Rows */}
+                {mealTypes.map(mealType => (
+                    <div key={mealType} className="border-b border-gray-200 last:border-b-0">
+                        {/* Meal Type Label */}
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                            <h3 className="font-medium text-gray-900 capitalize">{mealType}</h3>
+                        </div>
+
+                        {/* Day Columns */}
+                        <div className="grid grid-cols-7">
+                            {weekDays.map(day => (
+                                <div key={`${day}-${mealType}`}
+                                     className="p-3 border-r border-gray-200 last:border-r-0 min-h-24">
+                                    <div className="space-y-2">
+                                        {/* Existing Meals - UPDATED with dietary warnings */}
+                                        {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
+                                            const actualIndex = mealPlan.meals[day].findIndex(m =>
+                                                m.recipeId === meal.recipeId &&
+                                                m.mealType === meal.mealType &&
+                                                m.createdAt === meal.createdAt
+                                            );
+
+                                            return renderMealWithWarnings(meal, mealTypeIndex, day, actualIndex);
+                                        })}
+
+                                        {/* Add Meal Buttons */}
+                                        {renderAddMealButtons(day, mealType)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Week Settings Modal - Same as mobile */}
+            {showWeekSettings && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowWeekSettings(false)}
+                                className="text-gray-400 hover:text-gray-600 text-xl"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Week starts on:
+                                </label>
+                                <div className="space-y-2">
+                                    {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => (
+                                        <TouchEnhancedButton
+                                            key={day}
+                                            onClick={() => updateWeekStartPreference(day)}
+                                            className={`w-full text-left px-3 py-2 rounded-md border ${
+                                                weekStartDay === day
+                                                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {day.charAt(0).toUpperCase() + day.slice(1)}
+                                            {weekStartDay === day && (
+                                                <span className="ml-2 text-indigo-600">✓</span>
+                                            )}
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Show meal types:
+                                </label>
+                                <div className="space-y-2">
+                                    {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
+                                        <div key={mealType} className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id={`meal-type-${mealType}`}
+                                                checked={userMealTypes.includes(mealType)}
+                                                onChange={(e) => {
+                                                    const updatedMealTypes = e.target.checked
+                                                        ? [...userMealTypes, mealType]
+                                                        : userMealTypes.filter(m => m !== mealType);
+
+                                                    if (updatedMealTypes.length > 0) {
+                                                        updateMealTypePreferences(updatedMealTypes);
+                                                    }
+                                                }}
+                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            />
+                                            <label
+                                                htmlFor={`meal-type-${mealType}`}
+                                                className="ml-3 text-sm text-gray-700 capitalize"
+                                            >
+                                                {mealType}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Select which meal types you want to see in your calendar. You must have at least one selected.
+                                </p>
+                            </div>
+
+                            {/* Show current dietary preferences */}
+                            {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Current dietary preferences:
+                                    </label>
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                        {userDietaryRestrictions.length > 0 && (
+                                            <div>
+                                                <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                            </div>
+                                        )}
+                                        {userAvoidIngredients.length > 0 && (
+                                            <div>
+                                                <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        To change these, go to Profile → Meal Planning
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="text-xs text-gray-500">
+                                These settings will apply to all your meal plans and will update the calendar layout.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Desktop Recipe Selection Modal - UPDATED to use filtered recipes */}
+            {showRecipeModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
+                        <div className="p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                </h3>
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        setShowRecipeModal(false);
+                                        setSelectedSlot(null);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+                            {/* Show filtering info */}
+                            {filteredRecipes.length < recipes.length && (
+                                <div className="mt-2 text-sm text-orange-600">
+                                    Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary preferences)
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 max-h-80 overflow-y-auto">
+                            {filteredRecipes.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">
+                                        {recipes.length === 0
+                                            ? "No recipes found. Add some recipes first!"
+                                            : "No recipes match your dietary preferences. Try adjusting your filters in Profile → Meal Planning."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filteredRecipes.map(recipe => (
+                                        <TouchEnhancedButton
+                                            key={recipe._id}
+                                            onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
+                                            className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            <div className="font-medium text-gray-900">{recipe.title}</div>
+                                            <div className="text-sm text-gray-600">
+                                                {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
+                                                • {recipe.difficulty}
+                                            </div>
+                                            {recipe.tags && recipe.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                    {recipe.tags.slice(0, 3).map(tag => (
+                                                        <span key={tag}
+                                                              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Simple Meal Builder Modal - Desktop */}
+            {showSimpleMealBuilder && (
+                <SimpleMealBuilder
+                    isOpen={showSimpleMealBuilder}
+                    onClose={() => {
+                        setShowSimpleMealBuilder(false);
+                        setSelectedSlot(null);
+                    }}
+                    onSave={addSimpleMealToSlot}
+                    selectedSlot={selectedSlot}
+                    userDietaryRestrictions={userDietaryRestrictions}
+                    userAvoidIngredients={userAvoidIngredients}
+                />
+            )}
+
+            {/* Shopping List Modal */}
+            {showShoppingList && mealPlan && (
+                <ShoppingListGenerator
+                    mealPlanId={mealPlan._id}
+                    mealPlanName={mealPlan.name}
+                    onClose={() => setShowShoppingList(false)}
+                />
+            )}
+
+            {/* Empty State */}
+            {!loading && (!mealPlan?.meals || !mealsPlanned) && (
+                <div className="text-center py-12 bg-gray-50 rounded-lg mt-6">
+                    <div className="text-6xl mb-4">🍽️</div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
+                    <div className="space-y-4">
+                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
+                        {mealPlan && (
+                            <TemplateLibraryButton
+                                mealPlanId={mealPlan._id}
+                                mealPlanName={mealPlan.name}
+                                onTemplateApplied={handleTemplateApplied}
+                                disabled={false}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
