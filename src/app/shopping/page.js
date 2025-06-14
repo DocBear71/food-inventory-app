@@ -783,7 +783,7 @@ export default function ShoppingPage() {
                                                 <h4 className="font-medium text-gray-800 mb-3">
                                                     Tags starting with "{selectedTagLetter}":
                                                 </h4>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
+                                                <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
                                                     {getTagsForLetter(selectedTagLetter).map(tag => (
                                                         <TouchEnhancedButton
                                                             key={tag}
