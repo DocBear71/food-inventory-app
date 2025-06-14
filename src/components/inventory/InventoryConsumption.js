@@ -1,4 +1,4 @@
-// file: /src/components/inventory/InventoryConsumption.js v1
+// file: /src/components/inventory/InventoryConsumption.js v2 (Added "each" unit)
 
 'use client';
 
@@ -209,6 +209,7 @@ export default function InventoryConsumption({
                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                     >
                                                         <option value="item">Item(s)</option>
+                                                        <option value="each">Each</option>
                                                         <option value="cup">Cup(s)</option>
                                                         <option value="tbsp">Tablespoon(s)</option>
                                                         <option value="tsp">Teaspoon(s)</option>
@@ -342,6 +343,7 @@ export default function InventoryConsumption({
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                 >
                                     <option value="item">Item(s)</option>
+                                    <option value="each">Each</option>
                                     <option value="lbs">Pounds</option>
                                     <option value="oz">Ounces</option>
                                     <option value="kg">Kilograms</option>

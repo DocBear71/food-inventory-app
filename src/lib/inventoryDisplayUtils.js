@@ -1,4 +1,4 @@
-// file: /src/lib/inventoryDisplayUtils.js - v1 (Smart display logic for dual units)
+// file: /src/lib/inventoryDisplayUtils.js - v2 (Added "each" unit support)
 
 /**
  * Smart display logic for inventory items with dual units
@@ -40,12 +40,22 @@ const ITEM_UNIT_MAPPINGS = {
     'beef steak': 'steaks',
     'steak': 'steaks',
     'steaks': 'steaks',
+    'hamburger patties': 'hamburger patties',
+    'burger patties': 'burger patties',
+    'patties': 'patties',
 
     // Eggs
     'eggs': 'eggs',
     'eggs (large)': 'eggs',
     'eggs (medium)': 'eggs',
     'eggs (extra large)': 'eggs',
+
+    // Bacon and processed meats
+    'bacon': 'slices',
+    'bacon slices': 'slices',
+    'ham slices': 'slices',
+    'deli meat': 'slices',
+    'lunch meat': 'slices',
 
     // Canned goods - keep as cans but could be enhanced
     'canned': 'cans',
@@ -62,11 +72,16 @@ const ITEM_UNIT_MAPPINGS = {
 /**
  * Get the smart unit name for an item
  * @param {string} itemName - The name of the item
- * @param {string} unit - The current unit (e.g., 'item', 'can', 'package')
+ * @param {string} unit - The current unit (e.g., 'item', 'can', 'package', 'each')
  * @param {number} quantity - The quantity (for pluralization)
  * @returns {string} - The smart unit name
  */
 export function getSmartUnitName(itemName, unit, quantity = 1) {
+    // Handle "each" unit - keep it as is since it's explicit
+    if (unit === 'each') {
+        return quantity === 1 ? 'each' : 'each';
+    }
+
     // If it's not a generic unit, return as-is
     if (unit !== 'item' && unit !== 'can' && unit !== 'package') {
         return unit;
@@ -110,6 +125,15 @@ export function getSmartUnitName(itemName, unit, quantity = 1) {
         return quantity === 1 ? 'bag' : 'bags';
     }
 
+    // Handle specific items better
+    if (lowerItemName.includes('bacon')) {
+        return quantity === 1 ? 'package' : 'packages';
+    }
+
+    if (lowerItemName.includes('hamburger') || lowerItemName.includes('burger') || lowerItemName.includes('patties')) {
+        return quantity === 1 ? 'package' : 'packages';
+    }
+
     // Default fallback
     return unit;
 }
@@ -135,10 +159,15 @@ export function formatInventoryDisplayText(item) {
         return `${secondaryQty} ${smartUnit}`;
     }
 
-    // If both quantities exist - UPDATED: Add "each" for per-unit measurements
+    // If both quantities exist - ENHANCED: Better "each" handling
     if (primaryQty > 0 && secondaryQty > 0) {
         const primarySmartUnit = getSmartUnitName(item.name, item.unit, primaryQty);
         const secondarySmartUnit = getSmartUnitName(item.name, item.secondaryUnit, secondaryQty);
+
+        // Check if secondary unit is "each" - this indicates per-unit measurement
+        if (item.secondaryUnit === 'each') {
+            return `${primaryQty} ${primarySmartUnit} (${secondaryQty} ${getItemSpecificUnit(item.name)} each)`;
+        }
 
         // Check if it's likely a per-unit measurement (cans + weight, packages + weight, etc.)
         const isPerUnitMeasurement = isLikelyPerUnitMeasurement(item.unit, item.secondaryUnit);
@@ -155,12 +184,91 @@ export function formatInventoryDisplayText(item) {
 }
 
 /**
+ * Get the specific unit name for an item when using "each"
+ * @param {string} itemName - The name of the item
+ * @returns {string} - The specific unit name for the item
+ */
+function getItemSpecificUnit(itemName) {
+    const lowerItemName = itemName.toLowerCase();
+
+    // Bacon-related items
+    if (lowerItemName.includes('bacon')) {
+        return 'slices';
+    }
+
+    // Hamburger patties
+    if (lowerItemName.includes('hamburger') || lowerItemName.includes('burger') || lowerItemName.includes('patties')) {
+        return 'patties';
+    }
+
+    // Hot dogs / sausages
+    if (lowerItemName.includes('hot dog') || lowerItemName.includes('hotdog') || lowerItemName.includes('sausage')) {
+        return 'pieces';
+    }
+
+    // Chicken pieces
+    if (lowerItemName.includes('chicken')) {
+        if (lowerItemName.includes('breast')) return 'breasts';
+        if (lowerItemName.includes('thigh')) return 'thighs';
+        if (lowerItemName.includes('wing')) return 'wings';
+        if (lowerItemName.includes('leg')) return 'legs';
+        return 'pieces';
+    }
+
+    // Fish fillets
+    if (lowerItemName.includes('fillet') || lowerItemName.includes('fish')) {
+        return 'fillets';
+    }
+
+    // Steaks and chops
+    if (lowerItemName.includes('steak')) {
+        return 'steaks';
+    }
+    if (lowerItemName.includes('chop')) {
+        return 'chops';
+    }
+
+    // Eggs
+    if (lowerItemName.includes('egg')) {
+        return 'eggs';
+    }
+
+    // Bread slices
+    if (lowerItemName.includes('bread') || lowerItemName.includes('toast')) {
+        return 'slices';
+    }
+
+    // Tortillas
+    if (lowerItemName.includes('tortilla')) {
+        return 'tortillas';
+    }
+
+    // Cookies, crackers
+    if (lowerItemName.includes('cookie') || lowerItemName.includes('cracker')) {
+        return 'pieces';
+    }
+
+    // Cheese slices
+    if (lowerItemName.includes('cheese slice') || lowerItemName.includes('american cheese')) {
+        return 'slices';
+    }
+
+    // Default fallback
+    return 'items';
+}
+
+/**
  * Check if the unit combination suggests a per-unit measurement
  * @param {string} primaryUnit - The primary unit (e.g., 'can', 'package', 'item')
- * @param {string} secondaryUnit - The secondary unit (e.g., 'oz', 'g', 'ml')
+ * @param {string} secondaryUnit - The secondary unit (e.g., 'oz', 'g', 'ml', 'each')
  * @returns {boolean} - True if it's likely a per-unit measurement
  */
 function isLikelyPerUnitMeasurement(primaryUnit, secondaryUnit) {
+    // If secondary unit is "each", it's definitely per-unit
+    if (secondaryUnit === 'each') {
+        return true;
+    }
+
     // Count units paired with weight/volume units = per-unit measurement
     const countUnits = ['can', 'package', 'item', 'box', 'bag', 'bottle', 'jar'];
     const measurementUnits = ['oz', 'g', 'kg', 'lbs', 'ml', 'l'];
@@ -207,8 +315,12 @@ export function getSecondaryDisplayText(item) {
 
     // Only show secondary if both exist
     if (primaryQty > 0 && secondaryQty > 0) {
-        const smartUnit = getSmartUnitName(item.name, item.secondaryUnit, secondaryQty);
-        return `${secondaryQty} ${smartUnit}`;
+        if (item.secondaryUnit === 'each') {
+            return `${secondaryQty} ${getItemSpecificUnit(item.name)} each`;
+        } else {
+            const smartUnit = getSmartUnitName(item.name, item.secondaryUnit, secondaryQty);
+            return `${secondaryQty} ${smartUnit}`;
+        }
     }
 
     return null;

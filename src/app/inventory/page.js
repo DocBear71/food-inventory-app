@@ -816,8 +816,7 @@ function InventoryContent() {
                                     </div>
 
                                     <div>
-                                        <label htmlFor="category"
-                                               className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                                             Category
                                         </label>
                                         <select
@@ -840,9 +839,7 @@ function InventoryContent() {
                                             <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
                                             <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
                                             <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish &
-                                                Seafood
-                                            </option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
                                             <option value="Beans">Beans</option>
                                             <option value="Canned Meat">Canned/Jarred Meat</option>
                                             <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
@@ -918,6 +915,7 @@ function InventoryContent() {
                                                     className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
                                                 >
                                                     <option value="item">Item(s)</option>
+                                                    <option value="each">Each</option>
                                                     <option value="lbs">Pounds</option>
                                                     <option value="oz">Ounces</option>
                                                     <option value="kg">Kilograms</option>
@@ -958,6 +956,7 @@ function InventoryContent() {
                                                 >
                                                     <option value="">Select unit</option>
                                                     <option value="item">Item(s)</option>
+                                                    <option value="each">Each</option>
                                                     <option value="lbs">Pounds</option>
                                                     <option value="oz">Ounces</option>
                                                     <option value="kg">Kilograms</option>
