@@ -1,4 +1,4 @@
-// file: /src/components/layout/MobileDashboardLayout.js v4 - Added Receipt Scanner to header and hamburger menu
+// file: /src/components/layout/MobileDashboardLayout.js v5 - Added Receipt Scanner to header and hamburger menu
 
 'use client';
 
@@ -188,8 +188,9 @@ export default function MobileDashboardLayout({children}) {
             {mobileMenuOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
-                    <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl">
-                        <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
+                        {/* Menu Header - Fixed */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
                             <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
                             <TouchEnhancedButton
                                 onClick={() => setMobileMenuOpen(false)}
@@ -202,63 +203,69 @@ export default function MobileDashboardLayout({children}) {
                             </TouchEnhancedButton>
                         </div>
 
-                        <nav className="px-4 py-6 space-y-2 overflow-y-auto" style={{maxHeight: 'calc(100vh - 200px)'}}>
-                            {/* Main navigation items */}
-                            <div className="mb-6">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
-                                    Main Navigation
-                                </h3>
-                                {navigation.map((item) => (
-                                    <TouchEnhancedButton
-                                        key={item.name}
-                                        onClick={() => handleNavigation(item.href)}
-                                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
-                                            item.current
-                                                ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
-                                                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
-                                        }`}
-                                    >
-                                        <span className="text-xl">{item.icon}</span>
-                                        <span className="font-medium">{item.name}</span>
-                                        {item.current && (
-                                            <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
-                                        )}
-                                    </TouchEnhancedButton>
-                                ))}
-                            </div>
-
-                            {/* Additional menu items - UPDATED: Now includes Receipt Scanner */}
-                            <div className="mb-6">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
-                                    Tools & Features
-                                </h3>
-                                {additionalMenuItems.map((item) => (
-                                    <TouchEnhancedButton
-                                        key={item.name}
-                                        onClick={() => handleNavigation(item.href)}
-                                        className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
-                                            item.current
-                                                ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
-                                                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
-                                        }`}
-                                    >
-                                        <span className="text-xl mt-0.5">{item.icon}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium">{item.name}</div>
-                                            {item.description && (
-                                                <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                        {/* Scrollable Navigation Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            <nav className="px-4 py-6 space-y-2">
+                                {/* Main navigation items */}
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                        Main Navigation
+                                    </h3>
+                                    {navigation.map((item) => (
+                                        <TouchEnhancedButton
+                                            key={item.name}
+                                            onClick={() => handleNavigation(item.href)}
+                                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                item.current
+                                                    ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                            }`}
+                                        >
+                                            <span className="text-xl">{item.icon}</span>
+                                            <span className="font-medium">{item.name}</span>
+                                            {item.current && (
+                                                <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
                                             )}
-                                        </div>
-                                        {item.current && (
-                                            <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
-                                        )}
-                                    </TouchEnhancedButton>
-                                ))}
-                            </div>
-                        </nav>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
 
-                        {/* User Profile & Sign Out Section */}
-                        <div className="absolute bottom-0 left-0 right-0 border-t bg-gray-50">
+                                {/* Additional menu items - UPDATED: Now includes Receipt Scanner */}
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                        Tools & Features
+                                    </h3>
+                                    {additionalMenuItems.map((item) => (
+                                        <TouchEnhancedButton
+                                            key={item.name}
+                                            onClick={() => handleNavigation(item.href)}
+                                            className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                item.current
+                                                    ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                            }`}
+                                        >
+                                            <span className="text-xl mt-0.5">{item.icon}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium">{item.name}</div>
+                                                {item.description && (
+                                                    <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                                                )}
+                                            </div>
+                                            {item.current && (
+                                                <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                            )}
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+
+                                {/* Add some bottom padding to ensure last items are accessible */}
+                                <div className="h-4"></div>
+                            </nav>
+                        </div>
+
+                        {/* User Profile & Sign Out Section - Fixed at bottom */}
+                        <div className="border-t bg-gray-50 flex-shrink-0">
                             {/* User Info */}
                             {session && (
                                 <div className="px-4 py-3 border-b border-gray-200">
