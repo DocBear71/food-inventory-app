@@ -816,18 +816,57 @@ function InventoryContent() {
                                     </div>
 
                                     <div>
-                                        <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="category"
+                                               className="block text-sm font-medium text-gray-700">
                                             Category
                                         </label>
-                                        <input
-                                            type="text"
+                                        <select
                                             id="category"
                                             name="category"
                                             value={formData.category}
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                            placeholder="e.g., Fruits, Dairy, Snacks"
-                                        />
+                                        >
+                                            <option value="">Select category</option>
+                                            <option value="Fresh Vegetables">Fresh Vegetables</option>
+                                            <option value="Fresh Fruits">Fresh Fruits</option>
+                                            <option value="Fresh Spices">Fresh Spices</option>
+                                            <option value="Dairy">Dairy</option>
+                                            <option value="Cheese">Cheese</option>
+                                            <option value="Eggs">Eggs</option>
+                                            <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
+                                            <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
+                                            <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
+                                            <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
+                                            <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
+                                            <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish &
+                                                Seafood
+                                            </option>
+                                            <option value="Beans">Beans</option>
+                                            <option value="Canned Meat">Canned/Jarred Meat</option>
+                                            <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
+                                            <option value="Canned Fruit">Canned/Jarred Fruit</option>
+                                            <option value="Canned Sauces">Canned/Jarred Sauces</option>
+                                            <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
+                                            <option value="Canned Beans">Canned/Jarred Beans</option>
+                                            <option value="Canned Meals">Canned/Jarred Meals</option>
+                                            <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                            <option value="Frozen Fruit">Frozen Fruit</option>
+                                            <option value="Grains">Grains</option>
+                                            <option value="Breads">Breads</option>
+                                            <option value="Pasta">Pasta</option>
+                                            <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                            <option value="Boxed Meals">Boxed Meals</option>
+                                            <option value="Seasonings">Seasonings</option>
+                                            <option value="Spices">Spices</option>
+                                            <option value="Bouillon">Bouillon</option>
+                                            <option value="Stock/Broth">Stock/Broth</option>
+                                            <option value="Beverages">Beverages</option>
+                                            <option value="Snacks">Snacks</option>
+                                            <option value="Condiments">Condiments</option>
+                                            <option value="Other">Other</option>
+                                        </select>
                                     </div>
 
                                     <div>
