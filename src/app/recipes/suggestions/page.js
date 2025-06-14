@@ -226,23 +226,183 @@ export default function RecipeSuggestions() {
         return categorized;
     };
 
-    // NEW: Generate a meal suggestion from a template
+    // NEW: Culinary pairing rules for better combinations
+    const culinaryPairings = {
+        // Good protein + starch combinations
+        proteinStarchPairs: {
+            'chicken': ['rice', 'potatoes', 'pasta', 'quinoa'],
+            'beef': ['potatoes', 'rice', 'pasta'],
+            'pork': ['potatoes', 'rice', 'sweet potatoes'],
+            'turkey': ['potatoes', 'rice', 'bread'],
+            'fish': ['rice', 'potatoes', 'quinoa'],
+            'salmon': ['rice', 'potatoes', 'quinoa'],
+            'eggs': ['bread', 'potatoes', 'rice'],
+            'ground beef': ['pasta', 'rice', 'potatoes'],
+            'bacon': ['bread', 'potatoes'],
+            'ham': ['bread', 'potatoes'],
+            'sausage': ['pasta', 'potatoes', 'rice']
+        },
+
+        // Good sauce combinations by meal type
+        saucePairings: {
+            'pasta': ['marinara', 'tomato sauce', 'alfredo', 'pesto'],
+            'rice': ['soy sauce', 'teriyaki', 'curry sauce'],
+            'chicken': ['barbecue sauce', 'teriyaki', 'buffalo sauce'],
+            'beef': ['barbecue sauce', 'steak sauce', 'mushroom sauce'],
+            'sandwich': ['mayonnaise', 'mustard', 'ranch', 'italian dressing']
+        },
+
+        // Vegetables that go well with proteins
+        proteinVeggiePairs: {
+            'chicken': ['broccoli', 'green beans', 'carrots', 'asparagus', 'spinach'],
+            'beef': ['broccoli', 'carrots', 'green beans', 'mushrooms'],
+            'pork': ['asparagus', 'green beans', 'corn', 'carrots'],
+            'fish': ['asparagus', 'broccoli', 'spinach', 'green beans'],
+            'salmon': ['asparagus', 'broccoli', 'spinach']
+        },
+
+        // Items to avoid in certain meal types
+        avoidCombinations: {
+            'sandwich': ['rice', 'pasta'], // Don't put rice/pasta in sandwiches
+            'pasta': ['potatoes', 'rice'], // Don't double up on starches
+            'rice': ['pasta', 'potatoes', 'bread'], // Don't triple carbs
+            'soup': ['rice', 'pasta'] // Keep soup meals simple
+        }
+    };
+
+    // NEW: Smart ingredient selection with culinary logic
+    const selectBestIngredient = (availableItems, category, existingComponents, templateId) => {
+        if (!availableItems || availableItems.length === 0) return null;
+
+        // If only one option, use it
+        if (availableItems.length === 1) return availableItems[0];
+
+        // Get existing component items for pairing logic
+        const existingItems = existingComponents.map(comp => comp.item?.name.toLowerCase()).filter(Boolean);
+
+        // Special logic for different categories
+        switch (category) {
+            case 'protein':
+                // Prefer whole proteins over processed for main meals
+                const wholeProteins = availableItems.filter(item =>
+                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey'].some(protein =>
+                        item.name.toLowerCase().includes(protein)
+                    )
+                );
+                if (wholeProteins.length > 0) return wholeProteins[0];
+                break;
+
+            case 'starch':
+                // Check if we have a protein to pair with
+                const protein = existingItems.find(item =>
+                    Object.keys(culinaryPairings.proteinStarchPairs).some(p => item.includes(p))
+                );
+                if (protein) {
+                    const proteinKey = Object.keys(culinaryPairings.proteinStarchPairs).find(p => protein.includes(p));
+                    const goodStarches = culinaryPairings.proteinStarchPairs[proteinKey] || [];
+                    const matchingStarch = availableItems.find(item =>
+                        goodStarches.some(starch => item.name.toLowerCase().includes(starch))
+                    );
+                    if (matchingStarch) return matchingStarch;
+                }
+                break;
+
+            case 'vegetable':
+                // Pair vegetables with existing protein
+                const existingProtein = existingItems.find(item =>
+                    Object.keys(culinaryPairings.proteinVeggiePairs).some(p => item.includes(p))
+                );
+                if (existingProtein) {
+                    const proteinKey = Object.keys(culinaryPairings.proteinVeggiePairs).find(p => existingProtein.includes(p));
+                    const goodVeggies = culinaryPairings.proteinVeggiePairs[proteinKey] || [];
+                    const matchingVeggie = availableItems.find(item =>
+                        goodVeggies.some(veggie => item.name.toLowerCase().includes(veggie))
+                    );
+                    if (matchingVeggie) return matchingVeggie;
+                }
+                break;
+
+            case 'sauce':
+                // Choose sauce based on meal type and existing ingredients
+                const mealBase = existingItems.find(item =>
+                    ['pasta', 'rice', 'chicken', 'beef'].some(base => item.includes(base))
+                );
+                if (mealBase) {
+                    const baseKey = ['pasta', 'rice', 'chicken', 'beef'].find(base => mealBase.includes(base));
+                    const goodSauces = culinaryPairings.saucePairings[baseKey] || [];
+                    const matchingSauce = availableItems.find(item =>
+                        goodSauces.some(sauce => item.name.toLowerCase().includes(sauce))
+                    );
+                    if (matchingSauce) return matchingSauce;
+                }
+                break;
+
+            case 'convenience':
+                // Prefer complete meals over components
+                const completeMeals = availableItems.filter(item =>
+                    ['pizza', 'hamburger helper', 'mac and cheese', 'frozen meal'].some(meal =>
+                        item.name.toLowerCase().includes(meal)
+                    )
+                );
+                if (completeMeals.length > 0) return completeMeals[0];
+                break;
+        }
+
+        // Default: return first available item
+        return availableItems[0];
+    };
+
+    // NEW: Check if combination makes culinary sense
+    const validateCombination = (components, templateId) => {
+        const itemNames = components
+            .filter(comp => comp.item)
+            .map(comp => comp.item.name.toLowerCase());
+
+        // Check for avoided combinations
+        const avoidList = culinaryPairings.avoidCombinations[templateId] || [];
+        const hasConflict = avoidList.some(avoid =>
+            itemNames.some(item => item.includes(avoid))
+        );
+
+        if (hasConflict) return false;
+
+        // Additional specific checks
+        switch (templateId) {
+            case 'sandwich':
+                // Sandwiches shouldn't have soup as main ingredient
+                if (itemNames.some(item => item.includes('soup'))) return false;
+                break;
+
+            case 'pasta':
+                // Pasta meals should make sense
+                if (itemNames.some(item => item.includes('hot dog bun'))) return false;
+                break;
+        }
+
+        return true;
+    };
+
+    // NEW: Generate a meal suggestion from a template with culinary logic
     const generateMealFromTemplate = (template, categorizedInventory) => {
         const components = [];
         let canMake = true;
         let isComplete = true;
 
-        // Check required categories
+        // Check required categories with smart selection
         for (const category of template.requiredCategories) {
             const availableItems = categorizedInventory[category] || [];
             if (availableItems.length > 0) {
-                // Pick a random item from available options
-                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-                components.push({
-                    category,
-                    item: randomItem,
-                    required: true
-                });
+                const selectedItem = selectBestIngredient(availableItems, category, components, template.id);
+                if (selectedItem) {
+                    components.push({
+                        category,
+                        item: selectedItem,
+                        required: true
+                    });
+                } else {
+                    canMake = false;
+                    isComplete = false;
+                }
             } else {
                 canMake = false;
                 isComplete = false;
@@ -254,20 +414,27 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // Add optional categories if available
+        // Add optional categories if available and they make sense
         for (const category of template.optionalCategories || []) {
             const availableItems = categorizedInventory[category] || [];
             if (availableItems.length > 0) {
-                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-                components.push({
-                    category,
-                    item: randomItem,
-                    required: false
-                });
+                const selectedItem = selectBestIngredient(availableItems, category, components, template.id);
+                if (selectedItem) {
+                    components.push({
+                        category,
+                        item: selectedItem,
+                        required: false
+                    });
+                }
             }
         }
 
         if (!canMake) return null;
+
+        // Validate the combination makes culinary sense
+        if (!validateCombination(components, template.id)) {
+            return null;
+        }
 
         return {
             id: template.id,
@@ -292,18 +459,113 @@ export default function RecipeSuggestions() {
         return timings[templateId] || 30;
     };
 
-    // NEW: Format meal name from components
+    // NEW: Generate natural meal names instead of ingredient lists
     const formatMealName = (suggestion) => {
         const mainComponents = suggestion.components
-            .filter(comp => comp.item && comp.required)
-            .map(comp => comp.item.name);
+            .filter(comp => comp.item && comp.required);
 
         const optionalComponents = suggestion.components
-            .filter(comp => comp.item && !comp.required)
-            .slice(0, 2) // Limit to 2 optional items for readability
-            .map(comp => comp.item.name);
+            .filter(comp => comp.item && !comp.required);
 
-        const allComponents = [...mainComponents, ...optionalComponents];
+        // Special naming for different meal types
+        switch (suggestion.template.id) {
+            case 'convenience-meal':
+                // For convenience meals, use the main item name
+                const conveniences = mainComponents.filter(comp => comp.category === 'convenience');
+                if (conveniences.length > 0) {
+                    const mainItem = conveniences[0].item.name;
+                    const convenienceProtein = optionalComponents.find(comp => comp.category === 'protein');
+                    if (convenienceProtein && mainItem.toLowerCase().includes('hamburger helper')) {
+                        return `${mainItem} with ${convenienceProtein.item.name}`;
+                    }
+                    return mainItem;
+                }
+                break;
+
+            case 'pasta-meal':
+                const pasta = mainComponents.find(comp => comp.category === 'pasta');
+                const sauce = optionalComponents.find(comp => comp.category === 'sauce');
+                const pastaProtein = optionalComponents.find(comp => comp.category === 'protein');
+
+                if (pasta) {
+                    let name = pasta.item.name;
+                    if (sauce) {
+                        // Make sauce names more natural
+                        const sauceName = sauce.item.name.toLowerCase().includes('sauce')
+                            ? sauce.item.name.replace(/sauce$/i, '').trim()
+                            : sauce.item.name;
+                        name += ` with ${sauceName}`;
+                    }
+                    if (pastaProtein) {
+                        name += ` and ${pastaProtein.item.name}`;
+                    }
+                    return name;
+                }
+                break;
+
+            case 'sandwich-meal':
+                const bread = mainComponents.find(comp => comp.category === 'bread');
+                const sandwichProtein = optionalComponents.find(comp => comp.category === 'protein');
+
+                if (bread && sandwichProtein) {
+                    const breadType = bread.item.name.toLowerCase().includes('bun') ? 'Sandwich' : bread.item.name;
+                    return `${sandwichProtein.item.name} ${breadType}`;
+                }
+                if (bread) {
+                    return `${bread.item.name} Sandwich`;
+                }
+                break;
+
+            case 'rice-bowl':
+                const rice = mainComponents.find(comp => comp.category === 'rice');
+                const bowlProtein = optionalComponents.find(comp => comp.category === 'protein');
+                const bowlSauce = optionalComponents.find(comp => comp.category === 'sauce');
+
+                let bowlName = 'Rice Bowl';
+                if (bowlProtein) {
+                    bowlName = `${bowlProtein.item.name} Rice Bowl`;
+                }
+                if (bowlSauce && bowlSauce.item.name.toLowerCase().includes('teriyaki')) {
+                    bowlName = bowlName.replace('Rice Bowl', 'Teriyaki Bowl');
+                }
+                return bowlName;
+
+            case 'soup-meal':
+                const soup = mainComponents.find(comp => comp.category === 'soup');
+                const soupBread = optionalComponents.find(comp => comp.category === 'bread');
+
+                if (soup) {
+                    let soupName = soup.item.name;
+                    if (soupBread && soupBread.item.name.toLowerCase().includes('bread')) {
+                        soupName += ' with Bread';
+                    }
+                    return soupName;
+                }
+                break;
+
+            case 'protein-starch-vegetable':
+                const mealProtein = mainComponents.find(comp => comp.category === 'protein');
+                const starch = mainComponents.find(comp => comp.category === 'starch');
+                const vegetable = mainComponents.find(comp => comp.category === 'vegetable');
+
+                const parts = [];
+                if (mealProtein) parts.push(mealProtein.item.name);
+                if (starch) parts.push(starch.item.name);
+                if (vegetable) parts.push(vegetable.item.name);
+
+                if (parts.length === 3) {
+                    return `${parts[0]} with ${parts[1]} and ${parts[2]}`;
+                } else if (parts.length === 2) {
+                    return `${parts[0]} with ${parts[1]}`;
+                } else {
+                    return parts[0] || 'Balanced Meal';
+                }
+                break;
+        }
+
+        // Fallback to component list for other cases
+        const allComponents = [...mainComponents, ...optionalComponents.slice(0, 2)]
+            .map(comp => comp.item.name);
 
         if (allComponents.length === 1) {
             return allComponents[0];
