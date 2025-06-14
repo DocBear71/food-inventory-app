@@ -1,4 +1,4 @@
-// file: /src/app/recipes/suggestions/page.js v4 - Added simple meal suggestions
+// file: /src/app/recipes/suggestions/page.js v5 - Fixed categorization logic and improved meal suggestions
 
 'use client';
 
@@ -13,7 +13,7 @@ import Footer from '@/components/legal/Footer';
 export default function RecipeSuggestions() {
     const {data: session, status} = useSession();
     const [suggestions, setSuggestions] = useState([]);
-    const [simpleMealSuggestions, setSimpleMealSuggestions] = useState([]); // NEW
+    const [simpleMealSuggestions, setSimpleMealSuggestions] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,9 +22,9 @@ export default function RecipeSuggestions() {
     const [showShoppingList, setShowShoppingList] = useState(null);
     const [showRecipeModal, setShowRecipeModal] = useState(null);
     const [loadingRecipe, setLoadingRecipe] = useState(false);
-    const [activeTab, setActiveTab] = useState('recipes'); // NEW: Tab state
+    const [activeTab, setActiveTab] = useState('recipes');
 
-    // NEW: Simple meal templates
+    // UPDATED: Simple meal templates with gravy category
     const mealTemplates = [
         {
             id: 'protein-starch-vegetable',
@@ -32,7 +32,7 @@ export default function RecipeSuggestions() {
             description: 'Classic balanced meal',
             icon: '🍽️',
             requiredCategories: ['protein', 'starch', 'vegetable'],
-            optionalCategories: ['sauce', 'seasoning'],
+            optionalCategories: ['sauce', 'gravy', 'seasoning'],
             examples: ['Steak + Mashed Potatoes + Broccoli', 'Chicken + Rice + Green Beans']
         },
         {
@@ -82,75 +82,112 @@ export default function RecipeSuggestions() {
         }
     ];
 
-    // NEW: Category mappings for inventory items
+    // COMPLETELY REVISED: Category mappings with better organization and specificity
     const categoryMappings = {
-        // Proteins
+        // CONVENIENCE ITEMS - Check first to catch packaged meals
+        convenience: [
+            // Specific convenience meal patterns
+            'frozen pizza', 'pizza', 'hamburger helper', 'mac and cheese', 'instant noodles',
+            'ramen', 'tv dinner', 'frozen meals', 'boxed mac and cheese',
+            'kraft dinner', 'easy mac', 'hot pockets', 'lean cuisine',
+            // Specific items from your inventory
+            'four cheese lasagna', 'deluxe beef stroganoff', 'beef stroganoff',
+            // Boxed/packaged meal patterns
+            'lasagna', 'stroganoff', 'skillet meal', 'meal kit'
+        ],
+
+        // PROTEINS - Actual meat, poultry, fish, eggs
         protein: [
             'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'eggs',
             'ground beef', 'ground turkey', 'chicken breast', 'pork chops', 'steak',
-            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils', 'stew meat', 'hamburger patties', 'ribeye', 'New York Steak'
+            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils', 'stew meat',
+            'hamburger patties', 'ribeye', 'new york steak', 'chicken nuggets',
+            'chicken patties', 'chicken wing', 'spareribs', 'pork loin', 'pork tenderloin'
         ],
-        // Starches
+
+        // STARCHES - Pure starches without other classifications
         starch: [
             'potatoes', 'rice', 'pasta', 'bread', 'quinoa', 'noodles', 'mashed potatoes',
-            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas', 'gravy', 'stuffing'
+            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas',
+            'stuffing', 'tater tots', 'frozen potatoes'
         ],
-        // Vegetables
+
+        // VEGETABLES - Fresh, frozen, canned vegetables
         vegetable: [
             'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
             'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
-            'cauliflower', 'cabbage', 'brussels sprouts', 'celery'
+            'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli'
         ],
-        // Fruits
+
+        // FRUITS
         fruits: [
-            'oranges', 'pineapple', 'peaches', 'fruit coctail'
+            'oranges', 'pineapple', 'peaches', 'fruit cocktail', 'mandarin oranges',
+            'sliced peaches', 'pineapple tidbits'
         ],
-        // Rice specifically
-        rice: ['rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice', 'wild rice'],
-        // Pasta specifically
+
+        // RICE SPECIFICALLY
+        rice: [
+            'rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice', 'wild rice',
+            'rice pilaf'
+        ],
+
+        // PASTA SPECIFICALLY
         pasta: [
             'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
-            'lasagna noodles', 'angel hair', 'linguine', 'farfalle'
+            'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
+            'shell macaroni', 'enriched macaroni'
         ],
-        // Bread
+
+        // BREAD SPECIFICALLY
         bread: [
             'bread', 'white bread', 'wheat bread', 'sourdough', 'rye bread', 'bagels',
-            'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins'
+            'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins',
+            'hot dog buns'
         ],
-        // Convenience items
-        convenience: [
-            'frozen pizza', 'pizza', 'hamburger helper', 'mac and cheese', 'instant noodles',
-            'ramen', 'tv dinner', 'frozen meals', 'canned soup', 'boxed mac and cheese',
-            'kraft dinner', 'easy mac', 'hot pockets', 'lean cuisine'
-        ],
-        // Soup
+
+        // SOUP - Liquid-based meals
         soup: [
             'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
-            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock', 'campbell\'s'
+            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock', 'campbell',
+            'cream chicken'
         ],
-        // Sauces
+
+        // NEW: GRAVY - Separate from sauces
+        gravy: [
+            'gravy', 'beef gravy', 'turkey gravy', 'chicken gravy', 'brown gravy',
+            'homestyle gravy', 'savory beef gravy', 'homestyle turkey gravy'
+        ],
+
+        // SAUCES - Cooking sauces (NOT condiments)
         sauce: [
             'marinara', 'tomato sauce', 'alfredo', 'pesto', 'soy sauce', 'teriyaki',
-            'barbecue sauce', 'hot sauce', 'ranch', 'ketchup', 'mustard', 'enchilada', 'worcestershire'
+            'barbecue sauce', 'hot sauce', 'enchilada sauce', 'worcestershire',
+            'pasta sauce', 'cheese sauce', 'cream sauce'
         ],
-        // Cheese
+
+        // CHEESE - Dairy cheese products
         cheese: [
             'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese',
             'cream cheese', 'feta', 'goat cheese', 'string cheese'
         ],
-        // Condiments
+
+        // CONDIMENTS - Table condiments
         condiment: [
             'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
-            'vinaigrette', 'pickle', 'relish', 'hot sauce'
+            'vinaigrette', 'pickle', 'relish'
         ],
-        // Seasonings
+
+        // SEASONINGS - Spices and herbs
         seasoning: [
-            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika', 'black pepper', 'white pepper',
-            'oregano', 'basil', 'thyme', 'rosemary', 'cumin', 'chili powder', 'red pepper flakes'
+            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika', 'black pepper',
+            'white pepper', 'oregano', 'basil', 'thyme', 'rosemary', 'cumin',
+            'chili powder', 'red pepper flakes'
         ],
-        // Basic ingredients
+
+        // BASIC INGREDIENTS - Baking/cooking basics
         ingredients: [
-            'flour', 'all-purpose flout', 'brown sugar', 'sugar', 'honey', 'vinegar', 'baking powder', 'baking soda',
+            'flour', 'all-purpose flour', 'brown sugar', 'sugar', 'honey', 'vinegar',
+            'baking powder', 'baking soda', 'white vinegar', 'granulated sugar'
         ],
     };
 
@@ -169,11 +206,11 @@ export default function RecipeSuggestions() {
     useEffect(() => {
         if (inventory.length > 0 && recipes.length > 0) {
             generateSuggestions();
-            generateSimpleMealSuggestions(); // NEW
+            generateSimpleMealSuggestions();
         }
     }, [inventory, recipes, matchThreshold]);
 
-    // NEW: Generate simple meal suggestions
+    // UPDATED: Generate simple meal suggestions with improved categorization
     const generateSimpleMealSuggestions = () => {
         console.log('=== GENERATING SIMPLE MEAL SUGGESTIONS ===');
 
@@ -200,7 +237,7 @@ export default function RecipeSuggestions() {
         setSimpleMealSuggestions(suggestions);
     };
 
-    // NEW: Categorize inventory items by food category
+    // COMPLETELY REWRITTEN: Improved categorization with priority order and exclusions
     const categorizeInventoryItems = (inventory) => {
         const categorized = {};
 
@@ -209,32 +246,135 @@ export default function RecipeSuggestions() {
             categorized[category] = [];
         });
 
+        // Priority order for categorization (most specific first)
+        const priorityOrder = [
+            'convenience',  // Check convenience first to catch packaged meals
+            'gravy',       // Check gravy before sauce
+            'condiment',   // Check condiments before sauce
+            'soup',        // Check soup before other categories
+            'rice',        // Check rice before starch
+            'pasta',       // Check pasta before starch
+            'bread',       // Check bread before starch
+            'fruits',      // Check fruits early
+            'cheese',      // Check cheese before other categories
+            'protein',     // Check protein
+            'vegetable',   // Check vegetables
+            'starch',      // General starches
+            'sauce',       // Sauces (after condiments)
+            'seasoning',   // Seasonings
+            'ingredients'  // Basic ingredients last
+        ];
+
         inventory.forEach(item => {
             const itemName = item.name.toLowerCase().trim();
+            let categorized_item = false;
 
-            // Check each category for matches
-            Object.entries(categoryMappings).forEach(([category, keywords]) => {
+            console.log(`\n--- Categorizing: "${item.name}" ---`);
+
+            // Go through categories in priority order
+            for (const category of priorityOrder) {
+                if (categorized_item) break; // Skip if already categorized
+
+                const keywords = categoryMappings[category];
                 const matches = keywords.some(keyword => {
-                    // Exact match or contains keyword
-                    return itemName === keyword ||
-                        itemName.includes(keyword) ||
-                        keyword.includes(itemName);
+                    const keywordLower = keyword.toLowerCase();
+
+                    // More precise matching
+                    return itemName === keywordLower ||  // Exact match
+                        itemName.includes(keywordLower) ||  // Contains keyword
+                        keywordLower.includes(itemName);    // Keyword contains item name
                 });
 
-                if (matches && !categorized[category].some(existing => existing.name === item.name)) {
-                    categorized[category].push(item);
+                if (matches) {
+                    // Additional validation for specific categories
+                    if (category === 'convenience') {
+                        // Double-check convenience items
+                        const isConvenience = keywords.some(keyword => {
+                            const keywordLower = keyword.toLowerCase();
+                            return itemName.includes(keywordLower) ||
+                                keywordLower.includes(itemName);
+                        });
+                        if (isConvenience) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ CONVENIENCE: "${item.name}"`);
+                        }
+                    } else if (category === 'gravy') {
+                        // Only add to gravy if it contains "gravy"
+                        if (itemName.includes('gravy')) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ GRAVY: "${item.name}"`);
+                        }
+                    } else if (category === 'condiment') {
+                        // Strict condiment matching
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'pickle', 'relish'].some(condiment =>
+                            itemName.includes(condiment)
+                        );
+                        if (isCondiment) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ CONDIMENT: "${item.name}"`);
+                        }
+                    } else if (category === 'sauce') {
+                        // Don't categorize as sauce if it's already a condiment or gravy
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch'].some(condiment =>
+                            itemName.includes(condiment)
+                        );
+                        const isGravy = itemName.includes('gravy');
+                        if (!isCondiment && !isGravy) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ SAUCE: "${item.name}"`);
+                        }
+                    } else if (category === 'cheese') {
+                        // Only add to cheese if it's actually a cheese product, not a meal with cheese
+                        const isCheeseProduct = itemName.includes('cheese') &&
+                            !itemName.includes('lasagna') &&
+                            !itemName.includes('stroganoff') &&
+                            !itemName.includes('potatoes'); // Don't include cheese potatoes as cheese
+                        if (isCheeseProduct || itemName.includes('parmesan')) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ CHEESE: "${item.name}"`);
+                        }
+                    } else if (category === 'starch') {
+                        // Don't categorize as starch if it's a sauce, gravy, or convenience item
+                        const isGravy = itemName.includes('gravy');
+                        const isSauce = itemName.includes('sauce');
+                        const isConvenience = categoryMappings.convenience.some(keyword =>
+                            itemName.includes(keyword.toLowerCase())
+                        );
+                        if (!isGravy && !isSauce && !isConvenience) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ STARCH: "${item.name}"`);
+                        }
+                    } else {
+                        // Standard categorization for other categories
+                        categorized[category].push(item);
+                        categorized_item = true;
+                        console.log(`✅ ${category.toUpperCase()}: "${item.name}"`);
+                    }
                 }
-            });
+            }
+
+            if (!categorized_item) {
+                console.log(`❌ NO CATEGORY: "${item.name}"`);
+            }
         });
 
-        console.log('Categorized inventory:', Object.fromEntries(
-            Object.entries(categorized).map(([cat, items]) => [cat, items.map(i => i.name)])
-        ));
+        console.log('\n=== FINAL CATEGORIZATION RESULTS ===');
+        Object.entries(categorized).forEach(([category, items]) => {
+            if (items.length > 0) {
+                console.log(`${category.toUpperCase()} (${items.length}):`, items.map(i => i.name));
+            }
+        });
 
         return categorized;
     };
 
-    // NEW: Culinary pairing rules for better combinations
+    // UPDATED: Enhanced culinary pairing rules
     const culinaryPairings = {
         // Good protein + starch combinations
         proteinStarchPairs: {
@@ -251,12 +391,14 @@ export default function RecipeSuggestions() {
             'sausage': ['pasta', 'potatoes', 'rice']
         },
 
-        // Good sauce combinations by meal type
+        // Good sauce/gravy combinations by meal type
         saucePairings: {
-            'pasta': ['marinara', 'tomato sauce', 'alfredo', 'pesto'],
+            'pasta': ['marinara', 'tomato sauce', 'alfredo', 'pesto', 'cheese sauce'],
             'rice': ['soy sauce', 'teriyaki', 'curry sauce'],
             'chicken': ['barbecue sauce', 'teriyaki', 'buffalo sauce'],
-            'beef': ['barbecue sauce', 'steak sauce', 'mushroom sauce'],
+            'beef': ['barbecue sauce', 'steak sauce', 'mushroom sauce', 'beef gravy'],
+            'pork': ['barbecue sauce', 'apple sauce', 'gravy'],
+            'turkey': ['turkey gravy', 'cranberry sauce'],
             'sandwich': ['mayonnaise', 'mustard', 'ranch', 'italian dressing']
         },
 
@@ -278,7 +420,7 @@ export default function RecipeSuggestions() {
         }
     };
 
-    // NEW: Smart ingredient selection with culinary logic
+    // UPDATED: Smart ingredient selection with enhanced logic
     const selectBestIngredient = (availableItems, category, existingComponents, templateId) => {
         if (!availableItems || availableItems.length === 0) return null;
 
@@ -293,7 +435,7 @@ export default function RecipeSuggestions() {
             case 'protein':
                 // Prefer whole proteins over processed for main meals
                 const wholeProteins = availableItems.filter(item =>
-                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey'].some(protein =>
+                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'steak'].some(protein =>
                         item.name.toLowerCase().includes(protein)
                     )
                 );
@@ -331,12 +473,13 @@ export default function RecipeSuggestions() {
                 break;
 
             case 'sauce':
-                // Choose sauce based on meal type and existing ingredients
+            case 'gravy':
+                // Choose sauce/gravy based on meal type and existing ingredients
                 const mealBase = existingItems.find(item =>
-                    ['pasta', 'rice', 'chicken', 'beef'].some(base => item.includes(base))
+                    ['pasta', 'rice', 'chicken', 'beef', 'pork', 'turkey'].some(base => item.includes(base))
                 );
                 if (mealBase) {
-                    const baseKey = ['pasta', 'rice', 'chicken', 'beef'].find(base => mealBase.includes(base));
+                    const baseKey = ['pasta', 'rice', 'chicken', 'beef', 'pork', 'turkey'].find(base => mealBase.includes(base));
                     const goodSauces = culinaryPairings.saucePairings[baseKey] || [];
                     const matchingSauce = availableItems.find(item =>
                         goodSauces.some(sauce => item.name.toLowerCase().includes(sauce))
@@ -348,7 +491,7 @@ export default function RecipeSuggestions() {
             case 'convenience':
                 // Prefer complete meals over components
                 const completeMeals = availableItems.filter(item =>
-                    ['pizza', 'hamburger helper', 'mac and cheese', 'frozen meal'].some(meal =>
+                    ['pizza', 'hamburger helper', 'mac and cheese', 'frozen meal', 'lasagna', 'stroganoff'].some(meal =>
                         item.name.toLowerCase().includes(meal)
                     )
                 );
@@ -360,7 +503,7 @@ export default function RecipeSuggestions() {
         return availableItems[0];
     };
 
-    // NEW: Check if combination makes culinary sense
+    // UPDATED: Enhanced combination validation
     const validateCombination = (components, templateId) => {
         const itemNames = components
             .filter(comp => comp.item)
@@ -385,12 +528,20 @@ export default function RecipeSuggestions() {
                 // Pasta meals should make sense
                 if (itemNames.some(item => item.includes('hot dog bun'))) return false;
                 break;
+
+            case 'convenience':
+                // Make sure we actually have convenience items
+                const hasConvenienceItem = components.some(comp =>
+                    comp.category === 'convenience' && comp.item
+                );
+                if (!hasConvenienceItem) return false;
+                break;
         }
 
         return true;
     };
 
-    // NEW: Generate a meal suggestion from a template with culinary logic
+    // UPDATED: Generate a meal suggestion from a template with enhanced logic
     const generateMealFromTemplate = (template, categorizedInventory) => {
         const components = [];
         let canMake = true;
@@ -454,7 +605,7 @@ export default function RecipeSuggestions() {
         };
     };
 
-    // NEW: Get estimated preparation time for meal types
+    // UPDATED: Get estimated preparation time for meal types
     const getEstimatedMealTime = (templateId) => {
         const timings = {
             'protein-starch-vegetable': 45,
@@ -467,7 +618,7 @@ export default function RecipeSuggestions() {
         return timings[templateId] || 30;
     };
 
-    // NEW: Generate natural meal names instead of ingredient lists
+    // UPDATED: Enhanced natural meal naming
     const formatMealName = (suggestion) => {
         const mainComponents = suggestion.components
             .filter(comp => comp.item && comp.required);
@@ -483,7 +634,7 @@ export default function RecipeSuggestions() {
                 if (conveniences.length > 0) {
                     const mainItem = conveniences[0].item.name;
                     const convenienceProtein = optionalComponents.find(comp => comp.category === 'protein');
-                    if (convenienceProtein && mainItem.toLowerCase().includes('hamburger helper')) {
+                    if (convenienceProtein && mainItem.toLowerCase().includes('helper')) {
                         return `${mainItem} with ${convenienceProtein.item.name}`;
                     }
                     return mainItem;
@@ -555,20 +706,28 @@ export default function RecipeSuggestions() {
                 const mealProtein = mainComponents.find(comp => comp.category === 'protein');
                 const starch = mainComponents.find(comp => comp.category === 'starch');
                 const vegetable = mainComponents.find(comp => comp.category === 'vegetable');
+                const gravy = optionalComponents.find(comp => comp.category === 'gravy');
 
                 const parts = [];
                 if (mealProtein) parts.push(mealProtein.item.name);
                 if (starch) parts.push(starch.item.name);
                 if (vegetable) parts.push(vegetable.item.name);
 
+                let mealName = '';
                 if (parts.length === 3) {
-                    return `${parts[0]} with ${parts[1]} and ${parts[2]}`;
+                    mealName = `${parts[0]} with ${parts[1]} and ${parts[2]}`;
                 } else if (parts.length === 2) {
-                    return `${parts[0]} with ${parts[1]}`;
+                    mealName = `${parts[0]} with ${parts[1]}`;
                 } else {
-                    return parts[0] || 'Balanced Meal';
+                    mealName = parts[0] || 'Balanced Meal';
                 }
-                break;
+
+                // Add gravy if available
+                if (gravy) {
+                    mealName += ` with ${gravy.item.name}`;
+                }
+
+                return mealName;
         }
 
         // Fallback to component list for other cases
@@ -956,7 +1115,7 @@ export default function RecipeSuggestions() {
                     </div>
                 </div>
 
-                {/* NEW: Tab Navigation */}
+                {/* Tab Navigation */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="border-b border-gray-200">
                         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
@@ -968,7 +1127,7 @@ export default function RecipeSuggestions() {
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                             >
-                                🍽️ Simple Meals (alpha version) ({simpleMealSuggestions.length})
+                                🍽️ Simple Meals ({simpleMealSuggestions.length})
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => setActiveTab('recipes')}
@@ -984,11 +1143,11 @@ export default function RecipeSuggestions() {
                     </div>
 
                     <div className="px-4 py-5 sm:p-6">
-                        {/* NEW: Simple Meal Suggestions */}
+                        {/* Simple Meal Suggestions */}
                         {activeTab === 'simple' && (
                             <div>
                                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                    Simple Meal Ideas ({simpleMealSuggestions.length}) <strong>[This functionality is still being refined]</strong>
+                                    Simple Meal Ideas ({simpleMealSuggestions.length})
                                 </h3>
 
                                 {loading ? (
@@ -1448,14 +1607,14 @@ export default function RecipeSuggestions() {
         </MobileOptimizedLayout>
     );
 
-    // NEW: Helper function for cooking tips
+    // Helper function for cooking tips
     function getSimpleCookingTip(templateId) {
         const tips = {
-            'protein-starch-vegetable': 'Start with the protein, then add your starch. Cook vegetables until tender-crisp for best nutrition.',
+            'protein-starch-vegetable': 'Start with the protein, then add your starch. Cook vegetables until tender-crisp for best nutrition. Add gravy at the end.',
             'pasta-meal': 'Cook pasta until al dente. Save some pasta water to help bind sauces.',
             'sandwich-meal': 'Toast bread lightly for better texture. Layer ingredients thoughtfully for balanced flavors.',
             'rice-bowl': 'Rinse rice before cooking. Let it rest 5 minutes after cooking for fluffier texture.',
-            'convenience-meal': 'Follow package directions but consider adding fresh vegetables for extra nutrition.',
+            'convenience-meal': 'Follow package directions but consider adding fresh vegetables or protein for extra nutrition.',
             'soup-meal': 'Heat soup gently and taste for seasoning. Pair with crusty bread for a complete meal.'
         };
         return tips[templateId] || 'Enjoy your homemade meal!';
