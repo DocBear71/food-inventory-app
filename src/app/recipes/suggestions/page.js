@@ -88,18 +88,22 @@ export default function RecipeSuggestions() {
         protein: [
             'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'eggs',
             'ground beef', 'ground turkey', 'chicken breast', 'pork chops', 'steak',
-            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils'
+            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils', 'stew meat', 'hamburger patties', 'ribeye', 'New York Steak'
         ],
         // Starches
         starch: [
             'potatoes', 'rice', 'pasta', 'bread', 'quinoa', 'noodles', 'mashed potatoes',
-            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas'
+            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas', 'gravy', 'stuffing'
         ],
         // Vegetables
         vegetable: [
             'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
             'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
             'cauliflower', 'cabbage', 'brussels sprouts', 'celery'
+        ],
+        // Fruits
+        fruits: [
+            'oranges', 'pineapple', 'peaches', 'fruit coctail'
         ],
         // Rice specifically
         rice: ['rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice', 'wild rice'],
@@ -122,12 +126,12 @@ export default function RecipeSuggestions() {
         // Soup
         soup: [
             'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
-            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock'
+            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock', 'campbell\'s'
         ],
         // Sauces
         sauce: [
             'marinara', 'tomato sauce', 'alfredo', 'pesto', 'soy sauce', 'teriyaki',
-            'barbecue sauce', 'hot sauce', 'ranch', 'ketchup', 'mustard'
+            'barbecue sauce', 'hot sauce', 'ranch', 'ketchup', 'mustard', 'enchilada', 'worcestershire'
         ],
         // Cheese
         cheese: [
@@ -141,9 +145,13 @@ export default function RecipeSuggestions() {
         ],
         // Seasonings
         seasoning: [
-            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika',
-            'oregano', 'basil', 'thyme', 'rosemary', 'cumin', 'chili powder'
-        ]
+            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika', 'black pepper', 'white pepper',
+            'oregano', 'basil', 'thyme', 'rosemary', 'cumin', 'chili powder', 'red pepper flakes'
+        ],
+        // Basic ingredients
+        ingredients: [
+            'flour', 'all-purpose flout', 'brown sugar', 'sugar', 'honey', 'vinegar', 'baking powder', 'baking soda',
+        ],
     };
 
     useEffect(() => {
