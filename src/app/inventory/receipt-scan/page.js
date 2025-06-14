@@ -330,7 +330,7 @@ export default function ReceiptScan() {
         const upcPattern = /\b\d{12,14}\b/;
         const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
-        // Enhanced skip patterns with Hy-Vee and Sam's Club specific patterns
+        // Enhanced skip patterns with ALL store-specific patterns
         const skipPatterns = [
             // Store names and basic headers
             /^(walmart|target|kroger|publix|safeway|hy-vee|hyvee|sam's club|sams club|costco)/i,
@@ -364,7 +364,6 @@ export default function ReceiptScan() {
             /^[\d\s]{15,}$/,
 
             // ============ HY-VEE SPECIFIC PATTERNS ============
-
             // Hy-Vee subtotal and total patterns
             /^(sub-total|subtotal|sub total)/i,
             /^(net amount|netamount|net)/i,
@@ -391,7 +390,6 @@ export default function ReceiptScan() {
             /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
             /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
             /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
-
 
             // Also add these additional OCR artifact patterns:
             /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
@@ -489,7 +487,6 @@ export default function ReceiptScan() {
             /view\s*coupons/i,
 
             // ============ SAM'S CLUB SPECIFIC PATTERNS ============
-
             // Instant Savings (V INST SV) - These are discounts, not items
             /^v\s+inst\s+sv/i,
             /^e\s+v\s+inst\s+sv/i,
@@ -535,11 +532,76 @@ export default function ReceiptScan() {
 
             // Additional negative amount patterns
             /\d+\.\d{2}[-\s]*n$/i,  // Amounts ending with -N
-            /\d+\.\d{2}[-\s]*t$/i   // Amounts ending with -T
+            /\d+\.\d{2}[-\s]*t$/i,   // Amounts ending with -T
+
+            // ============ TARGET SPECIFIC PATTERNS ============
+            // Quantity-only lines (these are part of the previous item)
+            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,        // "2 @ $3.89 ea"
+            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,             // "2 @ $3.89"
+            /^\d+\s*ea$/i,                            // "2 ea"
+            /^ea$/i,                                  // Just "ea"
+
+            // Regular price lines (discount information)
+            /^regular\s+price/i,                      // "Regular Price $5.59"
+            /^reg\s+price/i,                          // "Reg Price"
+            /^was\s+\$?\d+\.\d{2}/i,                 // "Was $5.59"
+
+            // Target tax calculation patterns
+            /^t\s*=\s*ia\s+tax/i,                    // "T = IA TAX 7.00000 on $15.96"
+            /^[t]\s*-\s*ia\s+tax/i,                  // Variations with dash
+            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,      // "7.00000 on $15.96"
+
+            // Payment method lines
+            /^\*?\d{4}\s+debit\s+total/i,            // "*8642 DEBIT TOTAL PAYMENT"
+            /^aid[:;]\s*[a-z0-9]+/i,                 // "AID: A000000098040"
+            /^auth\s+code[:;]/i,                     // "AUTH CODE: 395098"
+            /^us\s+debit/i,                          // "US DEBIT"
+
+            // Return policy text
+            /when\s+you\s+return/i,
+            /return\s+credit/i,
+            /promotional\s+discount/i,
+            /applied\s+to\s+the/i,
+
+            // Target Circle and promotional text
+            /saving\s+with\s+target/i,
+            /target\s+circle/i,
+            /got\s+easier/i,
+            /open\s+the\s+target/i,
+            /target\.com/i,
+            /see\s+your\s+savings/i,
+            /find\s+more\s+benefits/i,
+
+            // Generic promotional patterns
+            /\bapp\b.*\bvisit\b/i,
+            /benefits/i,
+
+            // Address and location info
+            /cedar\s+rapids/i,
+            /blairs\s+ferry/i,
+            /iowa\s+\d{5}/i,
+            /\d{3}-\d{3}-\d{4}/i,  // Phone numbers
+
+            // Additional Target-specific footer patterns
+            /^nf$/i,               // Tax code "NF"
+            /^t$/i,                // Tax code "T"
+
+            // Standalone letters/codes that appear on separate lines
+            /^[a-z]$/i,            // Single letters
+            /^[nt]$/i,             // N or T codes
+
+            // Store section headers
+            /^grocery$/i,
+            /^home$/i,
+            /^electronics$/i,
+            /^clothing$/i,
         ];
 
+        // Process lines with context awareness
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
+            const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+            const prevLine = i > 0 ? lines[i - 1] : '';
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
@@ -548,7 +610,6 @@ export default function ReceiptScan() {
             }
 
             // ============ ENHANCED HY-VEE FILTERING ============
-
             // Skip bottle deposit lines specifically
             if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
                 console.log(`Skipping bottle deposit: ${line}`);
@@ -574,7 +635,6 @@ export default function ReceiptScan() {
             }
 
             // ============ ENHANCED SAM'S CLUB FILTERING ============
-
             // Skip lines that are clearly instant savings (discounts)
             if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
                 console.log(`Skipping instant savings: ${line}`);
@@ -599,8 +659,32 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            // ============ ENHANCED DISCOUNT FILTERING ============
+            // ============ TARGET-SPECIFIC PROCESSING ============
+            // Skip if this line is just a quantity/price continuation of previous item
+            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
+                console.log(`Skipping quantity line (part of previous item): ${line}`);
+                continue;
+            }
 
+            // Skip regular price lines
+            if (line.match(/^regular\s+price/i)) {
+                console.log(`Skipping regular price line: ${line}`);
+                continue;
+            }
+
+            // Skip tax calculation lines
+            if (line.match(/^t\s*=\s*ia\s+tax/i) || line.match(/^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i)) {
+                console.log(`Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just whitespace or tax codes
+            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
+                console.log(`Skipping tax code or whitespace: ${line}`);
+                continue;
+            }
+
+            // ============ ENHANCED DISCOUNT FILTERING ============
             // Skip discount lines (negative amounts or percentage-based)
             if (line.match(/^\d+%.*\(\$\d+\.\d{2}\)$/i)) {
                 console.log(`Skipping discount line: ${line}`);
@@ -632,21 +716,12 @@ export default function ReceiptScan() {
             }
 
             // ============ ENHANCED NEGATIVE AMOUNT DETECTION ============
-
             // Check for negative amounts in various formats
-            // Look for patterns like "1364145 Hormel Pork Loin -9.99"
             const negativeAmountPatterns = [
                 /^.*-\$?\d+\.\d{2}$/i,        // Ends with negative amount
                 /^.*\s+-\$?\d+\.\d{2}$/i,     // Space before negative amount
                 /^.*\s+\$?-\d+\.\d{2}$/i,     // Dollar sign before negative
             ];
-
-            if (negativeAmountPatterns.some(pattern => pattern.test(line))) {
-                console.log(`Skipping negative amount line: ${line}`);
-                continue;
-            }
-
-            // ============ ITEM PROCESSING ============
 
             // Check if line contains a price
             const priceMatch = line.match(pricePattern);
@@ -659,20 +734,48 @@ export default function ReceiptScan() {
                     continue;
                 }
 
-                // Extract item name (everything before the price)
-                let nameMatch = line.replace(pricePattern, '').trim();
+                // Skip negative amounts
+                if (negativeAmountPatterns.some(pattern => pattern.test(line))) {
+                    console.log(`Skipping negative amount line: ${line}`);
+                    continue;
+                }
 
-                // Clean up the name - remove product codes and discount info
-                nameMatch = nameMatch.replace(/^\d{10,}/, '').trim(); // Remove long product codes
-                nameMatch = nameMatch.replace(/\d+%:?/, '').trim(); // Remove percentage info
-                nameMatch = nameMatch.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
-                nameMatch = nameMatch.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
-                nameMatch = nameMatch.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
+                // ============ ENHANCED TARGET ITEM PROCESSING ============
+                let nameMatch = line;
+                let itemPrice = price;
+                let quantity = 1;
+                let unitPrice = price;
+
+                // Check if next line contains quantity information
+                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea$/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        itemPrice = quantity * unitPrice;
+                        console.log(`Found quantity info in next line: ${quantity} @ $${unitPrice}`);
+                    }
+                }
+
+                // Check if current line contains embedded quantity information
+                const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
+                if (embeddedQtyMatch) {
+                    nameMatch = embeddedQtyMatch[1];
+                    quantity = parseInt(embeddedQtyMatch[2]);
+                    unitPrice = parseFloat(embeddedQtyMatch[3]);
+                    itemPrice = quantity * unitPrice;
+                } else {
+                    // Remove price from name
+                    nameMatch = line.replace(pricePattern, '').trim();
+                }
+
+                // Clean up the item name
+                nameMatch = cleanItemName(nameMatch);
 
                 // Enhanced ground beef detection and cleaning
                 // Convert "80% 20% FT GRD BF" to "80/20 Ground Beef"
                 if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
-                    const percentMatch = nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i);
+                    const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
                     if (percentMatch) {
                         nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
                     }
@@ -688,17 +791,17 @@ export default function ReceiptScan() {
 
                 // Only process if we have a meaningful item name (more than 2 characters, not just numbers)
                 if (nameMatch && nameMatch.length > 2 && !nameMatch.match(/^\d+\.?\d*$/) && !nameMatch.match(/^[tx]\s*\d/i)) {
-                    console.log(`Processing item: ${nameMatch} - ${price}`);
+                    console.log(`Processing item: ${nameMatch} - Qty: ${quantity} @ $${unitPrice} = $${itemPrice}`);
                     const item = {
                         id: Date.now() + Math.random(),
-                        name: cleanItemName(nameMatch),
-                        price: price,
-                        quantity: qtyMatch ? parseInt(qtyMatch[1]) : 1,
-                        unitPrice: qtyMatch ? parseFloat(qtyMatch[2]) : price,
+                        name: nameMatch,
+                        price: itemPrice,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
                         upc: upcMatch ? upcMatch[0] : '',
                         category: guessCategory(nameMatch),
                         location: guessLocation(nameMatch),
-                        rawText: line,
+                        rawText: line + (nextLine && nextLine.match(/^\d+\s*@.*ea$/i) ? ` + ${nextLine}` : ''),
                         selected: true, // Selected by default
                         needsReview: false
                     };
@@ -710,7 +813,7 @@ export default function ReceiptScan() {
             }
         }
 
-// Combine duplicate items based on UPC code
+        // Combine duplicate items based on UPC code
         return combineDuplicateItems(items);
     }
 
@@ -718,7 +821,6 @@ export default function ReceiptScan() {
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
-        const standaloneItems = [];
 
         // First pass: Group by UPC code (most reliable)
         items.forEach(item => {
@@ -802,13 +904,42 @@ export default function ReceiptScan() {
         return combinedItems;
     }
 
-// Clean up item names
+    /// Enhanced cleanItemName function with support for all stores
     function cleanItemName(name) {
-        return name
-            .replace(/[^\w\s\-&']/g, ' ') // Remove special chars except common ones
-            .replace(/\s+/g, ' ') // Normalize whitespace
-            .trim()
-            .split(' ')
+        // Remove UPC codes at the beginning (Target and others put them first)
+        name = name.replace(/^\d{8,}\s+/, '');
+
+        // Remove common store tax codes and artifacts
+        name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
+        name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
+        name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
+
+        // Remove quantity patterns that might have been missed
+        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
+
+        // Remove long product codes and discount info
+        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
+        name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
+        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
+        name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
+        name = name.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
+
+        // Handle specific brand conversions for Target
+        if (name.match(/birds?\s*eye/i)) {
+            name = "Birds Eye";
+        } else if (name.match(/frosty\s*paws/i)) {
+            name = "Frosty Paws";
+        } else if (name.match(/gg\s*vegetable/i)) {
+            name = "Great Grains Vegetable";
+        }
+
+        // Clean up common OCR artifacts
+        name = name.replace(/[^\w\s\-&']/g, ' '); // Remove special chars except common ones
+        name = name.replace(/\s+/g, ' '); // Normalize whitespace
+        name = name.trim();
+
+        // Capitalize properly
+        return name.split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     }
@@ -841,6 +972,13 @@ export default function ReceiptScan() {
         if (nameLower.includes('soup') || nameLower.includes('can') || nameLower.includes('sauce')) {
             return 'Canned Meals';
         }
+        // Enhanced categories for Target items
+        if (nameLower.includes('birds eye') || nameLower.includes('frozen vegetable')) {
+            return 'Frozen Vegetables';
+        }
+        if (nameLower.includes('frosty paws') || nameLower.includes('ice cream') || nameLower.includes('frozen treat')) {
+            return 'Frozen Fruit'; // or could be 'Frozen Desserts' if you have that category
+        }
 
         return 'Other';
     }
@@ -849,7 +987,7 @@ export default function ReceiptScan() {
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
-        if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
+        if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
             return 'freezer';
         }
         if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
@@ -1300,7 +1438,8 @@ export default function ReceiptScan() {
 
                                 {/* Tips */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
+                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best
+                                        Results:</h4>
                                     <ul className="text-sm text-blue-800 space-y-1">
                                         <li>• Ensure receipt is flat and well-lit</li>
                                         <li>• Avoid shadows and glare</li>
@@ -1313,7 +1452,8 @@ export default function ReceiptScan() {
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                     <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                     <p className="text-sm text-yellow-800 mb-3">
-                                        If the receipt scanner isn't working properly with your receipt, you can report
+                                        If the receipt scanner isn't working properly with your receipt, you can
+                                        report
                                         the issue to help us improve it.
                                     </p>
                                     <TouchEnhancedButton
@@ -1471,7 +1611,8 @@ export default function ReceiptScan() {
                                 <div className="space-y-4">
                                     {extractedItems.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">
-                                            No items were extracted from the receipt. Please try again with a clearer
+                                            No items were extracted from the receipt. Please try again with a
+                                            clearer
                                             image.
                                         </div>
                                     ) : (
@@ -1539,11 +1680,13 @@ export default function ReceiptScan() {
                                                                 <option value="Fresh/Frozen Venison">Fresh/Frozen
                                                                     Venison
                                                                 </option>
-                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                <option
+                                                                    value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
                                                                     Fish & Seafood
                                                                 </option>
                                                                 <option value="Beans">Beans</option>
-                                                                <option value="Canned Meat">Canned/Jarred Meat</option>
+                                                                <option value="Canned Meat">Canned/Jarred Meat
+                                                                </option>
                                                                 <option value="Canned Vegetables">Canned/Jarred
                                                                     Vegetables
                                                                 </option>
@@ -1551,7 +1694,8 @@ export default function ReceiptScan() {
                                                                 </option>
                                                                 <option value="Canned Sauces">Canned/Jarred Sauces
                                                                 </option>
-                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes
+                                                                <option value="Canned Tomatoes">Canned/Jarred
+                                                                    Tomatoes
                                                                 </option>
                                                                 <option value="Canned Beans">Canned/Jarred Beans
                                                                 </option>
@@ -1602,7 +1746,8 @@ export default function ReceiptScan() {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
                                                                     <option value="pantry">Pantry</option>
-                                                                    <option value="kitchen">Kitchen Cabinets</option>
+                                                                    <option value="kitchen">Kitchen Cabinets
+                                                                    </option>
                                                                     <option value="fridge">Fridge</option>
                                                                     <option value="freezer">Freezer</option>
                                                                     <option value="other">Other</option>
@@ -1624,7 +1769,8 @@ export default function ReceiptScan() {
                                                 </div>
 
                                                 {/* Additional Info */}
-                                                <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
+                                                <div
+                                                    className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
                                                     {item.upc && <span>UPC: {item.upc}</span>}
                                                     <span className="text-xs bg-gray-200 px-2 py-1 rounded">
@@ -1680,7 +1826,10 @@ export default function ReceiptScan() {
                                         </label>
                                         <select
                                             value={reportData.issue}
-                                            onChange={(e) => setReportData(prev => ({...prev, issue: e.target.value}))}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                issue: e.target.value
+                                            }))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         >
                                             <option value="">Select an issue...</option>
@@ -1718,7 +1867,10 @@ export default function ReceiptScan() {
                                         <input
                                             type="email"
                                             value={reportData.email}
-                                            onChange={(e) => setReportData(prev => ({...prev, email: e.target.value}))}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                email: e.target.value
+                                            }))}
                                             placeholder="your.email@example.com"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         />
@@ -1750,7 +1902,8 @@ export default function ReceiptScan() {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP
+                                                (max
                                                 10MB each)
                                             </p>
 
