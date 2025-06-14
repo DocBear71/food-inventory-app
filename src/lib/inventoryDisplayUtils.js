@@ -82,12 +82,37 @@ export function getSmartUnitName(itemName, unit, quantity = 1) {
         return quantity === 1 ? 'each' : 'each';
     }
 
+    // Handle explicit units - if user chose package, can, etc., respect their choice
+    if (unit === 'package') {
+        return quantity === 1 ? 'package' : 'packages';
+    }
+
+    if (unit === 'can') {
+        return quantity === 1 ? 'can' : 'cans';
+    }
+
+    if (unit === 'box') {
+        return quantity === 1 ? 'box' : 'boxes';
+    }
+
+    if (unit === 'bag') {
+        return quantity === 1 ? 'bag' : 'bags';
+    }
+
+    if (unit === 'bottle') {
+        return quantity === 1 ? 'bottle' : 'bottles';
+    }
+
+    if (unit === 'jar') {
+        return quantity === 1 ? 'jar' : 'jars';
+    }
+
     // If it's not a generic unit, return as-is
-    if (unit !== 'item' && unit !== 'can' && unit !== 'package') {
+    if (unit !== 'item') {
         return unit;
     }
 
-    // Convert item name to lowercase for matching
+    // Only do smart mapping for the generic "item" unit
     const lowerItemName = itemName.toLowerCase();
 
     // Check for exact matches first
@@ -104,37 +129,16 @@ export function getSmartUnitName(itemName, unit, quantity = 1) {
         }
     }
 
-    // Check for common patterns
-    if (lowerItemName.includes('chicken') && unit === 'item') {
+    // Check for common patterns - only for "item" unit
+    if (lowerItemName.includes('chicken')) {
         return quantity === 1 ? 'piece' : 'pieces';
     }
 
-    if (lowerItemName.includes('egg') && unit === 'item') {
+    if (lowerItemName.includes('egg')) {
         return quantity === 1 ? 'egg' : 'eggs';
     }
 
-    if (lowerItemName.includes('can') || unit === 'can') {
-        return quantity === 1 ? 'can' : 'cans';
-    }
-
-    if (lowerItemName.includes('box') || lowerItemName.includes('pasta') || unit === 'package') {
-        return quantity === 1 ? 'box' : 'boxes';
-    }
-
-    if (lowerItemName.includes('bag') || lowerItemName.includes('rice') || lowerItemName.includes('flour')) {
-        return quantity === 1 ? 'bag' : 'bags';
-    }
-
-    // Handle specific items better
-    if (lowerItemName.includes('bacon')) {
-        return quantity === 1 ? 'package' : 'packages';
-    }
-
-    if (lowerItemName.includes('hamburger') || lowerItemName.includes('burger') || lowerItemName.includes('patties')) {
-        return quantity === 1 ? 'package' : 'packages';
-    }
-
-    // Default fallback
+    // Default fallback for "item" unit
     return unit;
 }
 
