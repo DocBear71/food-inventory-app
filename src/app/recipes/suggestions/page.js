@@ -133,7 +133,7 @@ export default function RecipeSuggestions() {
 
         // PASTA SPECIFICALLY
         pasta: [
-            'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
+            'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
             'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
             'shell macaroni', 'enriched macaroni'
         ],
@@ -150,7 +150,6 @@ export default function RecipeSuggestions() {
             'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
             'chicken noodle soup', 'beef stew', 'broth', 'stock', 'campbell',
             'cream chicken', 'bisque', 'chowder', 'chili'
-
         ],
 
         // NEW: GRAVY - Separate from sauces
@@ -175,9 +174,9 @@ export default function RecipeSuggestions() {
 
         // CONDIMENTS - Table condiments
         condiment: [
-            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
-            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
-            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'
+            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
+            'vinaigrette', 'pickle', 'relish','soy sauce', 'teriyaki sauce',
+            'barbecue sauce', 'hot sauce','worcestershire'
         ],
 
         // SEASONINGS - Spices and herbs
@@ -331,9 +330,9 @@ export default function RecipeSuggestions() {
                             console.log(`✅ SOUP: "${item.name}"`);
                         }
                         // Strict condiment matching
-                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
-                            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
-                            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'].some(condiment =>
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
+                            'vinaigrette', 'pickle', 'relish','soy sauce', 'teriyaki sauce',
+                            'barbecue sauce', 'hot sauce','worcestershire'].some(condiment =>
                             itemName.includes(condiment)
                         );
                         if (isCondiment) {
@@ -343,9 +342,9 @@ export default function RecipeSuggestions() {
                         }
                     } else if (category === 'sauce') {
                         // Don't categorize as sauce if it's already a condiment or gravy
-                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing', 'dressing',
-                            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
-                            'barbecue sauce', 'hot sauce','worcestershire', 'buffalo'].some(condiment =>
+                        const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
+                            'vinaigrette', 'pickle', 'relish','soy sauce', 'teriyaki sauce',
+                            'barbecue sauce', 'hot sauce','worcestershire'].some(condiment =>
                             itemName.includes(condiment)
                         );
                         const isGravy = itemName.includes('gravy');
@@ -1172,7 +1171,7 @@ export default function RecipeSuggestions() {
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                             >
-                                🍽️ Simple Meals ({simpleMealSuggestions.length})
+                                🍽️ Simple Meals (alpha version) ({simpleMealSuggestions.length})
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => setActiveTab('recipes')}
@@ -1192,7 +1191,7 @@ export default function RecipeSuggestions() {
                         {activeTab === 'simple' && (
                             <div>
                                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                    Simple Meal Ideas ({simpleMealSuggestions.length})
+                                    Simple Meal Ideas ({simpleMealSuggestions.length}) <strong>[This functionality is still being refined]</strong>
                                 </h3>
 
                                 {loading ? (
