@@ -145,11 +145,12 @@ export default function RecipeSuggestions() {
             'hot dog buns'
         ],
 
-        // SOUP - Liquid-based meals
+        // SOUP - Liquid-based meals (excluding seasonings)
         soup: [
             'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
-            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock', 'campbell',
-            'cream chicken'
+            'chicken noodle soup', 'beef stew', 'broth', 'stock', 'campbell',
+            'cream chicken', 'bisque', 'chowder', 'chili'
+
         ],
 
         // NEW: GRAVY - Separate from sauces
@@ -160,21 +161,23 @@ export default function RecipeSuggestions() {
 
         // SAUCES - Cooking sauces (NOT condiments)
         sauce: [
-            'marinara', 'tomato sauce', 'alfredo', 'pesto', 'soy sauce', 'teriyaki',
-            'barbecue sauce', 'hot sauce', 'enchilada sauce', 'worcestershire',
+            'marinara', 'tomato sauce', 'alfredo', 'pesto', 'enchilada sauce',
             'pasta sauce', 'cheese sauce', 'cream sauce'
         ],
 
-        // CHEESE - Dairy cheese products
+        // CHEESE - Pure dairy cheese products (not meals containing cheese)
         cheese: [
-            'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese',
-            'cream cheese', 'feta', 'goat cheese', 'string cheese'
+            'cheddar cheese', 'mozzarella cheese', 'swiss cheese', 'american cheese',
+            'cream cheese', 'feta cheese', 'goat cheese', 'string cheese',
+            'parmesan cheese', 'blue cheese', 'brie cheese'
+            // Removed generic 'cheese' and 'parmesan' to avoid matching composite items
         ],
 
         // CONDIMENTS - Table condiments
         condiment: [
             'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
-            'vinaigrette', 'pickle', 'relish'
+            'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki',
+            'barbecue sauce', 'hot sauce','worcestershire'
         ],
 
         // SEASONINGS - Spices and herbs
@@ -249,6 +252,7 @@ export default function RecipeSuggestions() {
         // Priority order for categorization (most specific first)
         const priorityOrder = [
             'convenience',  // Check convenience first to catch packaged meals
+            'seasoning',   // Seasonings
             'gravy',       // Check gravy before sauce
             'condiment',   // Check condiments before sauce
             'soup',        // Check soup before other categories
@@ -261,7 +265,6 @@ export default function RecipeSuggestions() {
             'vegetable',   // Check vegetables
             'starch',      // General starches
             'sauce',       // Sauces (after condiments)
-            'seasoning',   // Seasonings
             'ingredients'  // Basic ingredients last
         ];
 
@@ -306,7 +309,27 @@ export default function RecipeSuggestions() {
                             categorized_item = true;
                             console.log(`✅ GRAVY: "${item.name}"`);
                         }
-                    } else if (category === 'condiment') {
+                    } else if (category === 'soup') {
+                        // Only add to soup if it's actually soup, not seasonings that contain "chili"
+                        const isActualSoup = keywords.some(keyword => {
+                            const keywordLower = keyword.toLowerCase();
+                            // For chili specifically, make sure it's not "chili powder"
+                            if (keywordLower === 'chili') {
+                                return itemName.includes('chili') && !itemName.includes('powder') && !itemName.includes('seasoning');
+                            }
+                            return itemName === keywordLower || itemName.includes(keywordLower);
+                        });
+
+                        // Exclude seasonings that contain soup keywords
+                        const isNotSoup = itemName.includes('powder') ||
+                            itemName.includes('seasoning') ||
+                            itemName.includes('spice');
+
+                        if (isActualSoup && !isNotSoup) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ SOUP: "${item.name}"`);
+                        }
                         // Strict condiment matching
                         const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'pickle', 'relish'].some(condiment =>
                             itemName.includes(condiment)
@@ -338,7 +361,25 @@ export default function RecipeSuggestions() {
                             categorized_item = true;
                             console.log(`✅ CHEESE: "${item.name}"`);
                         }
-                    } else if (category === 'starch') {
+                    } else if (category === 'pasta') {
+                        // Only add to pasta if it's actual pasta, not sauce with pasta in the name
+                        const isActualPasta = keywords.some(keyword => {
+                            const keywordLower = keyword.toLowerCase();
+                            // Must be exact pasta type match, not just containing "pasta"
+                            return itemName === keywordLower ||
+                                (itemName.split(' ').includes(keywordLower) && !itemName.includes('sauce'));
+                        });
+
+                        // Exclude sauces and other non-pasta items
+                        const isNotPasta = itemName.includes('sauce') ||
+                            itemName.includes('gravy') ||
+                            itemName.includes('seasoning');
+
+                        if (isActualPasta && !isNotPasta) {
+                            categorized[category].push(item);
+                            categorized_item = true;
+                            console.log(`✅ PASTA: "${item.name}"`);
+                        }
                         // Don't categorize as starch if it's a sauce, gravy, or convenience item
                         const isGravy = itemName.includes('gravy');
                         const isSauce = itemName.includes('sauce');
