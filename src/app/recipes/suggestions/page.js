@@ -1,4 +1,4 @@
-// file: /src/app/recipes/suggestions/page.js v3
+// file: /src/app/recipes/suggestions/page.js v4 - Added simple meal suggestions
 
 'use client';
 
@@ -13,6 +13,7 @@ import Footer from '@/components/legal/Footer';
 export default function RecipeSuggestions() {
     const {data: session, status} = useSession();
     const [suggestions, setSuggestions] = useState([]);
+    const [simpleMealSuggestions, setSimpleMealSuggestions] = useState([]); // NEW
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +22,129 @@ export default function RecipeSuggestions() {
     const [showShoppingList, setShowShoppingList] = useState(null);
     const [showRecipeModal, setShowRecipeModal] = useState(null);
     const [loadingRecipe, setLoadingRecipe] = useState(false);
+    const [activeTab, setActiveTab] = useState('recipes'); // NEW: Tab state
+
+    // NEW: Simple meal templates
+    const mealTemplates = [
+        {
+            id: 'protein-starch-vegetable',
+            name: 'Protein + Starch + Vegetable',
+            description: 'Classic balanced meal',
+            icon: '🍽️',
+            requiredCategories: ['protein', 'starch', 'vegetable'],
+            optionalCategories: ['sauce', 'seasoning'],
+            examples: ['Steak + Mashed Potatoes + Broccoli', 'Chicken + Rice + Green Beans']
+        },
+        {
+            id: 'pasta-meal',
+            name: 'Pasta Dish',
+            description: 'Pasta-based meal',
+            icon: '🍝',
+            requiredCategories: ['pasta'],
+            optionalCategories: ['protein', 'vegetable', 'sauce', 'cheese'],
+            examples: ['Spaghetti + Marinara + Parmesan', 'Penne + Chicken + Broccoli']
+        },
+        {
+            id: 'sandwich-meal',
+            name: 'Sandwich/Wrap',
+            description: 'Bread-based meal',
+            icon: '🥪',
+            requiredCategories: ['bread'],
+            optionalCategories: ['protein', 'vegetable', 'cheese', 'condiment'],
+            examples: ['Turkey Sandwich + Lettuce + Tomato', 'Grilled Cheese + Tomato Soup']
+        },
+        {
+            id: 'rice-bowl',
+            name: 'Rice Bowl',
+            description: 'Rice-based bowl',
+            icon: '🍚',
+            requiredCategories: ['rice'],
+            optionalCategories: ['protein', 'vegetable', 'sauce'],
+            examples: ['Chicken Teriyaki Bowl', 'Beef and Broccoli Rice']
+        },
+        {
+            id: 'convenience-meal',
+            name: 'Convenience Meal',
+            description: 'Quick prepared items',
+            icon: '⚡',
+            requiredCategories: ['convenience'],
+            optionalCategories: ['protein', 'vegetable'],
+            examples: ['Frozen Pizza', 'Hamburger Helper + Ground Beef', 'Mac & Cheese']
+        },
+        {
+            id: 'soup-meal',
+            name: 'Soup & Sides',
+            description: 'Soup-based meal',
+            icon: '🍲',
+            requiredCategories: ['soup'],
+            optionalCategories: ['bread', 'cheese', 'vegetable'],
+            examples: ['Tomato Soup + Grilled Cheese', 'Chicken Noodle Soup + Crackers']
+        }
+    ];
+
+    // NEW: Category mappings for inventory items
+    const categoryMappings = {
+        // Proteins
+        protein: [
+            'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'eggs',
+            'ground beef', 'ground turkey', 'chicken breast', 'pork chops', 'steak',
+            'bacon', 'sausage', 'ham', 'tofu', 'beans', 'lentils'
+        ],
+        // Starches
+        starch: [
+            'potatoes', 'rice', 'pasta', 'bread', 'quinoa', 'noodles', 'mashed potatoes',
+            'sweet potatoes', 'couscous', 'barley', 'rolls', 'bagels', 'tortillas'
+        ],
+        // Vegetables
+        vegetable: [
+            'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
+            'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
+            'cauliflower', 'cabbage', 'brussels sprouts', 'celery'
+        ],
+        // Rice specifically
+        rice: ['rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice', 'wild rice'],
+        // Pasta specifically
+        pasta: [
+            'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
+            'lasagna noodles', 'angel hair', 'linguine', 'farfalle'
+        ],
+        // Bread
+        bread: [
+            'bread', 'white bread', 'wheat bread', 'sourdough', 'rye bread', 'bagels',
+            'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins'
+        ],
+        // Convenience items
+        convenience: [
+            'frozen pizza', 'pizza', 'hamburger helper', 'mac and cheese', 'instant noodles',
+            'ramen', 'tv dinner', 'frozen meals', 'canned soup', 'boxed mac and cheese',
+            'kraft dinner', 'easy mac', 'hot pockets', 'lean cuisine'
+        ],
+        // Soup
+        soup: [
+            'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
+            'chicken noodle soup', 'beef stew', 'chili', 'broth', 'stock'
+        ],
+        // Sauces
+        sauce: [
+            'marinara', 'tomato sauce', 'alfredo', 'pesto', 'soy sauce', 'teriyaki',
+            'barbecue sauce', 'hot sauce', 'ranch', 'ketchup', 'mustard'
+        ],
+        // Cheese
+        cheese: [
+            'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'american cheese',
+            'cream cheese', 'feta', 'goat cheese', 'string cheese'
+        ],
+        // Condiments
+        condiment: [
+            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
+            'vinaigrette', 'pickle', 'relish', 'hot sauce'
+        ],
+        // Seasonings
+        seasoning: [
+            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika',
+            'oregano', 'basil', 'thyme', 'rosemary', 'cumin', 'chili powder'
+        ]
+    };
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -37,8 +161,158 @@ export default function RecipeSuggestions() {
     useEffect(() => {
         if (inventory.length > 0 && recipes.length > 0) {
             generateSuggestions();
+            generateSimpleMealSuggestions(); // NEW
         }
     }, [inventory, recipes, matchThreshold]);
+
+    // NEW: Generate simple meal suggestions
+    const generateSimpleMealSuggestions = () => {
+        console.log('=== GENERATING SIMPLE MEAL SUGGESTIONS ===');
+
+        // Categorize inventory items
+        const categorizedInventory = categorizeInventoryItems(inventory);
+
+        // Generate suggestions for each meal template
+        const suggestions = mealTemplates.map(template => {
+            const suggestion = generateMealFromTemplate(template, categorizedInventory);
+            return suggestion;
+        }).filter(suggestion => suggestion && suggestion.canMake);
+
+        // Sort by completeness and variety
+        suggestions.sort((a, b) => {
+            // Prioritize meals that are complete
+            if (a.isComplete !== b.isComplete) {
+                return b.isComplete - a.isComplete;
+            }
+            // Then by number of components
+            return b.components.length - a.components.length;
+        });
+
+        console.log('Generated simple meal suggestions:', suggestions.length);
+        setSimpleMealSuggestions(suggestions);
+    };
+
+    // NEW: Categorize inventory items by food category
+    const categorizeInventoryItems = (inventory) => {
+        const categorized = {};
+
+        // Initialize categories
+        Object.keys(categoryMappings).forEach(category => {
+            categorized[category] = [];
+        });
+
+        inventory.forEach(item => {
+            const itemName = item.name.toLowerCase().trim();
+
+            // Check each category for matches
+            Object.entries(categoryMappings).forEach(([category, keywords]) => {
+                const matches = keywords.some(keyword => {
+                    // Exact match or contains keyword
+                    return itemName === keyword ||
+                        itemName.includes(keyword) ||
+                        keyword.includes(itemName);
+                });
+
+                if (matches && !categorized[category].some(existing => existing.name === item.name)) {
+                    categorized[category].push(item);
+                }
+            });
+        });
+
+        console.log('Categorized inventory:', Object.fromEntries(
+            Object.entries(categorized).map(([cat, items]) => [cat, items.map(i => i.name)])
+        ));
+
+        return categorized;
+    };
+
+    // NEW: Generate a meal suggestion from a template
+    const generateMealFromTemplate = (template, categorizedInventory) => {
+        const components = [];
+        let canMake = true;
+        let isComplete = true;
+
+        // Check required categories
+        for (const category of template.requiredCategories) {
+            const availableItems = categorizedInventory[category] || [];
+            if (availableItems.length > 0) {
+                // Pick a random item from available options
+                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+                components.push({
+                    category,
+                    item: randomItem,
+                    required: true
+                });
+            } else {
+                canMake = false;
+                isComplete = false;
+                components.push({
+                    category,
+                    item: null,
+                    required: true
+                });
+            }
+        }
+
+        // Add optional categories if available
+        for (const category of template.optionalCategories || []) {
+            const availableItems = categorizedInventory[category] || [];
+            if (availableItems.length > 0) {
+                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+                components.push({
+                    category,
+                    item: randomItem,
+                    required: false
+                });
+            }
+        }
+
+        if (!canMake) return null;
+
+        return {
+            id: template.id,
+            template,
+            components,
+            canMake,
+            isComplete,
+            estimatedTime: getEstimatedMealTime(template.id)
+        };
+    };
+
+    // NEW: Get estimated preparation time for meal types
+    const getEstimatedMealTime = (templateId) => {
+        const timings = {
+            'protein-starch-vegetable': 45,
+            'pasta-meal': 25,
+            'sandwich-meal': 10,
+            'rice-bowl': 30,
+            'convenience-meal': 15,
+            'soup-meal': 20
+        };
+        return timings[templateId] || 30;
+    };
+
+    // NEW: Format meal name from components
+    const formatMealName = (suggestion) => {
+        const mainComponents = suggestion.components
+            .filter(comp => comp.item && comp.required)
+            .map(comp => comp.item.name);
+
+        const optionalComponents = suggestion.components
+            .filter(comp => comp.item && !comp.required)
+            .slice(0, 2) // Limit to 2 optional items for readability
+            .map(comp => comp.item.name);
+
+        const allComponents = [...mainComponents, ...optionalComponents];
+
+        if (allComponents.length === 1) {
+            return allComponents[0];
+        } else if (allComponents.length === 2) {
+            return allComponents.join(' with ');
+        } else {
+            return `${allComponents.slice(0, -1).join(', ')} and ${allComponents.slice(-1)}`;
+        }
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -93,7 +367,7 @@ export default function RecipeSuggestions() {
     };
 
     const generateSuggestions = () => {
-        console.log('=== GENERATING SUGGESTIONS ===');
+        console.log('=== GENERATING RECIPE SUGGESTIONS ===');
         console.log('Inventory count:', inventory.length);
         console.log('Recipe count:', recipes.length);
         console.log('Match threshold:', matchThreshold);
@@ -123,7 +397,7 @@ export default function RecipeSuggestions() {
                 }
             });
 
-        console.log('Generated suggestions:', suggestions.length);
+        console.log('Generated recipe suggestions:', suggestions.length);
         setSuggestions(suggestions);
     };
 
@@ -359,7 +633,7 @@ export default function RecipeSuggestions() {
                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">What Can I Make?</h1>
-                        <p className="text-gray-600">Recipe suggestions based on your current inventory</p>
+                        <p className="text-gray-600">Recipe suggestions and simple meal ideas based on your inventory</p>
                     </div>
                     <div>
                         <TouchEnhancedButton
@@ -412,175 +686,340 @@ export default function RecipeSuggestions() {
                     </div>
                 </div>
 
-                {/* Recipe Suggestions */}
+                {/* NEW: Tab Navigation */}
                 <div className="bg-white shadow rounded-lg">
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('simple')}
+                                className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
+                                    activeTab === 'simple'
+                                        ? 'border-indigo-500 text-indigo-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                🍽️ Simple Meals ({simpleMealSuggestions.length})
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('recipes')}
+                                className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
+                                    activeTab === 'recipes'
+                                        ? 'border-indigo-500 text-indigo-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                📖 Recipe Matches ({suggestions.length})
+                            </TouchEnhancedButton>
+                        </nav>
+                    </div>
+
                     <div className="px-4 py-5 sm:p-6">
-                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                            Recipe Suggestions ({suggestions.length})
-                        </h3>
+                        {/* NEW: Simple Meal Suggestions */}
+                        {activeTab === 'simple' && (
+                            <div>
+                                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                                    Simple Meal Ideas ({simpleMealSuggestions.length})
+                                </h3>
 
-                        {loading ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500">Analyzing your inventory...</div>
-                            </div>
-                        ) : inventory.length === 0 ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500 mb-4">No inventory items found</div>
-                                <a
-                                    href="/inventory"
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                >
-                                    Add inventory items first
-                                </a>
-                            </div>
-                        ) : recipes.length === 0 ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500 mb-4">No recipes found</div>
-                                <a
-                                    href="/recipes"
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                >
-                                    Add recipes first
-                                </a>
-                            </div>
-                        ) : suggestions.length === 0 ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500 mb-4">
-                                    No recipes match your current inventory at {Math.round(matchThreshold * 100)}%
-                                    threshold
-                                </div>
-                                <TouchEnhancedButton
-                                    onClick={() => setMatchThreshold(0.1)}
-                                    className="text-indigo-600 hover:text-indigo-900 text-sm"
-                                >
-                                    Try lowering the match threshold to 10%
-                                </TouchEnhancedButton>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {suggestions.map((recipe) => (
-                                    <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex-1">
-                                                <h4 className="text-xl font-semibold text-gray-900">{recipe.title}</h4>
-                                                {recipe.description && (
-                                                    <p className="text-gray-600 mt-1">{recipe.description}</p>
-                                                )}
-                                            </div>
-                                            <div
-                                                className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
-                                                {Math.round(recipe.analysis.matchPercentage * 100)}% Match
-                                            </div>
+                                {loading ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500">Analyzing your inventory...</div>
+                                    </div>
+                                ) : inventory.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">No inventory items found</div>
+                                        <a
+                                            href="/inventory"
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                        >
+                                            Add inventory items first
+                                        </a>
+                                    </div>
+                                ) : simpleMealSuggestions.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">
+                                            No simple meals can be made with your current inventory
                                         </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            {/* Recipe Info */}
-                                            <div>
-                                                <h5 className="font-medium text-gray-900 mb-2">Recipe Details</h5>
-                                                <div className="space-y-1 text-sm text-gray-600">
-                                                    <div className="flex items-center space-x-2">
-                                                        <span>{getDifficultyIcon(recipe.difficulty)}</span>
-                                                        <span className="capitalize">{recipe.difficulty}</span>
-                                                    </div>
-                                                    {recipe.prepTime && (
-                                                        <div>Prep: {recipe.prepTime} minutes</div>
-                                                    )}
-                                                    {recipe.cookTime && (
-                                                        <div>Cook: {recipe.cookTime} minutes</div>
-                                                    )}
-                                                    {recipe.servings && (
-                                                        <div>Serves: {recipe.servings}</div>
-                                                    )}
-                                                    {recipe.source && (
-                                                        <div className="text-xs">Source: {recipe.source}</div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Available Ingredients */}
-                                            <div>
-                                                <h5 className="font-medium text-green-700 mb-2">
-                                                    ✅ You Have ({recipe.analysis.availableIngredients.length})
-                                                </h5>
-                                                <div className="space-y-1 text-sm">
-                                                    {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
-                                                        <div key={index} className="text-green-600">
-                                                            • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                            {ingredient.optional &&
-                                                                <span className="text-gray-500"> (optional)</span>}
-                                                        </div>
-                                                    ))}
-                                                    {recipe.analysis.availableIngredients.length > 5 && (
-                                                        <div className="text-green-600 text-xs">
-                                                            +{recipe.analysis.availableIngredients.length - 5} more
-                                                            available
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Missing Ingredients */}
-                                            <div>
-                                                <h5 className="font-medium text-red-700 mb-2">
-                                                    ❌ You Need ({recipe.analysis.missingIngredients.length})
-                                                </h5>
-                                                <div className="space-y-1 text-sm">
-                                                    {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
-                                                        <div key={index} className="text-red-600">
-                                                            • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                            {ingredient.optional &&
-                                                                <span className="text-gray-500"> (optional)</span>}
-                                                        </div>
-                                                    ))}
-                                                    {recipe.analysis.missingIngredients.length > 5 && (
-                                                        <div className="text-red-600 text-xs">
-                                                            +{recipe.analysis.missingIngredients.length - 5} more needed
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="mt-4 flex justify-between items-center">
-                                            <div className="text-sm text-gray-500">
-                                                {recipe.analysis.canMake ? (
-                                                    <span className="text-green-600 font-medium">
-                                                        🎉 You can make this recipe!
-                                                    </span>
-                                                ) : recipe.analysis.requiredMissing === 1 ? (
-                                                    <span className="text-yellow-600 font-medium">
-                                                        Missing only 1 required ingredient
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-red-600">
-                                                        Missing {recipe.analysis.requiredMissing} required ingredients
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex space-x-2">
-                                                <TouchEnhancedButton
-                                                    onClick={() => loadRecipeDetails(recipe._id)}
-                                                    disabled={loadingRecipe}
-                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
-                                                >
-                                                    {loadingRecipe ? 'Loading...' : 'View Recipe'}
-                                                </TouchEnhancedButton>
-                                                {!recipe.analysis.canMake && (
-                                                    <TouchEnhancedButton
-                                                        onClick={() => setShowShoppingList({
-                                                            recipeId: recipe._id,
-                                                            recipeName: recipe.title
-                                                        })}
-                                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                                    >
-                                                        Shopping List
-                                                    </TouchEnhancedButton>
-                                                )}
-                                            </div>
+                                        <div className="text-sm text-gray-400">
+                                            Try adding basic ingredients like proteins, starches, or vegetables
                                         </div>
                                     </div>
-                                ))}
+                                ) : (
+                                    <div className="space-y-4">
+                                        {simpleMealSuggestions.map((suggestion, index) => (
+                                            <div key={index} className="border border-gray-200 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-3 mb-2">
+                                                            <span className="text-2xl">{suggestion.template.icon}</span>
+                                                            <h4 className="text-xl font-semibold text-gray-900">
+                                                                {formatMealName(suggestion)}
+                                                            </h4>
+                                                        </div>
+                                                        <p className="text-gray-600 mb-2">{suggestion.template.description}</p>
+                                                        <div className="text-sm text-gray-500">
+                                                            Estimated prep time: {suggestion.estimatedTime} minutes
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end space-y-2">
+                                                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                                                            ✅ Ready to Make
+                                                        </div>
+                                                        {suggestion.isComplete && (
+                                                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                                                                Complete Meal
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {/* Required Components */}
+                                                    <div>
+                                                        <h5 className="font-medium text-green-700 mb-3">
+                                                            🎯 Main Components
+                                                        </h5>
+                                                        <div className="space-y-2">
+                                                            {suggestion.components
+                                                                .filter(comp => comp.required && comp.item)
+                                                                .map((component, idx) => (
+                                                                    <div key={idx} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-green-200">
+                                                                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                                                        <div className="flex-1">
+                                                                            <div className="font-medium text-gray-900">
+                                                                                {component.item.name}
+                                                                            </div>
+                                                                            <div className="text-sm text-gray-500 capitalize">
+                                                                                {component.category.replace('_', ' ')}
+                                                                                {component.item.quantity && ` • ${component.item.quantity} available`}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Optional Components */}
+                                                    <div>
+                                                        <h5 className="font-medium text-blue-700 mb-3">
+                                                            ➕ Optional Additions
+                                                        </h5>
+                                                        <div className="space-y-2">
+                                                            {suggestion.components
+                                                                .filter(comp => !comp.required && comp.item)
+                                                                .map((component, idx) => (
+                                                                    <div key={idx} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-blue-200">
+                                                                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                                                        <div className="flex-1">
+                                                                            <div className="font-medium text-gray-900">
+                                                                                {component.item.name}
+                                                                            </div>
+                                                                            <div className="text-sm text-gray-500 capitalize">
+                                                                                {component.category.replace('_', ' ')}
+                                                                                {component.item.quantity && ` • ${component.item.quantity} available`}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            {suggestion.components.filter(comp => !comp.required && comp.item).length === 0 && (
+                                                                <div className="text-gray-500 text-sm italic p-3">
+                                                                    No optional ingredients available
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Simple Cooking Tips */}
+                                                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                                    <div className="flex items-start space-x-2">
+                                                        <span className="text-yellow-600 mt-0.5">💡</span>
+                                                        <div>
+                                                            <div className="font-medium text-yellow-800 text-sm">Quick Tip:</div>
+                                                            <div className="text-yellow-700 text-sm">
+                                                                {getSimpleCookingTip(suggestion.template.id)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Recipe Suggestions */}
+                        {activeTab === 'recipes' && (
+                            <div>
+                                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                                    Recipe Suggestions ({suggestions.length})
+                                </h3>
+
+                                {loading ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500">Analyzing your inventory...</div>
+                                    </div>
+                                ) : inventory.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">No inventory items found</div>
+                                        <a
+                                            href="/inventory"
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                        >
+                                            Add inventory items first
+                                        </a>
+                                    </div>
+                                ) : recipes.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">No recipes found</div>
+                                        <a
+                                            href="/recipes"
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                        >
+                                            Add recipes first
+                                        </a>
+                                    </div>
+                                ) : suggestions.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">
+                                            No recipes match your current inventory at {Math.round(matchThreshold * 100)}%
+                                            threshold
+                                        </div>
+                                        <TouchEnhancedButton
+                                            onClick={() => setMatchThreshold(0.1)}
+                                            className="text-indigo-600 hover:text-indigo-900 text-sm"
+                                        >
+                                            Try lowering the match threshold to 10%
+                                        </TouchEnhancedButton>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {suggestions.map((recipe) => (
+                                            <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="flex-1">
+                                                        <h4 className="text-xl font-semibold text-gray-900">{recipe.title}</h4>
+                                                        {recipe.description && (
+                                                            <p className="text-gray-600 mt-1">{recipe.description}</p>
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
+                                                        {Math.round(recipe.analysis.matchPercentage * 100)}% Match
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    {/* Recipe Info */}
+                                                    <div>
+                                                        <h5 className="font-medium text-gray-900 mb-2">Recipe Details</h5>
+                                                        <div className="space-y-1 text-sm text-gray-600">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span>{getDifficultyIcon(recipe.difficulty)}</span>
+                                                                <span className="capitalize">{recipe.difficulty}</span>
+                                                            </div>
+                                                            {recipe.prepTime && (
+                                                                <div>Prep: {recipe.prepTime} minutes</div>
+                                                            )}
+                                                            {recipe.cookTime && (
+                                                                <div>Cook: {recipe.cookTime} minutes</div>
+                                                            )}
+                                                            {recipe.servings && (
+                                                                <div>Serves: {recipe.servings}</div>
+                                                            )}
+                                                            {recipe.source && (
+                                                                <div className="text-xs">Source: {recipe.source}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Available Ingredients */}
+                                                    <div>
+                                                        <h5 className="font-medium text-green-700 mb-2">
+                                                            ✅ You Have ({recipe.analysis.availableIngredients.length})
+                                                        </h5>
+                                                        <div className="space-y-1 text-sm">
+                                                            {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
+                                                                <div key={index} className="text-green-600">
+                                                                    • {ingredient.amount} {ingredient.unit} {ingredient.name}
+                                                                    {ingredient.optional &&
+                                                                        <span className="text-gray-500"> (optional)</span>}
+                                                                </div>
+                                                            ))}
+                                                            {recipe.analysis.availableIngredients.length > 5 && (
+                                                                <div className="text-green-600 text-xs">
+                                                                    +{recipe.analysis.availableIngredients.length - 5} more
+                                                                    available
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Missing Ingredients */}
+                                                    <div>
+                                                        <h5 className="font-medium text-red-700 mb-2">
+                                                            ❌ You Need ({recipe.analysis.missingIngredients.length})
+                                                        </h5>
+                                                        <div className="space-y-1 text-sm">
+                                                            {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
+                                                                <div key={index} className="text-red-600">
+                                                                    • {ingredient.amount} {ingredient.unit} {ingredient.name}
+                                                                    {ingredient.optional &&
+                                                                        <span className="text-gray-500"> (optional)</span>}
+                                                                </div>
+                                                            ))}
+                                                            {recipe.analysis.missingIngredients.length > 5 && (
+                                                                <div className="text-red-600 text-xs">
+                                                                    +{recipe.analysis.missingIngredients.length - 5} more needed
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Action Buttons */}
+                                                <div className="mt-4 flex justify-between items-center">
+                                                    <div className="text-sm text-gray-500">
+                                                        {recipe.analysis.canMake ? (
+                                                            <span className="text-green-600 font-medium">
+                                                                🎉 You can make this recipe!
+                                                            </span>
+                                                        ) : recipe.analysis.requiredMissing === 1 ? (
+                                                            <span className="text-yellow-600 font-medium">
+                                                                Missing only 1 required ingredient
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-red-600">
+                                                                Missing {recipe.analysis.requiredMissing} required ingredients
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex space-x-2">
+                                                        <TouchEnhancedButton
+                                                            onClick={() => loadRecipeDetails(recipe._id)}
+                                                            disabled={loadingRecipe}
+                                                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+                                                        >
+                                                            {loadingRecipe ? 'Loading...' : 'View Recipe'}
+                                                        </TouchEnhancedButton>
+                                                        {!recipe.analysis.canMake && (
+                                                            <TouchEnhancedButton
+                                                                onClick={() => setShowShoppingList({
+                                                                    recipeId: recipe._id,
+                                                                    recipeName: recipe.title
+                                                                })}
+                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                                            >
+                                                                Shopping List
+                                                            </TouchEnhancedButton>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -738,4 +1177,17 @@ export default function RecipeSuggestions() {
             </div>
         </MobileOptimizedLayout>
     );
+
+    // NEW: Helper function for cooking tips
+    function getSimpleCookingTip(templateId) {
+        const tips = {
+            'protein-starch-vegetable': 'Start with the protein, then add your starch. Cook vegetables until tender-crisp for best nutrition.',
+            'pasta-meal': 'Cook pasta until al dente. Save some pasta water to help bind sauces.',
+            'sandwich-meal': 'Toast bread lightly for better texture. Layer ingredients thoughtfully for balanced flavors.',
+            'rice-bowl': 'Rinse rice before cooking. Let it rest 5 minutes after cooking for fluffier texture.',
+            'convenience-meal': 'Follow package directions but consider adding fresh vegetables for extra nutrition.',
+            'soup-meal': 'Heat soup gently and taste for seasoning. Pair with crusty bread for a complete meal.'
+        };
+        return tips[templateId] || 'Enjoy your homemade meal!';
+    }
 }
