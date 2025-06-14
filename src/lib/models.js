@@ -467,12 +467,45 @@ const DailyNutritionLogSchema = new mongoose.Schema({
 });
 
 const MealPlanEntrySchema = new mongoose.Schema({
+    // Type of meal entry
+    entryType: {
+        type: String,
+        enum: ['recipe', 'simple'],
+        required: true,
+        default: 'recipe'
+    },
+    // Recipe-based meal fields (existing)
     recipeId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Recipe',
-        required: true
+        required: function() { return this.entryType === 'recipe'; }
     },
-    recipeName: { type: String, required: true }, // Cache for performance
+    recipeName: {
+        type: String,
+        required: function() { return this.entryType === 'recipe'; }
+    },
+
+    // Simple meal fields (new)
+    simpleMeal: {
+        name: { type: String }, // e.g., "Steak Dinner"
+        description: { type: String }, // e.g., "Ribeye with mashed potatoes and broccoli"
+        items: [{
+            inventoryItemId: { type: mongoose.Schema.Types.ObjectId },
+            itemName: { type: String, required: true }, // e.g., "Ribeye Steak"
+            itemCategory: { type: String }, // e.g., "protein", "starch", "vegetable"
+            quantity: { type: Number, default: 1 },
+            unit: { type: String, default: 'item' },
+            notes: { type: String } // e.g., "grilled medium-rare"
+        }],
+        totalEstimatedTime: { type: Number, default: 30 }, // minutes
+        difficulty: {
+            type: String,
+            enum: ['easy', 'medium', 'hard'],
+            default: 'easy'
+        }
+    },
+
+    // Common fields for both types
     mealType: {
         type: String,
         enum: ['breakfast', 'lunch', 'dinner', 'snack'],
@@ -480,12 +513,23 @@ const MealPlanEntrySchema = new mongoose.Schema({
     },
     servings: { type: Number, default: 1, min: 1 },
     notes: { type: String, maxlength: 200 },
-    prepTime: Number, // Cached from recipe
-    cookTime: Number, // Cached from recipe
+
+    // Cached times (for recipes, estimated for simple meals)
+    prepTime: { type: Number, default: 0 },
+    cookTime: { type: Number, default: 0 },
+
+    // Nutrition estimation for simple meals
+    estimatedNutrition: {
+        calories: { type: Number, default: 0 },
+        protein: { type: Number, default: 0 },
+        carbs: { type: Number, default: 0 },
+        fat: { type: Number, default: 0 }
+    },
+
     createdAt: { type: Date, default: Date.now }
 });
 
-// NEW: Meal Plan Schema
+// Update the MealPlanSchema to include simple meal preferences
 const MealPlanSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -495,10 +539,10 @@ const MealPlanSchema = new mongoose.Schema({
     name: { type: String, required: true, maxlength: 100 },
     description: { type: String, maxlength: 500 },
 
-    // Week-based planning (Monday = 0, Sunday = 6)
-    weekStartDate: { type: Date, required: true }, // Start of the planning week
+    // Week-based planning
+    weekStartDate: { type: Date, required: true },
 
-    // Meals organized by day and meal type
+    // Meals organized by day and meal type (using updated schema)
     meals: {
         monday: [MealPlanEntrySchema],
         tuesday: [MealPlanEntrySchema],
@@ -518,10 +562,17 @@ const MealPlanSchema = new mongoose.Schema({
             default: ['breakfast', 'lunch', 'dinner']
         },
         dietaryRestrictions: [String],
-        avoidIngredients: [String]
+        avoidIngredients: [String],
+        // NEW: Simple meal preferences
+        allowSimpleMeals: { type: Boolean, default: true },
+        preferredMealComplexity: {
+            type: String,
+            enum: ['simple', 'mixed', 'recipe-focused'],
+            default: 'mixed'
+        }
     },
 
-    // Shopping list generation
+    // Shopping list generation (enhanced for simple meals)
     shoppingList: {
         generated: { type: Boolean, default: false },
         generatedAt: Date,
@@ -530,17 +581,21 @@ const MealPlanSchema = new mongoose.Schema({
             amount: String,
             unit: String,
             category: { type: String, default: 'other' },
-            recipes: [String], // Which recipes need this ingredient
+            recipes: [String], // Which recipes/meals need this ingredient
+            isFromSimpleMeal: { type: Boolean, default: false },
+            simpleMealNames: [String], // Which simple meals need this
             inInventory: { type: Boolean, default: false },
+            inventoryItemId: { type: mongoose.Schema.Types.ObjectId },
             purchased: { type: Boolean, default: false }
         }]
     },
 
-    // Meal prep suggestions
+    // Meal prep suggestions (enhanced for simple meals)
     mealPrep: {
         batchCookingSuggestions: [{
             ingredient: String,
             recipes: [String],
+            simpleMeals: [String], // NEW: Simple meals using this ingredient
             prepMethod: String,
             storageTime: String
         }],
@@ -551,22 +606,88 @@ const MealPlanSchema = new mongoose.Schema({
         }
     },
 
-    // Nutrition tracking for the week
+    // Nutrition tracking for the week (enhanced)
     weeklyNutrition: {
         totalCalories: { type: Number, default: 0 },
         averageDailyCalories: { type: Number, default: 0 },
         protein: { type: Number, default: 0 },
         carbs: { type: Number, default: 0 },
         fat: { type: Number, default: 0 },
-        fiber: { type: Number, default: 0 }
+        fiber: { type: Number, default: 0 },
+        fromRecipes: { type: Number, default: 0 }, // Calories from recipe-based meals
+        fromSimpleMeals: { type: Number, default: 0 }, // Estimated calories from simple meals
+        estimatedAccuracy: { type: Number, default: 0 } // Percentage of nutrition data that's accurate vs estimated
     },
 
-    isTemplate: { type: Boolean, default: false }, // Can be saved as a reusable template
+    // Statistics
+    statistics: {
+        totalMeals: { type: Number, default: 0 },
+        recipeMeals: { type: Number, default: 0 },
+        simpleMeals: { type: Number, default: 0 },
+        averageComplexity: { type: String, default: 'medium' },
+        inventoryItemsUsed: { type: Number, default: 0 },
+        estimatedCookingTime: { type: Number, default: 0 } // Total minutes for the week
+    },
+
+    isTemplate: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
+
+// Add pre-save middleware to calculate statistics
+MealPlanSchema.pre('save', function(next) {
+    let totalMeals = 0;
+    let recipeMeals = 0;
+    let simpleMeals = 0;
+    let totalCookingTime = 0;
+    let inventoryItemsUsed = 0;
+
+    // Calculate statistics from all meals
+    Object.values(this.meals).forEach(dayMeals => {
+        if (Array.isArray(dayMeals)) {
+            dayMeals.forEach(meal => {
+                totalMeals++;
+                if (meal.entryType === 'recipe') {
+                    recipeMeals++;
+                    totalCookingTime += (meal.prepTime || 0) + (meal.cookTime || 0);
+                } else {
+                    simpleMeals++;
+                    totalCookingTime += meal.simpleMeal?.totalEstimatedTime || 30;
+                    inventoryItemsUsed += meal.simpleMeal?.items?.length || 0;
+                }
+            });
+        }
+    });
+
+    this.statistics = {
+        totalMeals,
+        recipeMeals,
+        simpleMeals,
+        averageComplexity: recipeMeals > simpleMeals ? 'high' :
+            simpleMeals > recipeMeals ? 'low' : 'medium',
+        inventoryItemsUsed,
+        estimatedCookingTime: totalCookingTime
+    };
+
+    this.updatedAt = new Date();
+    next();
+});
+
+// Add method to get user's preferred meal types from their profile
+MealPlanSchema.methods.getEffectiveMealTypes = function(userPreferences) {
+    // Use meal plan preferences first, then fall back to user preferences
+    const planPreferences = this.preferences?.mealTypes || [];
+    const userPrefs = userPreferences?.defaultMealTypes || ['breakfast', 'lunch', 'dinner'];
+
+    return planPreferences.length > 0 ? planPreferences : userPrefs;
+};
+
+// Add method to check if simple meals are allowed
+MealPlanSchema.methods.allowsSimpleMeals = function() {
+    return this.preferences?.allowSimpleMeals !== false;
+};
 
 // NEW: Meal Plan Template Schema (for saving favorite meal plans)
 const MealPlanTemplateSchema = new mongoose.Schema({
@@ -1280,6 +1401,40 @@ MealPrepTemplateSchema.methods.recordUsage = function(rating) {
     }
 
     return this.save();
+};
+
+// Add method to get display name for any meal type
+MealPlanEntrySchema.methods.getDisplayName = function() {
+    if (this.entryType === 'recipe') {
+        return this.recipeName;
+    } else {
+        return this.simpleMeal.name || this.simpleMeal.items.map(item => item.itemName).join(', ');
+    }
+};
+
+// Add method to get estimated total time
+MealPlanEntrySchema.methods.getTotalTime = function() {
+    if (this.entryType === 'recipe') {
+        return (this.prepTime || 0) + (this.cookTime || 0);
+    } else {
+        return this.simpleMeal.totalEstimatedTime || 30;
+    }
+};
+
+// Add method to get ingredients/items for shopping list
+MealPlanEntrySchema.methods.getIngredients = function() {
+    if (this.entryType === 'recipe') {
+        // This would need to be populated from the recipe
+        return [];
+    } else {
+        return this.simpleMeal.items.map(item => ({
+            name: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            category: item.itemCategory,
+            isFromInventory: true
+        }));
+    }
 };
 
 // Password reset indexes for security and performance
