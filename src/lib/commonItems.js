@@ -1,4 +1,4 @@
-// file: /src/lib/commonItems.js - v3 (Fixed defaults for dual unit system)
+// file: /src/lib/commonItems.js - v4 (Added Kitchen Cabinets location for spices, seasonings, and cooking essentials)
 
 export const COMMON_ITEMS = {
     'pantry-staples': {
@@ -68,14 +68,14 @@ export const COMMON_ITEMS = {
                 defaultSecondaryQuantity: 0,
                 location: 'pantry'
             },
-            { name: 'Salt', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Black Pepper', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Olive Oil', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Vegetable Oil', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'White Vinegar', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Baking Soda', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Baking Powder', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Vanilla Extract', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Salt', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Black Pepper', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Olive Oil', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Vegetable Oil', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'White Vinegar', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Baking Soda', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Baking Powder', category: 'Other', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Vanilla Extract', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
             { name: 'Bread', category: 'Bread', unit: 'item', defaultQuantity: 1, location: 'pantry' },
         ]
     },
@@ -314,16 +314,16 @@ export const COMMON_ITEMS = {
         name: '🌶️ Spices & Seasonings',
         icon: '🌶️',
         items: [
-            { name: 'Garlic Powder', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Onion Powder', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Paprika', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Cumin', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Chili Powder', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Italian Seasoning', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Oregano', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Thyme', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Bay Leaves', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Red Pepper Flakes', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Garlic Powder', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Onion Powder', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Paprika', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Cumin', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Chili Powder', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Italian Seasoning', category: 'Seasonings', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Oregano', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Thyme', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Bay Leaves', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Red Pepper Flakes', category: 'Spices', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
         ]
     },
     'condiments-sauces': {
@@ -333,10 +333,10 @@ export const COMMON_ITEMS = {
             { name: 'Ketchup', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'fridge' },
             { name: 'Mustard (Yellow)', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'fridge' },
             { name: 'Mayonnaise', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'fridge' },
-            { name: 'Soy Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Hot Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Worcestershire Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Honey', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Soy Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Hot Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Worcestershire Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Honey', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
             { name: 'Barbecue Sauce', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'pantry' },
             { name: 'Ranch Dressing', category: 'Condiments', unit: 'item', defaultQuantity: 1, location: 'fridge' },
         ]
@@ -345,8 +345,8 @@ export const COMMON_ITEMS = {
         name: '🥤 Beverages',
         icon: '🥤',
         items: [
-            { name: 'Coffee (Ground)', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'pantry' },
-            { name: 'Tea Bags', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'pantry' },
+            { name: 'Coffee (Ground)', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
+            { name: 'Tea Bags', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'kitchen' },
             { name: 'Orange Juice', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'fridge' },
             { name: 'Bottled Water', category: 'Beverages', unit: 'item', defaultQuantity: 1, location: 'pantry' },
         ]

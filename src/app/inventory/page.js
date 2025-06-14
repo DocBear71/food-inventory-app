@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js - v9 (Smart dual unit display with enhanced UX)
+// file: /src/app/inventory/page.js - v11 (Fixed form structure and sorting)
 
 'use client';
 
@@ -13,7 +13,7 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-// NEW: Import smart display utilities
+// Import smart display utilities
 import {
     formatInventoryDisplayText,
     getPrimaryDisplayText,
@@ -332,6 +332,9 @@ function InventoryContent() {
             case 'freezer':
                 setFilterLocation('freezer');
                 break;
+            case 'kitchen':
+                setFilterLocation('kitchen');
+                break;
             default:
                 break;
         }
@@ -398,7 +401,7 @@ function InventoryContent() {
         }
     };
 
-    // UPDATED: Handle edit with auto-scroll to form
+    // Handle edit with auto-scroll to form
     const handleEdit = (item) => {
         setEditingItem(item);
         setFormData({
@@ -603,6 +606,7 @@ function InventoryContent() {
                         </TouchEnhancedButton>
                     </div>
                 </div>
+
                 {/* Enhanced Search and Filtering */}
                 <div className="bg-white shadow rounded-lg p-4 space-y-4">
                     {/* Search Bar */}
@@ -619,8 +623,7 @@ function InventoryContent() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
-                            <div
-                                className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <span className="text-gray-400">🔍</span>
                             </div>
                             {searchQuery && (
@@ -655,6 +658,12 @@ function InventoryContent() {
                                 className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
                             >
                                 🏠 Pantry
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => applyQuickFilter('kitchen')}
+                                className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
+                            >
+                                🚪 Kitchen
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => applyQuickFilter('fridge')}
@@ -738,138 +747,45 @@ function InventoryContent() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">⚡ Sort by</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">🔃 Sort By</label>
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
-                                <option value="expiration">📅 Expiration Date</option>
-                                <option value="name">🔤 Name (A-Z)</option>
-                                <option value="category">🏷️ Category</option>
-                                <option value="location">📍 Location</option>
-                                <option value="quantity">📊 Quantity (High-Low)</option>
-                                <option value="date-added">📅 Date Added (Newest)</option>
+                                <option value="expiration">Expiration Date</option>
+                                <option value="name">Name (A-Z)</option>
+                                <option value="category">Category</option>
+                                <option value="location">Location</option>
+                                <option value="quantity">Quantity (High to Low)</option>
+                                <option value="date-added">Date Added (Newest)</option>
                             </select>
                         </div>
                     </div>
-
-                    {/* Active Filters Display */}
-                    {(searchQuery || filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
-                        <div className="border-t pt-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-medium text-gray-600">Active filters:</span>
-
-                                {searchQuery && (
-                                    <span
-                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                Search: "{searchQuery}"
-                                <TouchEnhancedButton onClick={() => setSearchQuery('')}
-                                                     className="ml-1 text-indigo-600 hover:text-indigo-800">✕</TouchEnhancedButton>
-                            </span>
-                                )}
-
-                                {filterStatus !== 'all' && (
-                                    <span
-                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Status: {filterStatus}
-                                        <TouchEnhancedButton onClick={() => setFilterStatus('all')}
-                                                             className="ml-1 text-blue-600 hover:text-blue-800">✕</TouchEnhancedButton>
-                            </span>
-                                )}
-
-                                {filterLocation !== 'all' && (
-                                    <span
-                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Location: {filterLocation}
-                                        <TouchEnhancedButton onClick={() => setFilterLocation('all')}
-                                                             className="ml-1 text-green-600 hover:text-green-800">✕</TouchEnhancedButton>
-                            </span>
-                                )}
-
-                                {filterCategory !== 'all' && (
-                                    <span
-                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                Category: {filterCategory}
-                                        <TouchEnhancedButton onClick={() => setFilterCategory('all')}
-                                                             className="ml-1 text-purple-600 hover:text-purple-800">✕</TouchEnhancedButton>
-                            </span>
-                                )}
-
-                                <TouchEnhancedButton
-                                    onClick={clearAllFilters}
-                                    className="text-xs text-gray-500 hover:text-gray-700 underline"
-                                >
-                                    Clear all
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Results Summary */}
-                    <div className="text-sm text-gray-500 border-t pt-3">
-                        Showing <span
-                        className="font-semibold text-gray-900">{filteredInventory.length}</span> of <span
-                        className="font-semibold text-gray-900">{inventory.length}</span> items
-                        {searchQuery && (
-                            <span> matching "{searchQuery}"</span>
-                        )}
-                    </div>
                 </div>
 
-                {/* Show Getting Started Message for Empty Inventory */}
-                {inventory.length === 0 && !loading && (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
-                        <div className="text-4xl mb-4">🏠</div>
-                        <h3 className="text-lg font-semibold text-indigo-900 mb-2">
-                            Welcome to Doc Bear's Comfort Kitchen!
-                        </h3>
-                        <p className="text-indigo-700 mb-4">
-                            Your inventory is empty. Get started by adding some common household items or scanning products you already have.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                            <TouchEnhancedButton
-                                onClick={() => setShowCommonItemsWizard(true)}
-                                className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
-                            >
-                                🏠 Quick Start with Common Items
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => setShowAddForm(true)}
-                                className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 font-medium"
-                            >
-                                📦 Add Individual Item
-                            </TouchEnhancedButton>
-                        </div>
-                    </div>
-                )}
-
-                {/* Add/Edit Form */}
+                {/* Add/Edit Item Form */}
                 {showAddForm && (
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
                             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                 {editingItem ? 'Edit Item' : 'Add New Item'}
                             </h3>
+
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* UPC Lookup Section */}
-                                <UPCLookup
-                                    onProductFound={handleProductFound}
-                                    onUPCChange={handleUPCChange}
-                                    currentUPC={formData.upc}
-                                />
-
-                                {/* Divider */}
-                                <div className="border-t border-gray-200 pt-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-4">
-                                        Item Details
-                                    </h4>
+                                <div>
+                                    <UPCLookup
+                                        onProductFound={handleProductFound}
+                                        onUPCChange={handleUPCChange}
+                                        initialUPC={formData.upc}
+                                    />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Basic Item Information */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label htmlFor="name"
-                                               className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                                             Item Name *
                                         </label>
                                         <input
@@ -880,12 +796,12 @@ function InventoryContent() {
                                             value={formData.name}
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            placeholder="e.g., Organic Bananas"
                                         />
                                     </div>
 
                                     <div>
-                                        <label htmlFor="brand"
-                                               className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
                                             Brand
                                         </label>
                                         <input
@@ -895,71 +811,33 @@ function InventoryContent() {
                                             value={formData.brand}
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            placeholder="e.g., Dole"
                                         />
                                     </div>
 
                                     <div>
-                                        <label htmlFor="category"
-                                               className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                                             Category
                                         </label>
-                                        <select
+                                        <input
+                                            type="text"
                                             id="category"
                                             name="category"
                                             value={formData.category}
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        >
-                                            <option value="">Select category</option>
-                                            <option value="Fresh Vegetables">Fresh Vegetables</option>
-                                            <option value="Fresh Fruits">Fresh Fruits</option>
-                                            <option value="Fresh Spices">Fresh Spices</option>
-                                            <option value="Dairy">Dairy</option>
-                                            <option value="Cheese">Cheese</option>
-                                            <option value="Eggs">Eggs</option>
-                                            <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                            <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                            <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                            <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                            <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                            <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish &
-                                                Seafood
-                                            </option>
-                                            <option value="Beans">Beans</option>
-                                            <option value="Canned Meat">Canned/Jarred Meat</option>
-                                            <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
-                                            <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                            <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                            <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                            <option value="Canned Beans">Canned/Jarred Beans</option>
-                                            <option value="Canned Meals">Canned/Jarred Meals</option>
-                                            <option value="Frozen Vegetables">Frozen Vegetables</option>
-                                            <option value="Frozen Fruit">Frozen Fruit</option>
-                                            <option value="Grains">Grains</option>
-                                            <option value="Breads">Breads</option>
-                                            <option value="Pasta">Pasta</option>
-                                            <option value="Stuffing & Sides">Stuffing & Sides</option>
-                                            <option value="Boxed Meals">Boxed Meals</option>
-                                            <option value="Seasonings">Seasonings</option>
-                                            <option value="Spices">Spices</option>
-                                            <option value="Bouillon">Bouillon</option>
-                                            <option value="Stock/Broth">Stock/Broth</option>
-                                            <option value="Beverages">Beverages</option>
-                                            <option value="Snacks">Snacks</option>
-                                            <option value="Condiments">Condiments</option>
-                                            <option value="Other">Other</option>
-                                        </select>
+                                            placeholder="e.g., Fruits, Dairy, Snacks"
+                                        />
                                     </div>
 
                                     <div>
-                                        <label htmlFor="location"
-                                               className="block text-sm font-medium text-gray-700">
-                                            Storage Location
+                                        <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                                            Storage Location *
                                         </label>
                                         <select
                                             id="location"
                                             name="location"
+                                            required
                                             value={formData.location}
                                             onChange={handleChange}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -967,116 +845,116 @@ function InventoryContent() {
                                             <option value="pantry">Pantry</option>
                                             <option value="fridge">Refrigerator</option>
                                             <option value="freezer">Freezer</option>
-                                            <option value="other">Other</option>
+                                            <option value="kitchen">Kitchen Cabinets</option>
+                                            <option value="counter">Counter</option>
+                                            <option value="garage">Garage/Storage</option>
                                         </select>
                                     </div>
+                                </div>
 
-                                    {/* UPDATED: Dual Quantity Input Section */}
-                                    <div className="md:col-span-2">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Primary Quantity */}
-                                            <div>
-                                                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-                                                    Primary Quantity *
-                                                </label>
-                                                <div className="mt-1 flex rounded-md shadow-sm">
-                                                    <input
-                                                        type="number"
-                                                        id="quantity"
-                                                        name="quantity"
-                                                        min="0"
-                                                        step="0.01"
-                                                        required
-                                                        value={formData.quantity}
-                                                        onChange={handleChange}
-                                                        className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                    />
-                                                    <select
-                                                        name="unit"
-                                                        value={formData.unit}
-                                                        onChange={handleChange}
-                                                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
-                                                    >
-                                                        <option value="item">Item(s)</option>
-                                                        <option value="lbs">Pounds</option>
-                                                        <option value="oz">Ounces</option>
-                                                        <option value="kg">Kilograms</option>
-                                                        <option value="g">Grams</option>
-                                                        <option value="cup">Cup(s)</option>
-                                                        <option value="tbsp">Tablespoon(s)</option>
-                                                        <option value="tsp">Teaspoon(s)</option>
-                                                        <option value="ml">Milliliters</option>
-                                                        <option value="l">Liters</option>
-                                                        <option value="can">Can(s)</option>
-                                                        <option value="package">Package(s)</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {/* Secondary Quantity (Optional) */}
-                                            <div>
-                                                <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
-                                                    Secondary Quantity <span className="text-gray-500">(Optional)</span>
-                                                </label>
-                                                <div className="mt-1 flex rounded-md shadow-sm">
-                                                    <input
-                                                        type="number"
-                                                        id="secondaryQuantity"
-                                                        name="secondaryQuantity"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={formData.secondaryQuantity}
-                                                        onChange={handleChange}
-                                                        placeholder="0"
-                                                        className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                    />
-                                                    <select
-                                                        name="secondaryUnit"
-                                                        value={formData.secondaryUnit}
-                                                        onChange={handleChange}
-                                                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
-                                                    >
-                                                        <option value="">Select unit</option>
-                                                        <option value="item">Item(s)</option>
-                                                        <option value="lbs">Pounds</option>
-                                                        <option value="oz">Ounces</option>
-                                                        <option value="kg">Kilograms</option>
-                                                        <option value="g">Grams</option>
-                                                        <option value="cup">Cup(s)</option>
-                                                        <option value="tbsp">Tablespoon(s)</option>
-                                                        <option value="tsp">Teaspoon(s)</option>
-                                                        <option value="ml">Milliliters</option>
-                                                        <option value="l">Liters</option>
-                                                        <option value="can">Can(s)</option>
-                                                        <option value="package">Package(s)</option>
-                                                    </select>
-                                                </div>
-                                                <p className="mt-1 text-xs text-gray-500">
-                                                    Add an alternative unit for tracking (e.g., "2 lbs" and "6 tomatoes")
-                                                </p>
+                                {/* Dual Quantity Input Section */}
+                                <div className="md:col-span-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Primary Quantity */}
+                                        <div>
+                                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                                                Primary Quantity *
+                                            </label>
+                                            <div className="mt-1 flex rounded-md shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    id="quantity"
+                                                    name="quantity"
+                                                    min="0"
+                                                    step="0.01"
+                                                    required
+                                                    value={formData.quantity}
+                                                    onChange={handleChange}
+                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                />
+                                                <select
+                                                    name="unit"
+                                                    value={formData.unit}
+                                                    onChange={handleChange}
+                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                >
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="lbs">Pounds</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="cup">Cup(s)</option>
+                                                    <option value="tbsp">Tablespoon(s)</option>
+                                                    <option value="tsp">Teaspoon(s)</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="can">Can(s)</option>
+                                                    <option value="package">Package(s)</option>
+                                                </select>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="expirationDate"
-                                               className="block text-sm font-medium text-gray-700">
-                                            Expiration Date
-                                            <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            id="expirationDate"
-                                            name="expirationDate"
-                                            value={formData.expirationDate}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        />
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Setting expiration dates helps track freshness and prevents food
-                                            waste
-                                        </p>
+                                        {/* Secondary Quantity (Optional) */}
+                                        <div>
+                                            <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
+                                                Secondary Quantity <span className="text-gray-500">(Optional)</span>
+                                            </label>
+                                            <div className="mt-1 flex rounded-md shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    id="secondaryQuantity"
+                                                    name="secondaryQuantity"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={formData.secondaryQuantity}
+                                                    onChange={handleChange}
+                                                    placeholder="0"
+                                                    className="flex-1 block w-full border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                />
+                                                <select
+                                                    name="secondaryUnit"
+                                                    value={formData.secondaryUnit}
+                                                    onChange={handleChange}
+                                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                                >
+                                                    <option value="">Select unit</option>
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="lbs">Pounds</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="cup">Cup(s)</option>
+                                                    <option value="tbsp">Tablespoon(s)</option>
+                                                    <option value="tsp">Teaspoon(s)</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="can">Can(s)</option>
+                                                    <option value="package">Package(s)</option>
+                                                </select>
+                                            </div>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Add an alternative unit for tracking (e.g., "2 lbs" and "6 tomatoes")
+                                            </p>
+                                        </div>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
+                                        Expiration Date
+                                        <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        id="expirationDate"
+                                        name="expirationDate"
+                                        value={formData.expirationDate}
+                                        onChange={handleChange}
+                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Setting expiration dates helps track freshness and prevents food waste
+                                    </p>
                                 </div>
 
                                 <div className="flex justify-end space-x-3">
@@ -1100,7 +978,7 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {/* UPDATED: Inventory Grid Display with Smart Units */}
+                {/* Inventory Grid Display with Smart Units */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -1157,13 +1035,12 @@ function InventoryContent() {
                                                 )}
                                             </div>
 
-                                            {/* UPDATED: Smart Quantity Display with Dual Units */}
+                                            {/* Smart Quantity Display with Dual Units */}
                                             <div className="flex justify-between items-center mb-3">
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {formatInventoryDisplayText(item)}
                                                 </div>
-                                                <span
-                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
                                                     {item.location}
                                                 </span>
                                             </div>
@@ -1174,8 +1051,7 @@ function InventoryContent() {
                                             </div>
 
                                             {/* Expiration Status */}
-                                            <div
-                                                className={`text-xs font-medium ${expirationInfo.textColor} mb-3`}>
+                                            <div className={`text-xs font-medium ${expirationInfo.textColor} mb-3`}>
                                                 {item.expirationDate ? (
                                                     <div>
                                                         <div>{new Date(item.expirationDate).toLocaleDateString()}</div>

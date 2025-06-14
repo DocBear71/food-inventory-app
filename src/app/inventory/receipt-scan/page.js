@@ -1,16 +1,16 @@
-// file: /src/app/inventory/receipt-scan/page.js - v4 Receipt scanning with OCR - Fixed function naming conflicts
+// file: /src/app/inventory/receipt-scan/page.js - v5 Receipt scanning with OCR - Added Kitchen Cabinets location option
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {useState, useRef, useEffect} from 'react';
+import {useSession} from 'next-auth/react';
+import {useRouter} from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function ReceiptScan() {
-    const { data: session, status } = useSession();
+    const {data: session, status} = useSession();
     const router = useRouter();
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
@@ -80,16 +80,16 @@ export default function ReceiptScan() {
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, min: 1280 }, // Higher resolution
-                    height: { ideal: 1080, min: 720 },
-                    aspectRatio: { ideal: 16/9 },
+                    width: {ideal: 1920, min: 1280}, // Higher resolution
+                    height: {ideal: 1080, min: 720},
+                    aspectRatio: {ideal: 16 / 9},
                     focusMode: 'continuous', // Continuous autofocus
                     exposureMode: 'continuous', // Auto exposure
                     whiteBalanceMode: 'continuous', // Auto white balance
                     advanced: [
-                        { focusMode: 'continuous' },
-                        { exposureMode: 'continuous' },
-                        { whiteBalanceMode: 'continuous' }
+                        {focusMode: 'continuous'},
+                        {exposureMode: 'continuous'},
+                        {whiteBalanceMode: 'continuous'}
                     ]
                 }
             };
@@ -104,8 +104,8 @@ export default function ReceiptScan() {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: {ideal: 1280},
+                        height: {ideal: 720}
                     }
                 });
             }
@@ -277,7 +277,7 @@ export default function ReceiptScan() {
                 user_defined_dpi: '300' // Higher DPI for better recognition
             };
 
-            const { data: { text } } = await Tesseract.recognize(
+            const {data: {text}} = await Tesseract.recognize(
                 imageFile,
                 'eng',
                 ocrOptions
@@ -319,53 +319,6 @@ export default function ReceiptScan() {
             alert('Please select a valid image file.');
         }
     }
-
-    // Process image with OCR
-    // async function processImage(imageFile) {
-    //     setIsProcessing(true);
-    //     setStep('processing');
-    //     setOcrProgress(0);
-    //     setProcessingStatus('Initializing OCR...');
-    //
-    //     try {
-    //         // Dynamically import Tesseract.js
-    //         setProcessingStatus('Loading OCR engine...');
-    //         const Tesseract = (await import('tesseract.js')).default;
-    //
-    //         setProcessingStatus('Processing image...');
-    //
-    //         const { data: { text } } = await Tesseract.recognize(
-    //             imageFile,
-    //             'eng',
-    //             {
-    //                 logger: (m) => {
-    //                     if (m.status === 'recognizing text') {
-    //                         const progress = Math.round(m.progress * 100);
-    //                         setOcrProgress(progress);
-    //                         setProcessingStatus(`Extracting text... ${progress}%`);
-    //                     }
-    //                 }
-    //             }
-    //         );
-    //
-    //         setProcessingStatus('Analyzing receipt...');
-    //
-    //         // Parse extracted text into items
-    //         const items = parseReceiptText(text);
-    //         setExtractedItems(items);
-    //
-    //         setProcessingStatus('Complete!');
-    //         setStep('review');
-    //
-    //     } catch (error) {
-    //         console.error('OCR processing error:', error);
-    //         alert('Error processing receipt. Please try again with a clearer image.');
-    //         setStep('upload');
-    //     } finally {
-    //         setIsProcessing(false);
-    //         setOcrProgress(0);
-    //     }
-    // }
 
     // Parse receipt text into structured items
     function parseReceiptText(text) {
@@ -438,7 +391,6 @@ export default function ReceiptScan() {
             /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
             /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
             /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
-
 
 
             // Also add these additional OCR artifact patterns:
@@ -728,15 +680,15 @@ export default function ReceiptScan() {
 
                 // Check for UPC in current or nearby lines
                 const upcMatch = line.match(upcPattern) ||
-                    (i > 0 ? lines[i-1].match(upcPattern) : null) ||
-                    (i < lines.length - 1 ? lines[i+1].match(upcPattern) : null);
+                    (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
+                    (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
 
                 // Check for quantity pattern
                 const qtyMatch = line.match(quantityPattern);
 
                 // Only process if we have a meaningful item name (more than 2 characters, not just numbers)
                 if (nameMatch && nameMatch.length > 2 && !nameMatch.match(/^\d+\.?\d*$/) && !nameMatch.match(/^[tx]\s*\d/i)) {
-                    console.log(`Processing item: ${nameMatch} - $${price}`);
+                    console.log(`Processing item: ${nameMatch} - ${price}`);
                     const item = {
                         id: Date.now() + Math.random(),
                         name: cleanItemName(nameMatch),
@@ -758,11 +710,11 @@ export default function ReceiptScan() {
             }
         }
 
-        // Combine duplicate items based on UPC code
+// Combine duplicate items based on UPC code
         return combineDuplicateItems(items);
     }
 
-    // Combine items with the same UPC code or identical names
+// Combine items with the same UPC code or identical names
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
@@ -850,7 +802,7 @@ export default function ReceiptScan() {
         return combinedItems;
     }
 
-    // Clean up item names
+// Clean up item names
     function cleanItemName(name) {
         return name
             .replace(/[^\w\s\-&']/g, ' ') // Remove special chars except common ones
@@ -861,7 +813,7 @@ export default function ReceiptScan() {
             .join(' ');
     }
 
-    // Guess category based on item name
+// Guess category based on item name
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
@@ -893,7 +845,7 @@ export default function ReceiptScan() {
         return 'Other';
     }
 
-    // Guess storage location
+// UPDATED: Guess storage location with kitchen cabinets option
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
@@ -903,25 +855,38 @@ export default function ReceiptScan() {
         if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
             return 'fridge';
         }
+        // ADDED: Kitchen cabinets for spices, seasonings, and cooking essentials
+        if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
+            nameLower.includes('salt') || nameLower.includes('pepper') ||
+            nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
+            nameLower.includes('cumin') || nameLower.includes('paprika') ||
+            nameLower.includes('oregano') || nameLower.includes('thyme') ||
+            nameLower.includes('vanilla') || nameLower.includes('extract') ||
+            nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
+            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
+            nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
+            nameLower.includes('hot sauce') || nameLower.includes('honey')) {
+            return 'kitchen';
+        }
 
         return 'pantry';
     }
 
-    // Update item in the list
+// Update item in the list
     function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item =>
-            item.id === itemId ? { ...item, [field]: value } : item
+            item.id === itemId ? {...item, [field]: value} : item
         ));
     }
 
-    // Toggle item selection
+// Toggle item selection
     function toggleItemSelection(itemId) {
         setExtractedItems(prev => prev.map(item =>
-            item.id === itemId ? { ...item, selected: !item.selected } : item
+            item.id === itemId ? {...item, selected: !item.selected} : item
         ));
     }
 
-    // Calculate UPC check digit using standard algorithm
+// Calculate UPC check digit using standard algorithm
     function calculateUPCCheckDigit(upc12) {
         if (upc12.length !== 12) return null;
 
@@ -939,7 +904,7 @@ export default function ReceiptScan() {
         return checkDigit;
     }
 
-    // Lookup item by UPC with intelligent check digit calculation
+// Lookup item by UPC with intelligent check digit calculation
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
@@ -1099,7 +1064,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // Add selected items to inventory
+// Add selected items to inventory
     async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
 
@@ -1115,7 +1080,7 @@ export default function ReceiptScan() {
             const promises = selectedItems.map(item =>
                 fetch('/api/inventory', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         name: item.name,
                         brand: item.brand || '',
@@ -1146,7 +1111,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // Report issue functionality
+// Report issue functionality
     function openReportModal() {
         setReportData({
             issue: '',
@@ -1158,7 +1123,7 @@ export default function ReceiptScan() {
         setShowReportModal(true);
     }
 
-    // FIXED: Handle report modal file uploads (renamed to avoid conflict)
+// FIXED: Handle report modal file uploads (renamed to avoid conflict)
     function handleReportFileUpload(event) {
         const files = Array.from(event.target.files);
         const validFiles = files.filter(file => {
@@ -1327,7 +1292,8 @@ export default function ReceiptScan() {
                                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                         <div className="text-red-700">❌ {cameraError}</div>
                                         <div className="text-sm text-red-600 mt-2">
-                                            Please try using the upload option instead, or check your camera permissions.
+                                            Please try using the upload option instead, or check your camera
+                                            permissions.
                                         </div>
                                     </div>
                                 )}
@@ -1347,7 +1313,8 @@ export default function ReceiptScan() {
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                     <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                     <p className="text-sm text-yellow-800 mb-3">
-                                        If the receipt scanner isn't working properly with your receipt, you can report the issue to help us improve it.
+                                        If the receipt scanner isn't working properly with your receipt, you can report
+                                        the issue to help us improve it.
                                     </p>
                                     <TouchEnhancedButton
                                         onClick={openReportModal}
@@ -1381,14 +1348,18 @@ export default function ReceiptScan() {
                                     />
 
                                     {/* Simple overlay */}
-                                    <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
-                                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                    <div
+                                        className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
+                                        <div
+                                            className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📱 Position receipt here
                                         </div>
-                                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        <div
+                                            className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📱 Keep receipt flat and well-lit
                                         </div>
-                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        <div
+                                            className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📏 Fill frame completely
                                         </div>
                                     </div>
@@ -1416,17 +1387,6 @@ export default function ReceiptScan() {
                             </div>
                         )}
 
-                        {/* Step 1.5: Preview and accept or retake */}
-                        {capturedImage && step === 'preview' && (
-                            <div className="space-y-4">
-                                <img src={capturedImage} alt="Captured receipt" className="w-full rounded-lg" />
-                                <div className="flex space-x-4">
-                                    <button onClick={retakePhoto}>📷 Retake</button>
-                                    <button onClick={() => processImage(capturedBlob)}>✅ Use This Photo</button>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Step 2: Processing */}
                         {step === 'processing' && (
                             <div className="text-center space-y-6">
@@ -1442,7 +1402,7 @@ export default function ReceiptScan() {
                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                                     <div
                                         className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                                        style={{ width: `${ocrProgress}%` }}
+                                        style={{width: `${ocrProgress}%`}}
                                     ></div>
                                 </div>
 
@@ -1456,7 +1416,8 @@ export default function ReceiptScan() {
                                     </div>
                                 )}
 
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                             </div>
                         )}
 
@@ -1469,7 +1430,8 @@ export default function ReceiptScan() {
                                             Review Extracted Items
                                         </h3>
                                         <p className="text-gray-600">
-                                            {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected
+                                            {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
+                                            selected
                                         </p>
                                     </div>
                                     <div className="flex space-x-2">
@@ -1509,7 +1471,8 @@ export default function ReceiptScan() {
                                 <div className="space-y-4">
                                     {extractedItems.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">
-                                            No items were extracted from the receipt. Please try again with a clearer image.
+                                            No items were extracted from the receipt. Please try again with a clearer
+                                            image.
                                         </div>
                                     ) : (
                                         extractedItems.map((item) => (
@@ -1530,7 +1493,8 @@ export default function ReceiptScan() {
                                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         {/* Name */}
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            <label
+                                                                className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Item Name
                                                             </label>
                                                             <input
@@ -1543,7 +1507,8 @@ export default function ReceiptScan() {
 
                                                         {/* Category */}
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            <label
+                                                                className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Category
                                                             </label>
                                                             <select
@@ -1552,33 +1517,54 @@ export default function ReceiptScan() {
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                             >
                                                                 <option value="Other">Other</option>
-                                                                <option value="Fresh Vegetables">Fresh Vegetables</option>
+                                                                <option value="Fresh Vegetables">Fresh Vegetables
+                                                                </option>
                                                                 <option value="Fresh Fruits">Fresh Fruits</option>
                                                                 <option value="Fresh Spices">Fresh Spices</option>
                                                                 <option value="Dairy">Dairy</option>
                                                                 <option value="Cheese">Cheese</option>
                                                                 <option value="Eggs">Eggs</option>
-                                                                <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                                                <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                                                <option value="Fresh/Frozen Poultry">Fresh/Frozen
+                                                                    Poultry
+                                                                </option>
+                                                                <option value="Fresh/Frozen Beef">Fresh/Frozen Beef
+                                                                </option>
+                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork
+                                                                </option>
+                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb
+                                                                </option>
+                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen
+                                                                    Rabbit
+                                                                </option>
+                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen
+                                                                    Venison
+                                                                </option>
+                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                    Fish & Seafood
+                                                                </option>
                                                                 <option value="Beans">Beans</option>
                                                                 <option value="Canned Meat">Canned/Jarred Meat</option>
-                                                                <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
-                                                                <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                                                <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                                                <option value="Canned Beans">Canned/Jarred Beans</option>
-                                                                <option value="Canned Meals">Canned/Jarred Meals</option>
-                                                                <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                                                <option value="Canned Vegetables">Canned/Jarred
+                                                                    Vegetables
+                                                                </option>
+                                                                <option value="Canned Fruit">Canned/Jarred Fruit
+                                                                </option>
+                                                                <option value="Canned Sauces">Canned/Jarred Sauces
+                                                                </option>
+                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes
+                                                                </option>
+                                                                <option value="Canned Beans">Canned/Jarred Beans
+                                                                </option>
+                                                                <option value="Canned Meals">Canned/Jarred Meals
+                                                                </option>
+                                                                <option value="Frozen Vegetables">Frozen Vegetables
+                                                                </option>
                                                                 <option value="Frozen Fruit">Frozen Fruit</option>
                                                                 <option value="Grains">Grains</option>
                                                                 <option value="Breads">Breads</option>
                                                                 <option value="Pasta">Pasta</option>
-                                                                <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                                                <option value="Stuffing & Sides">Stuffing & Sides
+                                                                </option>
                                                                 <option value="Boxed Meals">Boxed Meals</option>
                                                                 <option value="Seasonings">Seasonings</option>
                                                                 <option value="Spices">Spices</option>
@@ -1593,7 +1579,8 @@ export default function ReceiptScan() {
                                                         {/* Quantity & Location */}
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Qty
                                                                 </label>
                                                                 <input
@@ -1605,7 +1592,8 @@ export default function ReceiptScan() {
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Location
                                                                 </label>
                                                                 <select
@@ -1614,6 +1602,7 @@ export default function ReceiptScan() {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
                                                                     <option value="pantry">Pantry</option>
+                                                                    <option value="kitchen">Kitchen Cabinets</option>
                                                                     <option value="fridge">Fridge</option>
                                                                     <option value="freezer">Freezer</option>
                                                                     <option value="other">Other</option>
@@ -1659,14 +1648,15 @@ export default function ReceiptScan() {
                                 <p className="text-gray-600 mb-6">
                                     {processingStatus}
                                 </p>
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Hidden canvas for photo capture - Always rendered */}
-                <canvas ref={canvasRef} className="hidden" />
+                <canvas ref={canvasRef} className="hidden"/>
 
                 {/* Report Issue Modal */}
                 {showReportModal && (
@@ -1690,7 +1680,7 @@ export default function ReceiptScan() {
                                         </label>
                                         <select
                                             value={reportData.issue}
-                                            onChange={(e) => setReportData(prev => ({ ...prev, issue: e.target.value }))}
+                                            onChange={(e) => setReportData(prev => ({...prev, issue: e.target.value}))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         >
                                             <option value="">Select an issue...</option>
@@ -1711,7 +1701,10 @@ export default function ReceiptScan() {
                                         </label>
                                         <textarea
                                             value={reportData.description}
-                                            onChange={(e) => setReportData(prev => ({ ...prev, description: e.target.value }))}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                description: e.target.value
+                                            }))}
                                             placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             rows={4}
@@ -1725,7 +1718,7 @@ export default function ReceiptScan() {
                                         <input
                                             type="email"
                                             value={reportData.email}
-                                            onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
+                                            onChange={(e) => setReportData(prev => ({...prev, email: e.target.value}))}
                                             placeholder="your.email@example.com"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         />
@@ -1757,7 +1750,8 @@ export default function ReceiptScan() {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max 10MB each)
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max
+                                                10MB each)
                                             </p>
 
                                             {reportData.additionalFiles.length > 0 && (
@@ -1766,7 +1760,8 @@ export default function ReceiptScan() {
                                                         Files to be sent ({reportData.additionalFiles.length}):
                                                     </p>
                                                     {reportData.additionalFiles.map((file, index) => (
-                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                                             <div className="flex items-center space-x-2">
                                                                 <span className="text-sm">📸</span>
                                                                 <span className="text-sm text-gray-700 truncate">
@@ -1797,7 +1792,8 @@ export default function ReceiptScan() {
                                             <li>• Your issue description</li>
                                             {capturedImage && <li>• Receipt image</li>}
                                             {reportData.additionalFiles.length > 0 && (
-                                                <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                <li>• {reportData.additionalFiles.length} additional
+                                                    screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
                                             )}
                                             <li>• Browser and device information</li>
                                             <li>• No personal information from your account</li>
@@ -1824,7 +1820,7 @@ export default function ReceiptScan() {
                     </div>
                 )}
 
-                <Footer />
+                <Footer/>
             </div>
         </MobileOptimizedLayout>
     );

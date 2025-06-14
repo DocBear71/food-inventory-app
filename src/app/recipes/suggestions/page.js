@@ -161,7 +161,7 @@ export default function RecipeSuggestions() {
 
         // SAUCES - Cooking sauces (NOT condiments)
         sauce: [
-            'marinara', 'tomato sauce', 'alfredo', 'pesto', 'enchilada sauce',
+            'marinara', 'tomato sauce', 'alfredo', 'pesto',
             'pasta sauce', 'cheese sauce', 'cream sauce'
         ],
 
@@ -190,7 +190,7 @@ export default function RecipeSuggestions() {
         // BASIC INGREDIENTS - Baking/cooking basics
         ingredients: [
             'flour', 'all-purpose flour', 'brown sugar', 'sugar', 'honey', 'vinegar',
-            'baking powder', 'baking soda', 'white vinegar', 'granulated sugar'
+            'baking powder', 'baking soda', 'white vinegar', 'granulated sugar', 'enchilada sauce'
         ],
     };
 
