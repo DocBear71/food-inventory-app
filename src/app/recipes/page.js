@@ -1,4 +1,4 @@
-// file: /src/app/recipes/page.js v4 - Enhanced with tabbed interface for My Recipes vs Public Recipes
+// file: /src/app/recipes/page.js v5 - Enhanced with tabbed interface and ingredient search functionality for bulk import cleanup
 
 'use client';
 
@@ -25,7 +25,11 @@ function RecipesContent() {
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
 
-    // NEW: Tab state for My Recipes vs Public Recipes
+    // NEW: Ingredient search state
+    const [ingredientSearch, setIngredientSearch] = useState('');
+    const [ingredientSearchType, setIngredientSearchType] = useState('any'); // 'any', 'exact', 'amount'
+
+    // Tab state for My Recipes vs Public Recipes
     const [activeTab, setActiveTab] = useState('my-recipes');
 
     const CATEGORY_OPTIONS = [
@@ -45,6 +49,15 @@ function RecipesContent() {
         {value: 'specialty-items', label: 'Specialty Items'},
         {value: 'beverages', label: 'Beverages'},
         {value: 'breakfast', label: 'Breakfast'}
+    ];
+
+    // NEW: Quick search presets for common decimal issues
+    const DECIMAL_PRESETS = [
+        { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
+        { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
+        { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
+        { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
+        { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
     ];
 
     useEffect(() => {
@@ -109,10 +122,49 @@ function RecipesContent() {
         }
     };
 
-    // NEW: Filter recipes by tab and other criteria
+    // NEW: Enhanced ingredient search function
+    const searchInIngredients = (recipe, searchTerm, searchType) => {
+        if (!recipe.ingredients || !searchTerm) return true;
+
+        const normalizedSearch = searchTerm.toLowerCase().trim();
+
+        return recipe.ingredients.some(ingredient => {
+            // Handle different ingredient data structures
+            const ingredientText = typeof ingredient === 'string'
+                ? ingredient
+                : `${ingredient.amount || ''} ${ingredient.unit || ''} ${ingredient.name || ingredient.ingredient || ''}`.trim();
+
+            const normalizedIngredient = ingredientText.toLowerCase();
+
+            switch (searchType) {
+                case 'exact':
+                    return normalizedIngredient.includes(normalizedSearch);
+                case 'amount':
+                    // Search specifically in amounts/quantities
+                    const amountMatch = ingredientText.match(/[\d\.\/]+/g);
+                    if (amountMatch) {
+                        return amountMatch.some(amount => amount.includes(searchTerm));
+                    }
+                    return false;
+                case 'regex':
+                    try {
+                        const regex = new RegExp(searchTerm, 'i');
+                        return regex.test(ingredientText);
+                    } catch (e) {
+                        // If regex is invalid, fall back to exact search
+                        return normalizedIngredient.includes(normalizedSearch);
+                    }
+                case 'any':
+                default:
+                    return normalizedIngredient.includes(normalizedSearch);
+            }
+        });
+    };
+
+    // Enhanced filter function with ingredient search
     const getFilteredAndSortedRecipes = () => {
         let filtered = recipes.filter(recipe => {
-            // NEW: Filter by tab selection
+            // Filter by tab selection
             const matchesTab = activeTab === 'my-recipes'
                 ? recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
                 : recipe.isPublic === true;
@@ -130,7 +182,11 @@ function RecipesContent() {
             const matchesCategory = !selectedCategory ||
                 recipe.category === selectedCategory;
 
-            return matchesTab && matchesSearch && matchesTag && matchesDifficulty && matchesCategory;
+            // NEW: Ingredient search filter
+            const matchesIngredient = !ingredientSearch ||
+                searchInIngredients(recipe, ingredientSearch, ingredientSearchType);
+
+            return matchesTab && matchesSearch && matchesTag && matchesDifficulty && matchesCategory && matchesIngredient;
         });
 
         // Sort recipes
@@ -158,6 +214,12 @@ function RecipesContent() {
         });
     };
 
+    // NEW: Quick preset handler
+    const handleDecimalPreset = (preset) => {
+        setIngredientSearch(preset.value);
+        setIngredientSearchType(preset.type);
+    };
+
     const formatCookTime = (minutes) => {
         if (!minutes) return null;
         if (minutes < 60) return `${minutes} min`;
@@ -175,7 +237,7 @@ function RecipesContent() {
         return colors[difficulty] || colors.medium;
     };
 
-    // NEW: Get tab-specific counts
+    // Get tab-specific counts
     const getTabCounts = () => {
         const myRecipes = recipes.filter(recipe =>
             recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
@@ -188,7 +250,7 @@ function RecipesContent() {
         };
     };
 
-    // NEW: Check if user can edit recipe
+    // Check if user can edit recipe
     const canEditRecipe = (recipe) => {
         return recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id;
     };
@@ -238,7 +300,7 @@ function RecipesContent() {
                     )}
                 </div>
 
-                {/* NEW: Mobile-Optimized Tab Navigation */}
+                {/* Mobile-Optimized Tab Navigation */}
                 <div className="mb-6">
                     <div className="bg-gray-100 p-1 rounded-lg flex">
                         <TouchEnhancedButton
@@ -319,8 +381,80 @@ function RecipesContent() {
                     )}
                 </div>
 
-                {/* Filters and Search */}
+                {/* NEW: Decimal Issues Quick Search (only show on My Recipes tab) */}
+                {activeTab === 'my-recipes' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                        <div className="flex items-start">
+                            <div className="text-orange-600 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-medium text-orange-800 mb-2">🔧 Import Cleanup Tools</h3>
+                                <p className="text-sm text-orange-700 mb-3">
+                                    Quick search for common decimal conversion issues from cookbook imports:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {DECIMAL_PRESETS.map((preset, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            onClick={() => handleDecimalPreset(preset)}
+                                            className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 rounded-full transition-colors"
+                                        >
+                                            {preset.label}
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Enhanced Filters and Search */}
                 <div className="bg-white rounded-lg border p-6 mb-8">
+                    {/* NEW: Ingredient Search Section */}
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">🔍 Ingredient Search</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2">
+                                <label htmlFor="ingredient-search" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Search in Ingredients
+                                </label>
+                                <input
+                                    type="text"
+                                    id="ingredient-search"
+                                    value={ingredientSearch}
+                                    onChange={(e) => setIngredientSearch(e.target.value)}
+                                    placeholder="e.g., 0.33333333333, flour, 2 cups..."
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="search-type" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Search Type
+                                </label>
+                                <select
+                                    id="search-type"
+                                    value={ingredientSearchType}
+                                    onChange={(e) => setIngredientSearchType(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    <option value="any">Any Match</option>
+                                    <option value="exact">Exact Text</option>
+                                    <option value="amount">Amount/Quantity</option>
+                                    <option value="regex">Regex Pattern</option>
+                                </select>
+                            </div>
+                        </div>
+                        {ingredientSearch && (
+                            <div className="mt-2 text-xs text-gray-600">
+                                <span className="font-medium">Active search:</span> Looking for "{ingredientSearch}" in ingredient {ingredientSearchType === 'amount' ? 'amounts' : ingredientSearchType === 'regex' ? 'using regex pattern' : 'text'}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Existing Filters */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                         {/* Search - spans 2 columns */}
                         <div className="lg:col-span-2">
@@ -422,17 +556,19 @@ function RecipesContent() {
                             ({activeTab === 'my-recipes' ? 'My Recipes' : 'Public Recipes'})
                         </span>
                     </p>
-                    {(searchTerm || selectedTag || selectedDifficulty || selectedCategory) && (
+                    {(searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch) && (
                         <TouchEnhancedButton
                             onClick={() => {
                                 setSearchTerm('');
                                 setSelectedTag('');
                                 setSelectedDifficulty('');
                                 setSelectedCategory('');
+                                setIngredientSearch('');
+                                setIngredientSearchType('any');
                             }}
                             className="text-indigo-600 hover:text-indigo-800 text-sm"
                         >
-                            Clear Filters
+                            Clear All Filters
                         </TouchEnhancedButton>
                     )}
                 </div>
@@ -452,7 +588,7 @@ function RecipesContent() {
                                         >
                                             {recipe.title}
                                         </Link>
-                                        {/* NEW: Only show edit/delete buttons for user's own recipes */}
+                                        {/* Only show edit/delete buttons for user's own recipes */}
                                         {canEditRecipe(recipe) && (
                                             <div className="flex space-x-1 ml-2">
                                                 <TouchEnhancedButton
@@ -479,7 +615,7 @@ function RecipesContent() {
                                         )}
                                     </div>
 
-                                    {/* NEW: Recipe Author Info (for public recipes) */}
+                                    {/* Recipe Author Info (for public recipes) */}
                                     {activeTab === 'public-recipes' && recipe.createdBy && (
                                         <div className="mb-3">
                                             <div className="flex items-center text-sm text-gray-600">
@@ -494,6 +630,20 @@ function RecipesContent() {
                                                         </span>
                                                     )}
                                                 </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* NEW: Ingredient Search Match Indicator */}
+                                    {ingredientSearch && searchInIngredients(recipe, ingredientSearch, ingredientSearchType) && (
+                                        <div className="mb-3">
+                                            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                                                <div className="flex items-center text-xs text-yellow-800">
+                                                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span className="font-medium">Contains: "{ingredientSearch}"</span>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -597,23 +747,23 @@ function RecipesContent() {
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
                             {activeTab === 'my-recipes' ? (
-                                searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No recipes found' : 'No recipes yet'
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch ? 'No recipes found' : 'No recipes yet'
                             ) : (
-                                searchTerm || selectedTag || selectedDifficulty || selectedCategory ? 'No public recipes found' : 'No public recipes available'
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch ? 'No public recipes found' : 'No public recipes available'
                             )}
                         </h3>
                         <p className="text-gray-500 mb-4">
                             {activeTab === 'my-recipes' ? (
-                                searchTerm || selectedTag || selectedDifficulty || selectedCategory
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch
                                     ? 'Try adjusting your filters to find more recipes.'
                                     : 'Start building your recipe collection by adding your first recipe!'
                             ) : (
-                                searchTerm || selectedTag || selectedDifficulty || selectedCategory
+                                searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch
                                     ? 'Try adjusting your filters to find more public recipes.'
                                     : 'Public recipes will appear here when they become available.'
                             )}
                         </p>
-                        {activeTab === 'my-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
+                        {activeTab === 'my-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && !ingredientSearch && (
                             <div className="space-y-3">
                                 <Link
                                     href="/recipes/add"
@@ -632,7 +782,7 @@ function RecipesContent() {
                                 </div>
                             </div>
                         )}
-                        {activeTab === 'public-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && (
+                        {activeTab === 'public-recipes' && !searchTerm && !selectedTag && !selectedDifficulty && !selectedCategory && !ingredientSearch && (
                             <div className="space-y-3">
                                 <p className="text-sm text-gray-500">
                                     Check back later for community recipes, or
