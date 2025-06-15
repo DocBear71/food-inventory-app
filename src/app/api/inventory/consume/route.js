@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/consume/route.js - v4 Fixed version with proper MongoDB array handling
+// file: /src/app/api/inventory/consume/route.js - v5 Diagnostic version to identify MongoDB issue
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -22,9 +22,13 @@ export async function POST(request) {
 
         await connectDB();
 
-        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        // First, let's check the current inventory state
+        const beforeInventory = await UserInventory.findOne({ userId: session.user.id });
+        console.log('BEFORE - Inventory exists:', !!beforeInventory);
+        console.log('BEFORE - ConsumptionHistory length:', beforeInventory?.consumptionHistory?.length || 0);
+        console.log('BEFORE - Items count:', beforeInventory?.items?.length || 0);
 
-        if (!inventory) {
+        if (!beforeInventory) {
             return NextResponse.json(
                 { error: 'Inventory not found' },
                 { status: 404 }
@@ -35,270 +39,186 @@ export async function POST(request) {
         const updatedItems = [];
         const removedItems = [];
 
-        if (mode === 'recipe') {
-            // Handle multiple ingredient consumption for recipes
-            for (const consumption of consumptions) {
-                const { ingredient, quantity, unit, reason, notes, recipeName } = consumption;
+        // Handle single item consumption (simplified for debugging)
+        const {
+            itemId,
+            reason,
+            quantity,
+            unit,
+            notes,
+            removeCompletely,
+            isDualUnitConsumption,
+            useSecondaryUnit,
+            dualUnitUpdate
+        } = consumptions;
 
-                // Find matching items by name (case-insensitive)
-                const matchingItems = inventory.items.filter(item =>
-                    item.name.toLowerCase().includes(ingredient.toLowerCase()) ||
-                    ingredient.toLowerCase().includes(item.name.toLowerCase())
-                );
+        const itemIndex = beforeInventory.items.findIndex(
+            item => item._id.toString() === itemId
+        );
 
-                if (matchingItems.length === 0) {
-                    console.log(`No matching inventory item found for ingredient: ${ingredient}`);
-                    continue;
-                }
-
-                // Use the first matching item (could be enhanced to pick best match)
-                const item = matchingItems[0];
-                const consumeQuantity = Math.min(quantity, item.quantity);
-
-                // Log consumption
-                consumptionLogs.push({
-                    itemId: item._id,
-                    itemName: item.name,
-                    ingredient: ingredient,
-                    quantityConsumed: consumeQuantity,
-                    unitConsumed: unit,
-                    reason: reason,
-                    notes: notes,
-                    recipeName: recipeName,
-                    dateConsumed: new Date(),
-                    remainingQuantity: item.quantity - consumeQuantity
-                });
-
-                // Update item quantity
-                item.quantity -= consumeQuantity;
-
-                if (item.quantity <= 0) {
-                    // Remove item completely
-                    removedItems.push(item.name);
-                    inventory.items = inventory.items.filter(i => i._id.toString() !== item._id.toString());
-                } else {
-                    updatedItems.push({
-                        name: item.name,
-                        newQuantity: item.quantity,
-                        unit: item.unit
-                    });
-                }
-            }
-        } else {
-            // Handle single item consumption with enhanced dual unit support
-            const {
-                itemId,
-                reason,
-                quantity,
-                unit,
-                notes,
-                removeCompletely,
-                // NEW: Dual unit fields
-                isDualUnitConsumption,
-                useSecondaryUnit,
-                dualUnitUpdate
-            } = consumptions;
-
-            const itemIndex = inventory.items.findIndex(
-                item => item._id.toString() === itemId
+        if (itemIndex === -1) {
+            return NextResponse.json(
+                { error: 'Item not found' },
+                { status: 404 }
             );
-
-            if (itemIndex === -1) {
-                return NextResponse.json(
-                    { error: 'Item not found' },
-                    { status: 404 }
-                );
-            }
-
-            const item = inventory.items[itemIndex];
-            const consumeQuantity = removeCompletely ? quantity : Math.min(quantity,
-                useSecondaryUnit && item.secondaryQuantity ? item.secondaryQuantity : item.quantity);
-
-            // Enhanced logging for dual unit items
-            const consumptionLog = {
-                itemId: item._id,
-                itemName: item.name,
-                quantityConsumed: consumeQuantity,
-                unitConsumed: unit,
-                reason: reason,
-                notes: notes || '',
-                dateConsumed: new Date(),
-                // NEW: Enhanced logging for dual units
-                isDualUnitConsumption: isDualUnitConsumption || false,
-                useSecondaryUnit: useSecondaryUnit || false,
-                originalPrimaryQuantity: item.quantity,
-                originalSecondaryQuantity: item.secondaryQuantity || null,
-                originalSecondaryUnit: item.secondaryUnit || null
-            };
-
-            if (removeCompletely) {
-                // Remove item completely
-                consumptionLog.remainingQuantity = 0;
-                consumptionLog.remainingSecondaryQuantity = null;
-                removedItems.push(item.name);
-                inventory.items.splice(itemIndex, 1);
-            } else if (isDualUnitConsumption && dualUnitUpdate) {
-                // Handle dual unit consumption with calculated updates
-                console.log('Processing dual unit consumption:', dualUnitUpdate);
-
-                // Store original values for logging
-                const originalPrimary = item.quantity;
-                const originalSecondary = item.secondaryQuantity;
-
-                // Update both quantities based on the calculation from the frontend
-                item.quantity = Math.max(0, dualUnitUpdate.newPrimaryQty);
-                item.secondaryQuantity = Math.max(0, dualUnitUpdate.newSecondaryQty);
-
-                // Enhanced logging for dual unit consumption
-                consumptionLog.remainingQuantity = item.quantity;
-                consumptionLog.remainingSecondaryQuantity = item.secondaryQuantity;
-                consumptionLog.primaryQuantityChange = originalPrimary - item.quantity;
-                consumptionLog.secondaryQuantityChange = originalSecondary - (item.secondaryQuantity || 0);
-
-                // If both quantities are now zero or negative, remove the item
-                if (dualUnitUpdate.removeCompletely || (item.quantity <= 0 && (item.secondaryQuantity || 0) <= 0)) {
-                    removedItems.push(item.name);
-                    inventory.items.splice(itemIndex, 1);
-                    consumptionLog.remainingQuantity = 0;
-                    consumptionLog.remainingSecondaryQuantity = null;
-                } else {
-                    updatedItems.push({
-                        name: item.name,
-                        newQuantity: item.quantity,
-                        newSecondaryQuantity: item.secondaryQuantity,
-                        unit: item.unit,
-                        secondaryUnit: item.secondaryUnit
-                    });
-                }
-            } else {
-                // Handle simple single-unit consumption (legacy behavior)
-                if (useSecondaryUnit && item.secondaryQuantity) {
-                    // Consuming from secondary quantity
-                    const newSecondaryQty = Math.max(0, item.secondaryQuantity - consumeQuantity);
-
-                    consumptionLog.remainingSecondaryQuantity = newSecondaryQty;
-                    consumptionLog.secondaryQuantityChange = item.secondaryQuantity - newSecondaryQty;
-
-                    item.secondaryQuantity = newSecondaryQty;
-
-                    // If secondary quantity is exhausted, also remove primary quantity
-                    if (newSecondaryQty <= 0) {
-                        item.quantity = 0;
-                        removedItems.push(item.name);
-                        inventory.items.splice(itemIndex, 1);
-                        consumptionLog.remainingQuantity = 0;
-                        consumptionLog.remainingSecondaryQuantity = null;
-                    } else {
-                        consumptionLog.remainingQuantity = item.quantity;
-                        updatedItems.push({
-                            name: item.name,
-                            newQuantity: item.quantity,
-                            newSecondaryQuantity: item.secondaryQuantity,
-                            unit: item.unit,
-                            secondaryUnit: item.secondaryUnit
-                        });
-                    }
-                } else {
-                    // Consuming from primary quantity
-                    const newPrimaryQty = Math.max(0, item.quantity - consumeQuantity);
-
-                    consumptionLog.remainingQuantity = newPrimaryQty;
-                    consumptionLog.primaryQuantityChange = item.quantity - newPrimaryQty;
-
-                    item.quantity = newPrimaryQty;
-
-                    if (newPrimaryQty <= 0) {
-                        // Also clear secondary quantity if primary is exhausted
-                        item.secondaryQuantity = null;
-                        removedItems.push(item.name);
-                        inventory.items.splice(itemIndex, 1);
-                        consumptionLog.remainingSecondaryQuantity = null;
-                    } else {
-                        consumptionLog.remainingSecondaryQuantity = item.secondaryQuantity;
-                        updatedItems.push({
-                            name: item.name,
-                            newQuantity: item.quantity,
-                            newSecondaryQuantity: item.secondaryQuantity,
-                            unit: item.unit,
-                            secondaryUnit: item.secondaryUnit
-                        });
-                    }
-                }
-            }
-
-            consumptionLogs.push(consumptionLog);
-
-            // Log consumption details
-            console.log(`Consumed ${consumeQuantity} ${unit} of ${item.name} for reason: ${reason}`);
-            if (notes) {
-                console.log(`Notes: ${notes}`);
-            }
-            if (isDualUnitConsumption) {
-                console.log(`Dual unit consumption - Primary: ${consumptionLog.primaryQuantityChange || 0}, Secondary: ${consumptionLog.secondaryQuantityChange || 0}`);
-            }
         }
 
-        // Update inventory timestamp
-        inventory.lastUpdated = new Date();
+        const item = beforeInventory.items[itemIndex];
+        const consumeQuantity = removeCompletely ? quantity : Math.min(quantity, item.quantity);
 
-        // CRITICAL FIX: Use MongoDB's $push operator instead of array manipulation
-        console.log('Adding consumption logs to history using $push operator');
+        // Create the consumption log
+        const consumptionLog = {
+            itemId: item._id,
+            itemName: item.name,
+            quantityConsumed: consumeQuantity,
+            unitConsumed: unit,
+            reason: reason,
+            notes: notes || '',
+            dateConsumed: new Date(),
+            isDualUnitConsumption: isDualUnitConsumption || false,
+            useSecondaryUnit: useSecondaryUnit || false,
+            originalPrimaryQuantity: item.quantity,
+            originalSecondaryQuantity: item.secondaryQuantity || null,
+            originalSecondaryUnit: item.secondaryUnit || null
+        };
 
-        // Use findOneAndUpdate with $push to atomically add to the array
-        const updateResult = await UserInventory.findOneAndUpdate(
+        // Update item quantity
+        const newPrimaryQty = Math.max(0, item.quantity - consumeQuantity);
+        consumptionLog.remainingQuantity = newPrimaryQty;
+        consumptionLog.primaryQuantityChange = item.quantity - newPrimaryQty;
+        consumptionLog.remainingSecondaryQuantity = item.secondaryQuantity;
+
+        // Update the item in the array
+        beforeInventory.items[itemIndex].quantity = newPrimaryQty;
+
+        if (newPrimaryQty <= 0) {
+            removedItems.push(item.name);
+            beforeInventory.items.splice(itemIndex, 1);
+            consumptionLog.remainingQuantity = 0;
+        } else {
+            updatedItems.push({
+                name: item.name,
+                newQuantity: newPrimaryQty,
+                unit: item.unit
+            });
+        }
+
+        consumptionLogs.push(consumptionLog);
+
+        console.log('Consumption log to add:', JSON.stringify(consumptionLog, null, 2));
+
+        // METHOD 1: Try direct initialization if consumptionHistory doesn't exist
+        if (!beforeInventory.consumptionHistory) {
+            console.log('Initializing consumptionHistory array');
+            beforeInventory.consumptionHistory = [];
+        }
+
+        console.log('Current history length before adding:', beforeInventory.consumptionHistory.length);
+
+        // METHOD 2: Try direct array push first
+        console.log('METHOD 2: Trying direct array push...');
+        beforeInventory.consumptionHistory.push(consumptionLog);
+        beforeInventory.markModified('consumptionHistory');
+        beforeInventory.lastUpdated = new Date();
+
+        try {
+            const saveResult = await beforeInventory.save();
+            console.log('Direct save result:', !!saveResult);
+
+            // Check immediately after save
+            const afterSave = await UserInventory.findOne({ userId: session.user.id });
+            console.log('AFTER DIRECT SAVE - History length:', afterSave?.consumptionHistory?.length || 0);
+
+            if (afterSave?.consumptionHistory?.length > 0) {
+                console.log('SUCCESS: Direct array push worked!');
+                return NextResponse.json({
+                    success: true,
+                    message: `Successfully updated inventory`,
+                    summary: {
+                        itemsConsumed: consumptionLogs.length,
+                        itemsUpdated: updatedItems.map(item => item.name),
+                        itemsRemoved: removedItems,
+                        consumptionLogs: consumptionLogs,
+                        totalHistoryRecords: afterSave.consumptionHistory.length
+                    }
+                });
+            }
+        } catch (saveError) {
+            console.error('Direct save failed:', saveError);
+        }
+
+        // METHOD 3: If direct save failed, try $push operation
+        console.log('METHOD 3: Trying $push operation...');
+
+        // First, reload the inventory to get clean state
+        const freshInventory = await UserInventory.findOne({ userId: session.user.id });
+
+        const pushResult = await UserInventory.updateOne(
             { userId: session.user.id },
             {
                 $push: {
-                    consumptionHistory: {
-                        $each: consumptionLogs
-                    }
+                    consumptionHistory: consumptionLog
                 },
                 $set: {
                     lastUpdated: new Date(),
-                    items: inventory.items
+                    items: freshInventory.items
                 }
-            },
-            {
-                new: true,
-                runValidators: true
             }
         );
 
-        console.log('Update result:', updateResult ? 'Success' : 'Failed');
+        console.log('$push operation result:', JSON.stringify(pushResult, null, 2));
 
-        // Trim consumption history to last 100 records if needed
-        const historyCount = await UserInventory.aggregate([
-            { $match: { userId: session.user.id } },
-            { $project: { historyLength: { $size: { $ifNull: ["$consumptionHistory", []] } } } }
-        ]);
+        // Check after $push
+        const afterPush = await UserInventory.findOne({ userId: session.user.id });
+        console.log('AFTER PUSH - History length:', afterPush?.consumptionHistory?.length || 0);
 
-        if (historyCount[0]?.historyLength > 100) {
-            console.log('Trimming consumption history to last 100 records');
-            await UserInventory.findOneAndUpdate(
-                { userId: session.user.id },
-                {
-                    $push: {
-                        consumptionHistory: {
-                            $each: [],
-                            $slice: -100
-                        }
-                    }
+        if (afterPush?.consumptionHistory?.length > 0) {
+            console.log('SUCCESS: $push operation worked!');
+            return NextResponse.json({
+                success: true,
+                message: `Successfully updated inventory`,
+                summary: {
+                    itemsConsumed: consumptionLogs.length,
+                    itemsUpdated: updatedItems.map(item => item.name),
+                    itemsRemoved: removedItems,
+                    consumptionLogs: consumptionLogs,
+                    totalHistoryRecords: afterPush.consumptionHistory.length
                 }
-            );
+            });
         }
 
-        // Verify the save worked by checking the current history length
-        const verifyInventory = await UserInventory.findOne({ userId: session.user.id });
-        const finalHistoryLength = verifyInventory?.consumptionHistory?.length || 0;
+        // METHOD 4: Try raw MongoDB operation
+        console.log('METHOD 4: Trying raw MongoDB operation...');
 
-        console.log('Inventory consumption completed:', {
-            logsCreated: consumptionLogs.length,
-            itemsUpdated: updatedItems.length,
-            itemsRemoved: removedItems.length,
-            finalHistoryLength: finalHistoryLength
-        });
+        const collection = beforeInventory.constructor.collection;
+        const rawResult = await collection.updateOne(
+            { userId: session.user.id },
+            {
+                $push: {
+                    consumptionHistory: consumptionLog
+                }
+            }
+        );
 
-        // Enhanced response with dual unit support
+        console.log('Raw MongoDB result:', JSON.stringify(rawResult, null, 2));
+
+        // Final check
+        const finalCheck = await UserInventory.findOne({ userId: session.user.id });
+        console.log('FINAL CHECK - History length:', finalCheck?.consumptionHistory?.length || 0);
+
+        if (finalCheck?.consumptionHistory?.length > 0) {
+            console.log('SUCCESS: Raw MongoDB operation worked!');
+        } else {
+            console.log('FAILURE: All methods failed to save consumption history');
+
+            // Let's inspect the schema
+            console.log('Schema inspection:');
+            console.log('consumptionHistory field type:', typeof finalCheck?.consumptionHistory);
+            console.log('Is array:', Array.isArray(finalCheck?.consumptionHistory));
+            console.log('Schema paths:', Object.keys(beforeInventory.schema.paths));
+            console.log('consumptionHistory path exists:', !!beforeInventory.schema.paths.consumptionHistory);
+        }
+
         return NextResponse.json({
             success: true,
             message: `Successfully updated inventory`,
@@ -307,7 +227,7 @@ export async function POST(request) {
                 itemsUpdated: updatedItems.map(item => item.name),
                 itemsRemoved: removedItems,
                 consumptionLogs: consumptionLogs,
-                totalHistoryRecords: finalHistoryLength
+                totalHistoryRecords: finalCheck?.consumptionHistory?.length || 0
             }
         });
 
@@ -331,7 +251,7 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get('limit')) || 50;
-        const reason = searchParams.get('reason'); // Filter by reason
+        const reason = searchParams.get('reason');
 
         await connectDB();
 
@@ -346,7 +266,13 @@ export async function GET(request) {
             });
         }
 
-        console.log('Inventory found. Consumption history length:', inventory.consumptionHistory?.length || 0);
+        console.log('GET HISTORY - Inventory found. Consumption history length:', inventory.consumptionHistory?.length || 0);
+        console.log('GET HISTORY - consumptionHistory type:', typeof inventory.consumptionHistory);
+        console.log('GET HISTORY - Is array:', Array.isArray(inventory.consumptionHistory));
+
+        if (inventory.consumptionHistory && inventory.consumptionHistory.length > 0) {
+            console.log('GET HISTORY - Sample record:', JSON.stringify(inventory.consumptionHistory[0], null, 2));
+        }
 
         let history = inventory.consumptionHistory || [];
 
@@ -363,29 +289,10 @@ export async function GET(request) {
 
         console.log('Final history to return:', history.length, 'records');
 
-        // Enhanced history formatting for dual unit items
-        const formattedHistory = history.map(log => ({
-            ...log._doc || log, // Handle both Mongoose documents and plain objects
-            // Add formatted display text for dual unit consumptions
-            displayText: log.isDualUnitConsumption ?
-                `${log.quantityConsumed} ${log.unitConsumed} consumed` +
-                (log.primaryQuantityChange ? ` (${log.primaryQuantityChange} ${log.unitConsumed} packages)` : '') +
-                (log.secondaryQuantityChange ? ` (${log.secondaryQuantityChange} individual items)` : '') :
-                `${log.quantityConsumed} ${log.unitConsumed} consumed`,
-
-            remainingDisplayText: log.isDualUnitConsumption ?
-                (log.remainingQuantity > 0 || (log.remainingSecondaryQuantity || 0) > 0) ?
-                    `${log.remainingQuantity || 0} packages, ${log.remainingSecondaryQuantity || 0} items remaining` :
-                    'Item completely consumed' :
-                log.remainingQuantity > 0 ?
-                    `${log.remainingQuantity} ${log.unitConsumed} remaining` :
-                    'Item completely consumed'
-        }));
-
         return NextResponse.json({
             success: true,
-            history: formattedHistory,
-            total: formattedHistory.length
+            history: history,
+            total: history.length
         });
 
     } catch (error) {
