@@ -24,7 +24,7 @@ export default function RecipeSuggestions() {
     const [loadingRecipe, setLoadingRecipe] = useState(false);
     const [activeTab, setActiveTab] = useState('recipes');
 
-    // UPDATED: Enhanced meal templates with helper meal category
+    // UPDATED: Meal templates with new convenience protein categories
     const mealTemplates = [
         {
             id: 'protein-starch-vegetable',
@@ -45,6 +45,33 @@ export default function RecipeSuggestions() {
             examples: ['Hamburger Helper + Ground Beef', 'Tuna Helper + Tuna']
         },
         {
+            id: 'hamburger-meal',
+            name: 'Hamburger/Sandwich',
+            description: 'Hamburger patties with buns',
+            icon: '🍔',
+            requiredCategories: ['hamburger_patties', 'bread'],
+            optionalCategories: ['cheese', 'vegetable', 'condiment'],
+            examples: ['Hamburger Patties + Buns + Cheese']
+        },
+        {
+            id: 'chicken-patty-meal',
+            name: 'Chicken Sandwich',
+            description: 'Chicken patties with buns',
+            icon: '🥪',
+            requiredCategories: ['chicken_patties', 'bread'],
+            optionalCategories: ['cheese', 'vegetable', 'condiment'],
+            examples: ['Chicken Patties + Buns + Lettuce']
+        },
+        {
+            id: 'chicken-nuggets-meal',
+            name: 'Chicken Nuggets',
+            description: 'Standalone chicken nuggets',
+            icon: '🍗',
+            requiredCategories: ['chicken_nuggets'],
+            optionalCategories: ['condiment', 'vegetable'],
+            examples: ['Chicken Nuggets + Barbecue Sauce']
+        },
+        {
             id: 'pasta-meal',
             name: 'Pasta Dish',
             description: 'Pasta-based meal',
@@ -59,7 +86,7 @@ export default function RecipeSuggestions() {
             description: 'Bread-based meal',
             icon: '🥪',
             requiredCategories: ['bread', 'protein'],
-            optionalCategories: [ 'vegetable', 'cheese', 'condiment'],
+            optionalCategories: ['vegetable', 'cheese', 'condiment'],
             examples: ['Turkey Sandwich + Lettuce + Tomato', 'Grilled Cheese + Tomato Soup']
         },
         {
@@ -68,7 +95,7 @@ export default function RecipeSuggestions() {
             description: 'Rice-based bowl',
             icon: '🍚',
             requiredCategories: ['rice', 'protein'],
-            optionalCategories: [ 'vegetable', 'sauce'],
+            optionalCategories: ['vegetable', 'sauce'],
             examples: ['Chicken Teriyaki Bowl', 'Beef and Broccoli Rice']
         },
         {
@@ -112,6 +139,14 @@ export default function RecipeSuggestions() {
             }
         },
 
+        // NEW: Convenience proteins that need specific components
+        convenience_proteins: {
+            'hamburger patties': { requiredComponent: 'bread', category: 'hamburger_patties' },
+            'chicken patties': { requiredComponent: 'bread', category: 'chicken_patties' },
+            'chicken nuggets': { requiredComponent: null, category: 'chicken_nuggets' }, // standalone
+            'white meat chicken nuggets': { requiredComponent: null, category: 'chicken_nuggets' }
+        },
+
         // Standalone convenience items (complete meals)
         standalone_convenience: {
             patterns: [
@@ -134,10 +169,25 @@ export default function RecipeSuggestions() {
             isHelperMeal: false,
             requiredProtein: null,
             isStandaloneConvenience: false,
+            isConvenienceProtein: false,
+            convenienceType: null,
+            requiredComponent: null,
             originalCategory: null
         };
 
         console.log(`\n--- Brand Analysis for: "${item.name}" (Brand: "${item.brand || 'N/A'}") ---`);
+
+        // Check for convenience proteins (patties and nuggets)
+        for (const [convenienceType, convenienceInfo] of Object.entries(brandSpecificProducts.convenience_proteins)) {
+            if (itemName.includes(convenienceType.toLowerCase()) ||
+                itemName.includes(convenienceType.toLowerCase().replace(' ', ''))) {
+                result.isConvenienceProtein = true;
+                result.convenienceType = convenienceInfo.category;
+                result.requiredComponent = convenienceInfo.requiredComponent;
+                console.log(`✅ CONVENIENCE PROTEIN: "${item.name}" type: ${convenienceInfo.category} ${convenienceInfo.requiredComponent ? `(requires ${convenienceInfo.requiredComponent})` : '(standalone)'}`);
+                return result;
+            }
+        }
 
         // STRICT Helper meal detection - only for actual helper products
         for (const [helperType, helperInfo] of Object.entries(brandSpecificProducts.helper_meals)) {
@@ -185,18 +235,22 @@ export default function RecipeSuggestions() {
         helper_meal: [],
         standalone_convenience: [],
 
-        // PROTEINS - Exact and partial matching for meats
+        // NEW: Convenience protein categories
+        hamburger_patties: [],
+        chicken_patties: [],
+        chicken_nuggets: [],
+
+        // PROTEINS - Exact and partial matching for meats (REMOVED patties and nuggets)
         protein: {
             exact: [
-                'eggs', 'stew meat', 'hamburger patties', 'chicken nuggets', 'chicken patties',
-                'chicken wing', 'spareribs', 'ground beef', 'ribeye steak', 'new york steak',
+                'eggs', 'stew meat', 'chicken wing', 'spareribs', 'ground beef', 'ribeye steak', 'new york steak',
                 'pork chops', 'chicken breasts', 'cubed steaks', 'bacon', 'breakfast sausage',
                 'turkey', 'ham', 'sausage', 'tofu', 'salmon', 'tuna', 'shrimp', 'fish'
             ],
             contains: [
-                'chicken', 'beef', 'pork', 'turkey', 'steak', 'meat', 'loin', 'tenderloin',
-                'patties', 'nuggets', 'wing'
-            ]
+                'chicken', 'beef', 'pork', 'turkey', 'steak', 'meat', 'loin', 'tenderloin', 'wing'
+            ],
+            excludes: ['patties', 'nuggets'] // Exclude patties and nuggets
         },
 
         // PASTA - Very specific pasta matching
@@ -222,14 +276,15 @@ export default function RecipeSuggestions() {
             excludes: ['vinegar', 'wine'] // Exclude rice vinegar, rice wine, etc.
         },
 
-        // STARCHES - Exclude butter and other non-starches
+        // STARCHES - Include rice as option, exclude butter and other non-starches
         starch: {
             exact: [
                 'potatoes', 'mashed potatoes', 'quinoa', 'sweet potatoes', 'couscous',
-                'barley', 'stuffing', 'stuffing mix', 'tater tots', 'frozen potatoes'
+                'barley', 'stuffing', 'stuffing mix', 'tater tots', 'frozen potatoes',
+                'rice', 'brown rice', 'white rice', 'rice pilaf' // Added rice options
             ],
-            contains: ['potatoes', 'stuffing'],
-            excludes: ['butter', 'sauce', 'gravy']
+            contains: ['potatoes', 'stuffing', 'rice'],
+            excludes: ['butter', 'sauce', 'gravy', 'vinegar'] // Added vinegar exclusion
         },
 
         // VEGETABLES
@@ -245,11 +300,11 @@ export default function RecipeSuggestions() {
             ]
         },
 
-        // FRUITS
+        // FRUITS - FIXED spelling for strawberry and blueberry
         fruits: {
             contains: [
                 'fruit cocktail', 'peaches', 'pears', 'pineapple', 'mandarin', 'orange',
-                'apple', 'banana', 'grape', 'strawberr', 'blueberr', 'cherry'
+                'apple', 'banana', 'grape', 'strawberry', 'blueberry', 'cherry'
             ]
         },
 
@@ -370,7 +425,7 @@ export default function RecipeSuggestions() {
         setSimpleMealSuggestions(suggestions);
     };
 
-    // COMPLETELY REWRITTEN: Precise categorization function
+    // UPDATED: Categorization function with convenience protein handling
     const categorizeInventoryItems = (inventory) => {
         const categorized = {};
 
@@ -385,7 +440,7 @@ export default function RecipeSuggestions() {
 
             console.log(`\n--- Categorizing: "${item.name}" ---`);
 
-            // First, perform brand analysis for helper meals and convenience items
+            // First, perform brand analysis for helper meals, convenience items, and convenience proteins
             const brandAnalysis = analyzeItemBrand(item);
 
             if (brandAnalysis.isHelperMeal) {
@@ -399,6 +454,13 @@ export default function RecipeSuggestions() {
                 categorized['standalone_convenience'].push(item);
                 categorized_item = true;
                 console.log(`✅ STANDALONE CONVENIENCE: "${item.name}"`);
+            } else if (brandAnalysis.isConvenienceProtein) {
+                categorized[brandAnalysis.convenienceType].push({
+                    ...item,
+                    requiredComponent: brandAnalysis.requiredComponent
+                });
+                categorized_item = true;
+                console.log(`✅ CONVENIENCE PROTEIN: "${item.name}" (${brandAnalysis.convenienceType})`);
             }
 
             // If not categorized by brand analysis, use precise standard categorization
@@ -453,6 +515,12 @@ export default function RecipeSuggestions() {
                         if (category === 'rice' && itemName.includes('vinegar')) {
                             shouldCategorize = false;
                             console.log(`❌ RICE EXCLUSION: "${item.name}" contains vinegar`);
+                        }
+
+                        // Special validation for starch (exclude vinegar)
+                        if (category === 'starch' && itemName.includes('vinegar')) {
+                            shouldCategorize = false;
+                            console.log(`❌ STARCH EXCLUSION: "${item.name}" contains vinegar`);
                         }
 
                         // Special validation for pasta (make sure it's actual pasta)
