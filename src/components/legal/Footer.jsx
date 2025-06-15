@@ -178,7 +178,7 @@ const Footer = () => {
                                         <span style={{ color: '#bdc3c7', fontSize: '14px' }}>📋 Smart Shopping Lists</span>
                                     </li>
                                     <li style={{ marginBottom: '0.5rem' }}>
-                                        <span style={{ color: '#bdc3c7', fontSize: '14px' }}>🎯 Recipe Matching</span>
+                                        <span style={{ color: '#bdc3c7', fontSize: '14px' }}>🎯 Intelligent Matching</span>
                                     </li>
                                     <li style={{ marginBottom: '0.5rem' }}>
                                         <span style={{ color: '#bdc3c7', fontSize: '14px' }}>📅 Meal Planning</span>
@@ -187,7 +187,7 @@ const Footer = () => {
                                         <span style={{ color: '#bdc3c7', fontSize: '14px' }}>🥗 Nutritional Info</span>
                                     </li>
                                     <li style={{ marginBottom: '0.5rem' }}>
-                                        <span style={{ color: '#bdc3c7', fontSize: '14px' }}>📱 UPC Scanning</span>
+                                        <span style={{ color: '#bdc3c7', fontSize: '14px' }}>🏠 Inventory Tracking</span>
                                     </li>
                                 </ul>
                             </div>

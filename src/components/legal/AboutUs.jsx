@@ -1,4 +1,4 @@
-// file: src/components/legal/AboutUs.jsx v1
+// file: src/components/legal/AboutUs.jsx v2 - Enhanced with comprehensive feature descriptions
 
 import React from 'react';
 
@@ -29,35 +29,110 @@ const AboutUs = () => {
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Whether you're scanning UPC codes, manually entering food items, or exploring hundreds of recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, and even recommends recipes that are just a few ingredients away from completion.
+                        Whether you're scanning UPC codes, manually entering food items, or exploring our extensive database of 635 public recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, and even recommends recipes that are just a few ingredients away from completion.
                     </p>
 
                     <div style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px', margin: '1.5rem 0' }}>
-                        <h3 style={{ fontSize: '20px', color: '#2c3e50', marginBottom: '1rem' }}>Key Features</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                        <h3 style={{ fontSize: '20px', color: '#2c3e50', marginBottom: '1rem' }}>Comprehensive Features</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
                             <div>
                                 <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🏠 Smart Inventory Management</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Scan UPC codes or manually add items to track your food inventory with expiration dates and quantities.</p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>UPC Scanning & Search:</strong> Scan UPC codes or search by item title within our comprehensive UPC database for quick item identification.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Common Items Wizard:</strong> Quickly populate your inventory with common household items organized by category with adjustable quantities.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Complete Item Management:</strong> Edit items to add brand names, expiration dates, locations, and notes. Track consumption, waste, and donations with detailed history tracking.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Smart Updates:</strong> Inventory automatically updates when items are used in recipes or reach expiration dates.
+                                </p>
                             </div>
+
                             <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>👨‍🍳 Recipe Discovery</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Access hundreds of recipes from Doc Bear's cookbook series plus add your own custom recipes.</p>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>👨‍🍳 Recipe Discovery & Intelligent Matching</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Extensive Recipe Database:</strong> Access to 635 public recipes, primarily from the Doc Bear's Comfort Food Survival Guide cookbook series.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>"What Can I Make?" Feature:</strong> Intelligent recipe matching based on your current inventory with percentage-based ingredient matching and smart suggestions.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Recipe Filtering:</strong> Browse recipes by category including entrees, side dishes, desserts, appetizers, and more.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Simple Meals Matching:</strong> Discover simple meal combinations using your inventory items without requiring complex recipes.
+                                </p>
                             </div>
+
                             <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🎯 Intelligent Matching</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Get recipe suggestions based on your current inventory and discover meals you can make right now.</p>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📅 Advanced Meal Planning</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Flexible Planning:</strong> Plan meals for multiple weeks with customizable meal times per day (breakfast, lunch, dinner, snacks) based on your preferences.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Recipe & Simple Meal Integration:</strong> Plan using specific recipes or create quick meals from inventory items (like steak, mashed potatoes, and broccoli).
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Meal Prep Planning:</strong> Generate weekly meal prep lists to plan and organize ingredient preparation in advance.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Nutritional Overview:</strong> Monitor nutritional information from recipes and ingredients across your meal plan.
+                                </p>
                             </div>
+
                             <div>
                                 <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📋 Smart Shopping Lists</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Generate shopping lists from recipes or meal plans, with the ability to email lists to family and friends.</p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Multiple Generation Methods:</strong> Create shopping lists from individual recipes, "What Can I Make?" suggestions, weekly meal plans, or custom recipe selections.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Intelligent Shopping List Generator:</strong> Select multiple recipes to create comprehensive shopping lists with organized categories.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Email Integration:</strong> Send shopping lists directly to family and friends via email for collaborative shopping.
+                                </p>
                             </div>
+
                             <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📱 Multi-Device Access</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Works seamlessly on desktop and mobile devices, soon to be available as a Progressive Web App (PWA).</p>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📱 Multi-Device Access & PWA</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Cross-Platform Compatibility:</strong> Works seamlessly on desktop and mobile devices with responsive design.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Progressive Web App (PWA):</strong> Currently available as a PWA with app-like functionality and offline capabilities.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Coming Soon:</strong> Native mobile apps available in Google Play Store and Apple App Store.
+                                </p>
                             </div>
+
                             <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🥗 Nutritional Information</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>Access nutritional data for your inventory items and recipes to make informed dietary choices.</p>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🥗 Comprehensive Nutritional Information</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Detailed Nutrition Data:</strong> Access comprehensive nutritional information for inventory items and recipes to make informed dietary choices.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Meal Plan Nutrition Tracking:</strong> Monitor nutritional content across entire meal plans and individual meals.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Goal Setting:</strong> Set and track personal nutrition goals within your profile settings.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>⚙️ Personalized Profile Settings</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Notification Management:</strong> Customize email notification settings for food expiration alerts and reminders.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Meal Planning Preferences:</strong> Set dietary restrictions, ingredients to avoid, and meal planning preferences.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Nutrition Goals:</strong> Establish personal nutrition targets and track progress toward health objectives.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -156,22 +231,24 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Our Mission</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Doc Bear's Comfort Food was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with recipe discovery and meal planning tools, we're helping families reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
+                        Doc Bear's Comfort Food was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with recipe discovery and comprehensive meal planning tools, we're helping families reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Our platform bridges the gap between what's in your pantry and what's on your dinner table. Whether you're a busy parent trying to plan the week's meals, a college student learning to cook, or a food enthusiast looking to make the most of your ingredients, our application provides the tools you need to succeed in the kitchen.
+                        Our platform bridges the gap between what's in your pantry and what's on your dinner table. Whether you're a busy parent trying to plan the week's meals, a college student learning to cook, or a food enthusiast looking to make the most of your ingredients, our comprehensive application provides all the tools you need to succeed in the kitchen and beyond.
                     </p>
 
                     <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #17a2b8' }}>
                         <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Why Doc Bear's Comfort Food?</h3>
                         <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
-                            <li style={{ marginBottom: '0.5rem' }}>Reduce food waste by tracking expiration dates and using ingredients efficiently</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Save money by planning meals around what you already have</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Discover new recipes that match your available ingredients</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Streamline shopping with intelligent list generation</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Access trusted recipes from the Doc Bear's Comfort Food Survival Guide series</li>
-                            <li>Make informed dietary choices with integrated nutritional information</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Reduce food waste by tracking expiration dates and using ingredients efficiently with smart suggestions</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Save money by planning meals around what you already have with intelligent inventory matching</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Discover new recipes that match your available ingredients with percentage-based matching</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Streamline shopping with intelligent list generation from recipes, meal plans, or custom selections</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Access 635+ trusted recipes from the Doc Bear's Comfort Food Survival Guide series</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Make informed dietary choices with integrated nutritional information and goal tracking</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Simplify meal planning with flexible weekly and multi-week planning capabilities</li>
+                            <li>Organize meal preparation with detailed prep planning and scheduling tools</li>
                         </ul>
                     </div>
                 </section>
@@ -180,11 +257,11 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Built with Modern Technology</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Our application is built using cutting-edge web technologies including React for a responsive, intuitive user interface. The platform is designed to work seamlessly across all devices and will soon be available as a Progressive Web App (PWA), allowing for offline access and app-like functionality on mobile devices.
+                        Our application is built using cutting-edge web technologies including React for a responsive, intuitive user interface. The platform is designed to work seamlessly across all devices and is currently available as a Progressive Web App (PWA), allowing for offline access and app-like functionality on mobile devices. Native mobile apps for Google Play Store and Apple App Store are coming soon.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px' }}>
-                        We integrate with reliable nutritional databases and recipe sources to provide accurate information while respecting intellectual property rights. Our UPC scanning feature and recipe import capabilities from popular sites like AllRecipes.com and Cookist.com make it easy to build your inventory and recipe collection quickly.
+                        We integrate with reliable nutritional databases and recipe sources to provide accurate information while respecting intellectual property rights. Our comprehensive UPC database, scanning capabilities, and recipe import features make it easy to build your inventory and recipe collection quickly and efficiently.
                     </p>
                 </section>
 
