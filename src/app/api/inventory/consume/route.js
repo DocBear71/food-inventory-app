@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/consume/route.js - v2 Enhanced with dual unit support
+// file: /src/app/api/inventory/consume/route.js - v3 Debug version to fix consumption history
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -121,7 +121,7 @@ export async function POST(request) {
                 quantityConsumed: consumeQuantity,
                 unitConsumed: unit,
                 reason: reason,
-                notes: notes,
+                notes: notes || '',
                 dateConsumed: new Date(),
                 // NEW: Enhanced logging for dual units
                 isDualUnitConsumption: isDualUnitConsumption || false,
@@ -241,23 +241,34 @@ export async function POST(request) {
         // Update inventory timestamp
         inventory.lastUpdated = new Date();
 
-        // Add consumption log to inventory document (for tracking)
+        // CRITICAL FIX: Initialize consumptionHistory if it doesn't exist
         if (!inventory.consumptionHistory) {
             inventory.consumptionHistory = [];
+            console.log('Initialized consumption history array');
         }
+
+        // Add consumption log to inventory document (for tracking)
+        console.log('Adding consumption logs to history:', consumptionLogs.length);
         inventory.consumptionHistory.push(...consumptionLogs);
 
         // Keep only last 100 consumption records to prevent document from growing too large
         if (inventory.consumptionHistory.length > 100) {
             inventory.consumptionHistory = inventory.consumptionHistory.slice(-100);
+            console.log('Trimmed consumption history to last 100 records');
         }
+
+        console.log('Current consumption history length:', inventory.consumptionHistory.length);
+
+        // IMPORTANT: Mark the consumptionHistory field as modified
+        inventory.markModified('consumptionHistory');
 
         await inventory.save();
 
         console.log('Inventory consumption completed:', {
             logsCreated: consumptionLogs.length,
             itemsUpdated: updatedItems.length,
-            itemsRemoved: removedItems.length
+            itemsRemoved: removedItems.length,
+            totalHistoryRecords: inventory.consumptionHistory.length
         });
 
         // Enhanced response with dual unit support
@@ -299,23 +310,29 @@ export async function GET(request) {
         const inventory = await UserInventory.findOne({ userId: session.user.id });
 
         if (!inventory) {
+            console.log('No inventory found for user:', session.user.id);
             return NextResponse.json({
                 success: true,
                 history: []
             });
         }
 
+        console.log('Inventory found. Consumption history length:', inventory.consumptionHistory?.length || 0);
+
         let history = inventory.consumptionHistory || [];
 
         // Filter by reason if specified
         if (reason && reason !== 'all') {
             history = history.filter(log => log.reason === reason);
+            console.log(`Filtered by reason '${reason}', remaining records:`, history.length);
         }
 
         // Sort by date (most recent first) and limit
         history = history
             .sort((a, b) => new Date(b.dateConsumed) - new Date(a.dateConsumed))
             .slice(0, limit);
+
+        console.log('Final history to return:', history.length, 'records');
 
         // Enhanced history formatting for dual unit items
         const formattedHistory = history.map(log => ({
