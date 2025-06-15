@@ -249,7 +249,6 @@ export default function RecipeSuggestions() {
         chicken_patties: [],
         chicken_nuggets: [],
 
-
         // PROTEINS - Exact and partial matching for meats (REMOVED patties, nuggets, and hot dogs)
         protein: {
             exact: [
@@ -304,17 +303,18 @@ export default function RecipeSuggestions() {
             excludes: ['butter', 'sauce', 'gravy', 'vinegar'] // Added vinegar exclusion
         },
 
-        // VEGETABLES
+        // VEGETABLES - Removed mushrooms
         vegetable: {
             exact: [
                 'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
-                'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
+                'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'zucchini',
                 'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli'
             ],
             contains: [
                 'broccoli', 'carrot', 'bean', 'asparagus', 'spinach', 'lettuce',
-                'tomato', 'onion', 'pepper', 'corn', 'mushroom', 'potato'
-            ]
+                'tomato', 'onion', 'pepper', 'corn', 'potato'
+            ],
+            excludes: ['mushroom'] // Explicitly exclude mushrooms
         },
 
         // FRUITS - FIXED spelling for strawberry and blueberry
@@ -401,15 +401,16 @@ export default function RecipeSuggestions() {
             excludes: ['sauce', 'gravy']
         },
 
-        // BASIC INGREDIENTS
+        // BASIC INGREDIENTS - Added mushrooms
         ingredients: {
             exact: [
                 'flour', 'sugar', 'honey', 'vinegar', 'butter', 'oil', 'vanilla',
-                'baking powder', 'baking soda'
+                'baking powder', 'baking soda', 'mushrooms'
             ],
-            contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar']
+            contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar', 'mushroom']
         }
     };
+
 
 
     useEffect(() => {
@@ -599,6 +600,78 @@ export default function RecipeSuggestions() {
         return categorized;
     };
 
+    // NEW: Randomized ingredient selection with variety
+    const selectRandomIngredient = (availableItems, category, existingComponents, templateId) => {
+        if (!availableItems || availableItems.length === 0) {
+            console.log(`❌ No items available for category: ${category}`);
+            return null;
+        }
+
+        console.log(`🎲 Selecting from ${availableItems.length} ${category} options:`, availableItems.map(i => i.name));
+
+        // If only one option, use it
+        if (availableItems.length === 1) {
+            console.log(`✅ Only one option for ${category}: ${availableItems[0].name}`);
+            return availableItems[0];
+        }
+
+        // Get existing component items for pairing logic
+        const existingItems = existingComponents.map(comp => comp.item?.name.toLowerCase()).filter(Boolean);
+
+        // Special logic for different categories with randomization
+        let preferredItems = [];
+
+        switch (category) {
+            case 'protein':
+                // Prefer whole proteins over processed, but randomize within preferred group
+                const wholeProteins = availableItems.filter(item =>
+                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'steak'].some(protein =>
+                        item.name.toLowerCase().includes(protein)
+                    )
+                );
+                preferredItems = wholeProteins.length > 0 ? wholeProteins : availableItems;
+                break;
+
+            case 'standalone_convenience':
+                // Prefer complete meals that don't need additional items
+                const completeMeals = availableItems.filter(item =>
+                    ['frozen pizza', 'pizza', 'ramen', 'instant noodles', 'mac and cheese'].some(meal =>
+                        item.name.toLowerCase().includes(meal)
+                    )
+                );
+                preferredItems = completeMeals.length > 0 ? completeMeals : availableItems;
+                break;
+
+            case 'vegetable':
+                // For vegetables, prefer fresh/frozen over canned, but randomize
+                const freshVeggies = availableItems.filter(item =>
+                    !item.name.toLowerCase().includes('canned')
+                );
+                preferredItems = freshVeggies.length > 0 ? freshVeggies : availableItems;
+                break;
+
+            case 'starch':
+                // Prefer actual starches over rice (since rice has its own category)
+                const nonRiceStarches = availableItems.filter(item =>
+                    !item.name.toLowerCase().includes('rice')
+                );
+                preferredItems = nonRiceStarches.length > 0 ? nonRiceStarches : availableItems;
+                break;
+
+            default:
+                // For all other categories, use all available items
+                preferredItems = availableItems;
+                break;
+        }
+
+        // Randomly select from preferred items
+        const randomIndex = Math.floor(Math.random() * preferredItems.length);
+        const selectedItem = preferredItems[randomIndex];
+
+        console.log(`✅ Randomly selected ${category}: ${selectedItem.name} (${randomIndex + 1} of ${preferredItems.length} options)`);
+        return selectedItem;
+    };
+
     // ENHANCED: Protein requirement checking with stricter validation
     const checkHelperMealRequirements = (helperItem, categorizedInventory) => {
         if (!helperItem.requiredProtein) return false; // Require explicit protein
@@ -637,57 +710,6 @@ export default function RecipeSuggestions() {
 
         console.log(`Helper "${helperItem.name}" requires "${helperItem.requiredProtein}": ${hasRequiredProtein ? 'AVAILABLE' : 'MISSING'}`);
         return hasRequiredProtein;
-    };
-
-    // ENHANCED: Smart ingredient selection with helper meal logic
-    const selectBestIngredient = (availableItems, category, existingComponents, templateId) => {
-        if (!availableItems || availableItems.length === 0) return null;
-
-        // If only one option, use it (but check requirements for helper meals)
-        if (availableItems.length === 1) {
-            const item = availableItems[0];
-            if (category === 'helper_meal' && item.requiredProtein) {
-                // For helper meals, we need to check if required protein is available
-                // This will be handled in the template generation
-            }
-            return item;
-        }
-
-        // Get existing component items for pairing logic
-        const existingItems = existingComponents.map(comp => comp.item?.name.toLowerCase()).filter(Boolean);
-
-        // Special logic for different categories
-        switch (category) {
-            case 'helper_meal':
-                // Prefer helper meals where we have the required protein
-                // This logic will be handled in the template generation
-                return availableItems[0];
-
-            case 'standalone_convenience':
-                // Prefer complete meals that don't need additional items
-                const completeMeals = availableItems.filter(item =>
-                    ['frozen pizza', 'pizza', 'ramen', 'instant noodles', 'mac and cheese'].some(meal =>
-                        item.name.toLowerCase().includes(meal)
-                    )
-                );
-                if (completeMeals.length > 0) return completeMeals[0];
-                break;
-
-            case 'protein':
-                // Prefer whole proteins over processed for main meals
-                const wholeProteins = availableItems.filter(item =>
-                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'steak'].some(protein =>
-                        item.name.toLowerCase().includes(protein)
-                    )
-                );
-                if (wholeProteins.length > 0) return wholeProteins[0];
-                break;
-
-            // ... existing logic for other categories remains the same
-        }
-
-        // Default: return first available item
-        return availableItems[0];
     };
 
     // ENHANCED: Generate a meal suggestion from a template with helper meal support
@@ -762,7 +784,7 @@ export default function RecipeSuggestions() {
                     }
                 } else {
                     // Standard item selection for other categories
-                    selectedItem = selectBestIngredient(availableItems, category, components, template.id);
+                    selectedItem = selectRandomIngredient(availableItems, category, components, template.id);
                     itemCanMake = true;
                 }
 
@@ -796,7 +818,7 @@ export default function RecipeSuggestions() {
         for (const category of template.optionalCategories || []) {
             const availableItems = categorizedInventory[category] || [];
             if (availableItems.length > 0) {
-                const selectedItem = selectBestIngredient(availableItems, category, components, template.id);
+                const selectedItem = selectRandomIngredient(availableItems, category, components, template.id);
                 if (selectedItem) {
                     components.push({
                         category,
