@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/consume/route.js - v3 Debug version to fix consumption history
+// file: /src/app/api/inventory/consume/route.js - v4 Fixed version with proper MongoDB array handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -241,34 +241,61 @@ export async function POST(request) {
         // Update inventory timestamp
         inventory.lastUpdated = new Date();
 
-        // CRITICAL FIX: Initialize consumptionHistory if it doesn't exist
-        if (!inventory.consumptionHistory) {
-            inventory.consumptionHistory = [];
-            console.log('Initialized consumption history array');
+        // CRITICAL FIX: Use MongoDB's $push operator instead of array manipulation
+        console.log('Adding consumption logs to history using $push operator');
+
+        // Use findOneAndUpdate with $push to atomically add to the array
+        const updateResult = await UserInventory.findOneAndUpdate(
+            { userId: session.user.id },
+            {
+                $push: {
+                    consumptionHistory: {
+                        $each: consumptionLogs
+                    }
+                },
+                $set: {
+                    lastUpdated: new Date(),
+                    items: inventory.items
+                }
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
+        console.log('Update result:', updateResult ? 'Success' : 'Failed');
+
+        // Trim consumption history to last 100 records if needed
+        const historyCount = await UserInventory.aggregate([
+            { $match: { userId: session.user.id } },
+            { $project: { historyLength: { $size: { $ifNull: ["$consumptionHistory", []] } } } }
+        ]);
+
+        if (historyCount[0]?.historyLength > 100) {
+            console.log('Trimming consumption history to last 100 records');
+            await UserInventory.findOneAndUpdate(
+                { userId: session.user.id },
+                {
+                    $push: {
+                        consumptionHistory: {
+                            $each: [],
+                            $slice: -100
+                        }
+                    }
+                }
+            );
         }
 
-        // Add consumption log to inventory document (for tracking)
-        console.log('Adding consumption logs to history:', consumptionLogs.length);
-        inventory.consumptionHistory.push(...consumptionLogs);
-
-        // Keep only last 100 consumption records to prevent document from growing too large
-        if (inventory.consumptionHistory.length > 100) {
-            inventory.consumptionHistory = inventory.consumptionHistory.slice(-100);
-            console.log('Trimmed consumption history to last 100 records');
-        }
-
-        console.log('Current consumption history length:', inventory.consumptionHistory.length);
-
-        // IMPORTANT: Mark the consumptionHistory field as modified
-        inventory.markModified('consumptionHistory');
-
-        await inventory.save();
+        // Verify the save worked by checking the current history length
+        const verifyInventory = await UserInventory.findOne({ userId: session.user.id });
+        const finalHistoryLength = verifyInventory?.consumptionHistory?.length || 0;
 
         console.log('Inventory consumption completed:', {
             logsCreated: consumptionLogs.length,
             itemsUpdated: updatedItems.length,
             itemsRemoved: removedItems.length,
-            totalHistoryRecords: inventory.consumptionHistory.length
+            finalHistoryLength: finalHistoryLength
         });
 
         // Enhanced response with dual unit support
@@ -279,14 +306,15 @@ export async function POST(request) {
                 itemsConsumed: consumptionLogs.length,
                 itemsUpdated: updatedItems.map(item => item.name),
                 itemsRemoved: removedItems,
-                consumptionLogs: consumptionLogs
+                consumptionLogs: consumptionLogs,
+                totalHistoryRecords: finalHistoryLength
             }
         });
 
     } catch (error) {
         console.error('Consume inventory error:', error);
         return NextResponse.json(
-            { error: 'Failed to update inventory' },
+            { error: 'Failed to update inventory: ' + error.message },
             { status: 500 }
         );
     }
@@ -313,7 +341,8 @@ export async function GET(request) {
             console.log('No inventory found for user:', session.user.id);
             return NextResponse.json({
                 success: true,
-                history: []
+                history: [],
+                total: 0
             });
         }
 
@@ -336,7 +365,7 @@ export async function GET(request) {
 
         // Enhanced history formatting for dual unit items
         const formattedHistory = history.map(log => ({
-            ...log,
+            ...log._doc || log, // Handle both Mongoose documents and plain objects
             // Add formatted display text for dual unit consumptions
             displayText: log.isDualUnitConsumption ?
                 `${log.quantityConsumed} ${log.unitConsumed} consumed` +
@@ -362,7 +391,7 @@ export async function GET(request) {
     } catch (error) {
         console.error('Get consumption history error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch consumption history' },
+            { error: 'Failed to fetch consumption history: ' + error.message },
             { status: 500 }
         );
     }
