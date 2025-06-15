@@ -12,7 +12,7 @@ const MEAL_CATEGORIES = [
     { id: 'dairy', name: 'Dairy', icon: '🧀', color: 'bg-blue-50 border-blue-200 text-blue-700' },
     { id: 'fat', name: 'Fats/Oils', icon: '🫒', color: 'bg-purple-50 border-purple-200 text-purple-700' },
     { id: 'seasoning', name: 'Seasonings', icon: '🧂', color: 'bg-gray-50 border-gray-200 text-gray-700' },
-    { id: 'other', name: 'Other', icon: '📦', color: 'bg-gray-50 border-gray-200 text-gray-700' }
+    { id: 'other', name: 'Other/Convenience', icon: '📦', color: 'bg-gray-50 border-gray-200 text-gray-700' }
 ];
 
 const COOKING_METHODS = [
@@ -306,7 +306,7 @@ export default function SimpleMealBuilder({
         return name || items[0].itemName;
     };
 
-    // ENHANCED: Better categorization with more precise matching (REPLACE EXISTING categorizeInventoryItem)
+    // FIXED: Much more precise categorization logic (REPLACE EXISTING categorizeInventoryItem)
     const categorizeInventoryItem = (item) => {
         const name = item.name.toLowerCase();
         const category = item.category?.toLowerCase() || '';
@@ -314,86 +314,141 @@ export default function SimpleMealBuilder({
 
         console.log(`🏷️ Categorizing SimpleMealBuilder item: "${item.name}"`);
 
-        // Convenience proteins (specific handling)
-        if (name.includes('hamburger patties') || name.includes('chicken patties') ||
-            name.includes('chicken nuggets') || name.includes('hot dogs') ||
-            name.includes('bratwurst') || name.includes('polish sausage')) {
-            console.log(`✅ CONVENIENCE PROTEIN: "${item.name}"`);
-            return 'protein'; // Treat as protein for SimpleMealBuilder
+        // CONVENIENCE MEALS - Check for packaged meal kits first (highest priority)
+        const conveniencePatterns = [
+            'hamburger helper', 'tuna helper', 'chicken helper',
+            'four cheese lasagna', 'deluxe beef stroganoff', 'cheesy italian shells',
+            'frozen pizza', 'lean cuisine', 'stouffer', 'marie callender'
+        ];
+
+        if (conveniencePatterns.some(pattern => name.includes(pattern) || brand.includes(pattern))) {
+            console.log(`✅ CONVENIENCE MEAL: "${item.name}"`);
+            return 'other'; // Use 'other' for convenience meals in SimpleMealBuilder
         }
 
-        // Protein sources (enhanced matching)
-        if (category.includes('meat') || category.includes('poultry') ||
-            category.includes('fish') || category.includes('seafood') ||
-            name.includes('chicken') || name.includes('beef') || name.includes('pork') ||
-            name.includes('fish') || name.includes('salmon') || name.includes('tuna') ||
-            name.includes('eggs') || name.includes('tofu') || name.includes('ground') ||
-            name.includes('steak') || name.includes('bacon') || name.includes('ham') ||
-            name.includes('sausage') || name.includes('turkey') || name.includes('shrimp')) {
-            console.log(`✅ PROTEIN: "${item.name}"`);
-            return 'protein';
-        }
+        // SEASONINGS - Check before proteins to catch spices with "ground" in name
+        const seasoningPatterns = [
+            'ground cinnamon', 'ground pepper', 'white pepper', 'black pepper',
+            'garlic powder', 'onion powder', 'paprika', 'oregano', 'basil',
+            'thyme', 'cumin', 'chili powder', 'red pepper flakes', 'kosher salt',
+            'coarse salt', 'cayenne pepper'
+        ];
 
-        // Starches and carbs (enhanced matching)
-        if (category.includes('grains') || category.includes('pasta') ||
-            category.includes('bread') || name.includes('rice') || name.includes('pasta') ||
-            name.includes('potato') || name.includes('bread') || name.includes('quinoa') ||
-            name.includes('oats') || name.includes('noodle') || name.includes('stuffing') ||
-            name.includes('barley') || name.includes('couscous') || name.includes('buns') ||
-            name.includes('rolls') || name.includes('bagel') || name.includes('tortilla')) {
-            console.log(`✅ STARCH: "${item.name}"`);
-            return 'starch';
-        }
-
-        // Vegetables (more precise - exclude moved ingredients)
-        if ((category.includes('vegetable') || category.includes('produce')) &&
-            !name.includes('mushroom') && !name.includes('onion') &&
-            !name.includes('pepper') && !name.includes('celery') &&
-            !name.includes('tomato')) {
-            console.log(`✅ VEGETABLE: "${item.name}"`);
-            return 'vegetable';
-        }
-
-        // Additional vegetable matching (for items not categorized by inventory system)
-        if (name.includes('broccoli') || name.includes('carrot') || name.includes('spinach') ||
-            name.includes('lettuce') || name.includes('corn') || name.includes('peas') ||
-            name.includes('green beans') || name.includes('asparagus') || name.includes('zucchini') ||
-            name.includes('cauliflower') || name.includes('cabbage') || name.includes('brussels')) {
-            console.log(`✅ VEGETABLE (by name): "${item.name}"`);
-            return 'vegetable';
-        }
-
-        // Dairy (enhanced matching)
-        if (category.includes('dairy') || category.includes('cheese') ||
-            name.includes('milk') || name.includes('cheese') || name.includes('yogurt') ||
-            name.includes('cream') || name.includes('sour cream') || name.includes('cottage cheese')) {
-            console.log(`✅ DAIRY: "${item.name}"`);
-            return 'dairy';
-        }
-
-        // Fats and oils (enhanced matching)
-        if (name.includes('oil') || name.includes('butter') || name.includes('avocado') ||
-            name.includes('nuts') || name.includes('seeds') || name.includes('olive oil') ||
-            name.includes('vegetable oil') || name.includes('coconut oil')) {
-            console.log(`✅ FAT: "${item.name}"`);
-            return 'fat';
-        }
-
-        // Seasonings (enhanced matching)
-        if (category.includes('spice') || category.includes('seasoning') ||
-            name.includes('salt') || name.includes('pepper') || name.includes('garlic powder') ||
-            name.includes('herb') || name.includes('spice') || name.includes('oregano') ||
-            name.includes('basil') || name.includes('thyme') || name.includes('cumin') ||
-            name.includes('paprika') || name.includes('cinnamon')) {
+        if (seasoningPatterns.some(pattern => name.includes(pattern)) ||
+            (category.includes('spice') || category.includes('seasoning')) ||
+            (name.includes('salt') && !name.includes('salted')) ||
+            (name.includes('pepper') && !name.includes('bell') && !name.includes('sweet'))) {
             console.log(`✅ SEASONING: "${item.name}"`);
             return 'seasoning';
         }
 
+        // SAUCES/CONDIMENTS/GRAVIES - Check before other categories
+        if (name.includes('sauce') || name.includes('gravy') || name.includes('dressing') ||
+            name.includes('vinegar') || name.includes('mayo') || name.includes('mustard') ||
+            name.includes('ketchup')) {
+            console.log(`✅ SAUCE/CONDIMENT: "${item.name}"`);
+            return 'other'; // Treat sauces as 'other' in SimpleMealBuilder
+        }
+
+        // SOUPS - Check before proteins to avoid "chicken soup" being categorized as protein
+        if (name.includes('soup') || name.includes('broth') || name.includes('stock')) {
+            console.log(`✅ SOUP: "${item.name}"`);
+            return 'other';
+        }
+
+        // CONVENIENCE PROTEINS - Specific handling for patties, nuggets, etc.
+        const convenienceProteinPatterns = [
+            'hamburger patties', 'chicken patties', 'chicken nuggets', 'hot dogs',
+            'bratwurst', 'polish sausage', 'breakfast sausage'
+        ];
+
+        if (convenienceProteinPatterns.some(pattern => name.includes(pattern))) {
+            console.log(`✅ CONVENIENCE PROTEIN: "${item.name}"`);
+            return 'protein';
+        }
+
+        // PROTEINS - Only actual meats, fish, eggs (be very specific)
+        const proteinPatterns = [
+            'ground beef', 'stew meat', 'ribeye', 'new york steak', 'pork chops',
+            'chicken breast', 'chicken wing', 'cubed steak', 'bacon', 'ham',
+            'salmon', 'tuna', 'shrimp', 'eggs'
+        ];
+
+        // Check exact protein matches first
+        if (proteinPatterns.some(pattern => name.includes(pattern))) {
+            console.log(`✅ PROTEIN (exact): "${item.name}"`);
+            return 'protein';
+        }
+
+        // More general protein check (but exclude items that contain other keywords)
+        if ((name.includes('chicken') || name.includes('beef') || name.includes('pork') ||
+                name.includes('turkey') || name.includes('fish') || name.includes('meat')) &&
+            !name.includes('sauce') && !name.includes('gravy') && !name.includes('soup') &&
+            !name.includes('helper') && !name.includes('seasoning') && !name.includes('powder')) {
+            console.log(`✅ PROTEIN (general): "${item.name}"`);
+            return 'protein';
+        }
+
+        // BREAD/BUNS - Check before starch to catch specific bread items
+        if (name.includes('buns') || name.includes('bread') || name.includes('rolls') ||
+            name.includes('bagel') || name.includes('tortilla') || name.includes('pita')) {
+            console.log(`✅ BREAD/STARCH: "${item.name}"`);
+            return 'starch';
+        }
+
+        // PASTA - Check before starch to catch pasta specifically
+        if (name.includes('pasta') || name.includes('spaghetti') || name.includes('penne') ||
+            name.includes('macaroni') || name.includes('noodle') || name.includes('shells') ||
+            name.includes('rigatoni') || name.includes('farfalle') || name.includes('rotini')) {
+            console.log(`✅ PASTA/STARCH: "${item.name}"`);
+            return 'starch';
+        }
+
+        // STARCHES - Remaining carbs (exclude vinegar and sauces)
+        if ((name.includes('rice') || name.includes('potato') || name.includes('quinoa') ||
+                name.includes('oats') || name.includes('stuffing') || name.includes('barley') ||
+                name.includes('couscous')) &&
+            !name.includes('vinegar') && !name.includes('sauce')) {
+            console.log(`✅ STARCH: "${item.name}"`);
+            return 'starch';
+        }
+
+        // DAIRY - Check for actual dairy products (not just items with cheese in name)
+        if ((name.includes('milk') || name.includes('yogurt') || name.includes('cream') ||
+                name.includes('butter') || name.includes('cottage cheese') || name.includes('sour cream')) ||
+            (name.includes('cheese') && !name.includes('lasagna') && !name.includes('helper') &&
+                !name.includes('sauce') && !name.includes('shells'))) {
+            console.log(`✅ DAIRY: "${item.name}"`);
+            return 'dairy';
+        }
+
+        // VEGETABLES - Pure vegetables only (exclude moved ingredients)
+        const vegetablePatterns = [
+            'broccoli', 'carrot', 'spinach', 'lettuce', 'corn', 'peas',
+            'green beans', 'asparagus', 'zucchini', 'cauliflower', 'cabbage', 'brussels'
+        ];
+
+        if (vegetablePatterns.some(pattern => name.includes(pattern)) ||
+            (category.includes('vegetable') && !name.includes('sauce') &&
+                !name.includes('mushroom') && !name.includes('onion') &&
+                !name.includes('pepper') && !name.includes('celery') && !name.includes('tomato'))) {
+            console.log(`✅ VEGETABLE: "${item.name}"`);
+            return 'vegetable';
+        }
+
+        // FATS/OILS
+        if (name.includes('oil') && !name.includes('olive oil vinegar') ||
+            name.includes('avocado') || name.includes('nuts') || name.includes('seeds')) {
+            console.log(`✅ FAT: "${item.name}"`);
+            return 'fat';
+        }
+
+        // Everything else goes to OTHER
         console.log(`✅ OTHER: "${item.name}"`);
         return 'other';
     };
 
-    // ENHANCED: Smart meal suggestions with randomization (ADD THIS FUNCTION)
+    // UPDATED: Enhanced random meal suggestion that handles convenience meals
     const suggestRandomMeal = () => {
         if (filteredInventory.length === 0) {
             alert('No inventory items available to create a meal suggestion');
@@ -424,7 +479,54 @@ export default function SimpleMealBuilder({
             Object.entries(categorizedItems).map(([cat, items]) => [cat, items.length])
         ));
 
-        // Build a balanced meal with randomization
+        // Check if we have convenience meals and randomly decide to use one (30% chance)
+        const convenienceItems = categorizedItems.other.filter(item => {
+            const name = item.name.toLowerCase();
+            return name.includes('helper') || name.includes('lasagna') ||
+                name.includes('stroganoff') || name.includes('pizza') ||
+                name.includes('frozen meal');
+        });
+
+        if (convenienceItems.length > 0 && Math.random() < 0.3) {
+            // Suggest a convenience meal
+            const convenience = selectRandomIngredient(convenienceItems, 'convenience');
+            const mealItems = [{
+                inventoryItemId: convenience._id,
+                itemName: convenience.name,
+                itemCategory: 'other',
+                quantity: 1,
+                unit: convenience.unit || 'item',
+                notes: 'follow package directions'
+            }];
+
+            // Add a protein if it's a helper meal
+            if (convenience.name.toLowerCase().includes('helper')) {
+                if (categorizedItems.protein.length > 0) {
+                    const protein = selectRandomIngredient(categorizedItems.protein, 'protein');
+                    mealItems.push({
+                        inventoryItemId: protein._id,
+                        itemName: protein.name,
+                        itemCategory: 'protein',
+                        quantity: 1,
+                        unit: protein.unit || 'item',
+                        notes: 'required for helper meal'
+                    });
+                }
+            }
+
+            setMealData({
+                name: convenience.name,
+                description: `Quick convenience meal using ${convenience.name}`,
+                items: mealItems,
+                totalEstimatedTime: 15,
+                difficulty: 'easy'
+            });
+
+            console.log(`✅ Generated convenience meal: "${convenience.name}"`);
+            return;
+        }
+
+        // Build a traditional balanced meal with randomization
         const mealItems = [];
         let mealName = '';
 
@@ -476,8 +578,8 @@ export default function SimpleMealBuilder({
             }
         }
 
-        // Optionally add dairy (25% chance)
-        if (categorizedItems.dairy.length > 0 && Math.random() < 0.25) {
+        // Optionally add dairy (20% chance)
+        if (categorizedItems.dairy.length > 0 && Math.random() < 0.20) {
             const dairy = selectRandomIngredient(categorizedItems.dairy, 'dairy');
             if (dairy) {
                 mealItems.push({
@@ -487,36 +589,6 @@ export default function SimpleMealBuilder({
                     quantity: 1,
                     unit: dairy.unit || 'item',
                     notes: 'garnish'
-                });
-            }
-        }
-
-        // Optionally add fat/oil (20% chance)
-        if (categorizedItems.fat.length > 0 && Math.random() < 0.20) {
-            const fat = selectRandomIngredient(categorizedItems.fat, 'fat');
-            if (fat) {
-                mealItems.push({
-                    inventoryItemId: fat._id,
-                    itemName: fat.name,
-                    itemCategory: 'fat',
-                    quantity: 1,
-                    unit: fat.unit || 'item',
-                    notes: 'for cooking'
-                });
-            }
-        }
-
-        // Optionally add seasoning (30% chance)
-        if (categorizedItems.seasoning.length > 0 && Math.random() < 0.30) {
-            const seasoning = selectRandomIngredient(categorizedItems.seasoning, 'seasoning');
-            if (seasoning) {
-                mealItems.push({
-                    inventoryItemId: seasoning._id,
-                    itemName: seasoning.name,
-                    itemCategory: 'seasoning',
-                    quantity: 1,
-                    unit: seasoning.unit || 'item',
-                    notes: 'for flavor'
                 });
             }
         }
