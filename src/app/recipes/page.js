@@ -51,14 +51,14 @@ function RecipesContent() {
         {value: 'breakfast', label: 'Breakfast'}
     ];
 
-    // NEW: Quick search presets for common decimal issues
-    const DECIMAL_PRESETS = [
-        { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
-        { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
-        { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
-        { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
-        { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
-    ];
+    // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
+    // const DECIMAL_PRESETS = [
+    //     { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
+    //     { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
+    //     { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
+    //     { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
+    //     { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
+    // ];
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -214,11 +214,11 @@ function RecipesContent() {
         });
     };
 
-    // NEW: Quick preset handler
-    const handleDecimalPreset = (preset) => {
-        setIngredientSearch(preset.value);
-        setIngredientSearchType(preset.type);
-    };
+    // COMMENTED OUT: Quick preset handler for decimal cleanup
+    // const handleDecimalPreset = (preset) => {
+    //     setIngredientSearch(preset.value);
+    //     setIngredientSearchType(preset.type);
+    // };
 
     const formatCookTime = (minutes) => {
         if (!minutes) return null;
@@ -381,7 +381,7 @@ function RecipesContent() {
                     )}
                 </div>
 
-                {/* NEW: Decimal Issues Quick Search (only show on My Recipes tab) */}
+                {/* COMMENTED OUT: Decimal Issues Quick Search (for future import cleanup needs)
                 {activeTab === 'my-recipes' && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
                         <div className="flex items-start">
@@ -410,6 +410,7 @@ function RecipesContent() {
                         </div>
                     </div>
                 )}
+                */}
 
                 {/* Enhanced Filters and Search */}
                 <div className="bg-white rounded-lg border p-6 mb-8">
