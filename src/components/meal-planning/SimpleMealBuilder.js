@@ -45,6 +45,80 @@ export default function SimpleMealBuilder({
         difficulty: 'easy'
     });
 
+    // ENHANCED: Randomized ingredient selection for variety (ADD THIS FUNCTION)
+    const selectRandomIngredient = (availableItems, category) => {
+        if (!availableItems || availableItems.length === 0) {
+            console.log(`❌ No items available for category: ${category}`);
+            return null;
+        }
+
+        console.log(`🎲 SimpleMealBuilder selecting from ${availableItems.length} ${category} options:`, availableItems.map(i => i.name));
+
+        // If only one option, use it
+        if (availableItems.length === 1) {
+            console.log(`✅ Only one option for ${category}: ${availableItems[0].name}`);
+            return availableItems[0];
+        }
+
+        // Special logic for different categories with randomization
+        let preferredItems = [];
+
+        switch (category) {
+            case 'protein':
+                // Prefer whole proteins over processed, but randomize within preferred group
+                const wholeProteins = availableItems.filter(item =>
+                    ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'steak'].some(protein =>
+                        item.name.toLowerCase().includes(protein)
+                    )
+                );
+                preferredItems = wholeProteins.length > 0 ? wholeProteins : availableItems;
+                break;
+
+            case 'vegetable':
+                // For vegetables, prefer fresh/frozen over canned, but randomize
+                const freshVeggies = availableItems.filter(item =>
+                    !item.name.toLowerCase().includes('canned')
+                );
+                preferredItems = freshVeggies.length > 0 ? freshVeggies : availableItems;
+                break;
+
+            case 'starch':
+                // Prefer actual starches over rice (since rice has its own category)
+                const nonRiceStarches = availableItems.filter(item =>
+                    !item.name.toLowerCase().includes('rice')
+                );
+                preferredItems = nonRiceStarches.length > 0 ? nonRiceStarches : availableItems;
+                break;
+
+            case 'dairy':
+                // Randomize dairy products for variety
+                preferredItems = availableItems;
+                break;
+
+            case 'fat':
+                // Randomize fats/oils for variety
+                preferredItems = availableItems;
+                break;
+
+            case 'seasoning':
+                // Randomize seasonings completely for variety
+                preferredItems = availableItems;
+                break;
+
+            default:
+                // For all other categories, use all available items
+                preferredItems = availableItems;
+                break;
+        }
+
+        // Randomly select from preferred items
+        const randomIndex = Math.floor(Math.random() * preferredItems.length);
+        const selectedItem = preferredItems[randomIndex];
+
+        console.log(`✅ SimpleMealBuilder randomly selected ${category}: ${selectedItem.name} (${randomIndex + 1} of ${preferredItems.length} options)`);
+        return selectedItem;
+    };
+
     // NEW: Filter inventory based on dietary restrictions
     const filterInventoryByDietary = (inventoryList) => {
         if (!inventoryList || inventoryList.length === 0) return [];
@@ -232,58 +306,254 @@ export default function SimpleMealBuilder({
         return name || items[0].itemName;
     };
 
-    // Categorize inventory items based on common food categories
+    // ENHANCED: Better categorization with more precise matching (REPLACE EXISTING categorizeInventoryItem)
     const categorizeInventoryItem = (item) => {
         const name = item.name.toLowerCase();
         const category = item.category?.toLowerCase() || '';
+        const brand = item.brand?.toLowerCase() || '';
 
-        // Protein sources
+        console.log(`🏷️ Categorizing SimpleMealBuilder item: "${item.name}"`);
+
+        // Convenience proteins (specific handling)
+        if (name.includes('hamburger patties') || name.includes('chicken patties') ||
+            name.includes('chicken nuggets') || name.includes('hot dogs') ||
+            name.includes('bratwurst') || name.includes('polish sausage')) {
+            console.log(`✅ CONVENIENCE PROTEIN: "${item.name}"`);
+            return 'protein'; // Treat as protein for SimpleMealBuilder
+        }
+
+        // Protein sources (enhanced matching)
         if (category.includes('meat') || category.includes('poultry') ||
             category.includes('fish') || category.includes('seafood') ||
             name.includes('chicken') || name.includes('beef') || name.includes('pork') ||
             name.includes('fish') || name.includes('salmon') || name.includes('tuna') ||
-            name.includes('eggs') || name.includes('tofu')) {
+            name.includes('eggs') || name.includes('tofu') || name.includes('ground') ||
+            name.includes('steak') || name.includes('bacon') || name.includes('ham') ||
+            name.includes('sausage') || name.includes('turkey') || name.includes('shrimp')) {
+            console.log(`✅ PROTEIN: "${item.name}"`);
             return 'protein';
         }
 
-        // Starches and carbs
+        // Starches and carbs (enhanced matching)
         if (category.includes('grains') || category.includes('pasta') ||
             category.includes('bread') || name.includes('rice') || name.includes('pasta') ||
             name.includes('potato') || name.includes('bread') || name.includes('quinoa') ||
-            name.includes('oats') || name.includes('noodle')) {
+            name.includes('oats') || name.includes('noodle') || name.includes('stuffing') ||
+            name.includes('barley') || name.includes('couscous') || name.includes('buns') ||
+            name.includes('rolls') || name.includes('bagel') || name.includes('tortilla')) {
+            console.log(`✅ STARCH: "${item.name}"`);
             return 'starch';
         }
 
-        // Vegetables
-        if (category.includes('vegetable') || category.includes('produce') ||
-            name.includes('broccoli') || name.includes('carrot') || name.includes('spinach') ||
-            name.includes('lettuce') || name.includes('tomato') || name.includes('onion') ||
-            name.includes('pepper') || name.includes('mushroom')) {
+        // Vegetables (more precise - exclude moved ingredients)
+        if ((category.includes('vegetable') || category.includes('produce')) &&
+            !name.includes('mushroom') && !name.includes('onion') &&
+            !name.includes('pepper') && !name.includes('celery') &&
+            !name.includes('tomato')) {
+            console.log(`✅ VEGETABLE: "${item.name}"`);
             return 'vegetable';
         }
 
-        // Dairy
+        // Additional vegetable matching (for items not categorized by inventory system)
+        if (name.includes('broccoli') || name.includes('carrot') || name.includes('spinach') ||
+            name.includes('lettuce') || name.includes('corn') || name.includes('peas') ||
+            name.includes('green beans') || name.includes('asparagus') || name.includes('zucchini') ||
+            name.includes('cauliflower') || name.includes('cabbage') || name.includes('brussels')) {
+            console.log(`✅ VEGETABLE (by name): "${item.name}"`);
+            return 'vegetable';
+        }
+
+        // Dairy (enhanced matching)
         if (category.includes('dairy') || category.includes('cheese') ||
             name.includes('milk') || name.includes('cheese') || name.includes('yogurt') ||
-            name.includes('butter') || name.includes('cream')) {
+            name.includes('cream') || name.includes('sour cream') || name.includes('cottage cheese')) {
+            console.log(`✅ DAIRY: "${item.name}"`);
             return 'dairy';
         }
 
-        // Fats and oils
+        // Fats and oils (enhanced matching)
         if (name.includes('oil') || name.includes('butter') || name.includes('avocado') ||
-            name.includes('nuts') || name.includes('seeds')) {
+            name.includes('nuts') || name.includes('seeds') || name.includes('olive oil') ||
+            name.includes('vegetable oil') || name.includes('coconut oil')) {
+            console.log(`✅ FAT: "${item.name}"`);
             return 'fat';
         }
 
-        // Seasonings
+        // Seasonings (enhanced matching)
         if (category.includes('spice') || category.includes('seasoning') ||
-            name.includes('salt') || name.includes('pepper') || name.includes('garlic') ||
-            name.includes('herb') || name.includes('spice')) {
+            name.includes('salt') || name.includes('pepper') || name.includes('garlic powder') ||
+            name.includes('herb') || name.includes('spice') || name.includes('oregano') ||
+            name.includes('basil') || name.includes('thyme') || name.includes('cumin') ||
+            name.includes('paprika') || name.includes('cinnamon')) {
+            console.log(`✅ SEASONING: "${item.name}"`);
             return 'seasoning';
         }
 
+        console.log(`✅ OTHER: "${item.name}"`);
         return 'other';
     };
+
+    // ENHANCED: Smart meal suggestions with randomization (ADD THIS FUNCTION)
+    const suggestRandomMeal = () => {
+        if (filteredInventory.length === 0) {
+            alert('No inventory items available to create a meal suggestion');
+            return;
+        }
+
+        console.log('🎲 Generating random meal suggestion...');
+
+        // Categorize available inventory
+        const categorizedItems = {
+            protein: [],
+            starch: [],
+            vegetable: [],
+            dairy: [],
+            fat: [],
+            seasoning: [],
+            other: []
+        };
+
+        filteredInventory.forEach(item => {
+            const itemCategory = categorizeInventoryItem(item);
+            if (categorizedItems[itemCategory]) {
+                categorizedItems[itemCategory].push(item);
+            }
+        });
+
+        console.log('📊 Available items by category:', Object.fromEntries(
+            Object.entries(categorizedItems).map(([cat, items]) => [cat, items.length])
+        ));
+
+        // Build a balanced meal with randomization
+        const mealItems = [];
+        let mealName = '';
+
+        // Try to add protein (priority)
+        if (categorizedItems.protein.length > 0) {
+            const protein = selectRandomIngredient(categorizedItems.protein, 'protein');
+            if (protein) {
+                mealItems.push({
+                    inventoryItemId: protein._id,
+                    itemName: protein.name,
+                    itemCategory: 'protein',
+                    quantity: 1,
+                    unit: protein.unit || 'item',
+                    notes: 'main protein'
+                });
+                mealName = protein.name;
+            }
+        }
+
+        // Try to add starch
+        if (categorizedItems.starch.length > 0) {
+            const starch = selectRandomIngredient(categorizedItems.starch, 'starch');
+            if (starch) {
+                mealItems.push({
+                    inventoryItemId: starch._id,
+                    itemName: starch.name,
+                    itemCategory: 'starch',
+                    quantity: 1,
+                    unit: starch.unit || 'item',
+                    notes: 'carbohydrate base'
+                });
+                mealName += mealName ? ` with ${starch.name}` : starch.name;
+            }
+        }
+
+        // Try to add vegetable
+        if (categorizedItems.vegetable.length > 0) {
+            const vegetable = selectRandomIngredient(categorizedItems.vegetable, 'vegetable');
+            if (vegetable) {
+                mealItems.push({
+                    inventoryItemId: vegetable._id,
+                    itemName: vegetable.name,
+                    itemCategory: 'vegetable',
+                    quantity: 1,
+                    unit: vegetable.unit || 'item',
+                    notes: 'steamed'
+                });
+                mealName += mealName ? ` and ${vegetable.name}` : vegetable.name;
+            }
+        }
+
+        // Optionally add dairy (25% chance)
+        if (categorizedItems.dairy.length > 0 && Math.random() < 0.25) {
+            const dairy = selectRandomIngredient(categorizedItems.dairy, 'dairy');
+            if (dairy) {
+                mealItems.push({
+                    inventoryItemId: dairy._id,
+                    itemName: dairy.name,
+                    itemCategory: 'dairy',
+                    quantity: 1,
+                    unit: dairy.unit || 'item',
+                    notes: 'garnish'
+                });
+            }
+        }
+
+        // Optionally add fat/oil (20% chance)
+        if (categorizedItems.fat.length > 0 && Math.random() < 0.20) {
+            const fat = selectRandomIngredient(categorizedItems.fat, 'fat');
+            if (fat) {
+                mealItems.push({
+                    inventoryItemId: fat._id,
+                    itemName: fat.name,
+                    itemCategory: 'fat',
+                    quantity: 1,
+                    unit: fat.unit || 'item',
+                    notes: 'for cooking'
+                });
+            }
+        }
+
+        // Optionally add seasoning (30% chance)
+        if (categorizedItems.seasoning.length > 0 && Math.random() < 0.30) {
+            const seasoning = selectRandomIngredient(categorizedItems.seasoning, 'seasoning');
+            if (seasoning) {
+                mealItems.push({
+                    inventoryItemId: seasoning._id,
+                    itemName: seasoning.name,
+                    itemCategory: 'seasoning',
+                    quantity: 1,
+                    unit: seasoning.unit || 'item',
+                    notes: 'for flavor'
+                });
+            }
+        }
+
+        // If no items were selected, pick any 2-3 random items
+        if (mealItems.length === 0) {
+            const randomItems = [...filteredInventory]
+                .sort(() => 0.5 - Math.random())
+                .slice(0, Math.min(3, filteredInventory.length));
+
+            randomItems.forEach(item => {
+                mealItems.push({
+                    inventoryItemId: item._id,
+                    itemName: item.name,
+                    itemCategory: categorizeInventoryItem(item),
+                    quantity: 1,
+                    unit: item.unit || 'item',
+                    notes: ''
+                });
+            });
+
+            mealName = generateMealName(mealItems);
+        }
+
+        // Update meal data
+        const estimatedTime = 20 + (mealItems.length * 10); // Base time + complexity
+        setMealData({
+            name: mealName || 'Random Meal',
+            description: `A randomly suggested meal using available ingredients: ${mealItems.map(item => item.itemName).join(', ')}`,
+            items: mealItems,
+            totalEstimatedTime: estimatedTime,
+            difficulty: mealItems.length <= 2 ? 'easy' : mealItems.length <= 4 ? 'medium' : 'hard'
+        });
+
+        console.log(`✅ Generated random meal: "${mealName}" with ${mealItems.length} items`);
+    };
+
 
     const addItemToMeal = (inventoryItem) => {
         const itemCategory = categorizeInventoryItem(inventoryItem);
@@ -375,31 +645,46 @@ export default function SimpleMealBuilder({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-                {/* Header */}
+                {/* Enhanced Header with Random Meal Button */}
                 <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                            🍽️ Create Simple Meal
-                        </h2>
-                        <p className="text-sm text-gray-600">
-                            Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
-                        </p>
-                        {/* NEW: Show dietary preferences */}
-                        {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
-                            <div className="text-xs text-gray-500 mt-1">
-                                {userDietaryRestrictions.length > 0 && (
-                                    <span>Diet: {userDietaryRestrictions.join(', ')}</span>
-                                )}
-                                {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
-                                {userAvoidIngredients.length > 0 && (
-                                    <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
+                    <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                                    🍽️ Create Simple Meal
+                                </h2>
+                                <p className="text-sm text-gray-600">
+                                    Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
+                                </p>
+                                {/* Existing dietary preferences display */}
+                                {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        {userDietaryRestrictions.length > 0 && (
+                                            <span>Diet: {userDietaryRestrictions.join(', ')}</span>
+                                        )}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                        {userAvoidIngredients.length > 0 && (
+                                            <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                        )}
+                            {/* NEW: Random Meal Suggestion Button */}
+                            <div className="ml-4">
+                                <TouchEnhancedButton
+                                    onClick={suggestRandomMeal}
+                                    disabled={filteredInventory.length === 0}
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400 transition-colors flex items-center gap-2"
+                                >
+                                    <span>🎲</span>
+                                    <span>Suggest Random Meal</span>
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
                     </div>
                     <TouchEnhancedButton
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 text-2xl p-1"
+                        className="text-gray-400 hover:text-gray-600 text-2xl p-1 ml-4"
                     >
                         ×
                     </TouchEnhancedButton>

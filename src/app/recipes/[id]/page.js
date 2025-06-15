@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]/page.js v8 - Fixed duplicates and added collections
+// file: /src/app/recipes/[id]/page.js v9 - Fixed scaling bug and improved user tracking
 
 'use client';
 
@@ -218,17 +218,65 @@ export default function RecipeDetailPage() {
         return colors[difficulty] || colors.medium;
     };
 
+    // FIXED: Improved scaling function to handle different data types
     const getScaledAmount = (amount) => {
         if (!amount || !recipe?.servings) return amount;
 
-        // Extract number from amount string
-        const match = amount.match(/^(\d+(?:\.\d+)?)/);
+        // Convert amount to string if it's not already
+        const amountStr = String(amount);
+
+        // Extract number from amount string - handles decimals and fractions
+        const match = amountStr.match(/^(\d+(?:\.\d+)?|\d+\/\d+)/);
         if (match) {
-            const number = parseFloat(match[1]);
+            const originalNumber = match[1];
+            let number;
+
+            // Handle fractions like "1/2"
+            if (originalNumber.includes('/')) {
+                const [numerator, denominator] = originalNumber.split('/');
+                number = parseFloat(numerator) / parseFloat(denominator);
+            } else {
+                number = parseFloat(originalNumber);
+            }
+
             const scaledNumber = (number * servings) / recipe.servings;
-            return amount.replace(match[1], scaledNumber.toString());
+
+            // Format the scaled number nicely
+            let formattedNumber;
+            if (scaledNumber % 1 === 0) {
+                // Whole number
+                formattedNumber = scaledNumber.toString();
+            } else if (scaledNumber < 1) {
+                // Convert to fraction if it's a simple fraction
+                const fraction = getFractionFromDecimal(scaledNumber);
+                formattedNumber = fraction || scaledNumber.toFixed(2);
+            } else {
+                // Round to 2 decimal places and remove trailing zeros
+                formattedNumber = parseFloat(scaledNumber.toFixed(2)).toString();
+            }
+
+            return amountStr.replace(originalNumber, formattedNumber);
         }
-        return amount;
+        return amountStr;
+    };
+
+    // Helper function to convert decimals to common fractions
+    const getFractionFromDecimal = (decimal) => {
+        const commonFractions = {
+            0.125: '1/8',
+            0.25: '1/4',
+            0.333: '1/3',
+            0.375: '3/8',
+            0.5: '1/2',
+            0.625: '5/8',
+            0.667: '2/3',
+            0.75: '3/4',
+            0.875: '7/8'
+        };
+
+        // Round to 3 decimal places for comparison
+        const rounded = Math.round(decimal * 1000) / 1000;
+        return commonFractions[rounded] || null;
     };
 
     // Check if recipe has nutrition data - handle both structured and simple formats
@@ -330,7 +378,7 @@ export default function RecipeDetailPage() {
     return (
         <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Header - FIXED: Only one back button now */}
+                {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
                         <TouchEnhancedButton
@@ -874,9 +922,9 @@ export default function RecipeDetailPage() {
                             )}
                         </div>
                     </div>
-                    <Footer />
                 </div>
             )}
+            <Footer />
         </MobileOptimizedLayout>
     );
 }
