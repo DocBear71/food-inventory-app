@@ -311,6 +311,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const handleSearchResultSelect = (product) => {
         setLookupResult({ success: true, product });
         onProductFound(product);
+
+        // FIXED: Update UPC field with the selected product's UPC
+        if (product.upc) {
+            setLocalUPC(product.upc);
+            if (onUPCChange) {
+                onUPCChange(product.upc);
+            }
+        }
+
         // Clear search results to show the selected product
         setSearchResults([]);
         setSearchQuery('');
