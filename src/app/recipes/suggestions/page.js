@@ -58,8 +58,8 @@ export default function RecipeSuggestions() {
             name: 'Sandwich/Wrap',
             description: 'Bread-based meal',
             icon: '🥪',
-            requiredCategories: ['bread'],
-            optionalCategories: ['protein', 'vegetable', 'cheese', 'condiment'],
+            requiredCategories: ['bread', 'protein'],
+            optionalCategories: [ 'vegetable', 'cheese', 'condiment'],
             examples: ['Turkey Sandwich + Lettuce + Tomato', 'Grilled Cheese + Tomato Soup']
         },
         {
@@ -67,8 +67,8 @@ export default function RecipeSuggestions() {
             name: 'Rice Bowl',
             description: 'Rice-based bowl',
             icon: '🍚',
-            requiredCategories: ['rice'],
-            optionalCategories: ['protein', 'vegetable', 'sauce'],
+            requiredCategories: ['rice', 'protein'],
+            optionalCategories: [ 'vegetable', 'sauce'],
             examples: ['Chicken Teriyaki Bowl', 'Beef and Broccoli Rice']
         },
         {
@@ -91,169 +91,237 @@ export default function RecipeSuggestions() {
         }
     ];
 
-    // ENHANCED: Brand-aware product definitions with separate brand field support
+    // FIXED: Much more precise brand-specific product definitions
     const brandSpecificProducts = {
-        // Helper meals that require specific proteins
+        // Helper meals that require specific proteins - VERY STRICT PATTERNS
         helper_meals: {
             'hamburger helper': {
                 requiredProtein: 'ground beef',
-                brandPattern: /hamburger\s*helper/i,
-                pattern: /hamburger\s+helper/i
+                brandPattern: /^hamburger\s*helper$/i,
+                strictPattern: /hamburger\s+helper\s+(beef|stroganoff|cheeseburger|lasagna|cheesy|taco|italian)/i
             },
             'tuna helper': {
                 requiredProtein: 'tuna',
-                brandPattern: /tuna\s*helper/i,
-                pattern: /tuna\s+helper/i
+                brandPattern: /^tuna\s*helper$/i,
+                strictPattern: /tuna\s+helper\s+/i
             },
             'chicken helper': {
                 requiredProtein: 'chicken',
-                brandPattern: /chicken\s*helper/i,
-                pattern: /chicken\s+helper/i
-            },
-            // Generic store brand patterns
-            'store_brand_hamburger': {
-                requiredProtein: 'ground beef',
-                brandPattern: /^(great\s*value|kroger|store\s*brand|generic)$/i,
-                pattern: /(hamburger|beef)\s*(skillet|helper|meal|kit)/i
-            },
-            'store_brand_tuna': {
-                requiredProtein: 'tuna',
-                brandPattern: /^(great\s*value|kroger|store\s*brand|generic)$/i,
-                pattern: /tuna\s*(skillet|helper|meal|kit)/i
-            },
-            'store_brand_chicken': {
-                requiredProtein: 'chicken',
-                brandPattern: /^(great\s*value|kroger|store\s*brand|generic)$/i,
-                pattern: /chicken\s*(skillet|helper|meal|kit)/i
+                brandPattern: /^chicken\s*helper$/i,
+                strictPattern: /chicken\s+helper\s+/i
             }
         },
 
         // Standalone convenience items (complete meals)
         standalone_convenience: {
             patterns: [
-                /frozen\s+pizza/i, /pizza/i, /ramen/i, /instant\s+noodles/i,
-                /mac\s+and\s+cheese/i, /kraft\s+dinner/i, /easy\s+mac/i,
-                /hot\s+pockets/i, /lean\s+cuisine/i, /tv\s+dinner/i,
-                /frozen\s+meal/i, /microwave\s+meal/i, /stouffer/i,
-                /healthy\s+choice/i, /smart\s+ones/i
+                /^frozen\s+pizza$/i, /^pizza$/i, /^ramen$/i, /^instant\s+noodles$/i,
+                /^mac\s+and\s+cheese$/i, /^kraft\s+dinner$/i, /^easy\s+mac$/i,
+                /^hot\s+pockets$/i, /^lean\s+cuisine$/i, /^tv\s+dinner$/i,
+                /^frozen\s+meal$/i, /^microwave\s+meal$/i, /^stouffer/i,
+                /^healthy\s+choice$/i, /^smart\s+ones$/i
             ]
         }
     };
 
-    // ENHANCED: Category mappings with brand awareness
+    // FIXED: Much more precise brand-aware item analysis
+    const analyzeItemBrand = (item) => {
+        // Handle both separate brand field (Option A) and combined name scenarios
+        const brandName = item.brand ? item.brand.toLowerCase().trim() : '';
+        const itemName = item.name.toLowerCase().trim();
+
+        const result = {
+            isHelperMeal: false,
+            requiredProtein: null,
+            isStandaloneConvenience: false,
+            originalCategory: null
+        };
+
+        console.log(`\n--- Brand Analysis for: "${item.name}" (Brand: "${item.brand || 'N/A'}") ---`);
+
+        // STRICT Helper meal detection - only for actual helper products
+        for (const [helperType, helperInfo] of Object.entries(brandSpecificProducts.helper_meals)) {
+            let isMatch = false;
+
+            // Check brand field first (more reliable for Option A structure)
+            if (brandName && helperInfo.brandPattern && helperInfo.brandPattern.test(brandName)) {
+                // Additional validation: make sure the item name suggests it's a meal kit
+                if (itemName.includes('stroganoff') || itemName.includes('lasagna') ||
+                    itemName.includes('cheeseburger') || itemName.includes('beef') ||
+                    itemName.includes('chicken') || itemName.includes('tuna') ||
+                    itemName.includes('shells') && brandName.includes('helper')) {
+                    isMatch = true;
+                }
+            }
+            // Fallback: very strict pattern matching for full names
+            else if (helperInfo.strictPattern && helperInfo.strictPattern.test(`${brandName} ${itemName}`.trim())) {
+                isMatch = true;
+            }
+
+            if (isMatch) {
+                result.isHelperMeal = true;
+                result.requiredProtein = helperInfo.requiredProtein;
+                console.log(`✅ HELPER MEAL: "${item.name}" (${item.brand || 'Generic'}) requires ${helperInfo.requiredProtein}`);
+                return result;
+            }
+        }
+
+        // Check for standalone convenience items
+        for (const pattern of brandSpecificProducts.standalone_convenience.patterns) {
+            if (pattern.test(itemName) || pattern.test(`${brandName} ${itemName}`)) {
+                result.isStandaloneConvenience = true;
+                console.log(`✅ STANDALONE CONVENIENCE: "${item.name}"`);
+                return result;
+            }
+        }
+
+        console.log(`❌ No special brand categorization for: "${item.name}"`);
+        return result;
+    };
+
+    // COMPLETELY REWRITTEN: Much more precise category mappings with exact matching
     const categoryMappings = {
-        // NEW: Helper meals that require additional protein
-        helper_meal: [],  // Populated dynamically based on brand analysis
+        // Helper meals and standalone convenience are handled by brand analysis above
+        helper_meal: [],
+        standalone_convenience: [],
 
-        // NEW: Standalone convenience items (complete meals)
-        standalone_convenience: [],  // Populated dynamically based on brand analysis
+        // PROTEINS - Exact and partial matching for meats
+        protein: {
+            exact: [
+                'eggs', 'stew meat', 'hamburger patties', 'chicken nuggets', 'chicken patties',
+                'chicken wing', 'spareribs', 'ground beef', 'ribeye steak', 'new york steak',
+                'pork chops', 'chicken breasts', 'cubed steaks', 'bacon', 'breakfast sausage',
+                'turkey', 'ham', 'sausage', 'tofu', 'salmon', 'tuna', 'shrimp', 'fish'
+            ],
+            contains: [
+                'chicken', 'beef', 'pork', 'turkey', 'steak', 'meat', 'loin', 'tenderloin',
+                'patties', 'nuggets', 'wing'
+            ]
+        },
 
-        // PROTEINS - Actual meat, poultry, fish, eggs
-        protein: [
-            'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'eggs',
-            'ground beef', 'ground turkey', 'chicken breast', 'pork chops', 'steak',
-            'bacon', 'sausage', 'ham', 'tofu', 'lentils', 'stew meat',
-            'hamburger patties', 'ribeye', 'new york steak',
-            'chicken patties', 'chicken wing', 'spareribs', 'pork loin', 'pork tenderloin',
-            'black beans', 'kidney beans', 'black eyed peas', 'red beans', 'refried beans'
-        ],
+        // PASTA - Very specific pasta matching
+        pasta: {
+            exact: [
+                'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
+                'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
+                'shell macaroni', 'shells', 'jumbo shells', 'rotini', 'garden rotini',
+                'enriched macaroni', 'noodles', 'pappardelle', 'ziti', 'cavatappi',
+                'fusilli', 'rotelle', 'alphabet pasta', 'ditali', 'farfalline',
+                'cannelloni', 'manicotti', 'small shell macaroni'
+            ],
+            contains: ['shells', 'macaroni']
+        },
 
-        // STARCHES - Pure starches without other classifications
-        starch: [
-            'potatoes', 'quinoa', 'mashed potatoes', 'butternut squash', 'corn', 'peas',
-            'sweet potatoes', 'couscous', 'barley', 'lentils', 'chickpeas', 'kidney beans',
-            'stuffing', 'tater tots', 'frozen potatoes', 'navy beans', 'pinto beans', 'black beans',
-            'cannellini beans'
-        ],
+        // RICE - Exact rice products only
+        rice: {
+            exact: [
+                'rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice',
+                'wild rice', 'rice pilaf'
+            ],
+            contains: ['rice'],
+            excludes: ['vinegar', 'wine'] // Exclude rice vinegar, rice wine, etc.
+        },
 
-        // VEGETABLES - Fresh, frozen, canned vegetables
-        vegetable: [
-            'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
-            'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
-            'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli',
-            'kale', 'radishes', 'beets', 'bell peppers', 'cucumbers',
-            'eggplant', 'lima beans', 'okra', 'summer squash', 'tomatillos',
-            'collard greens', 'parsnips', 'potatoes', 'pumpkin',
-            'sweet potatoes', 'swiss chard', 'turnips', 'winter squash', 'leeks',
-            'rutabagas', 'romaine lettuce', 'escarole', 'yellow squash'
-        ],
+        // STARCHES - Exclude butter and other non-starches
+        starch: {
+            exact: [
+                'potatoes', 'mashed potatoes', 'quinoa', 'sweet potatoes', 'couscous',
+                'barley', 'stuffing', 'stuffing mix', 'tater tots', 'frozen potatoes'
+            ],
+            contains: ['potatoes', 'stuffing'],
+            excludes: ['butter', 'sauce', 'gravy']
+        },
+
+        // VEGETABLES
+        vegetable: {
+            exact: [
+                'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
+                'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'mushrooms', 'zucchini',
+                'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli'
+            ],
+            contains: [
+                'broccoli', 'carrot', 'bean', 'asparagus', 'spinach', 'lettuce',
+                'tomato', 'onion', 'pepper', 'corn', 'mushroom', 'potato'
+            ]
+        },
 
         // FRUITS
-        fruits: [
-            'oranges', 'pineapple', 'peaches', 'fruit cocktail', 'mandarin oranges',
-            'sliced peaches', 'pineapple tidbits', 'apples', 'bananas', 'grapes',
-            'strawberries', 'blueberries', 'lemons', 'limes', 'grapefruit',
-            'watermelon', 'cantaloupe', 'cherries', 'pears', 'plums',
-            'raspberries', 'blackberries', 'kiwi', 'mango', 'avocado'
-        ],
+        fruits: {
+            contains: [
+                'fruit cocktail', 'peaches', 'pears', 'pineapple', 'mandarin', 'orange',
+                'apple', 'banana', 'grape', 'strawberr', 'blueberr', 'cherry'
+            ]
+        },
 
-        // RICE SPECIFICALLY
-        rice: [
-            'rice', 'brown rice', 'white rice', 'jasmine rice', 'basmati rice', 'wild rice',
-            'rice pilaf'
-        ],
+        // BREAD
+        bread: {
+            exact: [
+                'bread', 'white bread', 'wheat bread', 'sourdough', 'rye bread', 'bagels',
+                'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins'
+            ],
+            contains: ['bread', 'buns', 'rolls']
+        },
 
-        // PASTA SPECIFICALLY
-        pasta: [
-            'pasta', 'spaghetti', 'penne', 'macaroni', 'fettuccine', 'rigatoni',
-            'lasagna noodles', 'angel hair', 'linguine', 'farfalle', 'bow ties',
-            'shell macaroni', 'enriched macaroni', 'noodles', 'pappardelle', 'ziti',
-            'cavatappi', 'farfalle', 'fusilli', 'rotelle', 'alphabet pasta', 'ditali',
-            'farfalline', 'cannelloni', 'manicotti'
-        ],
+        // SOUP - Must contain "soup" and not be a seasoning
+        soup: {
+            contains: ['soup', 'broth', 'stock', 'chowder', 'bisque'],
+            excludes: ['powder', 'seasoning', 'mix']
+        },
 
-        // BREAD SPECIFICALLY
-        bread: [
-            'bread', 'white bread', 'wheat bread', 'sourdough', 'rye bread', 'bagels',
-            'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins',
-            'hot dog buns'
-        ],
+        // GRAVY - Must explicitly contain "gravy"
+        gravy: {
+            contains: ['gravy'],
+            excludes: []
+        },
 
-        // SOUP - Liquid-based meals (excluding seasonings)
-        soup: [
-            'soup', 'chicken soup', 'tomato soup', 'vegetable soup', 'minestrone',
-            'chicken noodle soup', 'beef stew', 'broth', 'stock', 'campbell',
-            'cream chicken', 'bisque', 'chowder', 'chili'
-        ],
+        // SAUCES - Cooking sauces, not condiments
+        sauce: {
+            exact: [
+                'marinara', 'alfredo', 'pesto', 'pasta sauce', 'cheese sauce',
+                'cream sauce', 'three cheese pasta sauce'
+            ],
+            contains: ['pasta sauce', 'cheese sauce'],
+            excludes: ['barbecue', 'ketchup', 'mustard', 'mayo', 'ranch']
+        },
 
-        // GRAVY - Separate from sauces
-        gravy: [
-            'gravy', 'beef gravy', 'turkey gravy', 'chicken gravy', 'brown gravy',
-            'homestyle gravy', 'savory beef gravy', 'homestyle turkey gravy'
-        ],
+        // CHEESE
+        cheese: {
+            contains: ['cheese'],
+            excludes: ['sauce', 'pasta', 'lasagna', 'stroganoff', 'potatoes']
+        },
 
-        // SAUCES - Cooking sauces (NOT condiments)
-        sauce: [
-            'marinara', 'alfredo', 'pesto',
-            'pasta sauce', 'cheese sauce', 'cream sauce'
-        ],
-
-        // CHEESE - Pure dairy cheese products (not meals containing cheese)
-        cheese: [
-            'cheddar cheese', 'mozzarella cheese', 'swiss cheese', 'american cheese',
-            'cream cheese', 'feta cheese', 'goat cheese', 'string cheese',
-            'parmesan cheese', 'blue cheese', 'brie cheese'
-        ],
-
-        // CONDIMENTS - Table condiments
-        condiment: [
-            'mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
-            'vinaigrette', 'pickle', 'relish', 'soy sauce',
-            'barbecue sauce', 'hot sauce'
-        ],
+        // CONDIMENTS
+        condiment: {
+            exact: [
+                'mayonnaise', 'mustard', 'ketchup', 'ranch', 'barbecue sauce',
+                'hot sauce', 'soy sauce', 'vinegar'
+            ],
+            contains: ['mayo', 'mustard', 'ketchup', 'barbecue', 'vinegar']
+        },
 
         // SEASONINGS - Spices and herbs
-        seasoning: [
-            'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika', 'black pepper',
-            'white pepper', 'oregano', 'basil', 'thyme', 'rosemary', 'cumin',
-            'chili powder', 'red pepper flakes'
-        ],
+        seasoning: {
+            exact: [
+                'salt', 'pepper', 'garlic powder', 'onion powder', 'paprika',
+                'black pepper', 'white pepper', 'oregano', 'basil', 'thyme',
+                'rosemary', 'cumin', 'chili powder', 'red pepper flakes',
+                'ground cinnamon', 'cayenne pepper', 'kosher salt'
+            ],
+            contains: [
+                'pepper', 'salt', 'powder', 'oregano', 'basil', 'thyme', 'cumin',
+                'cinnamon', 'cayenne', 'paprika', 'chili powder', 'minced onion'
+            ],
+            excludes: ['sauce', 'gravy']
+        },
 
-        // BASIC INGREDIENTS - Baking/cooking basics
-        ingredients: [
-            'flour', 'all-purpose flour', 'brown sugar', 'sugar', 'honey', 'vinegar', 'tomato sauce',
-            'baking powder', 'baking soda', 'white vinegar', 'granulated sugar', 'enchilada sauce'
-        ],
+        // BASIC INGREDIENTS
+        ingredients: {
+            exact: [
+                'flour', 'sugar', 'honey', 'vinegar', 'butter', 'oil', 'vanilla',
+                'baking powder', 'baking soda'
+            ],
+            contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar']
+        }
     };
 
     useEffect(() => {
@@ -274,56 +342,6 @@ export default function RecipeSuggestions() {
             generateSimpleMealSuggestions();
         }
     }, [inventory, recipes, matchThreshold]);
-
-    // ENHANCED: Brand-aware item analysis with separate brand field support
-    const analyzeItemBrand = (item) => {
-        // Handle both separate brand field (Option A) and combined name scenarios
-        const brandName = item.brand ? item.brand.toLowerCase().trim() : '';
-        const itemName = item.name.toLowerCase().trim();
-        const fullName = `${brandName} ${itemName}`.toLowerCase().trim();
-
-        const result = {
-            isHelperMeal: false,
-            requiredProtein: null,
-            isStandaloneConvenience: false,
-            originalCategory: null
-        };
-
-        console.log(`\n--- Brand Analysis for: "${item.name}" (Brand: "${item.brand || 'N/A'}") ---`);
-
-        // Check for helper meals - prioritize exact brand matches
-        for (const [helperType, helperInfo] of Object.entries(brandSpecificProducts.helper_meals)) {
-            let isMatch = false;
-
-            // Check brand field first (more reliable for Option A structure)
-            if (brandName && helperInfo.brandPattern && helperInfo.brandPattern.test(brandName)) {
-                isMatch = true;
-            }
-            // Fallback to full name pattern for backwards compatibility
-            else if (helperInfo.pattern.test(fullName) || helperInfo.pattern.test(itemName)) {
-                isMatch = true;
-            }
-
-            if (isMatch) {
-                result.isHelperMeal = true;
-                result.requiredProtein = helperInfo.requiredProtein;
-                console.log(`✅ HELPER MEAL: "${item.name}" (${item.brand || 'Generic'}) requires ${helperInfo.requiredProtein}`);
-                return result;
-            }
-        }
-
-        // Check for standalone convenience items
-        for (const pattern of brandSpecificProducts.standalone_convenience.patterns) {
-            if (pattern.test(fullName) || pattern.test(itemName)) {
-                result.isStandaloneConvenience = true;
-                console.log(`✅ STANDALONE CONVENIENCE: "${item.name}"`);
-                return result;
-            }
-        }
-
-        console.log(`❌ No special brand categorization for: "${item.name}"`);
-        return result;
-    };
 
     // ENHANCED: Generate simple meal suggestions with brand-aware logic
     const generateSimpleMealSuggestions = () => {
@@ -352,7 +370,7 @@ export default function RecipeSuggestions() {
         setSimpleMealSuggestions(suggestions);
     };
 
-    // ENHANCED: Brand-aware categorization with improved logic
+    // COMPLETELY REWRITTEN: Precise categorization function
     const categorizeInventoryItems = (inventory) => {
         const categorized = {};
 
@@ -361,107 +379,99 @@ export default function RecipeSuggestions() {
             categorized[category] = [];
         });
 
-        // Priority order for categorization (most specific first)
-        const priorityOrder = [
-            'helper_meal',      // Check helper meals first (brand-specific)
-            'standalone_convenience', // Check standalone convenience items
-            'seasoning',        // Seasonings
-            'gravy',           // Check gravy before sauce
-            'condiment',       // Check condiments before sauce
-            'soup',            // Check soup before other categories
-            'rice',            // Check rice before starch
-            'pasta',           // Check pasta before starch
-            'bread',           // Check bread before starch
-            'fruits',          // Check fruits early
-            'cheese',          // Check cheese before other categories
-            'protein',         // Check protein
-            'vegetable',       // Check vegetables
-            'starch',          // General starches
-            'sauce',           // Sauces (after condiments)
-            'ingredients'      // Basic ingredients last
-        ];
-
         inventory.forEach(item => {
             const itemName = item.name.toLowerCase().trim();
             let categorized_item = false;
 
             console.log(`\n--- Categorizing: "${item.name}" ---`);
 
-            // First, perform brand analysis
+            // First, perform brand analysis for helper meals and convenience items
             const brandAnalysis = analyzeItemBrand(item);
 
-            // Handle brand-specific categorization
             if (brandAnalysis.isHelperMeal) {
                 categorized['helper_meal'].push({
                     ...item,
                     requiredProtein: brandAnalysis.requiredProtein
                 });
                 categorized_item = true;
-                console.log(`✅ HELPER MEAL: "${item.name}" (requires ${brandAnalysis.requiredProtein})`);
+                console.log(`✅ HELPER MEAL: "${item.name}"`);
             } else if (brandAnalysis.isStandaloneConvenience) {
                 categorized['standalone_convenience'].push(item);
                 categorized_item = true;
                 console.log(`✅ STANDALONE CONVENIENCE: "${item.name}"`);
             }
 
-            // If not categorized by brand analysis, use standard categorization
+            // If not categorized by brand analysis, use precise standard categorization
             if (!categorized_item) {
-                // Go through categories in priority order
+                // Priority order: most specific categories first
+                const priorityOrder = [
+                    'seasoning', 'gravy', 'soup', 'pasta', 'rice', 'bread',
+                    'sauce', 'condiment', 'cheese', 'protein', 'fruits',
+                    'vegetable', 'starch', 'ingredients'
+                ];
+
                 for (const category of priorityOrder) {
-                    if (categorized_item) break; // Skip if already categorized
+                    if (categorized_item) break;
 
-                    const keywords = categoryMappings[category];
-                    const matches = keywords.some(keyword => {
-                        const keywordLower = keyword.toLowerCase();
+                    const categoryRules = categoryMappings[category];
+                    if (!categoryRules) continue;
 
-                        // More precise matching
-                        return itemName === keywordLower ||  // Exact match
-                            itemName.includes(keywordLower) ||  // Contains keyword
-                            keywordLower.includes(itemName);    // Keyword contains item name
-                    });
+                    let matches = false;
 
+                    // Check exact matches first
+                    if (categoryRules.exact) {
+                        matches = categoryRules.exact.some(exact =>
+                            itemName === exact.toLowerCase() ||
+                            itemName.includes(exact.toLowerCase())
+                        );
+                    }
+
+                    // Check contains matches if no exact match
+                    if (!matches && categoryRules.contains) {
+                        matches = categoryRules.contains.some(keyword => {
+                            const keywordLower = keyword.toLowerCase();
+                            return itemName.includes(keywordLower);
+                        });
+                    }
+
+                    // Apply exclusions
+                    if (matches && categoryRules.excludes) {
+                        const hasExclusion = categoryRules.excludes.some(exclude =>
+                            itemName.includes(exclude.toLowerCase())
+                        );
+                        if (hasExclusion) {
+                            matches = false;
+                            console.log(`❌ EXCLUDED from ${category}: "${item.name}" (contains exclusion)`);
+                        }
+                    }
+
+                    // Additional specific validation
                     if (matches) {
-                        // Apply existing validation logic for specific categories
                         let shouldCategorize = true;
 
-                        if (category === 'gravy') {
-                            shouldCategorize = itemName.includes('gravy');
-                        } else if (category === 'soup') {
-                            const isActualSoup = keywords.some(keyword => {
-                                const keywordLower = keyword.toLowerCase();
-                                if (keywordLower === 'chili') {
-                                    return itemName.includes('chili') && !itemName.includes('powder') && !itemName.includes('seasoning');
-                                }
-                                return itemName === keywordLower || itemName.includes(keywordLower);
-                            });
-                            const isNotSoup = itemName.includes('powder') || itemName.includes('seasoning') || itemName.includes('spice');
-                            shouldCategorize = isActualSoup && !isNotSoup;
-                        } else if (category === 'sauce') {
-                            const isCondiment = ['mayonnaise', 'mustard', 'ketchup', 'ranch', 'italian dressing',
-                                'vinaigrette', 'pickle', 'relish', 'soy sauce', 'teriyaki sauce',
-                                'barbecue sauce', 'hot sauce', 'worcestershire'].some(condiment =>
-                                itemName.includes(condiment)
-                            );
-                            const isGravy = itemName.includes('gravy');
-                            shouldCategorize = !isCondiment && !isGravy;
-                        } else if (category === 'cheese') {
-                            const isCheeseProduct = itemName.includes('cheese') &&
-                                !itemName.includes('lasagna') &&
-                                !itemName.includes('stroganoff') &&
-                                !itemName.includes('potatoes');
-                            shouldCategorize = isCheeseProduct || itemName.includes('parmesan');
-                        } else if (category === 'pasta') {
-                            const isActualPasta = keywords.some(keyword => {
-                                const keywordLower = keyword.toLowerCase();
-                                return itemName === keywordLower ||
-                                    (itemName.split(' ').includes(keywordLower) && !itemName.includes('sauce'));
-                            });
-                            const isNotPasta = itemName.includes('sauce') || itemName.includes('gravy') || itemName.includes('seasoning');
-                            shouldCategorize = isActualPasta && !isNotPasta;
-                        } else if (category === 'starch') {
-                            const isGravy = itemName.includes('gravy');
-                            const isSauce = itemName.includes('sauce');
-                            shouldCategorize = !isGravy && !isSauce;
+                        // Special validation for rice (exclude vinegar)
+                        if (category === 'rice' && itemName.includes('vinegar')) {
+                            shouldCategorize = false;
+                            console.log(`❌ RICE EXCLUSION: "${item.name}" contains vinegar`);
+                        }
+
+                        // Special validation for pasta (make sure it's actual pasta)
+                        if (category === 'pasta') {
+                            const isPasta = categoryRules.exact.some(pasta =>
+                                itemName.includes(pasta.toLowerCase())
+                            ) || itemName.includes('macaroni') || itemName.includes('shells');
+                            shouldCategorize = isPasta;
+                        }
+
+                        // Special validation for seasonings (avoid false matches)
+                        if (category === 'seasoning') {
+                            const isSpice = categoryRules.exact.some(spice =>
+                                    itemName.includes(spice.toLowerCase())
+                                ) || itemName.includes('powder') || itemName.includes('pepper') ||
+                                itemName.includes('salt') || itemName.includes('oregano') ||
+                                itemName.includes('cinnamon') || itemName.includes('cayenne') ||
+                                itemName.includes('minced onion');
+                            shouldCategorize = isSpice;
                         }
 
                         if (shouldCategorize) {
