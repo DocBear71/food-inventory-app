@@ -47,20 +47,29 @@ export default function RecipeSuggestions() {
         {
             id: 'hamburger-meal',
             name: 'Hamburger/Sandwich',
-            description: 'Hamburger patties with buns',
+            description: 'Hamburger patties with hamburger buns',
             icon: '🍔',
-            requiredCategories: ['hamburger_patties', 'bread'],
+            requiredCategories: ['hamburger_patties', 'hamburger_buns'],
             optionalCategories: ['cheese', 'vegetable', 'condiment'],
-            examples: ['Hamburger Patties + Buns + Cheese']
+            examples: ['Hamburger Patties + Hamburger Buns + Cheese']
         },
         {
             id: 'chicken-patty-meal',
             name: 'Chicken Sandwich',
-            description: 'Chicken patties with buns',
+            description: 'Chicken patties with hamburger buns',
             icon: '🥪',
-            requiredCategories: ['chicken_patties', 'bread'],
+            requiredCategories: ['chicken_patties', 'hamburger_buns'],
             optionalCategories: ['cheese', 'vegetable', 'condiment'],
-            examples: ['Chicken Patties + Buns + Lettuce']
+            examples: ['Chicken Patties + Hamburger Buns + Lettuce']
+        },
+        {
+            id: 'hot-dog-meal',
+            name: 'Hot Dog/Sausage',
+            description: 'Hot dogs, brats, or sausages with hot dog buns',
+            icon: '🌭',
+            requiredCategories: ['hot_dog_proteins', 'hot_dog_buns'],
+            optionalCategories: ['condiment', 'vegetable'],
+            examples: ['Hot Dogs + Hot Dog Buns + Mustard']
         },
         {
             id: 'chicken-nuggets-meal',
@@ -141,8 +150,8 @@ export default function RecipeSuggestions() {
 
         // NEW: Convenience proteins that need specific components
         convenience_proteins: {
-            'hamburger patties': { requiredComponent: 'bread', category: 'hamburger_patties' },
-            'chicken patties': { requiredComponent: 'bread', category: 'chicken_patties' },
+            'hamburger patties': { requiredComponent: 'hamburger_buns', category: 'hamburger_patties' },
+            'chicken patties': { requiredComponent: 'hamburger_buns', category: 'chicken_patties' },
             'chicken nuggets': { requiredComponent: null, category: 'chicken_nuggets' }, // standalone
             'white meat chicken nuggets': { requiredComponent: null, category: 'chicken_nuggets' }
         },
@@ -240,17 +249,25 @@ export default function RecipeSuggestions() {
         chicken_patties: [],
         chicken_nuggets: [],
 
-        // PROTEINS - Exact and partial matching for meats (REMOVED patties and nuggets)
+
+        // PROTEINS - Exact and partial matching for meats (REMOVED patties, nuggets, and hot dogs)
         protein: {
             exact: [
                 'eggs', 'stew meat', 'chicken wing', 'spareribs', 'ground beef', 'ribeye steak', 'new york steak',
                 'pork chops', 'chicken breasts', 'cubed steaks', 'bacon', 'breakfast sausage',
-                'turkey', 'ham', 'sausage', 'tofu', 'salmon', 'tuna', 'shrimp', 'fish'
+                'turkey', 'ham', 'tofu', 'salmon', 'tuna', 'shrimp', 'fish'
             ],
             contains: [
                 'chicken', 'beef', 'pork', 'turkey', 'steak', 'meat', 'loin', 'tenderloin', 'wing'
             ],
-            excludes: ['patties', 'nuggets'] // Exclude patties and nuggets
+            excludes: ['patties', 'nuggets', 'hot dog', 'brat', 'sausage'] // Exclude convenience proteins
+        },
+
+        // NEW: Hot dog proteins (cylindrical proteins for hot dog buns)
+        hot_dog_proteins: {
+            exact: ['hot dogs', 'hot dog', 'bratwurst', 'brats', 'polish sausage', 'kielbasa'],
+            contains: ['hot dog', 'brat', 'sausage'],
+            excludes: ['breakfast sausage'] // Breakfast sausage is different
         },
 
         // PASTA - Very specific pasta matching
@@ -308,13 +325,28 @@ export default function RecipeSuggestions() {
             ]
         },
 
-        // BREAD
+        // BREAD - Split into specific types
         bread: {
             exact: [
                 'bread', 'white bread', 'wheat bread', 'sourdough', 'rye bread', 'bagels',
-                'rolls', 'buns', 'tortillas', 'wraps', 'pita bread', 'english muffins'
+                'rolls', 'tortillas', 'wraps', 'pita bread', 'english muffins'
             ],
-            contains: ['bread', 'buns', 'rolls']
+            contains: ['bread', 'rolls'],
+            excludes: ['buns'] // Exclude buns since they're categorized separately
+        },
+
+        // HAMBURGER BUNS - Specifically for patties
+        hamburger_buns: {
+            exact: ['hamburger buns', 'burger buns'],
+            contains: ['hamburger bun', 'burger bun'],
+            excludes: ['hot dog']
+        },
+
+        // HOT DOG BUNS - Specifically for cylindrical proteins
+        hot_dog_buns: {
+            exact: ['hot dog buns', 'hot dog rolls'],
+            contains: ['hot dog bun', 'hot dog roll'],
+            excludes: []
         },
 
         // SOUP - Must contain "soup" and not be a seasoning
@@ -378,6 +410,7 @@ export default function RecipeSuggestions() {
             contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar']
         }
     };
+
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -467,9 +500,9 @@ export default function RecipeSuggestions() {
             if (!categorized_item) {
                 // Priority order: most specific categories first
                 const priorityOrder = [
-                    'seasoning', 'gravy', 'soup', 'pasta', 'rice', 'bread',
-                    'sauce', 'condiment', 'cheese', 'protein', 'fruits',
-                    'vegetable', 'starch', 'ingredients'
+                    'hot_dog_proteins', 'hamburger_buns', 'hot_dog_buns', 'seasoning', 'gravy',
+                    'soup', 'pasta', 'rice', 'bread', 'sauce', 'condiment', 'cheese',
+                    'protein', 'fruits', 'vegetable', 'starch', 'ingredients'
                 ];
 
                 for (const category of priorityOrder) {
