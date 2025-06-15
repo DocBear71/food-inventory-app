@@ -29,7 +29,7 @@ const AboutUs = () => {
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Whether you're scanning UPC codes, manually entering food items, or exploring our extensive database of 635 public recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, and even recommends recipes that are just a few ingredients away from completion.
+                        Whether you're scanning UPC codes, manually entering food items, or exploring our extensive database of 658 public recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, and even recommends recipes that are just a few ingredients away from completion.
                     </p>
 
                     <div style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px', margin: '1.5rem 0' }}>
@@ -54,7 +54,7 @@ const AboutUs = () => {
                             <div>
                                 <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>👨‍🍳 Recipe Discovery & Intelligent Matching</h4>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Extensive Recipe Database:</strong> Access to 635 public recipes, primarily from the Doc Bear's Comfort Food Survival Guide cookbook series.
+                                    <strong>Extensive Recipe Database:</strong> Access to 658 public recipes, primarily from the Doc Bear's Comfort Food Survival Guide cookbook series.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>"What Can I Make?" Feature:</strong> Intelligent recipe matching based on your current inventory with percentage-based ingredient matching and smart suggestions.
@@ -245,7 +245,7 @@ const AboutUs = () => {
                             <li style={{ marginBottom: '0.5rem' }}>Save money by planning meals around what you already have with intelligent inventory matching</li>
                             <li style={{ marginBottom: '0.5rem' }}>Discover new recipes that match your available ingredients with percentage-based matching</li>
                             <li style={{ marginBottom: '0.5rem' }}>Streamline shopping with intelligent list generation from recipes, meal plans, or custom selections</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Access 635+ trusted recipes from the Doc Bear's Comfort Food Survival Guide series</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Access 658+ trusted recipes from the Doc Bear's Comfort Food Survival Guide series</li>
                             <li style={{ marginBottom: '0.5rem' }}>Make informed dietary choices with integrated nutritional information and goal tracking</li>
                             <li style={{ marginBottom: '0.5rem' }}>Simplify meal planning with flexible weekly and multi-week planning capabilities</li>
                             <li>Organize meal preparation with detailed prep planning and scheduling tools</li>
