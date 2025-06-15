@@ -1,4 +1,4 @@
-// file: /src/components/inventory/UPCLookup.js - v7 Enhanced with autocomplete dropdown fixes and better UX
+// file: /src/components/inventory/UPCLookup.js - v8 Fixed UPC input issue
 
 'use client';
 
@@ -69,6 +69,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const [cameraAvailable, setCameraAvailable] = useState(true);
     const [showNutrition, setShowNutrition] = useState(false);
 
+    // FIXED: Add local UPC state to ensure input works properly
+    const [localUPC, setLocalUPC] = useState(currentUPC);
+
     // Text search specific state
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -82,7 +85,12 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const searchInputRef = useRef(null);
     const autocompleteRef = useRef(null);
 
-    // NEW: Handle clicks outside autocomplete to close it
+    // FIXED: Sync local UPC state with prop changes
+    useEffect(() => {
+        setLocalUPC(currentUPC);
+    }, [currentUPC]);
+
+    // Handle clicks outside autocomplete to close it
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (autocompleteRef.current && !autocompleteRef.current.contains(event.target) &&
@@ -97,7 +105,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         };
     }, []);
 
-    // NEW: Close autocomplete when search results are displayed
+    // Close autocomplete when search results are displayed
     useEffect(() => {
         if (searchResults.length > 0) {
             setShowAutocomplete(false);
@@ -161,7 +169,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Text search functionality using our API proxy
+    // Text search functionality using our API proxy
     const performTextSearch = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -170,7 +178,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
 
         setIsSearching(true);
-        // UPDATED: Hide autocomplete when starting search
         setShowAutocomplete(false);
         console.log(`Searching for products: "${query}" (page ${page})`);
 
@@ -216,9 +223,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Autocomplete functionality with rate limiting protection
+    // Autocomplete functionality with rate limiting protection
     const performAutocomplete = async (query) => {
-        if (!query.trim() || query.length < 3) { // Increased from 2 to 3
+        if (!query.trim() || query.length < 3) {
             setAutocompleteResults([]);
             setShowAutocomplete(false);
             return;
@@ -226,13 +233,13 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         try {
             // Use our API endpoint with smaller page size for autocomplete
-            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=3`; // Reduced from 5 to 3
+            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=3`;
 
             const response = await fetch(searchUrl);
             const data = await response.json();
 
             if (response.ok && data.success) {
-                const suggestions = data.results?.slice(0, 3).map(product => ({ // Reduced from 5 to 3
+                const suggestions = data.results?.slice(0, 3).map(product => ({
                     name: product.name,
                     brand: product.brand,
                     image: product.image,
@@ -254,7 +261,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Handle search input changes with better rate limiting
+    // Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
@@ -268,21 +275,21 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
 
         // Debounced autocomplete with longer delay to avoid rate limiting
-        if (query.length >= 3) { // Increased from 2 to 3 characters
+        if (query.length >= 3) {
             autocompleteTimeoutRef.current = setTimeout(() => {
                 performAutocomplete(query);
-            }, 800); // Increased from 300ms to 800ms
+            }, 800);
         } else {
             setShowAutocomplete(false);
             setAutocompleteResults([]);
         }
 
         // Debounced search with longer delay
-        if (query.trim() && query.length >= 3) { // Only search after 3+ characters
+        if (query.trim() && query.length >= 3) {
             searchTimeoutRef.current = setTimeout(() => {
                 setSearchPage(1);
                 performTextSearch(query, 1);
-            }, 1200); // Increased from 800ms to 1200ms
+            }, 1200);
         } else {
             setSearchResults([]);
             setTotalPages(0);
@@ -291,7 +298,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Handle autocomplete selection
+    // Handle autocomplete selection
     const handleAutocompleteSelect = (suggestion) => {
         setSearchQuery(suggestion.name);
         setShowAutocomplete(false);
@@ -300,7 +307,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         performTextSearch(suggestion.name, 1);
     };
 
-    // NEW: Handle search result selection
+    // Handle search result selection
     const handleSearchResultSelect = (product) => {
         setLookupResult({ success: true, product });
         onProductFound(product);
@@ -312,28 +319,36 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setAutocompleteResults([]);
     };
 
-    // NEW: Handle pagination
+    // Handle pagination
     const handlePageChange = (newPage) => {
         setSearchPage(newPage);
         performTextSearch(searchQuery, newPage);
     };
 
-    // NEW: Manual close function for autocomplete
+    // Manual close function for autocomplete
     const handleCloseAutocomplete = () => {
         setShowAutocomplete(false);
         setAutocompleteResults([]);
     };
 
-    // NEW: Handle input focus to show autocomplete again if there are results
+    // Handle input focus to show autocomplete again if there are results
     const handleSearchInputFocus = () => {
         if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
             setShowAutocomplete(true);
         }
     };
 
+    // FIXED: Improved UPC input handler
     const handleUPCInput = (e) => {
         const upc = e.target.value;
-        onUPCChange(upc);
+
+        // Update local state immediately for responsive typing
+        setLocalUPC(upc);
+
+        // Also update parent component
+        if (onUPCChange) {
+            onUPCChange(upc);
+        }
 
         // Auto-lookup when UPC looks complete
         if (upc.length >= 12 && upc.length <= 14) {
@@ -342,14 +357,21 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     };
 
     const handleManualLookup = () => {
-        if (currentUPC) {
-            handleUPCLookup(currentUPC);
+        const upcToLookup = localUPC || currentUPC;
+        if (upcToLookup) {
+            handleUPCLookup(upcToLookup);
         }
     };
 
     const handleBarcodeDetected = (barcode) => {
         console.log('Barcode scanned:', barcode);
-        onUPCChange(barcode);
+
+        // Update both local and parent state
+        setLocalUPC(barcode);
+        if (onUPCChange) {
+            onUPCChange(barcode);
+        }
+
         setShowScanner(false);
 
         // Auto-lookup the scanned barcode
@@ -383,7 +405,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             setLookupResult(null);
                             setSearchResults([]);
                             setSearchQuery('');
-                            // UPDATED: Close autocomplete when switching tabs
                             setShowAutocomplete(false);
                             setAutocompleteResults([]);
                         }}
@@ -400,8 +421,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                         onClick={() => {
                             setActiveTab('search');
                             setLookupResult(null);
-                            onUPCChange('');
-                            // UPDATED: Close autocomplete when switching tabs
+                            // FIXED: Don't clear local UPC when switching tabs
                             setShowAutocomplete(false);
                             setAutocompleteResults([]);
                         }}
@@ -428,7 +448,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 type="text"
                                 id="upc"
                                 name="upc"
-                                value={currentUPC}
+                                value={localUPC} // FIXED: Use local state for immediate responsiveness
                                 onChange={handleUPCInput}
                                 placeholder="Enter or scan UPC code"
                                 className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -447,7 +467,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={handleManualLookup}
-                                disabled={!currentUPC || isLooking}
+                                disabled={!localUPC || isLooking} // FIXED: Use local UPC for button state
                                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
                             >
                                 {isLooking ? '🔍' : '🔍'} Lookup
@@ -483,13 +503,13 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
 
-                            {/* UPDATED: Autocomplete dropdown with close button and better z-index */}
+                            {/* Autocomplete dropdown */}
                             {showAutocomplete && autocompleteResults.length > 0 && (
                                 <div
                                     ref={autocompleteRef}
                                     className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
                                 >
-                                    {/* UPDATED: Header with close button */}
+                                    {/* Header with close button */}
                                     <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
                                         <span className="text-xs font-medium text-gray-600">Quick suggestions</span>
                                         <TouchEnhancedButton
