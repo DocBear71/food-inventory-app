@@ -1168,22 +1168,25 @@ export default function RecipeSuggestions() {
         };
     };
 
-// Normalize ingredient names for better comparison
+    // ENHANCED: Better ingredient name normalization
     const normalizeIngredientName = (name) => {
         return name
             .toLowerCase()
             .trim()
             .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
             .replace(/\s+/g, ' ')      // Replace multiple spaces with single space
-            .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|cooked|raw)\b/g, '')
-            .replace(/\b(small|medium|large|extra)\b/g, '')
-            .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
-            .replace(/\b(of|the|and|or)\b/g, '')
+            .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|cooked|raw|frozen)\b/g, '')
+            .replace(/\b(boneless|skinless|butterflied|pounded|lean|extra)\b/g, '')
+            .replace(/\b(small|medium|large|extra|about)\b/g, '')
+            .replace(/\b(can|jar|bottle|bag|box|package|container|lb|lbs|oz|cup|cups|teaspoon|teaspoons|tablespoon|tablespoons)\b/g, '')
+            .replace(/\b(of|the|and|or|each|divided)\b/g, '')
+            .replace(/\b(\d+\/\d+|\d+)\b/g, '') // Remove fractions and numbers
+            .replace(/\b(inch|thickness)\b/g, '') // Remove measurement descriptors
             .replace(/\s+/g, ' ')
             .trim();
     };
 
-// Much more conservative ingredient matching
+    // ENHANCED: Much more comprehensive ingredient matching
     const findIngredientInInventory = (recipeIngredient, inventory) => {
         const recipeName = normalizeIngredientName(recipeIngredient.name);
 
@@ -1202,11 +1205,40 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 2. EXACT INGREDIENT VARIATIONS (very specific)
+        // 2. ENHANCED INGREDIENT VARIATIONS (much more comprehensive)
         const specificVariations = {
-            // Only very specific, well-defined variations
+            // Proteins - Handle all the common variations
+            'chicken breast': ['chicken breasts', 'boneless skinless chicken breast', 'boneless chicken breast', 'skinless chicken breast'],
+            'chicken breasts': ['chicken breast', 'boneless skinless chicken breast', 'boneless chicken breast', 'skinless chicken breast'],
+            'boneless skinless chicken breast': ['chicken breast', 'chicken breasts'],
+            'boneless chicken breast': ['chicken breast', 'chicken breasts'],
+            'ground beef': ['lb ground beef', 'ground chuck', 'hamburger'],
+            'cube steaks': ['cubed steaks', 'cube steak', 'cubed steak'],
+            'cubed steaks': ['cube steaks', 'cube steak', 'cubed steak'],
+            'cube steak': ['cubed steaks', 'cube steaks', 'cubed steak'],
+            'cubed steak': ['cube steaks', 'cubed steaks', 'cube steak'],
+
+            // Mushrooms
+            'mushrooms': ['fresh mushrooms', 'mushrooms stems and pieces', 'sliced mushrooms', 'button mushrooms'],
+            'fresh mushrooms': ['mushrooms', 'mushrooms stems and pieces', 'sliced mushrooms'],
+            'sliced mushrooms': ['mushrooms', 'fresh mushrooms', 'mushrooms stems and pieces'],
+            'button mushrooms': ['mushrooms', 'fresh mushrooms'],
+
+            // Salt variations
+            'kosher salt': ['coarse kosher salt', 'salt'],
+            'coarse kosher salt': ['kosher salt', 'salt'],
+            'salt': ['kosher salt', 'coarse kosher salt', 'table salt'],
+
+            // Wine and cooking liquids
+            'marsala wine': ['marsala cooking wine', 'cooking marsala'],
+            'marsala cooking wine': ['marsala wine', 'cooking marsala'],
+            'cooking wine': ['wine'],
+            'white wine': ['white cooking wine', 'dry white wine'],
+            'red wine': ['red cooking wine', 'dry red wine'],
+
+            // Basic ingredients from your existing list
             'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'evoo'],
-            'garlic': ['garlic cloves', 'garlic bulb'],
+            'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic'],
             'onion': ['yellow onion', 'white onion', 'red onion', 'sweet onion'],
             'tomato': ['roma tomato', 'cherry tomato', 'grape tomato', 'beefsteak tomato'],
             'cheese': ['cheddar cheese', 'mozzarella cheese', 'parmesan cheese'],
@@ -1214,10 +1246,8 @@ export default function RecipeSuggestions() {
             'butter': ['unsalted butter', 'salted butter'],
             'flour': ['all purpose flour', 'bread flour', 'cake flour'],
             'sugar': ['white sugar', 'granulated sugar', 'brown sugar'],
-            'salt': ['table salt', 'sea salt', 'kosher salt'],
             'pepper': ['black pepper', 'white pepper', 'ground pepper'],
             'pasta': ['penne', 'spaghetti', 'macaroni', 'fettuccine', 'rigatoni'],
-            // Add bell pepper variations
             'bell pepper': ['red bell pepper', 'green bell pepper', 'yellow bell pepper'],
             'red bell pepper': ['bell pepper'],
             'green bell pepper': ['bell pepper'],
@@ -1243,38 +1273,81 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 3. CONSERVATIVE PARTIAL MATCH (only for longer ingredient names)
-        if (recipeName.length >= 5) { // Only for longer ingredient names
+        // 3. SMART PARTIAL MATCHING (enhanced with better logic)
+        if (recipeName.length >= 4) { // Lowered from 5 to catch more matches
             for (const item of inventory) {
                 const itemName = normalizeIngredientName(item.name);
 
-                // Both must be reasonably long and one must contain the other as a significant portion
-                if (itemName.length >= 4 &&
-                    (itemName.includes(recipeName) || recipeName.includes(itemName))) {
+                // Handle common cooking terms and descriptors
+                const recipeCore = recipeName
+                    .replace(/\b(diced|sliced|chopped|minced|butterflied|pounded|fresh|dried|frozen)\b/g, '')
+                    .replace(/\b(boneless|skinless|lean|extra)\b/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
-                    // Additional validation: the contained part must be at least 50% of the longer string
-                    const shorterLength = Math.min(itemName.length, recipeName.length);
-                    const longerLength = Math.max(itemName.length, recipeName.length);
+                const inventoryCore = itemName
+                    .replace(/\b(stems and pieces|cooking|coarse|extra large)\b/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
-                    if (shorterLength / longerLength >= 0.6) {
-                        console.log(`✅ CONSERVATIVE PARTIAL MATCH: "${item.name}" <-> "${recipeIngredient.name}"`);
-                        return {
-                            found: true,
-                            inventoryItem: item,
-                            matchType: 'partial'
-                        };
+                console.log(`Comparing cores: "${recipeCore}" vs "${inventoryCore}"`);
+
+                // Check if the core ingredients match
+                if (recipeCore.length >= 3 && inventoryCore.length >= 3) {
+                    if (recipeCore === inventoryCore ||
+                        recipeCore.includes(inventoryCore) ||
+                        inventoryCore.includes(recipeCore)) {
+
+                        // Additional validation: make sure it's a reasonable match
+                        const similarity = Math.max(recipeCore.length, inventoryCore.length) > 0 ?
+                            Math.min(recipeCore.length, inventoryCore.length) / Math.max(recipeCore.length, inventoryCore.length) : 0;
+
+                        if (similarity >= 0.5) {
+                            console.log(`✅ SMART PARTIAL MATCH: "${item.name}" <-> "${recipeIngredient.name}" (similarity: ${Math.round(similarity * 100)}%)`);
+                            return {
+                                found: true,
+                                inventoryItem: item,
+                                matchType: 'smart_partial'
+                            };
+                        }
                     }
                 }
             }
         }
 
-        // 4. CHECK ALTERNATIVES (if recipe provides them)
+        // 4. FLEXIBLE KEYWORD MATCHING (for remaining items)
+        const recipeKeywords = recipeName.split(' ').filter(word => word.length >= 3);
+
+        for (const item of inventory) {
+            const itemName = normalizeIngredientName(item.name);
+            const itemKeywords = itemName.split(' ').filter(word => word.length >= 3);
+
+            // Count matching keywords
+            const matchingKeywords = recipeKeywords.filter(rKeyword =>
+                itemKeywords.some(iKeyword =>
+                    rKeyword.includes(iKeyword) || iKeyword.includes(rKeyword)
+                )
+            );
+
+            // If most keywords match, consider it a match
+            if (matchingKeywords.length >= Math.min(2, recipeKeywords.length) &&
+                matchingKeywords.length / recipeKeywords.length >= 0.6) {
+                console.log(`✅ KEYWORD MATCH: "${item.name}" matches "${recipeIngredient.name}" (${matchingKeywords.length}/${recipeKeywords.length} keywords)`);
+                return {
+                    found: true,
+                    inventoryItem: item,
+                    matchType: 'keyword'
+                };
+            }
+        }
+
+        // 5. CHECK ALTERNATIVES (if recipe provides them)
         if (recipeIngredient.alternatives && recipeIngredient.alternatives.length > 0) {
             for (const alternative of recipeIngredient.alternatives) {
                 const altNormalized = normalizeIngredientName(alternative);
                 for (const item of inventory) {
                     const itemName = normalizeIngredientName(item.name);
-                    if (itemName === altNormalized) {
+                    if (itemName === altNormalized || itemName.includes(altNormalized) || altNormalized.includes(itemName)) {
                         console.log(`✅ ALTERNATIVE MATCH: "${item.name}" matches alternative "${alternative}"`);
                         return {
                             found: true,
@@ -1293,6 +1366,7 @@ export default function RecipeSuggestions() {
             matchType: null
         };
     };
+
 
     const getMatchColor = (percentage) => {
         if (percentage >= 0.9) return 'text-green-600 bg-green-100';
