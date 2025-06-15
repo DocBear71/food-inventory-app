@@ -1,4 +1,4 @@
-// file: /src/components/inventory/ConsumptionHistory.js v1
+// file: /src/components/inventory/ConsumptionHistory.js v2 - Enhanced with dual unit support and better display
 
 'use client';
 
@@ -98,6 +98,62 @@ export default function ConsumptionHistory({ onClose }) {
         } else {
             return date.toLocaleDateString();
         }
+    };
+
+    // Enhanced display text formatting for dual unit consumption
+    const formatConsumptionText = (record) => {
+        // Use the backend-provided display text if available
+        if (record.displayText) {
+            return record.displayText;
+        }
+
+        // Fallback to manual formatting for older records
+        if (record.isDualUnitConsumption) {
+            let consumptionText = `${record.quantityConsumed} ${record.unitConsumed} consumed`;
+
+            if (record.primaryQuantityChange && record.primaryQuantityChange > 0) {
+                consumptionText += ` (${record.primaryQuantityChange} ${record.unitConsumed})`;
+            }
+
+            if (record.secondaryQuantityChange && record.secondaryQuantityChange > 0) {
+                const secondaryUnit = record.originalSecondaryUnit || 'items';
+                consumptionText += ` (${record.secondaryQuantityChange} ${secondaryUnit})`;
+            }
+
+            return consumptionText;
+        }
+
+        // Standard single unit consumption
+        return `${record.quantityConsumed} ${record.unitConsumed} consumed`;
+    };
+
+    const formatRemainingText = (record) => {
+        // Use the backend-provided display text if available
+        if (record.remainingDisplayText) {
+            return record.remainingDisplayText;
+        }
+
+        // Fallback to manual formatting
+        if (record.isDualUnitConsumption) {
+            const primaryRemaining = record.remainingQuantity || 0;
+            const secondaryRemaining = record.remainingSecondaryQuantity || 0;
+
+            if (primaryRemaining <= 0 && secondaryRemaining <= 0) {
+                return 'Item completely consumed';
+            }
+
+            const primaryUnit = record.unitConsumed || 'units';
+            const secondaryUnit = record.originalSecondaryUnit || 'items';
+
+            return `${primaryRemaining} ${primaryUnit}, ${secondaryRemaining} ${secondaryUnit} remaining`;
+        }
+
+        // Standard single unit remaining
+        if (record.remainingQuantity > 0) {
+            return `${record.remainingQuantity} ${record.unitConsumed} remaining`;
+        }
+
+        return 'Item completely consumed';
     };
 
     const getReasonStats = () => {
@@ -241,17 +297,36 @@ export default function ConsumptionHistory({ onClose }) {
                                                                 (used as {record.ingredient})
                                                             </span>
                                                         )}
+                                                        {record.isDualUnitConsumption && (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                                Dual Unit
+                                                            </span>
+                                                        )}
                                                     </div>
 
                                                     <div className="mt-1 space-y-1">
+                                                        {/* Enhanced consumption display */}
                                                         <div className="text-sm text-gray-600">
-                                                            <span className="font-medium">Consumed:</span> {record.quantityConsumed} {record.unitConsumed}
-                                                            {record.remainingQuantity > 0 && (
-                                                                <span className="ml-2">
-                                                                    • <span className="font-medium">Remaining:</span> {record.remainingQuantity} {record.unitConsumed}
-                                                                </span>
-                                                            )}
+                                                            <span className="font-medium">Consumed:</span> {formatConsumptionText(record)}
                                                         </div>
+
+                                                        {/* Enhanced remaining display */}
+                                                        <div className="text-sm text-gray-600">
+                                                            <span className="font-medium">Status:</span> {formatRemainingText(record)}
+                                                        </div>
+
+                                                        {/* Dual unit breakdown for detailed view */}
+                                                        {record.isDualUnitConsumption && (record.primaryQuantityChange || record.secondaryQuantityChange) && (
+                                                            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                                                <strong>Detailed Changes:</strong>
+                                                                {record.primaryQuantityChange > 0 && (
+                                                                    <div>• Primary: -{record.primaryQuantityChange} {record.unitConsumed}</div>
+                                                                )}
+                                                                {record.secondaryQuantityChange > 0 && (
+                                                                    <div>• Secondary: -{record.secondaryQuantityChange} {record.originalSecondaryUnit || 'items'}</div>
+                                                                )}
+                                                            </div>
+                                                        )}
 
                                                         <div className="flex items-center space-x-4 text-sm text-gray-500">
                                                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -286,9 +361,14 @@ export default function ConsumptionHistory({ onClose }) {
                                                 <div className="text-xs text-gray-400">
                                                     {new Date(record.dateConsumed).toLocaleDateString()}
                                                 </div>
-                                                {record.remainingQuantity === 0 && (
+                                                {((record.remainingQuantity || 0) === 0 && (record.remainingSecondaryQuantity || 0) === 0) && (
                                                     <div className="text-xs text-red-500 font-medium mt-1">
                                                         Item Removed
+                                                    </div>
+                                                )}
+                                                {record.isDualUnitConsumption && (record.remainingQuantity > 0 || (record.remainingSecondaryQuantity || 0) > 0) && (
+                                                    <div className="text-xs text-blue-500 font-medium mt-1">
+                                                        Partially Used
                                                     </div>
                                                 )}
                                             </div>
@@ -305,6 +385,11 @@ export default function ConsumptionHistory({ onClose }) {
                     <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
                             Total records: {history.length}
+                            {history.filter(r => r.isDualUnitConsumption).length > 0 && (
+                                <span className="ml-2 text-blue-600">
+                                    • {history.filter(r => r.isDualUnitConsumption).length} dual-unit records
+                                </span>
+                            )}
                         </div>
                         <div className="flex gap-2">
                             <TouchEnhancedButton
