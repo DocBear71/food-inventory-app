@@ -1,4 +1,4 @@
-// file: /src/components/meal-planning/MealPlanningCalendar.js v14 - Added dietary restrictions and ingredient filtering
+// file: /src/components/meal-planning/MealPlanningCalendar.js v15 - Updated with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
 
 'use client';
 
@@ -16,7 +16,7 @@ export default function MealPlanningCalendar() {
     const [currentWeek, setCurrentWeek] = useState(new Date());
     const [mealPlan, setMealPlan] = useState(null);
     const [recipes, setRecipes] = useState([]);
-    const [filteredRecipes, setFilteredRecipes] = useState([]); // NEW: Filtered recipes
+    const [filteredRecipes, setFilteredRecipes] = useState([]);
     const [showRecipeModal, setShowRecipeModal] = useState(false);
     const [showSimpleMealBuilder, setShowSimpleMealBuilder] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -24,11 +24,12 @@ export default function MealPlanningCalendar() {
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [weekStartDay, setWeekStartDay] = useState('monday');
-    const [userMealTypes, setUserMealTypes] = useState(['breakfast', 'lunch', 'dinner']);
+    // UPDATED: Default to expanded meal types
+    const [userMealTypes, setUserMealTypes] = useState(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
     const [showWeekSettings, setShowWeekSettings] = useState(false);
     const [showWeekNotification, setShowWeekNotification] = useState(true);
 
-    // NEW: User dietary preferences
+    // User dietary preferences
     const [userDietaryRestrictions, setUserDietaryRestrictions] = useState([]);
     const [userAvoidIngredients, setUserAvoidIngredients] = useState([]);
     const [dietaryWarningMessage, setDietaryWarningMessage] = useState('');
@@ -43,7 +44,7 @@ export default function MealPlanningCalendar() {
     const weekDays = getWeekDaysOrder(weekStartDay);
     const mealTypes = userMealTypes;
 
-    // NEW: Filter recipes based on dietary restrictions and avoided ingredients
+    // Filter recipes based on dietary restrictions and avoided ingredients
     const filterRecipesByDietaryPreferences = (recipeList) => {
         if (!recipeList || recipeList.length === 0) return [];
 
@@ -115,7 +116,7 @@ export default function MealPlanningCalendar() {
         });
     };
 
-    // NEW: Check if a meal conflicts with dietary preferences
+    // Check if a meal conflicts with dietary preferences
     const checkMealDietaryConflicts = (meal) => {
         const conflicts = [];
 
@@ -165,7 +166,7 @@ export default function MealPlanningCalendar() {
         }
     }, []);
 
-    // NEW: Filter recipes whenever recipes or dietary preferences change
+    // Filter recipes whenever recipes or dietary preferences change
     useEffect(() => {
         if (recipes.length > 0) {
             const filtered = filterRecipesByDietaryPreferences(recipes);
@@ -180,6 +181,26 @@ export default function MealPlanningCalendar() {
         }
     }, [recipes, userDietaryRestrictions, userAvoidIngredients]);
 
+    // UPDATED: Migration function for existing users with old meal types
+    const migrateOldMealTypes = (mealTypes) => {
+        const oldMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+        const newMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+
+        // If user has the old format, upgrade to new format
+        if (mealTypes && mealTypes.length > 0 && mealTypes.every(type => oldMealTypes.includes(type.toLowerCase()))) {
+            console.log('Migrating old meal types to new expanded format');
+            return newMealTypes;
+        }
+
+        // If empty or undefined, return new default
+        if (!mealTypes || mealTypes.length === 0) {
+            return newMealTypes;
+        }
+
+        // Otherwise, keep existing selection
+        return mealTypes;
+    };
+
     const loadUserPreferences = async () => {
         try {
             const response = await fetch('/api/user/preferences');
@@ -190,15 +211,17 @@ export default function MealPlanningCalendar() {
                     setWeekStartDay(data.preferences.weekStartDay);
                 }
 
-                // Set user's preferred meal types
+                // UPDATED: Set user's preferred meal types with migration
                 if (data.preferences.defaultMealTypes && data.preferences.defaultMealTypes.length > 0) {
-                    setUserMealTypes(data.preferences.defaultMealTypes);
-                    console.log('Loaded user meal types:', data.preferences.defaultMealTypes);
+                    const migratedMealTypes = migrateOldMealTypes(data.preferences.defaultMealTypes);
+                    setUserMealTypes(migratedMealTypes);
+                    console.log('Loaded user meal types:', migratedMealTypes);
                 } else {
-                    setUserMealTypes(['breakfast', 'lunch', 'dinner']);
+                    // UPDATED: New default meal types
+                    setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
                 }
 
-                // NEW: Load dietary restrictions and avoided ingredients
+                // Load dietary restrictions and avoided ingredients
                 if (data.preferences.dietaryRestrictions) {
                     setUserDietaryRestrictions(data.preferences.dietaryRestrictions);
                     console.log('Loaded dietary restrictions:', data.preferences.dietaryRestrictions);
@@ -340,7 +363,7 @@ export default function MealPlanningCalendar() {
                     preferences: {
                         mealTypes: userMealTypes,
                         weekStartDay: weekStartDay,
-                        // NEW: Include dietary preferences in meal plan
+                        // Include dietary preferences in meal plan
                         dietaryRestrictions: userDietaryRestrictions,
                         avoidIngredients: userAvoidIngredients
                     }
@@ -423,7 +446,7 @@ export default function MealPlanningCalendar() {
     const addSimpleMealToSlot = async (day, mealType, simpleMealEntry) => {
         if (!mealPlan) return;
 
-        // NEW: Check for dietary conflicts before adding
+        // Check for dietary conflicts before adding
         const conflicts = checkMealDietaryConflicts(simpleMealEntry);
         if (conflicts.length > 0) {
             const confirmAdd = window.confirm(
@@ -538,7 +561,7 @@ export default function MealPlanningCalendar() {
         return `${meal.servings} servings • ${meal.prepTime + meal.cookTime} min`;
     };
 
-    // NEW: Render meal with dietary conflict warnings
+    // Render meal with dietary conflict warnings
     const renderMealWithWarnings = (meal, mealTypeIndex, day, actualIndex) => {
         const conflicts = checkMealDietaryConflicts(meal);
         const hasConflicts = conflicts.length > 0;
@@ -644,6 +667,10 @@ export default function MealPlanningCalendar() {
             </div>
         );
     }
+
+    // UPDATED: Available meal types constant
+    const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+
     // Mobile Layout
     if (isMobile) {
         return (
@@ -655,13 +682,14 @@ export default function MealPlanningCalendar() {
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900">📅 Meal Planning</h1>
                                 <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
-                                {/* NEW: Show dietary preferences summary */}
+                                {/* Show dietary preferences summary */}
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                         )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
+                                            <span> • </span>}
                                         {userAvoidIngredients.length > 0 && (
                                             <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                         )}
@@ -675,13 +703,15 @@ export default function MealPlanningCalendar() {
                                 title="Week Settings"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* NEW: Dietary filtering notification */}
+                        {/* Dietary filtering notification */}
                         {dietaryWarningMessage && (
                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                                 <div className="flex items-start">
@@ -788,7 +818,9 @@ export default function MealPlanningCalendar() {
                         <div className="flex items-start">
                             <div className="flex-shrink-0">
                                 <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    <path fillRule="evenodd"
+                                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                          clipRule="evenodd"/>
                                 </svg>
                             </div>
                             <div className="ml-3 flex-1">
@@ -799,8 +831,10 @@ export default function MealPlanningCalendar() {
                                     <p>
                                         Click the <span className="inline-flex items-center mx-1">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
                         </span> settings icon to choose which day starts your week and which meal types to show.
                                     </p>
@@ -813,7 +847,9 @@ export default function MealPlanningCalendar() {
                                     title="Dismiss notification"
                                 >
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        <path fillRule="evenodd"
+                                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                              clipRule="evenodd"/>
                                     </svg>
                                 </TouchEnhancedButton>
                             </div>
@@ -836,9 +872,9 @@ export default function MealPlanningCalendar() {
                             <div className="p-4 space-y-4">
                                 {mealTypes.map(mealType => (
                                     <div key={`${day}-${mealType}`}>
-                                        <h4 className="font-medium text-gray-800 capitalize mb-2">{mealType}</h4>
+                                        <h4 className="font-medium text-gray-800 mb-2">{mealType}</h4>
                                         <div className="space-y-2">
-                                            {/* Existing Meals - UPDATED with dietary warnings */}
+                                            {/* Existing Meals - with dietary warnings */}
                                             {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
                                                 const actualIndex = mealPlan.meals[day].findIndex(m =>
                                                     m.recipeId === meal.recipeId &&
@@ -859,7 +895,7 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
-                {/* Week Settings Modal */}
+                {/* Week Settings Modal - UPDATED with new meal types */}
                 {showWeekSettings && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
@@ -903,11 +939,12 @@ export default function MealPlanningCalendar() {
                                         Show meal types:
                                     </label>
                                     <div className="space-y-2">
-                                        {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
+                                        {/* UPDATED: Use new meal types */}
+                                        {availableMealTypes.map(mealType => (
                                             <div key={mealType} className="flex items-center">
                                                 <input
                                                     type="checkbox"
-                                                    id={`meal-type-${mealType}`}
+                                                    id={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
                                                     checked={userMealTypes.includes(mealType)}
                                                     onChange={(e) => {
                                                         const updatedMealTypes = e.target.checked
@@ -921,8 +958,8 @@ export default function MealPlanningCalendar() {
                                                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                                 />
                                                 <label
-                                                    htmlFor={`meal-type-${mealType}`}
-                                                    className="ml-3 text-sm text-gray-700 capitalize"
+                                                    htmlFor={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                    className="ml-3 text-sm text-gray-700"
                                                 >
                                                     {mealType}
                                                 </label>
@@ -930,11 +967,12 @@ export default function MealPlanningCalendar() {
                                         ))}
                                     </div>
                                     <p className="text-xs text-gray-500 mt-2">
-                                        Select which meal types you want to see in your calendar. You must have at least one selected.
+                                        Select which meal types you want to see in your calendar. You must have at least
+                                        one selected.
                                     </p>
                                 </div>
 
-                                {/* NEW: Show current dietary preferences */}
+                                {/* Show current dietary preferences */}
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -943,12 +981,14 @@ export default function MealPlanningCalendar() {
                                         <div className="text-sm text-gray-600 space-y-1">
                                             {userDietaryRestrictions.length > 0 && (
                                                 <div>
-                                                    <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                                    <span
+                                                        className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                                 </div>
                                             )}
                                             {userAvoidIngredients.length > 0 && (
                                                 <div>
-                                                    <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                                    <span
+                                                        className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                                 </div>
                                             )}
                                         </div>
@@ -959,21 +999,23 @@ export default function MealPlanningCalendar() {
                                 )}
 
                                 <div className="text-xs text-gray-500">
-                                    These settings will apply to all your meal plans and will update the calendar layout.
+                                    These settings will apply to all your meal plans and will update the calendar
+                                    layout.
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Mobile Recipe Selection Modal - UPDATED to use filtered recipes */}
+                {/* Mobile Recipe Selection Modal - uses filtered recipes */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden">
                             <div className="p-4 border-b border-gray-200">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        Add Recipe to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                        Add Recipe
+                                        to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                     </h3>
                                     <TouchEnhancedButton
                                         onClick={() => {
@@ -985,10 +1027,11 @@ export default function MealPlanningCalendar() {
                                         ×
                                     </TouchEnhancedButton>
                                 </div>
-                                {/* NEW: Show filtering info */}
+                                {/* Show filtering info */}
                                 {filteredRecipes.length < recipes.length && (
                                     <div className="mt-2 text-sm text-orange-600">
-                                        Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary preferences)
+                                        Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by
+                                        dietary preferences)
                                     </div>
                                 )}
                             </div>
@@ -1064,7 +1107,8 @@ export default function MealPlanningCalendar() {
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                         <div className="space-y-2">
-                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
+                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
+                                meals.</p>
                             {mealPlan && (
                                 <div className="mt-4">
                                     <TemplateLibraryButton
@@ -1081,7 +1125,8 @@ export default function MealPlanningCalendar() {
             </div>
         );
     }
-    // Desktop Layout
+
+// Desktop Layout
     return (
         <div className="max-w-7xl mx-auto p-6">
             {/* Header */}
@@ -1090,13 +1135,14 @@ export default function MealPlanningCalendar() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">📅 Meal Planning</h1>
                         <p className="text-gray-600 mt-1">Plan your meals for the week</p>
-                        {/* NEW: Show dietary preferences summary on desktop */}
+                        {/* Show dietary preferences summary on desktop */}
                         {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                             <div className="text-sm text-gray-500 mt-1">
                                 {userDietaryRestrictions.length > 0 && (
                                     <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                 )}
-                                {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
+                                    <span> • </span>}
                                 {userAvoidIngredients.length > 0 && (
                                     <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                 )}
@@ -1116,8 +1162,10 @@ export default function MealPlanningCalendar() {
                             title="Week Settings"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
                         </TouchEnhancedButton>
 
@@ -1207,7 +1255,7 @@ export default function MealPlanningCalendar() {
                 </div>
             </div>
 
-            {/* NEW: Dietary filtering notification for desktop */}
+            {/* Dietary filtering notification for desktop */}
             {dietaryWarningMessage && (
                 <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <div className="flex items-start">
@@ -1231,7 +1279,9 @@ export default function MealPlanningCalendar() {
                     <div className="flex items-start">
                         <div className="flex-shrink-0">
                             <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                <path fillRule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clipRule="evenodd"/>
                             </svg>
                         </div>
                         <div className="ml-3 flex-1">
@@ -1242,8 +1292,10 @@ export default function MealPlanningCalendar() {
                                 <p>
                                     Click the <span className="inline-flex items-center mx-1">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
                         </span> settings icon to choose which day starts your week and which meal types to show.
                                 </p>
@@ -1256,7 +1308,9 @@ export default function MealPlanningCalendar() {
                                 title="Dismiss notification"
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    <path fillRule="evenodd"
+                                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                          clipRule="evenodd"/>
                                 </svg>
                             </TouchEnhancedButton>
                         </div>
@@ -1281,7 +1335,7 @@ export default function MealPlanningCalendar() {
                     <div key={mealType} className="border-b border-gray-200 last:border-b-0">
                         {/* Meal Type Label */}
                         <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                            <h3 className="font-medium text-gray-900 capitalize">{mealType}</h3>
+                            <h3 className="font-medium text-gray-900">{mealType}</h3>
                         </div>
 
                         {/* Day Columns */}
@@ -1290,7 +1344,7 @@ export default function MealPlanningCalendar() {
                                 <div key={`${day}-${mealType}`}
                                      className="p-3 border-r border-gray-200 last:border-r-0 min-h-24">
                                     <div className="space-y-2">
-                                        {/* Existing Meals - UPDATED with dietary warnings */}
+                                        {/* Existing Meals - with dietary warnings */}
                                         {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
                                             const actualIndex = mealPlan.meals[day].findIndex(m =>
                                                 m.recipeId === meal.recipeId &&
@@ -1311,7 +1365,7 @@ export default function MealPlanningCalendar() {
                 ))}
             </div>
 
-            {/* Week Settings Modal - Same as mobile */}
+            {/* Week Settings Modal - Same as mobile but UPDATED with new meal types */}
             {showWeekSettings && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
@@ -1355,11 +1409,12 @@ export default function MealPlanningCalendar() {
                                     Show meal types:
                                 </label>
                                 <div className="space-y-2">
-                                    {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
+                                    {/* UPDATED: Use new meal types */}
+                                    {availableMealTypes.map(mealType => (
                                         <div key={mealType} className="flex items-center">
                                             <input
                                                 type="checkbox"
-                                                id={`meal-type-${mealType}`}
+                                                id={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
                                                 checked={userMealTypes.includes(mealType)}
                                                 onChange={(e) => {
                                                     const updatedMealTypes = e.target.checked
@@ -1373,8 +1428,8 @@ export default function MealPlanningCalendar() {
                                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                             />
                                             <label
-                                                htmlFor={`meal-type-${mealType}`}
-                                                className="ml-3 text-sm text-gray-700 capitalize"
+                                                htmlFor={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                className="ml-3 text-sm text-gray-700"
                                             >
                                                 {mealType}
                                             </label>
@@ -1382,7 +1437,8 @@ export default function MealPlanningCalendar() {
                                     ))}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-2">
-                                    Select which meal types you want to see in your calendar. You must have at least one selected.
+                                    Select which meal types you want to see in your calendar. You must have at least one
+                                    selected.
                                 </p>
                             </div>
 
@@ -1395,12 +1451,14 @@ export default function MealPlanningCalendar() {
                                     <div className="text-sm text-gray-600 space-y-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <div>
-                                                <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                                <span
+                                                    className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                             </div>
                                         )}
                                         {userAvoidIngredients.length > 0 && (
                                             <div>
-                                                <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                                <span
+                                                    className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                             </div>
                                         )}
                                     </div>
@@ -1418,14 +1476,15 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Desktop Recipe Selection Modal - UPDATED to use filtered recipes */}
+            {/* Desktop Recipe Selection Modal - uses filtered recipes */}
             {showRecipeModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
                         <div className="p-4 border-b border-gray-200">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                    Select Recipe
+                                    for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
                                 <TouchEnhancedButton
                                     onClick={() => {
@@ -1440,7 +1499,8 @@ export default function MealPlanningCalendar() {
                             {/* Show filtering info */}
                             {filteredRecipes.length < recipes.length && (
                                 <div className="mt-2 text-sm text-orange-600">
-                                    Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary preferences)
+                                    Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary
+                                    preferences)
                                 </div>
                             )}
                         </div>
@@ -1516,7 +1576,8 @@ export default function MealPlanningCalendar() {
                     <div className="text-6xl mb-4">🍽️</div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                     <div className="space-y-4">
-                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
+                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
+                            meals.</p>
                         {mealPlan && (
                             <TemplateLibraryButton
                                 mealPlanId={mealPlan._id}

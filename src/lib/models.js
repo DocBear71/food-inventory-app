@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v10 UPDATED with Kitchen Cabinets location and Recipe user tracking
+// file: /src/lib/models.js - v11 - UPDATED with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
 
 import mongoose from 'mongoose';
 
@@ -68,10 +68,11 @@ const UserMealPlanningPreferencesSchema = new mongoose.Schema({
         enum: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
         default: 'monday'
     },
+    // UPDATED: New expanded meal types
     defaultMealTypes: {
         type: [String],
-        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-        default: ['breakfast', 'lunch', 'dinner']
+        enum: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
+        default: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
     },
     planningHorizon: {
         type: String,
@@ -203,11 +204,11 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
-    // Meal planning preferences - NOW THIS WORKS
+    // UPDATED: Meal planning preferences with new meal types
     mealPlanningPreferences: {
         type: UserMealPlanningPreferencesSchema,
         default: () => ({
-            defaultMealTypes: ['breakfast', 'lunch', 'dinner'],
+            defaultMealTypes: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
             planningHorizon: 'week',
             shoppingDay: 'sunday',
             mealPrepDays: ['sunday'],
@@ -244,6 +245,7 @@ const UserSchema = new mongoose.Schema({
     updatedAt: {type: Date, default: Date.now}
 });
 
+// UPDATED: MealPlanEntrySchema with new meal types
 const MealPlanEntrySchema = new mongoose.Schema({
     // Type of meal entry
     entryType: {
@@ -287,10 +289,10 @@ const MealPlanEntrySchema = new mongoose.Schema({
         }
     },
 
-    // Common fields for both types
+    // UPDATED: Common fields for both types with new meal types
     mealType: {
         type: String,
-        enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+        enum: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
         required: true
     },
     servings: {type: Number, default: 1, min: 1},
@@ -335,17 +337,17 @@ const MealPlanSchema = new mongoose.Schema({
         sunday: [MealPlanEntrySchema]
     },
 
-    // Planning preferences
+    // UPDATED: Planning preferences with new meal types
     preferences: {
         defaultServings: {type: Number, default: 4},
         mealTypes: {
             type: [String],
-            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-            default: ['breakfast', 'lunch', 'dinner']
+            enum: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
+            default: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
         },
         dietaryRestrictions: [String],
         avoidIngredients: [String],
-        // NEW: Simple meal preferences
+        // Simple meal preferences
         allowSimpleMeals: {type: Boolean, default: true},
         preferredMealComplexity: {
             type: String,
@@ -377,7 +379,7 @@ const MealPlanSchema = new mongoose.Schema({
         batchCookingSuggestions: [{
             ingredient: String,
             recipes: [String],
-            simpleMeals: [String], // NEW: Simple meals using this ingredient
+            simpleMeals: [String], // Simple meals using this ingredient
             prepMethod: String,
             storageTime: String
         }],
@@ -461,7 +463,7 @@ MealPlanSchema.pre('save', function (next) {
 MealPlanSchema.methods.getEffectiveMealTypes = function (userPreferences) {
     // Use meal plan preferences first, then fall back to user preferences
     const planPreferences = this.preferences?.mealTypes || [];
-    const userPrefs = userPreferences?.defaultMealTypes || ['breakfast', 'lunch', 'dinner'];
+    const userPrefs = userPreferences?.defaultMealTypes || ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
 
     return planPreferences.length > 0 ? planPreferences : userPrefs;
 };
@@ -471,7 +473,7 @@ MealPlanSchema.methods.allowsSimpleMeals = function () {
     return this.preferences?.allowSimpleMeals !== false;
 };
 
-// NEW: Meal Plan Template Schema (for saving favorite meal plans)
+// MealPlanTemplate Schema with updated meal types
 const MealPlanTemplateSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -486,7 +488,7 @@ const MealPlanTemplateSchema = new mongoose.Schema({
         default: 'custom'
     },
 
-    // Template meals (same structure as MealPlan)
+// Template meals (same structure as MealPlan)
     templateMeals: {
         monday: [MealPlanEntrySchema],
         tuesday: [MealPlanEntrySchema],
@@ -497,7 +499,7 @@ const MealPlanTemplateSchema = new mongoose.Schema({
         sunday: [MealPlanEntrySchema]
     },
 
-    // Usage statistics
+// Usage statistics
     timesUsed: {type: Number, default: 0},
     rating: {type: Number, min: 1, max: 5},
 
@@ -1010,7 +1012,6 @@ MealPrepSuggestionSchema.pre('save', function (next) {
     next();
 });
 
-
 // Recipe Review Schema
 const RecipeReviewSchema = new mongoose.Schema({
     userId: {
@@ -1051,7 +1052,7 @@ const RecipeReviewSchema = new mongoose.Schema({
     updatedAt: {type: Date, default: Date.now}
 });
 
-// UPDATED: Inventory Item Schema with Kitchen Cabinets location
+// Inventory Item Schema with Kitchen Cabinets location
 const InventoryItemSchema = new mongoose.Schema({
     upc: {type: String, index: true},
     name: {type: String, required: true},
@@ -1062,7 +1063,7 @@ const InventoryItemSchema = new mongoose.Schema({
     quantity: {type: Number, default: 1},
     unit: {type: String, default: 'item'},
 
-    // NEW: Secondary quantity and unit (optional)
+    // Secondary quantity and unit (optional)
     secondaryQuantity: {type: Number, default: null},
     secondaryUnit: {type: String, default: null},
 
@@ -1121,7 +1122,6 @@ const RecipeSchema = new mongoose.Schema({
         default: 'medium'
     },
 
-    // ADD THIS FIELD:
     category: {
         type: String,
         enum: [
@@ -1140,7 +1140,7 @@ const RecipeSchema = new mongoose.Schema({
         required: true
     },
 
-    // NEW: USER TRACKING FIELDS
+    // USER TRACKING FIELDS
     lastEditedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -1158,7 +1158,7 @@ const RecipeSchema = new mongoose.Schema({
     nutritionCoverage: Number, // Percentage of ingredients with nutrition data
     nutritionManuallySet: {type: Boolean, default: false},
 
-    // NEW: Rating and Review System
+    // Rating and Review System
     reviews: [RecipeReviewSchema],
 
     // Cached rating statistics for performance
@@ -1197,7 +1197,7 @@ RecipeSchema.pre('save', function (next) {
     next();
 });
 
-// Daily Nutrition Log Schema - Track user's daily nutrition intake
+// UPDATED: Daily Nutrition Log Schema with new meal types
 const DailyNutritionLogSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -1208,7 +1208,7 @@ const DailyNutritionLogSchema = new mongoose.Schema({
     meals: [{
         mealType: {
             type: String,
-            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            enum: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
             required: true
         },
         recipeId: {
@@ -1232,7 +1232,6 @@ const DailyNutritionLogSchema = new mongoose.Schema({
     createdAt: {type: Date, default: Date.now},
     updatedAt: {type: Date, default: Date.now}
 });
-
 
 // Pre-save middleware to update timestamps and stats
 SavedShoppingListSchema.pre('save', function (next) {
@@ -1456,7 +1455,7 @@ RecipeSchema.index({createdBy: 1});
 RecipeSchema.index({'nutrition.calories.value': 1}); // For nutrition-based filtering
 RecipeSchema.index({nutritionCalculatedAt: 1});
 
-// NEW: Rating and review indexes
+// Rating and review indexes
 RecipeSchema.index({'ratingStats.averageRating': -1}); // For sorting by rating
 RecipeSchema.index({'ratingStats.totalRatings': -1}); // For sorting by popularity
 RecipeSchema.index({'reviews.userId': 1}); // For finding user's reviews

@@ -1,4 +1,4 @@
-// file: /src/app/profile/page.js v5 - FIXED COMMA INPUT ISSUE
+// file: /src/app/profile/page.js v6 - Updated meal types to include expanded snack options
 
 'use client';
 
@@ -46,7 +46,7 @@ export default function ProfilePage() {
         },
         mealPlanningPreferences: {
             weekStartDay: 'monday',
-            defaultMealTypes: ['breakfast', 'lunch', 'dinner'],
+            defaultMealTypes: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'], // UPDATED: Expanded meal types
             planningHorizon: 'week',
             shoppingDay: 'sunday',
             mealPrepDays: ['sunday'],
@@ -355,6 +355,26 @@ export default function ProfilePage() {
         }
     }, [session]);
 
+    // UPDATED: Migration function for existing users
+    const migrateOldMealTypes = (mealTypes) => {
+        const oldMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+        const newMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+
+        // If user has the old format, upgrade to new format
+        if (mealTypes && mealTypes.length > 0 && mealTypes.every(type => oldMealTypes.includes(type.toLowerCase()))) {
+            console.log('Migrating old meal types to new expanded format');
+            return newMealTypes;
+        }
+
+        // If empty or undefined, return new default
+        if (!mealTypes || mealTypes.length === 0) {
+            return newMealTypes;
+        }
+
+        // Otherwise, keep existing selection
+        return mealTypes;
+    };
+
     const fetchProfile = async () => {
         try {
             setLoading(true);
@@ -378,7 +398,12 @@ export default function ProfilePage() {
                         favoritesCuisines: data.user?.profile?.favoritesCuisines || []
                     },
                     notificationSettings: data.user?.notificationSettings || formData.notificationSettings,
-                    mealPlanningPreferences: data.user?.mealPlanningPreferences || formData.mealPlanningPreferences,
+                    mealPlanningPreferences: {
+                        ...formData.mealPlanningPreferences,
+                        ...(data.user?.mealPlanningPreferences || {}),
+                        // UPDATED: Apply migration for meal types
+                        defaultMealTypes: migrateOldMealTypes(data.user?.mealPlanningPreferences?.defaultMealTypes)
+                    },
                     nutritionGoals: data.user?.nutritionGoals || formData.nutritionGoals
                 };
 
@@ -501,6 +526,9 @@ export default function ProfilePage() {
         {id: 'nutrition', name: 'Nutrition Goals', icon: '🥗'},
         {id: 'security', name: 'Security', icon: '🔒'}
     ];
+
+    // UPDATED: New meal types array
+    const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
 
     return (
         <MobileOptimizedLayout>
@@ -865,7 +893,7 @@ export default function ProfilePage() {
                                     </div>
                                 )}
 
-                                {/* Meal Planning Tab - FIXED */}
+                                {/* Meal Planning Tab - UPDATED with new meal types */}
                                 {activeTab === 'meal-planning' && (
                                     <div className="space-y-6">
                                         <div>
@@ -887,11 +915,12 @@ export default function ProfilePage() {
                                                 Default meal types
                                             </label>
                                             <div className="space-y-3">
-                                                {['breakfast', 'lunch', 'dinner', 'snack'].map((meal) => (
+                                                {/* UPDATED: New expanded meal types */}
+                                                {availableMealTypes.map((meal) => (
                                                     <div key={meal} className="flex items-center">
                                                         <input
                                                             type="checkbox"
-                                                            id={meal}
+                                                            id={meal.toLowerCase().replace(' ', '-')}
                                                             checked={formData.mealPlanningPreferences.defaultMealTypes.includes(meal)}
                                                             onChange={(e) => {
                                                                 const current = formData.mealPlanningPreferences.defaultMealTypes;
@@ -902,13 +931,16 @@ export default function ProfilePage() {
                                                             }}
                                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded touch-friendly"
                                                         />
-                                                        <label htmlFor={meal}
-                                                               className="ml-3 text-sm text-gray-700 capitalize">
+                                                        <label htmlFor={meal.toLowerCase().replace(' ', '-')}
+                                                               className="ml-3 text-sm text-gray-700">
                                                             {meal}
                                                         </label>
                                                     </div>
                                                 ))}
                                             </div>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Select which meal periods you want to include in your meal planning. You can choose from main meals and snack periods throughout the day.
+                                            </p>
                                         </div>
 
                                         <div>
