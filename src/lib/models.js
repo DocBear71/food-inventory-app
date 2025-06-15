@@ -1083,7 +1083,64 @@ const InventoryItemSchema = new mongoose.Schema({
     lastNotifiedDate: Date
 });
 
-// User Inventory Schema
+// Consumption History Schema for tracking inventory usage
+const ConsumptionHistorySchema = new mongoose.Schema({
+    itemId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true
+    },
+    itemName: {
+        type: String,
+        required: true
+    },
+    ingredient: String, // For recipe mode - what the item was used as
+    quantityConsumed: {
+        type: Number,
+        required: true
+    },
+    unitConsumed: {
+        type: String,
+        required: true
+    },
+    reason: {
+        type: String,
+        enum: ['consumed', 'recipe', 'expired', 'donated', 'spilled', 'other'],
+        required: true
+    },
+    notes: String,
+    recipeName: String, // If used in a recipe
+    dateConsumed: {
+        type: Date,
+        default: Date.now,
+        required: true
+    },
+
+    // Enhanced dual unit tracking
+    isDualUnitConsumption: {
+        type: Boolean,
+        default: false
+    },
+    useSecondaryUnit: {
+        type: Boolean,
+        default: false
+    },
+    originalPrimaryQuantity: Number,
+    originalSecondaryQuantity: Number,
+    originalSecondaryUnit: String,
+
+    // Remaining quantities after consumption
+    remainingQuantity: {
+        type: Number,
+        required: true
+    },
+    remainingSecondaryQuantity: Number,
+
+    // Change tracking
+    primaryQuantityChange: Number,
+    secondaryQuantityChange: Number
+}, {_id: false});
+
+// UPDATED User Inventory Schema - WITH consumptionHistory field
 const UserInventorySchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -1091,6 +1148,10 @@ const UserInventorySchema = new mongoose.Schema({
         required: true
     },
     items: [InventoryItemSchema],
+
+    // ADD THIS FIELD - This was missing!
+    consumptionHistory: [ConsumptionHistorySchema],
+
     lastUpdated: {type: Date, default: Date.now}
 });
 
