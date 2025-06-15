@@ -1168,7 +1168,7 @@ export default function RecipeSuggestions() {
         };
     };
 
-    // ENHANCED: Better ingredient name normalization
+    // ENHANCED: Better ingredient name normalization with vegan/plant-based exclusions
     const normalizeIngredientName = (name) => {
         return name
             .toLowerCase()
@@ -1186,16 +1186,62 @@ export default function RecipeSuggestions() {
             .trim();
     };
 
-    // ENHANCED: Much more comprehensive ingredient matching
+    // NEW: Function to detect vegan/plant-based ingredients
+    const isVeganOrPlantBased = (ingredientName) => {
+        const veganKeywords = [
+            'vegan', 'plant-based', 'plant based', 'meatless', 'meat-free', 'meat free',
+            'vegetarian', 'veggie', 'mock', 'imitation', 'artificial', 'fake',
+            'seitan', 'tempeh', 'tofu', 'soy protein', 'textured vegetable protein',
+            'tvp', 'beyond', 'impossible', 'gardein', 'lightlife', 'morningstar',
+            'boca', 'field roast', 'tofurky', 'quorn', 'jackfruit'
+        ];
+
+        const lowerName = ingredientName.toLowerCase();
+        return veganKeywords.some(keyword => lowerName.includes(keyword));
+    };
+
+    // NEW: Function to detect if an ingredient is animal protein
+    const isAnimalProtein = (ingredientName) => {
+        const animalProteins = [
+            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'fish', 'salmon', 'tuna',
+            'shrimp', 'crab', 'lobster', 'bacon', 'ham', 'sausage', 'steak',
+            'ground beef', 'ground turkey', 'ground chicken', 'ground pork'
+        ];
+
+        const normalizedName = normalizeIngredientName(ingredientName);
+        return animalProteins.some(protein => normalizedName.includes(protein));
+    };
+
+    // ENHANCED: Much more comprehensive ingredient matching with vegan exclusions
     const findIngredientInInventory = (recipeIngredient, inventory) => {
         const recipeName = normalizeIngredientName(recipeIngredient.name);
+        const recipeNameOriginal = recipeIngredient.name.toLowerCase();
 
         console.log(`\n--- Looking for: "${recipeIngredient.name}" (normalized: "${recipeName}") ---`);
+
+        // CRITICAL: Check if recipe ingredient is vegan/plant-based
+        const recipeIsVegan = isVeganOrPlantBased(recipeIngredient.name);
+        const recipeIsAnimalProtein = isAnimalProtein(recipeIngredient.name);
+
+        console.log(`Recipe ingredient analysis: isVegan=${recipeIsVegan}, isAnimalProtein=${recipeIsAnimalProtein}`);
 
         // 1. EXACT MATCH (highest priority)
         for (const item of inventory) {
             const itemName = normalizeIngredientName(item.name);
+            const itemIsVegan = isVeganOrPlantBased(item.name);
+            const itemIsAnimalProtein = isAnimalProtein(item.name);
+
             if (itemName === recipeName && recipeName.length > 2) {
+                // Additional validation: ensure vegan/meat compatibility
+                if (recipeIsVegan && itemIsAnimalProtein) {
+                    console.log(`❌ VEGAN/MEAT MISMATCH: Recipe wants vegan "${recipeIngredient.name}" but inventory has animal protein "${item.name}"`);
+                    continue;
+                }
+                if (recipeIsAnimalProtein && itemIsVegan) {
+                    console.log(`❌ MEAT/VEGAN MISMATCH: Recipe wants animal protein "${recipeIngredient.name}" but inventory has vegan "${item.name}"`);
+                    continue;
+                }
+
                 console.log(`✅ EXACT MATCH: "${item.name}"`);
                 return {
                     found: true,
@@ -1205,7 +1251,7 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 2. ENHANCED INGREDIENT VARIATIONS (much more comprehensive)
+        // 2. ENHANCED INGREDIENT VARIATIONS with vegan/meat validation
         const specificVariations = {
             // Proteins - Handle all the common variations
             'chicken breast': ['chicken breasts', 'boneless skinless chicken breast', 'boneless chicken breast', 'skinless chicken breast'],
@@ -1236,7 +1282,7 @@ export default function RecipeSuggestions() {
             'white wine': ['white cooking wine', 'dry white wine'],
             'red wine': ['red cooking wine', 'dry red wine'],
 
-            // Basic ingredients from your existing list
+            // Basic ingredients
             'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'evoo'],
             'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic'],
             'onion': ['yellow onion', 'white onion', 'red onion', 'sweet onion'],
@@ -1262,6 +1308,20 @@ export default function RecipeSuggestions() {
                 for (const item of inventory) {
                     const itemName = normalizeIngredientName(item.name);
                     if (itemName === baseIngredient || variations.some(v => normalizeIngredientName(v) === itemName)) {
+
+                        // CRITICAL: Vegan/meat compatibility check
+                        const itemIsVegan = isVeganOrPlantBased(item.name);
+                        const itemIsAnimalProtein = isAnimalProtein(item.name);
+
+                        if (recipeIsVegan && itemIsAnimalProtein) {
+                            console.log(`❌ VARIATION MISMATCH: Recipe wants vegan "${recipeIngredient.name}" but inventory has animal protein "${item.name}"`);
+                            continue;
+                        }
+                        if (recipeIsAnimalProtein && itemIsVegan) {
+                            console.log(`❌ VARIATION MISMATCH: Recipe wants animal protein "${recipeIngredient.name}" but inventory has vegan "${item.name}"`);
+                            continue;
+                        }
+
                         console.log(`✅ VARIATION MATCH: "${item.name}" matches "${recipeIngredient.name}" via ${baseIngredient}`);
                         return {
                             found: true,
@@ -1273,8 +1333,8 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 3. SMART PARTIAL MATCHING (enhanced with better logic)
-        if (recipeName.length >= 4) { // Lowered from 5 to catch more matches
+        // 3. SMART PARTIAL MATCHING with enhanced vegan/meat validation
+        if (recipeName.length >= 4) {
             for (const item of inventory) {
                 const itemName = normalizeIngredientName(item.name);
 
@@ -1298,6 +1358,22 @@ export default function RecipeSuggestions() {
                         recipeCore.includes(inventoryCore) ||
                         inventoryCore.includes(recipeCore)) {
 
+                        // CRITICAL: Enhanced vegan/meat compatibility check for partial matches
+                        const itemIsVegan = isVeganOrPlantBased(item.name);
+                        const itemIsAnimalProtein = isAnimalProtein(item.name);
+
+                        // Strict validation for animal proteins
+                        if (recipeIsAnimalProtein || itemIsAnimalProtein) {
+                            if (recipeIsVegan && itemIsAnimalProtein) {
+                                console.log(`❌ SMART PARTIAL MISMATCH: Recipe wants vegan "${recipeIngredient.name}" but inventory has animal protein "${item.name}"`);
+                                continue;
+                            }
+                            if (recipeIsAnimalProtein && itemIsVegan) {
+                                console.log(`❌ SMART PARTIAL MISMATCH: Recipe wants animal protein "${recipeIngredient.name}" but inventory has vegan "${item.name}"`);
+                                continue;
+                            }
+                        }
+
                         // Additional validation: make sure it's a reasonable match
                         const similarity = Math.max(recipeCore.length, inventoryCore.length) > 0 ?
                             Math.min(recipeCore.length, inventoryCore.length) / Math.max(recipeCore.length, inventoryCore.length) : 0;
@@ -1315,7 +1391,7 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 4. FLEXIBLE KEYWORD MATCHING (for remaining items)
+        // 4. FLEXIBLE KEYWORD MATCHING with vegan/meat validation
         const recipeKeywords = recipeName.split(' ').filter(word => word.length >= 3);
 
         for (const item of inventory) {
@@ -1332,6 +1408,20 @@ export default function RecipeSuggestions() {
             // If most keywords match, consider it a match
             if (matchingKeywords.length >= Math.min(2, recipeKeywords.length) &&
                 matchingKeywords.length / recipeKeywords.length >= 0.6) {
+
+                // CRITICAL: Final vegan/meat compatibility check
+                const itemIsVegan = isVeganOrPlantBased(item.name);
+                const itemIsAnimalProtein = isAnimalProtein(item.name);
+
+                if (recipeIsVegan && itemIsAnimalProtein) {
+                    console.log(`❌ KEYWORD MISMATCH: Recipe wants vegan "${recipeIngredient.name}" but inventory has animal protein "${item.name}"`);
+                    continue;
+                }
+                if (recipeIsAnimalProtein && itemIsVegan) {
+                    console.log(`❌ KEYWORD MISMATCH: Recipe wants animal protein "${recipeIngredient.name}" but inventory has vegan "${item.name}"`);
+                    continue;
+                }
+
                 console.log(`✅ KEYWORD MATCH: "${item.name}" matches "${recipeIngredient.name}" (${matchingKeywords.length}/${recipeKeywords.length} keywords)`);
                 return {
                     found: true,
@@ -1341,13 +1431,30 @@ export default function RecipeSuggestions() {
             }
         }
 
-        // 5. CHECK ALTERNATIVES (if recipe provides them)
+        // 5. CHECK ALTERNATIVES (if recipe provides them) with vegan/meat validation
         if (recipeIngredient.alternatives && recipeIngredient.alternatives.length > 0) {
             for (const alternative of recipeIngredient.alternatives) {
                 const altNormalized = normalizeIngredientName(alternative);
+                const altIsVegan = isVeganOrPlantBased(alternative);
+                const altIsAnimalProtein = isAnimalProtein(alternative);
+
                 for (const item of inventory) {
                     const itemName = normalizeIngredientName(item.name);
                     if (itemName === altNormalized || itemName.includes(altNormalized) || altNormalized.includes(itemName)) {
+
+                        // Vegan/meat compatibility check for alternatives
+                        const itemIsVegan = isVeganOrPlantBased(item.name);
+                        const itemIsAnimalProtein = isAnimalProtein(item.name);
+
+                        if (altIsVegan && itemIsAnimalProtein) {
+                            console.log(`❌ ALTERNATIVE MISMATCH: Alternative wants vegan "${alternative}" but inventory has animal protein "${item.name}"`);
+                            continue;
+                        }
+                        if (altIsAnimalProtein && itemIsVegan) {
+                            console.log(`❌ ALTERNATIVE MISMATCH: Alternative wants animal protein "${alternative}" but inventory has vegan "${item.name}"`);
+                            continue;
+                        }
+
                         console.log(`✅ ALTERNATIVE MATCH: "${item.name}" matches alternative "${alternative}"`);
                         return {
                             found: true,
