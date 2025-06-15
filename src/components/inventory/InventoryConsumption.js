@@ -1,10 +1,11 @@
-// file: /src/components/inventory/InventoryConsumption.js v2 (Added "each" unit)
+// file: /src/components/inventory/InventoryConsumption.js v3 - Enhanced dual unit support for partial consumption
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { formatInventoryDisplayText, hasDualUnits, getSmartUnitName } from '@/lib/inventoryDisplayUtils';
 
 export default function InventoryConsumption({
                                                  item,
@@ -15,16 +16,27 @@ export default function InventoryConsumption({
                                                  recipeName = ''
                                              }) {
     const { data: session } = useSession();
+
+    // Determine if item has dual units and which unit to prioritize
+    const hasDualQuantities = hasDualUnits(item);
+    const primaryQty = parseFloat(item.quantity) || 0;
+    const secondaryQty = parseFloat(item.secondaryQuantity) || 0;
+
+    // For dual unit items, prefer consuming by the secondary unit (individual items)
+    const preferSecondaryUnit = hasDualQuantities && item.secondaryUnit === 'each';
+
     const [consumptionData, setConsumptionData] = useState({
         reason: 'consumed', // consumed, expired, recipe, donated, other
         quantity: 1,
-        unit: item?.unit || 'item',
+        unit: preferSecondaryUnit ? item.secondaryUnit : item.unit,
+        useSecondaryUnit: preferSecondaryUnit,
         notes: '',
         removeCompletely: false
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [showUnitToggle, setShowUnitToggle] = useState(hasDualQuantities);
 
     // For recipe mode - track which ingredients to consume
     const [selectedIngredients, setSelectedIngredients] = useState(new Map());
@@ -66,12 +78,51 @@ export default function InventoryConsumption({
         return colors[option?.color] || colors.gray;
     };
 
+    // Get current available quantity based on selected unit
+    const getCurrentAvailableQuantity = () => {
+        if (consumptionData.useSecondaryUnit && secondaryQty > 0) {
+            return secondaryQty;
+        }
+        return primaryQty;
+    };
+
+    // Get the current unit being used
+    const getCurrentUnit = () => {
+        if (consumptionData.useSecondaryUnit && item.secondaryUnit) {
+            return item.secondaryUnit;
+        }
+        return item.unit;
+    };
+
+    // Get smart unit name for display
+    const getCurrentSmartUnit = () => {
+        const unit = getCurrentUnit();
+        const qty = parseFloat(consumptionData.quantity) || 1;
+        return getSmartUnitName(item.name, unit, qty);
+    };
+
+    // Calculate remaining quantity after consumption
+    const calculateRemainingQuantity = () => {
+        const currentQty = getCurrentAvailableQuantity();
+        const consumeQty = parseFloat(consumptionData.quantity) || 0;
+        const remaining = currentQty - consumeQty;
+
+        return {
+            remaining: Math.max(0, remaining),
+            unit: getCurrentUnit(),
+            willBeEmpty: remaining <= 0
+        };
+    };
+
+    // Handle quantity change with validation
     const handleQuantityChange = (value) => {
         const numValue = parseFloat(value);
-        if (numValue >= item.quantity) {
+        const maxQuantity = getCurrentAvailableQuantity();
+
+        if (numValue >= maxQuantity) {
             setConsumptionData(prev => ({
                 ...prev,
-                quantity: item.quantity,
+                quantity: maxQuantity,
                 removeCompletely: true
             }));
         } else {
@@ -80,6 +131,54 @@ export default function InventoryConsumption({
                 quantity: numValue,
                 removeCompletely: false
             }));
+        }
+    };
+
+    // Handle unit toggle between primary and secondary
+    const handleUnitToggle = () => {
+        setConsumptionData(prev => {
+            const newUseSecondary = !prev.useSecondaryUnit;
+            return {
+                ...prev,
+                useSecondaryUnit: newUseSecondary,
+                unit: newUseSecondary ? item.secondaryUnit : item.unit,
+                quantity: 1, // Reset quantity when switching units
+                removeCompletely: false
+            };
+        });
+    };
+
+    // Calculate what happens to both units after consumption
+    const calculateDualUnitUpdate = () => {
+        if (!hasDualQuantities) return null;
+
+        const consumeQty = parseFloat(consumptionData.quantity) || 0;
+
+        if (consumptionData.useSecondaryUnit) {
+            // Consuming by secondary unit (e.g., individual items)
+            const newSecondaryQty = Math.max(0, secondaryQty - consumeQty);
+
+            // If we've consumed all individual items, also remove the package
+            const newPrimaryQty = newSecondaryQty <= 0 ? 0 : primaryQty;
+
+            return {
+                newPrimaryQty,
+                newSecondaryQty,
+                removeCompletely: newPrimaryQty <= 0
+            };
+        } else {
+            // Consuming by primary unit (e.g., whole packages)
+            const newPrimaryQty = Math.max(0, primaryQty - consumeQty);
+
+            // If removing packages, calculate remaining individual items
+            // This is more complex - for now, if consuming whole packages, remove all secondary too
+            const newSecondaryQty = newPrimaryQty <= 0 ? 0 : secondaryQty;
+
+            return {
+                newPrimaryQty,
+                newSecondaryQty,
+                removeCompletely: newPrimaryQty <= 0
+            };
         }
     };
 
@@ -104,15 +203,26 @@ export default function InventoryConsumption({
 
                 await onConsume(consumptions, 'recipe');
             } else {
-                // Handle single item consumption
-                await onConsume({
+                // Handle single item consumption with dual unit support
+                const consumptionPayload = {
                     itemId: item._id,
                     reason: consumptionData.reason,
                     quantity: consumptionData.quantity,
                     unit: consumptionData.unit,
                     notes: consumptionData.notes,
-                    removeCompletely: consumptionData.removeCompletely
-                });
+                    removeCompletely: consumptionData.removeCompletely,
+                    // NEW: Include dual unit information
+                    isDualUnitConsumption: hasDualQuantities,
+                    useSecondaryUnit: consumptionData.useSecondaryUnit
+                };
+
+                // If it's a dual unit item, include the calculation results
+                if (hasDualQuantities) {
+                    const dualUpdate = calculateDualUnitUpdate();
+                    consumptionPayload.dualUnitUpdate = dualUpdate;
+                }
+
+                await onConsume(consumptionPayload);
             }
 
             onClose();
@@ -259,6 +369,8 @@ export default function InventoryConsumption({
 
     // Single item consumption mode
     const reasonStyle = getReasonStyle(consumptionData.reason);
+    const remainingInfo = calculateRemainingQuantity();
+    const dualUnitUpdate = hasDualQuantities ? calculateDualUnitUpdate() : null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -280,13 +392,57 @@ export default function InventoryConsumption({
                             </div>
                         )}
 
-                        {/* Current Stock Display */}
+                        {/* Enhanced Current Stock Display */}
                         <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="text-sm text-gray-600">Current Stock</div>
+                            <div className="text-sm text-gray-600 mb-2">Current Stock</div>
                             <div className="text-lg font-semibold text-gray-900">
-                                {item.quantity} {item.unit}
+                                {formatInventoryDisplayText(item)}
                             </div>
+
+                            {/* Show individual unit breakdown for dual units */}
+                            {hasDualQuantities && (
+                                <div className="mt-2 text-sm text-gray-600 space-y-1">
+                                    <div>• {primaryQty} {getSmartUnitName(item.name, item.unit, primaryQty)}</div>
+                                    <div>• {secondaryQty} {getSmartUnitName(item.name, item.secondaryUnit, secondaryQty)}</div>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Unit Selection Toggle for Dual Unit Items */}
+                        {showUnitToggle && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Consume by:
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setConsumptionData(prev => ({ ...prev, useSecondaryUnit: false, unit: item.unit, quantity: 1, removeCompletely: false }))}
+                                        className={`p-3 text-left text-sm rounded-lg border-2 transition-colors ${
+                                            !consumptionData.useSecondaryUnit
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                                        }`}
+                                    >
+                                        <div className="font-medium">{getSmartUnitName(item.name, item.unit, 1)}</div>
+                                        <div className="text-xs opacity-75">Whole packages</div>
+                                    </TouchEnhancedButton>
+
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setConsumptionData(prev => ({ ...prev, useSecondaryUnit: true, unit: item.secondaryUnit, quantity: 1, removeCompletely: false }))}
+                                        className={`p-3 text-left text-sm rounded-lg border-2 transition-colors ${
+                                            consumptionData.useSecondaryUnit
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                                        }`}
+                                    >
+                                        <div className="font-medium">{getSmartUnitName(item.name, item.secondaryUnit, 1)}</div>
+                                        <div className="text-xs opacity-75">Individual items</div>
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Reason Selection */}
                         <div>
@@ -316,46 +472,25 @@ export default function InventoryConsumption({
                             </div>
                         </div>
 
-                        {/* Quantity Selection */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Quantity
-                                </label>
+                        {/* Enhanced Quantity Selection */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity to consume ({getCurrentSmartUnit()})
+                            </label>
+                            <div className="flex items-center space-x-3">
                                 <input
                                     type="number"
                                     step="0.1"
                                     min="0"
-                                    max={item.quantity}
+                                    max={getCurrentAvailableQuantity()}
                                     value={consumptionData.quantity}
                                     onChange={(e) => handleQuantityChange(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     required
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Unit
-                                </label>
-                                <select
-                                    value={consumptionData.unit}
-                                    onChange={(e) => setConsumptionData(prev => ({ ...prev, unit: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                >
-                                    <option value="item">Item(s)</option>
-                                    <option value="each">Each</option>
-                                    <option value="lbs">Pounds</option>
-                                    <option value="oz">Ounces</option>
-                                    <option value="kg">Kilograms</option>
-                                    <option value="g">Grams</option>
-                                    <option value="cup">Cup(s)</option>
-                                    <option value="tbsp">Tablespoon(s)</option>
-                                    <option value="tsp">Teaspoon(s)</option>
-                                    <option value="ml">Milliliters</option>
-                                    <option value="l">Liters</option>
-                                    <option value="can">Can(s)</option>
-                                    <option value="package">Package(s)</option>
-                                </select>
+                                <div className="text-sm text-gray-500">
+                                    of {getCurrentAvailableQuantity()} available
+                                </div>
                             </div>
                         </div>
 
@@ -369,7 +504,7 @@ export default function InventoryConsumption({
                                     onChange={(e) => setConsumptionData(prev => ({
                                         ...prev,
                                         removeCompletely: e.target.checked,
-                                        quantity: e.target.checked ? item.quantity : prev.quantity
+                                        quantity: e.target.checked ? getCurrentAvailableQuantity() : prev.quantity
                                     }))}
                                     className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                 />
@@ -398,15 +533,25 @@ export default function InventoryConsumption({
                             />
                         </div>
 
-                        {/* Preview */}
+                        {/* Enhanced Preview */}
                         <div className="bg-blue-50 rounded-lg p-4">
                             <div className="text-sm text-blue-800">
-                                <strong>After update:</strong>{' '}
-                                {consumptionData.removeCompletely
-                                    ? 'Item will be removed from inventory'
-                                    : `${(item.quantity - consumptionData.quantity).toFixed(1)} ${item.unit} remaining`
-                                }
+                                <strong>After update:</strong>
                             </div>
+                            {consumptionData.removeCompletely ? (
+                                <div className="text-sm text-blue-800 mt-1">
+                                    Item will be completely removed from inventory
+                                </div>
+                            ) : hasDualQuantities && dualUnitUpdate ? (
+                                <div className="text-sm text-blue-800 mt-1 space-y-1">
+                                    <div>• {dualUnitUpdate.newPrimaryQty} {getSmartUnitName(item.name, item.unit, dualUnitUpdate.newPrimaryQty)} remaining</div>
+                                    <div>• {dualUnitUpdate.newSecondaryQty} {getSmartUnitName(item.name, item.secondaryUnit, dualUnitUpdate.newSecondaryQty)} remaining</div>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-blue-800 mt-1">
+                                    {remainingInfo.remaining.toFixed(1)} {remainingInfo.unit} remaining
+                                </div>
+                            )}
                         </div>
                     </div>
 

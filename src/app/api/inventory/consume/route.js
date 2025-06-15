@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/consume/route.js - v1
+// file: /src/app/api/inventory/consume/route.js - v2 Enhanced with dual unit support
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { UserInventory } from '@/lib/models';
 
-// POST - Consume inventory items
+// POST - Consume inventory items with enhanced dual unit support
 export async function POST(request) {
     try {
         const session = await getServerSession(authOptions);
@@ -85,8 +85,19 @@ export async function POST(request) {
                 }
             }
         } else {
-            // Handle single item consumption
-            const { itemId, reason, quantity, unit, notes, removeCompletely } = consumptions;
+            // Handle single item consumption with enhanced dual unit support
+            const {
+                itemId,
+                reason,
+                quantity,
+                unit,
+                notes,
+                removeCompletely,
+                // NEW: Dual unit fields
+                isDualUnitConsumption,
+                useSecondaryUnit,
+                dualUnitUpdate
+            } = consumptions;
 
             const itemIndex = inventory.items.findIndex(
                 item => item._id.toString() === itemId
@@ -100,10 +111,11 @@ export async function POST(request) {
             }
 
             const item = inventory.items[itemIndex];
-            const consumeQuantity = removeCompletely ? item.quantity : Math.min(quantity, item.quantity);
+            const consumeQuantity = removeCompletely ? quantity : Math.min(quantity,
+                useSecondaryUnit && item.secondaryQuantity ? item.secondaryQuantity : item.quantity);
 
-            // Log consumption
-            consumptionLogs.push({
+            // Enhanced logging for dual unit items
+            const consumptionLog = {
                 itemId: item._id,
                 itemName: item.name,
                 quantityConsumed: consumeQuantity,
@@ -111,28 +123,125 @@ export async function POST(request) {
                 reason: reason,
                 notes: notes,
                 dateConsumed: new Date(),
-                remainingQuantity: item.quantity - consumeQuantity
-            });
+                // NEW: Enhanced logging for dual units
+                isDualUnitConsumption: isDualUnitConsumption || false,
+                useSecondaryUnit: useSecondaryUnit || false,
+                originalPrimaryQuantity: item.quantity,
+                originalSecondaryQuantity: item.secondaryQuantity || null,
+                originalSecondaryUnit: item.secondaryUnit || null
+            };
 
-            if (removeCompletely || consumeQuantity >= item.quantity) {
+            if (removeCompletely) {
                 // Remove item completely
+                consumptionLog.remainingQuantity = 0;
+                consumptionLog.remainingSecondaryQuantity = null;
                 removedItems.push(item.name);
                 inventory.items.splice(itemIndex, 1);
+            } else if (isDualUnitConsumption && dualUnitUpdate) {
+                // Handle dual unit consumption with calculated updates
+                console.log('Processing dual unit consumption:', dualUnitUpdate);
+
+                // Store original values for logging
+                const originalPrimary = item.quantity;
+                const originalSecondary = item.secondaryQuantity;
+
+                // Update both quantities based on the calculation from the frontend
+                item.quantity = Math.max(0, dualUnitUpdate.newPrimaryQty);
+                item.secondaryQuantity = Math.max(0, dualUnitUpdate.newSecondaryQty);
+
+                // Enhanced logging for dual unit consumption
+                consumptionLog.remainingQuantity = item.quantity;
+                consumptionLog.remainingSecondaryQuantity = item.secondaryQuantity;
+                consumptionLog.primaryQuantityChange = originalPrimary - item.quantity;
+                consumptionLog.secondaryQuantityChange = originalSecondary - (item.secondaryQuantity || 0);
+
+                // If both quantities are now zero or negative, remove the item
+                if (dualUnitUpdate.removeCompletely || (item.quantity <= 0 && (item.secondaryQuantity || 0) <= 0)) {
+                    removedItems.push(item.name);
+                    inventory.items.splice(itemIndex, 1);
+                    consumptionLog.remainingQuantity = 0;
+                    consumptionLog.remainingSecondaryQuantity = null;
+                } else {
+                    updatedItems.push({
+                        name: item.name,
+                        newQuantity: item.quantity,
+                        newSecondaryQuantity: item.secondaryQuantity,
+                        unit: item.unit,
+                        secondaryUnit: item.secondaryUnit
+                    });
+                }
             } else {
-                // Update quantity
-                item.quantity -= consumeQuantity;
-                updatedItems.push({
-                    name: item.name,
-                    newQuantity: item.quantity,
-                    unit: item.unit
-                });
+                // Handle simple single-unit consumption (legacy behavior)
+                if (useSecondaryUnit && item.secondaryQuantity) {
+                    // Consuming from secondary quantity
+                    const newSecondaryQty = Math.max(0, item.secondaryQuantity - consumeQuantity);
+
+                    consumptionLog.remainingSecondaryQuantity = newSecondaryQty;
+                    consumptionLog.secondaryQuantityChange = item.secondaryQuantity - newSecondaryQty;
+
+                    item.secondaryQuantity = newSecondaryQty;
+
+                    // If secondary quantity is exhausted, also remove primary quantity
+                    if (newSecondaryQty <= 0) {
+                        item.quantity = 0;
+                        removedItems.push(item.name);
+                        inventory.items.splice(itemIndex, 1);
+                        consumptionLog.remainingQuantity = 0;
+                        consumptionLog.remainingSecondaryQuantity = null;
+                    } else {
+                        consumptionLog.remainingQuantity = item.quantity;
+                        updatedItems.push({
+                            name: item.name,
+                            newQuantity: item.quantity,
+                            newSecondaryQuantity: item.secondaryQuantity,
+                            unit: item.unit,
+                            secondaryUnit: item.secondaryUnit
+                        });
+                    }
+                } else {
+                    // Consuming from primary quantity
+                    const newPrimaryQty = Math.max(0, item.quantity - consumeQuantity);
+
+                    consumptionLog.remainingQuantity = newPrimaryQty;
+                    consumptionLog.primaryQuantityChange = item.quantity - newPrimaryQty;
+
+                    item.quantity = newPrimaryQty;
+
+                    if (newPrimaryQty <= 0) {
+                        // Also clear secondary quantity if primary is exhausted
+                        item.secondaryQuantity = null;
+                        removedItems.push(item.name);
+                        inventory.items.splice(itemIndex, 1);
+                        consumptionLog.remainingSecondaryQuantity = null;
+                    } else {
+                        consumptionLog.remainingSecondaryQuantity = item.secondaryQuantity;
+                        updatedItems.push({
+                            name: item.name,
+                            newQuantity: item.quantity,
+                            newSecondaryQuantity: item.secondaryQuantity,
+                            unit: item.unit,
+                            secondaryUnit: item.secondaryUnit
+                        });
+                    }
+                }
+            }
+
+            consumptionLogs.push(consumptionLog);
+
+            // Log consumption details
+            console.log(`Consumed ${consumeQuantity} ${unit} of ${item.name} for reason: ${reason}`);
+            if (notes) {
+                console.log(`Notes: ${notes}`);
+            }
+            if (isDualUnitConsumption) {
+                console.log(`Dual unit consumption - Primary: ${consumptionLog.primaryQuantityChange || 0}, Secondary: ${consumptionLog.secondaryQuantityChange || 0}`);
             }
         }
 
         // Update inventory timestamp
         inventory.lastUpdated = new Date();
 
-        // Add consumption log to inventory document (optional - for tracking)
+        // Add consumption log to inventory document (for tracking)
         if (!inventory.consumptionHistory) {
             inventory.consumptionHistory = [];
         }
@@ -151,12 +260,13 @@ export async function POST(request) {
             itemsRemoved: removedItems.length
         });
 
+        // Enhanced response with dual unit support
         return NextResponse.json({
             success: true,
             message: `Successfully updated inventory`,
             summary: {
                 itemsConsumed: consumptionLogs.length,
-                itemsUpdated: updatedItems,
+                itemsUpdated: updatedItems.map(item => item.name),
                 itemsRemoved: removedItems,
                 consumptionLogs: consumptionLogs
             }
@@ -171,7 +281,7 @@ export async function POST(request) {
     }
 }
 
-// GET - Get consumption history
+// GET - Get consumption history with enhanced dual unit support
 export async function GET(request) {
     try {
         const session = await getServerSession(authOptions);
@@ -207,10 +317,29 @@ export async function GET(request) {
             .sort((a, b) => new Date(b.dateConsumed) - new Date(a.dateConsumed))
             .slice(0, limit);
 
+        // Enhanced history formatting for dual unit items
+        const formattedHistory = history.map(log => ({
+            ...log,
+            // Add formatted display text for dual unit consumptions
+            displayText: log.isDualUnitConsumption ?
+                `${log.quantityConsumed} ${log.unitConsumed} consumed` +
+                (log.primaryQuantityChange ? ` (${log.primaryQuantityChange} ${log.unitConsumed} packages)` : '') +
+                (log.secondaryQuantityChange ? ` (${log.secondaryQuantityChange} individual items)` : '') :
+                `${log.quantityConsumed} ${log.unitConsumed} consumed`,
+
+            remainingDisplayText: log.isDualUnitConsumption ?
+                (log.remainingQuantity > 0 || (log.remainingSecondaryQuantity || 0) > 0) ?
+                    `${log.remainingQuantity || 0} packages, ${log.remainingSecondaryQuantity || 0} items remaining` :
+                    'Item completely consumed' :
+                log.remainingQuantity > 0 ?
+                    `${log.remainingQuantity} ${log.unitConsumed} remaining` :
+                    'Item completely consumed'
+        }));
+
         return NextResponse.json({
             success: true,
-            history: history,
-            total: history.length
+            history: formattedHistory,
+            total: formattedHistory.length
         });
 
     } catch (error) {

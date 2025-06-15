@@ -1,4 +1,4 @@
-// file: /src/app/inventory/page.js - v11 (Fixed form structure and sorting)
+// file: /src/app/inventory/page.js - v12
 
 'use client';
 
@@ -102,9 +102,11 @@ function InventoryContent() {
         setShowCommonItemsWizard(false);
     };
 
-    // Handle consumption of items
+    // Enhanced consumption handler with dual unit support
     const handleConsumption = async (consumptionData, mode = 'single') => {
         try {
+            console.log('Handling consumption:', { consumptionData, mode });
+
             const response = await fetch('/api/inventory/consume', {
                 method: 'POST',
                 headers: {
@@ -773,12 +775,12 @@ function InventoryContent() {
                             </h3>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                {/* UPC Lookup Section */}
+                                {/* UPC Lookup Section - FIXED PROP NAME */}
                                 <div>
                                     <UPCLookup
                                         onProductFound={handleProductFound}
                                         onUPCChange={handleUPCChange}
-                                        initialUPC={formData.upc}
+                                        currentUPC={formData.upc}
                                     />
                                 </div>
 
