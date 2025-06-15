@@ -31,14 +31,14 @@ export default function DashboardLayout({ children }) {
             icon: '🍳',
             submenu: [
                 { name: 'Browse Recipes', href: '/recipes', icon: '📖' },
-                { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
                 { name: 'Add New Recipe', href: '/recipes/add', icon: '➕' }
             ]
         },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅' },
         { name: 'Shopping List', href: '/shopping', icon: '🛒' },
+        { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
         { name: 'Profile Settings', href: '/profile', icon: '👤' },
-        { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
+        // { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 
     const handleSignOut = () => {
