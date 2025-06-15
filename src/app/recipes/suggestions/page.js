@@ -32,7 +32,7 @@ export default function RecipeSuggestions() {
             description: 'Classic balanced meal',
             icon: '🍽️',
             requiredCategories: ['protein', 'starch', 'vegetable'],
-            optionalCategories: ['sauce', 'gravy', 'seasoning'],
+            optionalCategories: ['sauce', 'gravy'],
             examples: ['Steak + Mashed Potatoes + Broccoli', 'Chicken + Rice + Green Beans']
         },
         {
@@ -41,7 +41,7 @@ export default function RecipeSuggestions() {
             description: 'Boxed meal kit with required protein',
             icon: '📦',
             requiredCategories: ['helper_meal'],
-            optionalCategories: ['vegetable', 'seasoning'],
+            optionalCategories: ['vegetable'],
             examples: ['Hamburger Helper + Ground Beef', 'Tuna Helper + Tuna']
         },
         {
@@ -126,6 +126,7 @@ export default function RecipeSuggestions() {
             examples: ['Tomato Soup + Grilled Cheese', 'Chicken Noodle Soup + Crackers']
         }
     ];
+
 
     // FIXED: Much more precise brand-specific product definitions
     const brandSpecificProducts = {
@@ -303,18 +304,18 @@ export default function RecipeSuggestions() {
             excludes: ['butter', 'sauce', 'gravy', 'vinegar'] // Added vinegar exclusion
         },
 
-        // VEGETABLES - Removed mushrooms
+        // VEGETABLES - Removed onions, peppers, celery
         vegetable: {
             exact: [
                 'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
-                'tomatoes', 'onions', 'peppers', 'corn', 'peas', 'zucchini',
-                'cauliflower', 'cabbage', 'brussels sprouts', 'celery', 'frozen broccoli'
+                'tomatoes', 'corn', 'peas', 'zucchini',
+                'cauliflower', 'cabbage', 'brussels sprouts', 'frozen broccoli'
             ],
             contains: [
                 'broccoli', 'carrot', 'bean', 'asparagus', 'spinach', 'lettuce',
-                'tomato', 'onion', 'pepper', 'corn', 'potato'
+                'tomato', 'corn', 'potato'
             ],
-            excludes: ['mushroom'] // Explicitly exclude mushrooms
+            excludes: ['mushroom', 'onion', 'pepper', 'celery'] // Exclude moved items
         },
 
         // FRUITS - FIXED spelling for strawberry and blueberry
@@ -377,13 +378,12 @@ export default function RecipeSuggestions() {
             excludes: ['sauce', 'pasta', 'lasagna', 'stroganoff', 'potatoes']
         },
 
-        // CONDIMENTS
+        // CONDIMENTS - Removed hot sauce, soy sauce, vinegar
         condiment: {
             exact: [
-                'mayonnaise', 'mustard', 'ketchup', 'ranch', 'barbecue sauce',
-                'hot sauce', 'soy sauce', 'vinegar'
+                'mayonnaise', 'mustard', 'ketchup', 'ranch', 'barbecue sauce'
             ],
-            contains: ['mayo', 'mustard', 'ketchup', 'barbecue', 'vinegar']
+            contains: ['mayo', 'mustard', 'ketchup', 'barbecue']
         },
 
         // SEASONINGS - Spices and herbs
@@ -401,15 +401,18 @@ export default function RecipeSuggestions() {
             excludes: ['sauce', 'gravy']
         },
 
-        // BASIC INGREDIENTS - Added mushrooms
+        // BASIC INGREDIENTS - Added moved items
         ingredients: {
             exact: [
                 'flour', 'sugar', 'honey', 'vinegar', 'butter', 'oil', 'vanilla',
-                'baking powder', 'baking soda', 'mushrooms'
+                'baking powder', 'baking soda', 'mushrooms', 'hot sauce', 'soy sauce',
+                'onions', 'peppers', 'celery'
             ],
-            contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar', 'mushroom']
+            contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar', 'mushroom',
+                'hot sauce', 'soy sauce', 'onion', 'pepper', 'celery']
         }
     };
+
 
 
 
