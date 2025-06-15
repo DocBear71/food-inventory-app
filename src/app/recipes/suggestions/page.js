@@ -23,6 +23,8 @@ export default function RecipeSuggestions() {
     const [showRecipeModal, setShowRecipeModal] = useState(null);
     const [loadingRecipe, setLoadingRecipe] = useState(false);
     const [activeTab, setActiveTab] = useState('recipes');
+    const [selectedCategory, setSelectedCategory] = useState('all');
+
 
     // UPDATED: Meal templates with new convenience protein categories
     const mealTemplates = [
@@ -125,6 +127,26 @@ export default function RecipeSuggestions() {
             optionalCategories: ['bread', 'cheese', 'vegetable'],
             examples: ['Tomato Soup + Grilled Cheese', 'Chicken Noodle Soup + Crackers']
         }
+    ];
+
+    const recipeCategories = [
+        {value: 'all', label: 'All Categories'},
+        {value: 'seasonings', label: 'Seasonings'},
+        {value: 'sauces', label: 'Sauces'},
+        {value: 'salad-dressings', label: 'Salad Dressings'},
+        {value: 'marinades', label: 'Marinades'},
+        {value: 'ingredients', label: 'Basic Ingredients'},
+        {value: 'entrees', label: 'Entrees'},
+        {value: 'side-dishes', label: 'Side Dishes'},
+        {value: 'soups', label: 'Soups'},
+        {value: 'sandwiches', label: 'Sandwiches'},
+        {value: 'appetizers', label: 'Appetizers'},
+        {value: 'desserts', label: 'Desserts'},
+        {value: 'breads', label: 'Breads'},
+        {value: 'pizza-dough', label: 'Pizza Dough'},
+        {value: 'specialty-items', label: 'Specialty Items'},
+        {value: 'beverages', label: 'Beverages'},
+        {value: 'breakfast', label: 'Breakfast'}
     ];
 
 
@@ -308,14 +330,14 @@ export default function RecipeSuggestions() {
         vegetable: {
             exact: [
                 'broccoli', 'carrots', 'green beans', 'asparagus', 'spinach', 'lettuce',
-                'tomatoes', 'corn', 'peas', 'zucchini',
+                'corn', 'peas', 'zucchini',
                 'cauliflower', 'cabbage', 'brussels sprouts', 'frozen broccoli'
             ],
             contains: [
                 'broccoli', 'carrot', 'bean', 'asparagus', 'spinach', 'lettuce',
-                'tomato', 'corn', 'potato'
+                'corn', 'potato'
             ],
-            excludes: ['mushroom', 'onion', 'pepper', 'celery'] // Exclude moved items
+            excludes: ['mushroom', 'onion', 'pepper', 'celery', 'sauce'] // Exclude moved items
         },
 
         // FRUITS - FIXED spelling for strawberry and blueberry
@@ -406,10 +428,10 @@ export default function RecipeSuggestions() {
             exact: [
                 'flour', 'sugar', 'honey', 'vinegar', 'butter', 'oil', 'vanilla',
                 'baking powder', 'baking soda', 'mushrooms', 'hot sauce', 'soy sauce',
-                'onions', 'peppers', 'celery'
+                'onions', 'peppers', 'celery', 'tomatoes'
             ],
             contains: ['flour', 'sugar', 'honey', 'butter', 'oil', 'vinegar', 'mushroom',
-                'hot sauce', 'soy sauce', 'onion', 'pepper', 'celery']
+                'hot sauce', 'soy sauce', 'onion', 'pepper', 'celery', 'tomato']
         }
     };
 
@@ -433,7 +455,8 @@ export default function RecipeSuggestions() {
             generateSuggestions();
             generateSimpleMealSuggestions();
         }
-    }, [inventory, recipes, matchThreshold]);
+    }, [inventory, recipes, matchThreshold, selectedCategory]); // Add selectedCategory here
+
 
     // ENHANCED: Generate simple meal suggestions with brand-aware logic
     const generateSimpleMealSuggestions = () => {
@@ -1055,8 +1078,17 @@ export default function RecipeSuggestions() {
         console.log('Inventory count:', inventory.length);
         console.log('Recipe count:', recipes.length);
         console.log('Match threshold:', matchThreshold);
+        console.log('Selected category:', selectedCategory);
 
-        const suggestions = recipes
+        let filteredRecipes = recipes;
+
+        // Apply category filter
+        if (selectedCategory !== 'all') {
+            filteredRecipes = recipes.filter(recipe => recipe.category === selectedCategory);
+            console.log(`Filtered to ${selectedCategory}: ${filteredRecipes.length} recipes`);
+        }
+
+        const suggestions = filteredRecipes
             .map(recipe => {
                 const analysis = analyzeRecipe(recipe, inventory);
                 return {
@@ -1333,7 +1365,7 @@ export default function RecipeSuggestions() {
 
                 {/* Stats and Controls */}
                 <div className="bg-white shadow rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                         <div>
                             <div className="text-sm font-medium text-gray-700">Inventory Items</div>
                             <div className="text-2xl font-bold text-indigo-600">{inventory.length}</div>
@@ -1366,6 +1398,20 @@ export default function RecipeSuggestions() {
                                 <option value="match">Best Match</option>
                                 <option value="time">Quickest</option>
                                 <option value="difficulty">Easiest</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Recipe Category</label>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                {recipeCategories.map(category => (
+                                    <option key={category.value} value={category.value}>
+                                        {category.label}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -1557,6 +1603,11 @@ export default function RecipeSuggestions() {
                             <div>
                                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                     Recipe Suggestions ({suggestions.length})
+                                    {selectedCategory !== 'all' && (
+                                        <span className="text-sm text-gray-500 ml-2">
+                                            • Filtered by {recipeCategories.find(cat => cat.value === selectedCategory)?.label}
+                                        </span>
+                                    )}
                                 </h3>
 
                                 {loading ? (
