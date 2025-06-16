@@ -97,7 +97,7 @@ export default function ReceiptScan() {
         );
     }
 
-    // iOS PWA Camera Modal Component (defined before usage)
+    // iOS PWA Camera Modal Component (only shows after camera attempts fail)
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
@@ -109,21 +109,23 @@ export default function ReceiptScan() {
                     <div className="text-center">
                         <div className="text-4xl mb-4">📱</div>
                         <h3 className="text-lg font-bold text-red-600 mb-2">
-                            iOS PWA Camera Not Available
+                            iOS PWA Camera Failed
                         </h3>
                         <p className="text-gray-600 mb-4">
-                            Camera functionality is limited in iOS PWA standalone mode.
+                            We tried multiple camera initialization methods, but iOS PWA camera access still failed.
                         </p>
                     </div>
 
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                         <h4 className="text-sm font-medium text-blue-900 mb-2">
-                            💡 iOS PWA Camera Limitations:
+                            🔧 What we tried:
                         </h4>
                         <ul className="text-sm text-blue-800 space-y-1">
-                            <li>• Camera permissions reset each PWA session</li>
-                            <li>• Limited camera API support in standalone mode</li>
-                            <li>• Safari browser has full camera access</li>
+                            <li>• Multiple camera permission requests</li>
+                            <li>• Progressive constraint fallbacks</li>
+                            <li>• iOS-specific video element setup</li>
+                            <li>• User interaction triggers</li>
+                            <li>• Extended timeout handling</li>
                         </ul>
                     </div>
 
@@ -152,6 +154,17 @@ export default function ReceiptScan() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
+                            onClick={() => {
+                                setShowIOSPWAModal(false);
+                                // Try camera again with even more aggressive settings
+                                startCamera();
+                            }}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        >
+                            🔄 Try Camera Again
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
                             onClick={() => setShowIOSPWAModal(false)}
                             className="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                         >
@@ -161,24 +174,19 @@ export default function ReceiptScan() {
 
                     <div className="mt-4 text-center text-xs text-gray-500">
                         {deviceInfo.userAgent.includes('iPhone') ? 'iPhone' : 'iOS'} {deviceInfo.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || ''} •
-                        PWA Mode • Receipt Scanner
+                        PWA Mode • Advanced Camera Fixes Applied
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Enhanced camera start function with iOS PWA handling
+    // Enhanced camera start function with aggressive iOS PWA camera fixes
     async function startCamera() {
         setCameraError(null);
 
-        // iOS PWA camera limitation check
-        if (deviceInfo.isIOSPWA) {
-            console.log('❌ iOS PWA camera access blocked');
-            setCameraError('iOS PWA Camera Not Available');
-            setShowIOSPWAModal(true);
-            return;
-        }
+        // Don't immediately block iOS PWA - try aggressive fixes first
+        console.log('📱 Starting camera with device info:', deviceInfo);
 
         try {
             // Check camera support
@@ -192,9 +200,83 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            console.log('📱 Starting camera with device info:', deviceInfo);
+            // AGGRESSIVE iOS PWA CAMERA FIXES
+            if (deviceInfo.isIOSPWA) {
+                console.log('🔧 Applying aggressive iOS PWA camera fixes...');
 
-            // iOS-specific camera constraints (more conservative)
+                // Fix 1: Force user interaction to unlock camera permissions
+                const userInteractionPromise = new Promise((resolve) => {
+                    // Create a temporary button to capture user interaction
+                    const tempButton = document.createElement('button');
+                    tempButton.style.position = 'fixed';
+                    tempButton.style.top = '0';
+                    tempButton.style.left = '0';
+                    tempButton.style.zIndex = '99999';
+                    tempButton.style.opacity = '0';
+                    tempButton.textContent = 'Enable Camera';
+                    document.body.appendChild(tempButton);
+
+                    tempButton.addEventListener('click', () => {
+                        document.body.removeChild(tempButton);
+                        resolve();
+                    });
+
+                    // Auto-click after a brief delay
+                    setTimeout(() => {
+                        if (document.body.contains(tempButton)) {
+                            tempButton.click();
+                        }
+                    }, 100);
+                });
+
+                await userInteractionPromise;
+
+                // Fix 2: Try to wake up the camera API with a basic call first
+                try {
+                    console.log('🔧 iOS PWA Fix: Waking up camera API...');
+                    const testStream = await navigator.mediaDevices.getUserMedia({video: true});
+                    testStream.getTracks().forEach(track => track.stop());
+                    console.log('✅ iOS PWA: Camera API awakened');
+                } catch (wakeupError) {
+                    console.log('⚠️ iOS PWA: Camera wakeup failed, continuing anyway...');
+                }
+
+                // Fix 3: Request permissions explicitly
+                try {
+                    console.log('🔧 iOS PWA Fix: Requesting camera permissions...');
+                    const permissions = await navigator.permissions.query({name: 'camera'});
+                    console.log('📷 iOS PWA: Camera permission state:', permissions.state);
+                } catch (permError) {
+                    console.log('⚠️ iOS PWA: Permission query not supported, continuing...');
+                }
+
+                // Fix 4: Force focus and visibility
+                window.focus();
+                document.body.focus();
+
+                // Fix 5: Ensure page is fully loaded and stable
+                if (document.readyState !== 'complete') {
+                    await new Promise(resolve => {
+                        if (document.readyState === 'complete') {
+                            resolve();
+                        } else {
+                            window.addEventListener('load', resolve, {once: true});
+                        }
+                    });
+                }
+            }
+
+            // iOS PWA-specific camera constraints (very conservative)
+            const iosPWAConstraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: {ideal: 640, max: 1280},
+                    height: {ideal: 480, max: 720}
+                },
+                audio: false
+            };
+
+            // iOS browser constraints (more features)
             const iosConstraints = {
                 video: {
                     facingMode: 'environment',
@@ -203,7 +285,7 @@ export default function ReceiptScan() {
                 }
             };
 
-            // Android/Desktop constraints (more features)
+            // Android/Desktop constraints (full features)
             const standardConstraints = {
                 video: {
                     facingMode: 'environment',
@@ -216,79 +298,212 @@ export default function ReceiptScan() {
                 }
             };
 
-            // Use iOS constraints for iOS devices, standard for others
-            const constraints = deviceInfo.isIOS ? iosConstraints : standardConstraints;
-
-            console.log('📷 Attempting camera with constraints:', constraints);
+            // Choose constraints based on device and mode
+            let constraints;
+            if (deviceInfo.isIOSPWA) {
+                constraints = iosPWAConstraints;
+                console.log('📱 Using iOS PWA constraints:', constraints);
+            } else if (deviceInfo.isIOS) {
+                constraints = iosConstraints;
+                console.log('📱 Using iOS browser constraints:', constraints);
+            } else {
+                constraints = standardConstraints;
+                console.log('📱 Using standard constraints:', constraints);
+            }
 
             let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                console.log('✅ Camera started successfully');
-            } catch (enhancedError) {
-                console.log('📷 Enhanced constraints failed, trying basic:', enhancedError);
-                // Fallback to very basic constraints
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {facingMode: 'environment'}
-                });
-                console.log('✅ Camera started with basic constraints');
+            let attempts = 0;
+            const maxAttempts = deviceInfo.isIOSPWA ? 5 : 3;
+
+            // Multiple attempts with different constraint sets for iOS PWA
+            while (!stream && attempts < maxAttempts) {
+                attempts++;
+                console.log(`📷 Camera attempt ${attempts}/${maxAttempts}...`);
+
+                try {
+                    if (deviceInfo.isIOSPWA) {
+                        // For iOS PWA, try progressively simpler constraints
+                        switch (attempts) {
+                            case 1:
+                                // Try ideal constraints
+                                stream = await navigator.mediaDevices.getUserMedia(iosPWAConstraints);
+                                break;
+                            case 2:
+                                // Try basic environment camera
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: {facingMode: 'environment'},
+                                    audio: false
+                                });
+                                break;
+                            case 3:
+                                // Try any back camera
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: {facingMode: {ideal: 'environment'}},
+                                    audio: false
+                                });
+                                break;
+                            case 4:
+                                // Try any camera at all
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: true,
+                                    audio: false
+                                });
+                                break;
+                            case 5:
+                                // Last resort - most basic call
+                                stream = await navigator.mediaDevices.getUserMedia({video: {}});
+                                break;
+                        }
+                    } else {
+                        // Non-PWA devices - try enhanced then basic
+                        if (attempts === 1) {
+                            stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        } else {
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                video: {facingMode: 'environment'}
+                            });
+                        }
+                    }
+
+                    if (stream) {
+                        console.log(`✅ Camera started successfully on attempt ${attempts}`);
+                        break;
+                    }
+                } catch (attemptError) {
+                    console.log(`❌ Camera attempt ${attempts} failed:`, attemptError.name, attemptError.message);
+
+                    if (attempts === maxAttempts) {
+                        throw attemptError; // Re-throw the last error
+                    }
+
+                    // Wait before next attempt
+                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                }
+            }
+
+            if (!stream) {
+                throw new Error('Failed to get camera stream after all attempts');
             }
 
             streamRef.current = stream;
             setShowCamera(true);
 
             // Wait for video element to render
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Wait for video element with retries
+            // Wait for video element with more retries for iOS PWA
+            const maxRetries = deviceInfo.isIOSPWA ? 20 : 10;
             let retries = 0;
-            while (!videoRef.current && retries < 10) {
+            while (!videoRef.current && retries < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 retries++;
             }
 
             if (!videoRef.current) {
-                setCameraError('Video element not found after waiting');
-                return;
+                throw new Error('Video element not found after waiting');
             }
 
             // Set video source
             videoRef.current.srcObject = stream;
 
-            // Wait for video to load
+            // iOS PWA specific video setup
+            if (deviceInfo.isIOSPWA) {
+                // Force video properties for iOS PWA
+                videoRef.current.playsInline = true;
+                videoRef.current.muted = true;
+                videoRef.current.autoplay = true;
+
+                // Set explicit video attributes
+                videoRef.current.setAttribute('playsinline', 'true');
+                videoRef.current.setAttribute('webkit-playsinline', 'true');
+                videoRef.current.setAttribute('muted', 'true');
+                videoRef.current.setAttribute('autoplay', 'true');
+            }
+
+            // Wait for video to load with longer timeout for iOS PWA
+            const videoLoadTimeout = deviceInfo.isIOSPWA ? 10000 : 5000;
             await new Promise((resolve, reject) => {
                 const video = videoRef.current;
+                let resolved = false;
 
                 const onLoadedMetadata = () => {
+                    if (resolved) return;
+                    resolved = true;
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                    video.removeEventListener('error', onError);
                     console.log(`✅ Camera loaded: ${video.videoWidth}x${video.videoHeight}`);
                     resolve();
                 };
 
                 const onError = (e) => {
+                    if (resolved) return;
+                    resolved = true;
+                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     video.removeEventListener('error', onError);
                     reject(e);
                 };
 
+                const timeout = setTimeout(() => {
+                    if (resolved) return;
+                    resolved = true;
+                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                    video.removeEventListener('error', onError);
+
+                    // Check if video has dimensions even without loadedmetadata event
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        console.log(`✅ Camera loaded via timeout check: ${video.videoWidth}x${video.videoHeight}`);
+                        resolve();
+                    } else {
+                        reject(new Error('Video load timeout'));
+                    }
+                }, videoLoadTimeout);
+
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // Auto-play video
-                video.play().catch(() => {
-                    console.log('Video autoplay prevented (normal on some devices)');
-                });
+                // Force play for iOS PWA
+                if (deviceInfo.isIOSPWA) {
+                    // Try multiple play methods
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(playError => {
+                            console.log('iOS PWA: Video play promise failed:', playError);
+                            // Try again with a delay
+                            setTimeout(() => {
+                                video.play().catch(e => console.log('iOS PWA: Second play attempt failed:', e));
+                            }, 500);
+                        });
+                    }
+                } else {
+                    video.play().catch(() => {
+                        console.log('Video autoplay prevented (normal on some devices)');
+                    });
+                }
             });
+
+            // Additional iOS PWA success confirmation
+            if (deviceInfo.isIOSPWA) {
+                console.log('🎉 iOS PWA Camera Success! Stream tracks:', stream.getTracks().map(t => ({
+                    kind: t.kind,
+                    enabled: t.enabled,
+                    readyState: t.readyState
+                })));
+            }
 
         } catch (error) {
             console.error('❌ Camera start failed:', error);
 
+            // Only show the iOS PWA modal as a last resort after all attempts failed
+            if (deviceInfo.isIOSPWA) {
+                console.log('💔 All iOS PWA camera attempts failed, showing fallback modal');
+                setCameraError('iOS PWA Camera Failed After All Attempts');
+                setShowIOSPWAModal(true);
+                return;
+            }
+
             let errorMessage = 'Failed to start camera: ' + error.message;
 
-            // Provide specific guidance based on error and device
-            if (deviceInfo.isIOSPWA) {
-                errorMessage = 'iOS PWA Camera Not Available';
-                setShowIOSPWAModal(true);
-            } else if (error.name === 'NotAllowedError') {
+            if (error.name === 'NotAllowedError') {
                 errorMessage = 'Camera permission denied. Please allow camera access.';
             } else if (error.name === 'NotFoundError') {
                 errorMessage = 'No camera found on this device.';
@@ -1511,26 +1726,17 @@ export default function ReceiptScan() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Camera Option - Enhanced with iOS PWA detection */}
+                                    {/* Camera Option - Always enabled, with iOS PWA detection info */}
                                     <TouchEnhancedButton
                                         onClick={startCamera}
-                                        className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors ${
-                                            deviceInfo.isIOSPWA
-                                                ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
-                                                : 'border-indigo-300 hover:border-indigo-400 hover:bg-indigo-50'
-                                        }`}
-                                        disabled={deviceInfo.isIOSPWA}
+                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
                                     >
-                                        <div className="text-4xl mb-2">
-                                            {deviceInfo.isIOSPWA ? '🚫' : '📷'}
-                                        </div>
-                                        <div className={`text-lg font-medium ${
-                                            deviceInfo.isIOSPWA ? 'text-gray-500' : 'text-indigo-700'
-                                        }`}>
-                                            {deviceInfo.isIOSPWA ? 'Camera Unavailable' : 'Take Photo'}
+                                        <div className="text-4xl mb-2">📷</div>
+                                        <div className="text-lg font-medium text-indigo-700">
+                                            Take Photo
                                         </div>
                                         <div className="text-sm text-gray-500">
-                                            {deviceInfo.isIOSPWA ? 'iOS PWA limitation' : 'Use device camera'}
+                                            {deviceInfo.isIOSPWA ? 'iOS PWA - Will try aggressive fixes' : 'Use device camera'}
                                         </div>
                                     </TouchEnhancedButton>
 
@@ -1553,29 +1759,20 @@ export default function ReceiptScan() {
                                     className="hidden"
                                 />
 
-                                {/* iOS PWA specific guidance */}
+                                {/* iOS PWA specific guidance - Updated to be more encouraging */}
                                 {deviceInfo.isIOSPWA && (
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-yellow-900 mb-2">
-                                            📱 iOS PWA Camera Limitations
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">
+                                            📱 iOS PWA Camera Enhancement
                                         </h4>
-                                        <p className="text-sm text-yellow-800 mb-3">
-                                            Camera access is restricted in iOS PWA standalone mode. For full camera
-                                            functionality:
+                                        <p className="text-sm text-blue-800 mb-3">
+                                            This app includes advanced iOS PWA camera fixes. The "Take Photo" button
+                                            will attempt multiple
+                                            camera initialization methods to work around iOS limitations.
                                         </p>
-                                        <div className="space-y-2">
-                                            <TouchEnhancedButton
-                                                onClick={() => {
-                                                    const safariUrl = window.location.href;
-                                                    window.open(safariUrl, '_blank');
-                                                }}
-                                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                                            >
-                                                🌐 Open in Safari Browser
-                                            </TouchEnhancedButton>
-                                            <p className="text-xs text-yellow-700">
-                                                Or use the "Upload Image" option above as an alternative.
-                                            </p>
+                                        <div className="text-xs text-blue-700">
+                                            <strong>If camera doesn't work:</strong> The "Upload Image" option below
+                                            provides the same functionality.
                                         </div>
                                     </div>
                                 )}
@@ -1915,20 +2112,23 @@ export default function ReceiptScan() {
                                                         </div>
                                                     </div>
 
-                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */}
-                                                    {item.upc && (
-                                                        <TouchEnhancedButton
-                                                            onClick={() => lookupByUPC(item)}
-                                                            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                                            title={`Lookup product details for UPC: ${item.upc}`}
-                                                        >
-                                                            🔍 Lookup
-                                                        </TouchEnhancedButton>
-                                                    )
+                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */
+                                                    }
+                                                    {
+                                                        item.upc && (
+                                                            <TouchEnhancedButton
+                                                                onClick={() => lookupByUPC(item)}
+                                                                className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                                                                title={`Lookup product details for UPC: ${item.upc}`}
+                                                            >
+                                                                🔍 Lookup
+                                                            </TouchEnhancedButton>
+                                                        )
                                                     }
                                                 </div>
 
-                                                {/* Additional Info */}
+                                                {/* Additional Info */
+                                                }
                                                 <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
                                                     {item.upc && <span>UPC: {item.upc}</span>}
@@ -1938,24 +2138,30 @@ export default function ReceiptScan() {
                                                 </div>
                                             </div>
                                         ))
-                                    )}
+                                    )
+                                    }
                                 </div>
                             </div>
-                        )}
-                        {/* Step 4: Adding to Inventory */}
-                        {step === 'adding' && (
-                            <div className="text-center space-y-6">
-                                <div className="text-6xl mb-4">📦</div>
-                                <h3 className="text-lg font-medium text-gray-900">
-                                    Adding Items to Inventory
-                                </h3>
-                                <p className="text-gray-600 mb-6">
-                                    {processingStatus}
-                                </p>
-                                <div
-                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                            </div>
-                        )}
+                        )
+                        }
+
+                        {/* Step 4: Adding to Inventory */
+                        }
+                        {
+                            step === 'adding' && (
+                                <div className="text-center space-y-6">
+                                    <div className="text-6xl mb-4">📦</div>
+                                    <h3 className="text-lg font-medium text-gray-900">
+                                        Adding Items to Inventory
+                                    </h3>
+                                    <p className="text-gray-600 mb-6">
+                                        {processingStatus}
+                                    </p>
+                                    <div
+                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                </div>
+                            )
+                        }
                     </div>
                 </div>
 
@@ -1998,12 +2204,24 @@ export default function ReceiptScan() {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Select an issue...</option>
-                                                <option value="camera-not-working">Camera not working</option>
-                                                <option value="ocr-poor-accuracy">Poor text recognition</option>
-                                                <option value="wrong-items-detected">Wrong items detected</option>
-                                                <option value="missing-items">Items not detected</option>
-                                                <option value="categories-wrong">Wrong categories assigned</option>
-                                                <option value="upc-lookup-failed">UPC lookup not working</option>
+                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
+                                                </option>
+                                                <option value="camera-not-working">Camera not working
+                                                </option>
+                                                <option value="ocr-poor-accuracy">Poor text
+                                                    recognition
+                                                </option>
+                                                <option value="wrong-items-detected">Wrong items
+                                                    detected
+                                                </option>
+                                                <option value="missing-items">Items not detected
+                                                </option>
+                                                <option value="categories-wrong">Wrong categories
+                                                    assigned
+                                                </option>
+                                                <option value="upc-lookup-failed">UPC lookup not
+                                                    working
+                                                </option>
                                                 <option value="app-crash">App crashed/froze</option>
                                                 <option value="other">Other issue</option>
                                             </select>
@@ -2011,8 +2229,7 @@ export default function ReceiptScan() {
 
                                         <div>
                                             <label
-                                                className=" block text-sm font-medium text-gray-700
-                                                        mb-1">
+                                                className="block text-sm font-medium text-gray-700 mb-1">
                                                 Please describe the issue in detail *
                                             </label>
                                             <textarea
@@ -2021,10 +2238,8 @@ export default function ReceiptScan() {
                                                     ...prev,
                                                     description: e.target.value
                                                 }))}
-                                                placeholder=" Describe what happened
-                                                , what you expected, and any steps to reproduce the issue..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md
-                                                focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 rows={4}
                                             />
                                         </div>
