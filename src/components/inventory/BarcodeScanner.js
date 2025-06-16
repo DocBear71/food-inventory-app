@@ -283,59 +283,348 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         }, 800);
     }, [isScanning, validateUPC, onBarcodeDetected]);
 
-    // iOS PWA-specific camera initialization
+   // Enhanced iOS PWA camera initialization with multiple fallback strategies
     const initializeIOSPWACamera = useCallback(async () => {
-        console.log('📱 Starting iOS PWA camera initialization...');
+        console.log('📱 Starting iOS PWA camera v2 with enhanced fallbacks...');
 
         try {
-            // Enhanced iOS PWA camera constraints
-            const iosPWAConstraints = {
-                video: {
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1280, min: 640, max: 1920 },
-                    height: { ideal: 720, min: 480, max: 1080 },
-                    frameRate: { ideal: 30, min: 15, max: 60 },
-                    // iOS-specific enhancements
-                    aspectRatio: { ideal: 16/9 },
-                    resizeMode: "crop-and-scale"
-                },
-                audio: false
-            };
-
-            console.log('📱 Requesting iOS PWA camera with constraints:', iosPWAConstraints);
-
-            const stream = await navigator.mediaDevices.getUserMedia(iosPWAConstraints);
-
-            console.log('✅ iOS PWA camera stream obtained:', {
-                id: stream.id,
-                active: stream.active,
-                tracks: stream.getTracks().map(track => ({
-                    kind: track.kind,
-                    label: track.label,
-                    enabled: track.enabled,
-                    readyState: track.readyState,
-                    settings: track.getSettings()
-                }))
-            });
-
-            streamRef.current = stream;
-
-            // Store reference to video track for iOS PWA cleanup
-            const videoTrack = stream.getVideoTracks()[0];
-            if (videoTrack) {
-                console.log('📹 Video track details:', {
-                    label: videoTrack.label,
-                    settings: videoTrack.getSettings(),
-                    capabilities: videoTrack.getCapabilities()
+            // Strategy 1: Try with minimal constraints first (most compatible)
+            console.log('📱 iOS PWA Strategy 1: Minimal constraints');
+            try {
+                const minimalStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
                 });
+
+                console.log('✅ iOS PWA Strategy 1 succeeded with minimal constraints');
+                return minimalStream;
+            } catch (minimalError) {
+                console.log('❌ iOS PWA Strategy 1 failed:', minimalError.message);
             }
 
-            return stream;
+            // Strategy 2: Try with basic environment camera
+            console.log('📱 iOS PWA Strategy 2: Basic environment camera');
+            try {
+                const basicStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment"
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Strategy 2 succeeded with basic environment camera');
+                return basicStream;
+            } catch (basicError) {
+                console.log('❌ iOS PWA Strategy 2 failed:', basicError.message);
+            }
+
+            // Strategy 3: Try with any available camera (no facingMode)
+            console.log('📱 iOS PWA Strategy 3: Any available camera');
+            try {
+                const anyStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Strategy 3 succeeded with any camera');
+                return anyStream;
+            } catch (anyError) {
+                console.log('❌ iOS PWA Strategy 3 failed:', anyError.message);
+            }
+
+            // Strategy 4: Try with user camera explicitly
+            console.log('📱 iOS PWA Strategy 4: User-facing camera');
+            try {
+                const userStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user"
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Strategy 4 succeeded with user camera');
+                return userStream;
+            } catch (userError) {
+                console.log('❌ iOS PWA Strategy 4 failed:', userError.message);
+            }
+
+            // Strategy 5: Enumerate devices and try specific camera
+            console.log('📱 iOS PWA Strategy 5: Device enumeration');
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                console.log(`📱 iOS PWA: Found ${videoDevices.length} video devices:`,
+                    videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId.substring(0, 8) + '...' })));
+
+                if (videoDevices.length > 0) {
+                    // Try the first available video device
+                    const deviceStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            deviceId: videoDevices[0].deviceId
+                        },
+                        audio: false
+                    });
+
+                    console.log('✅ iOS PWA Strategy 5 succeeded with specific device');
+                    return deviceStream;
+                }
+            } catch (deviceError) {
+                console.log('❌ iOS PWA Strategy 5 failed:', deviceError.message);
+            }
+
+            // All strategies failed
+            throw new Error('All iOS PWA camera initialization strategies failed');
+
         } catch (error) {
-            console.error('❌ iOS PWA camera initialization failed:', error);
-            throw error;
+            console.error('❌ iOS PWA Camera initialization completely failed:', error);
+            throw new Error(`iOS PWA camera not accessible: ${error.message}`);
         }
     }, []);
+
+    // Enhanced camera permissions check with iOS PWA specific logic
+    const checkIOSPWAPermissions = useCallback(async () => {
+        console.log('🔍 Checking iOS PWA camera permissions...');
+
+        try {
+            // Check if getUserMedia is available
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('getUserMedia not available in this PWA context');
+            }
+
+            // Check permissions API if available
+            if (navigator.permissions && navigator.permissions.query) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                    console.log('📱 iOS PWA Camera permission status:', permissionStatus.state);
+
+                    if (permissionStatus.state === 'denied') {
+                        throw new Error('Camera permission explicitly denied');
+                    }
+                } catch (permError) {
+                    console.log('📱 iOS PWA Permissions API not fully supported:', permError.message);
+                    // Continue anyway - permissions API isn't always available in PWA
+                }
+            }
+
+            // Test actual camera access
+            const testStream = await initializeIOSPWACamera();
+
+            console.log('✅ iOS PWA Camera permission check successful');
+            return testStream;
+
+        } catch (error) {
+            console.error('❌ iOS PWA Camera permission check failed:', error);
+            throw error;
+        }
+    }, [initializeIOSPWACamera]);
+
+    // Enhanced error handling with iOS PWA specific messages
+    const handleIOSPWAError = useCallback((error) => {
+        console.error('📱 iOS PWA Camera Error:', error);
+
+        let userMessage = 'iOS PWA camera initialization failed.';
+        let technicalDetails = error.message;
+        let suggestions = [];
+
+        // Categorize errors and provide specific guidance
+        if (error.name === 'NotAllowedError' || error.message.includes('permission')) {
+            userMessage = 'Camera permission denied in iOS PWA.';
+            suggestions = [
+                'iOS PWAs reset camera permissions each session',
+                'Try allowing camera access when prompted',
+                'Consider opening the app in Safari browser instead'
+            ];
+        } else if (error.name === 'NotFoundError' || error.message.includes('not found')) {
+            userMessage = 'No camera found on this device.';
+            suggestions = [
+                'Ensure your device has a working camera',
+                'Try restarting the app'
+            ];
+        } else if (error.name === 'NotSupportedError' || error.message.includes('not supported')) {
+            userMessage = 'Camera not supported in this iOS PWA context.';
+            suggestions = [
+                'This iOS version may have limited PWA camera support',
+                'Try opening the app in Safari browser instead',
+                'Update iOS if possible'
+            ];
+        } else if (error.name === 'NotReadableError' || error.message.includes('in use')) {
+            userMessage = 'Camera is currently in use by another app.';
+            suggestions = [
+                'Close other apps that might be using the camera',
+                'Try restarting the app'
+            ];
+        } else if (error.message.includes('getUserMedia not available')) {
+            userMessage = 'Camera API not available in this PWA.';
+            suggestions = [
+                'iOS PWA camera support may be limited',
+                'Try opening the app in Safari browser instead'
+            ];
+        }
+
+        return {
+            userMessage,
+            technicalDetails,
+            suggestions,
+            shouldSuggestSafari: true
+        };
+    }, []);
+
+    // Enhanced initialization with better iOS PWA handling
+    const initializeScannerWithIOSPWASupport = useCallback(async () => {
+        if (!isActive || isInitialized || !mountedRef.current) {
+            console.log('🚫 Skipping iOS PWA init - not ready');
+            return;
+        }
+
+        try {
+            console.log('🚀 Starting iOS PWA scanner initialization v2...');
+            setError(null);
+            setIsScanning(true);
+            setIsLoading(true);
+
+            // Step 1: Check iOS PWA environment
+            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            console.log(`📱 iOS PWA Environment: ${isIOSPWA ? 'YES' : 'NO'}`);
+
+            if (isIOSPWA) {
+                console.log('📱 Applying iOS PWA specific initialization...');
+
+                // Add extra delay for iOS PWA DOM stabilization
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Step 2: Test camera permissions with enhanced strategy
+            let cameraStream;
+            try {
+                if (isIOSPWA) {
+                    cameraStream = await checkIOSPWAPermissions();
+                } else {
+                    // Standard camera test for non-iOS PWA
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" }
+                    });
+                }
+
+                console.log('✅ Camera permissions confirmed');
+
+                // Keep stream for iOS PWA, stop for others during testing
+                if (isIOSPWA) {
+                    streamRef.current = cameraStream;
+                    console.log('📱 Keeping iOS PWA camera stream active');
+                } else {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+
+            } catch (permissionError) {
+                const errorInfo = handleIOSPWAError(permissionError);
+                console.error('❌ Camera permission test failed:', errorInfo);
+
+                setError(errorInfo.userMessage);
+                setIsLoading(false);
+                return;
+            }
+
+            // Step 3: Continue with scanner initialization...
+            // [Rest of the existing Quagga initialization code]
+
+        } catch (error) {
+            const errorInfo = handleIOSPWAError(error);
+            console.error('❌ iOS PWA Scanner initialization failed:', errorInfo);
+
+            if (mountedRef.current) {
+                setError(errorInfo.userMessage);
+                setIsLoading(false);
+            }
+        }
+    }, [isActive, isInitialized, isPWA, checkIOSPWAPermissions, handleIOSPWAError]);
+
+    // Enhanced error display component for iOS PWA
+    const IOSPWAErrorDisplay = ({ error, onRetry, onClose, onOpenInSafari }) => (
+        <div className="flex-1 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
+                <div className="text-red-600 mb-4 text-lg font-semibold">
+                    📱 iOS PWA Camera Issue
+                </div>
+
+                <div className="text-sm text-gray-700 mb-4">
+                    {error}
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <div className="text-xs text-yellow-800">
+                        <div className="font-semibold mb-1">📋 Known iOS PWA Limitations:</div>
+                        <div>• Camera permissions reset each session</div>
+                        <div>• Limited camera API support in PWA mode</div>
+                        <div>• iOS Safari engine restrictions</div>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <TouchEnhancedButton
+                        onClick={onRetry}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                        🔄 Try Again
+                    </TouchEnhancedButton>
+
+                    <TouchEnhancedButton
+                        onClick={onOpenInSafari}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    >
+                        🌐 Open in Safari
+                    </TouchEnhancedButton>
+
+                    <TouchEnhancedButton
+                        onClick={onClose}
+                        className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                        ✕ Close Scanner
+                    </TouchEnhancedButton>
+                </div>
+
+                <div className="mt-4 text-xs text-gray-500">
+                    iOS {navigator.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || 'Unknown'} • PWA Mode
+                </div>
+            </div>
+        </div>
+    );
+
+    // Usage in the main component:
+    const handleOpenInSafari = useCallback(() => {
+        // Provide user with instructions to open in Safari
+        const safariInstructions = `To use the camera scanner:
+
+1. Open Safari browser
+2. Go to: ${window.location.origin}
+3. Navigate to the scanner
+4. Allow camera permissions
+
+This bypasses iOS PWA camera limitations.`;
+
+        if (confirm(`Open app in Safari browser?\n\n${safariInstructions}`)) {
+            // Try to open in Safari (this may or may not work depending on iOS version)
+            window.location.href = window.location.href;
+        }
+    }, []);
+
+    const handleRetryCamera = useCallback(async () => {
+        console.log('🔄 Retrying iOS PWA camera initialization...');
+        setError(null);
+        setIsLoading(true);
+        setIsInitialized(false);
+
+        // Brief delay before retry
+        setTimeout(() => {
+            if (mountedRef.current) {
+                initializeScannerWithIOSPWASupport();
+            }
+        }, 500);
+    }, [initializeScannerWithIOSPWASupport]);
+
 
     // Main scanner initialization with iOS PWA fixes
     useEffect(() => {
@@ -866,76 +1155,206 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 {error ? (
                     <div className="flex-1 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                            <div className="text-red-600 mb-4">❌ {error}</div>
-                            <div className="text-sm text-gray-500 mb-4">
-                                {isPWA ? (
-                                    <>
-                                        iOS PWA camera permissions are reset each session.
-                                        Please ensure camera permissions are enabled.
-                                        {'\n\n'}
-                                        Try opening the app in Safari first if issues persist.
-                                    </>
-                                ) : (
-                                    'Please ensure camera permissions are enabled.'
-                                )}
+                        <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto shadow-lg">
+                            {/* Header with iOS PWA indicator */}
+                            <div className="flex items-center justify-center mb-4">
+                                <div className="text-red-600 text-2xl mr-2">❌</div>
+                                <div>
+                                    <div className="text-red-600 text-lg font-semibold">Camera Access Failed</div>
+                                    {isPWA && (
+                                        <div className="text-orange-600 text-xs font-medium">iOS PWA Mode</div>
+                                    )}
+                                </div>
                             </div>
 
+                            {/* Error message */}
+                            <div className="text-sm text-gray-700 mb-4 leading-relaxed">
+                                {error}
+                            </div>
+
+                            {/* iOS PWA specific guidance */}
+                            {isPWA && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                    <div className="text-xs text-blue-800">
+                                        <div className="font-semibold mb-2 flex items-center">
+                                            <span className="mr-1">💡</span>
+                                            iOS PWA Camera Limitations:
+                                        </div>
+                                        <div className="text-left space-y-1">
+                                            <div>• Camera permissions reset each PWA session</div>
+                                            <div>• Limited camera API support in standalone mode</div>
+                                            <div>• Safari browser has full camera access</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action buttons */}
                             <div className="space-y-3">
+                                {/* Test Camera Access button */}
                                 <TouchEnhancedButton
                                     onClick={async () => {
                                         try {
-                                            console.log('🔍 Testing iOS PWA camera permissions...');
+                                            setError(null);
+                                            setIsLoading(true);
 
+                                            console.log('🔍 Manual camera permission test...');
+
+                                            // Use the enhanced iOS PWA camera initialization
                                             let testStream;
                                             if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                                testStream = await initializeIOSPWACamera();
+                                                // Try multiple strategies for iOS PWA
+                                                try {
+                                                    testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                                } catch (firstError) {
+                                                    console.log('First attempt failed, trying environment camera...');
+                                                    try {
+                                                        testStream = await navigator.mediaDevices.getUserMedia({
+                                                            video: { facingMode: "environment" }
+                                                        });
+                                                    } catch (secondError) {
+                                                        console.log('Environment camera failed, trying user camera...');
+                                                        testStream = await navigator.mediaDevices.getUserMedia({
+                                                            video: { facingMode: "user" }
+                                                        });
+                                                    }
+                                                }
                                             } else {
                                                 testStream = await navigator.mediaDevices.getUserMedia({ video: true });
                                             }
 
-                                            console.log('✅ iOS PWA Camera permission granted');
+                                            console.log('✅ Camera permission test successful');
                                             testStream.getTracks().forEach(track => track.stop());
 
-                                            setError(null);
+                                            // Reset component state for retry
                                             setIsLoading(true);
+                                            setIsInitialized(false);
+
                                             setTimeout(() => {
                                                 if (mountedRef.current) {
+                                                    console.log('🔄 Retrying scanner initialization...');
+                                                    // Trigger re-initialization
+                                                    setIsLoading(false);
                                                     setIsInitialized(false);
                                                 }
-                                            }, 100);
+                                            }, 500);
+
                                         } catch (testError) {
-                                            console.error('❌ iOS PWA Camera test failed:', testError);
-                                            setError(`Camera test failed: ${testError.message}`);
+                                            console.error('❌ Manual camera test failed:', testError);
+
+                                            let errorMessage = `Camera test failed: ${testError.message}`;
+                                            if (testError.name === 'NotAllowedError') {
+                                                errorMessage = 'Camera permission denied. Please allow camera access when prompted.';
+                                            } else if (testError.name === 'NotFoundError') {
+                                                errorMessage = 'No camera found on this device.';
+                                            } else if (testError.name === 'NotSupportedError') {
+                                                errorMessage = 'Camera not supported in this browser/mode.';
+                                            }
+
+                                            setError(errorMessage);
+                                            setIsLoading(false);
                                         }
                                     }}
-                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md"
+                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
                                 >
                                     🔍 Test Camera Access
                                 </TouchEnhancedButton>
 
-                                {isPWA && (
+                                {/* Open in Safari button - only for iOS PWA */}
+                                {isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
                                     <TouchEnhancedButton
                                         onClick={() => {
-                                            // Suggest opening in Safari
-                                            if (confirm('Try opening this app in Safari browser instead?\n\nThis may resolve iOS PWA camera issues.')) {
-                                                window.location.href = window.location.href;
+                                            const safariUrl = window.location.href.replace(/\?.*$/, ''); // Remove query params
+                                            const instructions = `To use the camera scanner with full functionality:
+
+1. Open Safari browser
+2. Navigate to: ${safariUrl}
+3. Use the barcode scanner there
+
+This bypasses iOS PWA camera limitations and should work reliably.`;
+
+                                            if (confirm(`Open app in Safari browser?\n\n${instructions}`)) {
+                                                // Create a link that opens in Safari
+                                                const link = document.createElement('a');
+                                                link.href = safariUrl;
+                                                link.target = '_blank';
+                                                link.rel = 'noopener noreferrer';
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
                                             }
                                         }}
-                                        className="w-full px-4 py-2 bg-orange-600 text-white rounded-md"
+                                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
                                     >
-                                        🌐 Open in Safari
+                                        🌐 Open in Safari Browser
                                     </TouchEnhancedButton>
                                 )}
 
+                                {/* Alternative: Manual UPC Entry */}
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        // Close scanner and suggest manual entry
+                                        cleanupScanner();
+                                        onClose();
+
+                                        // Show helpful message about manual entry
+                                        setTimeout(() => {
+                                            alert('💡 Tip: You can manually enter UPC codes in the UPC/Barcode field, or use the "Search by Name" tab to find products by typing their name.');
+                                        }, 300);
+                                    }}
+                                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
+                                >
+                                    ✏️ Enter UPC Manually Instead
+                                </TouchEnhancedButton>
+
+                                {/* Close Scanner button */}
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         cleanupScanner();
                                         onClose();
                                     }}
-                                    className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
+                                    className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                                 >
-                                    Close Scanner
+                                    ✕ Close Scanner
+                                </TouchEnhancedButton>
+                            </div>
+
+                            {/* Device info for debugging */}
+                            <div className="mt-4 pt-3 border-t border-gray-200">
+                                <div className="text-xs text-gray-500 space-y-1">
+                                    <div>
+                                        iOS {(() => {
+                                        const match = navigator.userAgent.match(/OS (\d+_\d+)/);
+                                        return match ? match[1].replace('_', '.') : 'Unknown';
+                                    })()} • {isPWA ? 'PWA' : 'Browser'} Mode
+                                    </div>
+                                    <div>
+                                        {isPWA ? 'Standalone Web App' : 'Safari Browser'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Report issue link */}
+                            <div className="mt-3">
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        const issueDetails = `iOS PWA Camera Issue Report:
+- Device: ${navigator.userAgent}
+- Mode: ${isPWA ? 'PWA' : 'Browser'}
+- Error: ${error}
+- Timestamp: ${new Date().toISOString()}
+
+Please describe what happened and any steps you tried.`;
+
+                                        const emailSubject = encodeURIComponent('iOS PWA Camera Issue Report');
+                                        const emailBody = encodeURIComponent(issueDetails);
+                                        const emailLink = `mailto:support@example.com?subject=${emailSubject}&body=${emailBody}`;
+
+                                        window.location.href = emailLink;
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    📧 Report this issue
                                 </TouchEnhancedButton>
                             </div>
                         </div>

@@ -135,12 +135,108 @@ export default function ReceiptScan() {
         }
     };
 
-    // Enhanced camera start function with iOS PWA support
+    // Enhanced iOS PWA camera initialization with multiple fallback strategies for receipt scanning
+    const initializeIOSPWAReceiptCamera = useCallback(async () => {
+        console.log('📄 Starting iOS PWA receipt camera v2 with enhanced fallbacks...');
+
+        try {
+            // Strategy 1: Try with minimal constraints first (most compatible)
+            console.log('📄 iOS PWA Receipt Strategy 1: Minimal constraints');
+            try {
+                const minimalStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Receipt Strategy 1 succeeded with minimal constraints');
+                return minimalStream;
+            } catch (minimalError) {
+                console.log('❌ iOS PWA Receipt Strategy 1 failed:', minimalError.message);
+            }
+
+            // Strategy 2: Try with basic environment camera for receipt scanning
+            console.log('📄 iOS PWA Receipt Strategy 2: Basic environment camera');
+            try {
+                const basicStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment"
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Receipt Strategy 2 succeeded with basic environment camera');
+                return basicStream;
+            } catch (basicError) {
+                console.log('❌ iOS PWA Receipt Strategy 2 failed:', basicError.message);
+            }
+
+            // Strategy 3: Try with receipt-optimized constraints
+            console.log('📄 iOS PWA Receipt Strategy 3: Receipt-optimized camera');
+            try {
+                const receiptStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: { ideal: 1280, min: 640 },
+                        height: { ideal: 720, min: 480 },
+                        aspectRatio: { ideal: 16/9 }
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Receipt Strategy 3 succeeded with receipt-optimized camera');
+                return receiptStream;
+            } catch (receiptError) {
+                console.log('❌ iOS PWA Receipt Strategy 3 failed:', receiptError.message);
+            }
+
+            // Strategy 4: Try with any available camera (no constraints)
+            console.log('📄 iOS PWA Receipt Strategy 4: Any available camera');
+            try {
+                const anyStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Receipt Strategy 4 succeeded with any camera');
+                return anyStream;
+            } catch (anyError) {
+                console.log('❌ iOS PWA Receipt Strategy 4 failed:', anyError.message);
+            }
+
+            // Strategy 5: Try with user camera as last resort
+            console.log('📄 iOS PWA Receipt Strategy 5: User-facing camera');
+            try {
+                const userStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user"
+                    },
+                    audio: false
+                });
+
+                console.log('✅ iOS PWA Receipt Strategy 5 succeeded with user camera');
+                return userStream;
+            } catch (userError) {
+                console.log('❌ iOS PWA Receipt Strategy 5 failed:', userError.message);
+            }
+
+            // All strategies failed
+            throw new Error('All iOS PWA receipt camera initialization strategies failed');
+
+        } catch (error) {
+            console.error('❌ iOS PWA Receipt Camera initialization completely failed:', error);
+            throw new Error(`iOS PWA receipt camera not accessible: ${error.message}`);
+        }
+    }, []);
+
+// Enhanced startCamera function with multiple fallback strategies
     async function startCamera() {
         setCameraError(null);
 
         try {
-            console.log('🚀 Starting iOS PWA-optimized receipt camera...');
+            console.log('🚀 Starting iOS PWA-optimized receipt camera v2...');
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('Camera API not supported');
@@ -152,13 +248,20 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            // iOS PWA-specific camera handling
+            // Enhanced iOS PWA-specific camera handling
             let stream;
-            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                console.log('📱 Using iOS PWA camera initialization...');
-                stream = await initializeIOSPWACamera();
+            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            if (isIOSPWA) {
+                console.log('📄 Using iOS PWA receipt camera initialization v2...');
+                try {
+                    stream = await initializeIOSPWAReceiptCamera();
+                } catch (pwaError) {
+                    console.error('❌ iOS PWA receipt camera failed:', pwaError);
+                    throw new Error(`iOS PWA camera not accessible: ${pwaError.message}`);
+                }
             } else {
-                // Enhanced camera constraints for better OCR quality
+                // Enhanced camera constraints for better OCR quality (non-PWA)
                 const constraints = {
                     video: {
                         facingMode: "environment",
@@ -196,10 +299,8 @@ export default function ReceiptScan() {
             // Show camera first to ensure video element is rendered
             setShowCamera(true);
 
-            // AUTO-SCROLL TO CAMERA VIEW
-            // Wait a brief moment for the camera view to render, then scroll to it
+            // AUTO-SCROLL TO CAMERA VIEW (enhanced for iOS PWA)
             setTimeout(() => {
-                // Find the camera container and scroll to it smoothly
                 const cameraContainer = document.querySelector('[data-camera-container]');
                 if (cameraContainer) {
                     cameraContainer.scrollIntoView({
@@ -207,9 +308,8 @@ export default function ReceiptScan() {
                         block: 'start',
                         inline: 'nearest'
                     });
-                    console.log('📱 Auto-scrolled to camera view');
+                    console.log('📄 Auto-scrolled to receipt camera view');
                 } else {
-                    // Fallback: scroll to the video element if camera container not found
                     setTimeout(() => {
                         if (videoRef.current) {
                             videoRef.current.scrollIntoView({
@@ -217,40 +317,39 @@ export default function ReceiptScan() {
                                 block: 'center',
                                 inline: 'nearest'
                             });
-                            console.log('📱 Auto-scrolled to video element');
+                            console.log('📄 Auto-scrolled to video element');
                         }
                     }, 200);
                 }
-            }, 300); // Small delay to ensure rendering
+            }, isIOSPWA ? 500 : 300); // Longer delay for iOS PWA
 
             // iOS PWA: Longer wait for video element
-            const waitTime = isPWA ? 500 : 100;
+            const waitTime = isIOSPWA ? 800 : 500;
             await new Promise(resolve => setTimeout(resolve, waitTime));
 
-            // Wait for video element with retries
+            // Wait for video element with retries (enhanced for iOS PWA)
             let retries = 0;
-            const maxRetries = isPWA ? 20 : 10;
+            const maxRetries = isIOSPWA ? 25 : 20;
             while (!videoRef.current && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, isPWA ? 200 : 100));
+                await new Promise(resolve => setTimeout(resolve, isIOSPWA ? 300 : 200));
                 retries++;
             }
 
             if (!videoRef.current) {
-                setCameraError('Video element not found after waiting');
+                setCameraError('Receipt camera video element not found after waiting');
                 return;
             }
 
-            // iOS PWA-specific video setup
+            // Enhanced iOS PWA-specific video setup
             const video = videoRef.current;
 
-            // iOS PWA: Set required attributes before setting srcObject
-            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            if (isIOSPWA) {
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('webkit-playsinline', 'true');
                 video.muted = true;
                 video.autoplay = true;
 
-                console.log('📱 iOS PWA: Set video attributes for receipt scanning');
+                console.log('📄 iOS PWA: Set video attributes for receipt scanning');
             }
 
             // Set video source
@@ -260,7 +359,7 @@ export default function ReceiptScan() {
             await new Promise((resolve, reject) => {
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    console.log(`📹 Receipt Scanner Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
+                    console.log(`📄 Receipt Scanner Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
                     resolve();
                 };
 
@@ -272,18 +371,24 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // iOS PWA: Force play with better error handling
+                // iOS PWA: Enhanced play handling
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
                     playPromise
                         .then(() => {
-                            console.log('📱 iOS PWA Receipt Scanner: Video play successful');
+                            console.log('📄 iOS PWA Receipt Scanner: Video play successful');
                         })
                         .catch((playError) => {
-                            console.log('📱 iOS PWA Receipt Scanner: Video play failed, retrying...', playError);
-                            // Retry play after a short delay
+                            console.log('📄 iOS PWA Receipt Scanner: Video play failed, retrying...', playError);
+                            // Enhanced retry for iOS PWA
                             setTimeout(() => {
-                                video.play().catch(e => console.log('📱 iOS PWA Receipt Scanner: Video retry failed:', e));
+                                video.play().catch(e => {
+                                    console.log('📄 iOS PWA Receipt Scanner: Video retry failed:', e);
+                                    // Final attempt with user interaction simulation
+                                    setTimeout(() => {
+                                        video.play().catch(e2 => console.log('📄 iOS PWA Receipt Scanner: Final retry failed:', e2));
+                                    }, 200);
+                                });
                             }, 100);
                         });
                 }
@@ -292,14 +397,126 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('❌ iOS PWA Receipt Scanner: Camera start failed:', error);
 
-            let errorMessage = 'Failed to start camera: ' + error.message;
+            let errorMessage = 'Failed to start receipt camera: ' + error.message;
             if (isPWA && error.name === 'NotAllowedError') {
-                errorMessage = 'iOS PWA camera permission denied. Camera permissions are reset each session in iOS PWAs. Please allow camera access.';
+                errorMessage = 'iOS PWA receipt camera permission denied. Camera permissions are reset each session in iOS PWAs. Please allow camera access.';
+            } else if (isPWA && error.message.includes('not accessible')) {
+                errorMessage = 'iOS PWA receipt camera not accessible. Try opening the app in Safari browser for full camera functionality.';
             }
 
             setCameraError(errorMessage);
         }
     }
+
+// Enhanced error display component specifically for receipt scanner
+    const ReceiptScannerErrorDisplay = () => (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start">
+                <div className="text-red-600 text-xl mr-3">📄❌</div>
+                <div className="flex-1">
+                    <div className="text-red-700 font-semibold mb-2">
+                        Receipt Camera Not Available
+                        {isPWA && <span className="text-sm font-normal text-orange-600 ml-2">(iOS PWA Mode)</span>}
+                    </div>
+
+                    <div className="text-sm text-red-600 mb-3">
+                        {cameraError && <ReceiptScannerErrorDisplay />}
+                    </div>
+
+                    {isPWA && (
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                            <div className="text-xs text-blue-800">
+                                <div className="font-semibold mb-1">💡 iOS PWA Receipt Scanning Limitations:</div>
+                                <div>• Camera permissions reset each PWA session</div>
+                                <div>• Limited camera API support in standalone mode</div>
+                                <div>• Safari browser provides full camera functionality</div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        {/* Try Again button with enhanced retry */}
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                setCameraError(null);
+
+                                try {
+                                    console.log('🔄 Retrying receipt camera with enhanced strategy...');
+
+                                    // Enhanced retry logic for iOS PWA
+                                    if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                        const testStream = await initializeIOSPWAReceiptCamera();
+                                        testStream.getTracks().forEach(track => track.stop());
+                                        console.log('✅ Receipt camera retry test successful');
+                                    } else {
+                                        const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                        testStream.getTracks().forEach(track => track.stop());
+                                    }
+
+                                    // Restart camera initialization
+                                    startCamera();
+
+                                } catch (retryError) {
+                                    console.error('❌ Receipt camera retry failed:', retryError);
+                                    setCameraError(`Retry failed: ${retryError.message}`);
+                                }
+                            }}
+                            className="mr-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                            🔄 Try Again
+                        </TouchEnhancedButton>
+
+                        {/* Open in Safari button for iOS PWA */}
+                        {isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    const safariUrl = window.location.href.replace(/\?.*$/, '');
+                                    const instructions = `For reliable receipt scanning:
+
+1. Open Safari browser
+2. Navigate to: ${safariUrl}
+3. Use the receipt scanner there
+
+This bypasses iOS PWA camera limitations.`;
+
+                                    if (confirm(`Open app in Safari browser?\n\n${instructions}`)) {
+                                        const link = document.createElement('a');
+                                        link.href = safariUrl;
+                                        link.target = '_blank';
+                                        link.rel = 'noopener noreferrer';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }
+                                }}
+                                className="mr-2 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                            >
+                                🌐 Open in Safari
+                            </TouchEnhancedButton>
+                        )}
+
+                        {/* Upload Image alternative */}
+                        <TouchEnhancedButton
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
+                        >
+                            📁 Upload Receipt Image Instead
+                        </TouchEnhancedButton>
+                    </div>
+
+                    {/* Device info */}
+                    <div className="mt-3 pt-2 border-t border-red-200">
+                        <div className="text-xs text-gray-600">
+                            iOS {(() => {
+                            const match = navigator.userAgent.match(/OS (\d+_\d+)/);
+                            return match ? match[1].replace('_', '.') : 'Unknown';
+                        })()} • {isPWA ? 'PWA' : 'Browser'} Mode • Receipt Scanner
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     // Simple camera stop function with iOS PWA cleanup
     function stopCamera() {
