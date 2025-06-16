@@ -93,9 +93,84 @@ export default function ReceiptScan() {
         );
     }
 
-    // Enhanced iOS PWA camera initialization with immediate permission request
+    // iOS PWA Service Worker Camera Fix
+    async function handleIOSPWAServiceWorkerCameraFix() {
+        const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        if (!isIOSPWA) {
+            return { needsRestore: false };
+        }
+
+        console.log('📱 iOS PWA: Attempting service worker camera fix...');
+
+        try {
+            // Check if service worker is causing camera issues
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                console.log('📱 iOS PWA: Service worker detected, attempting camera test...');
+
+                // Try a quick camera test first
+                try {
+                    const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    testStream.getTracks().forEach(track => track.stop());
+                    console.log('📱 iOS PWA: Camera works with service worker active');
+                    return { needsRestore: false };
+                } catch (testError) {
+                    console.log('📱 iOS PWA: Camera blocked with service worker, attempting fix...');
+
+                    // Store original service worker state
+                    const originalController = navigator.serviceWorker.controller;
+
+                    // Temporarily unregister service worker for camera access
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    const unregisterPromises = registrations.map(registration => {
+                        console.log('📱 iOS PWA: Temporarily unregistering service worker...');
+                        return registration.unregister();
+                    });
+
+                    await Promise.all(unregisterPromises);
+
+                    // Wait for unregistration to take effect
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    return {
+                        needsRestore: true,
+                        originalRegistrations: registrations,
+                        originalController: originalController
+                    };
+                }
+            }
+
+            return { needsRestore: false };
+
+        } catch (error) {
+            console.log('📱 iOS PWA: Service worker fix failed:', error);
+            return { needsRestore: false };
+        }
+    }
+
+    // Restore service worker after camera operations
+    async function restoreIOSPWAServiceWorker(restoreData) {
+        if (!restoreData.needsRestore) return;
+
+        console.log('📱 iOS PWA: Restoring service worker...');
+
+        try {
+            // Re-register service worker
+            if ('serviceWorker' in navigator) {
+                // Re-register the main service worker
+                await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                console.log('📱 iOS PWA: Service worker restored');
+            }
+        } catch (error) {
+            console.log('📱 iOS PWA: Service worker restoration failed:', error);
+        }
+    }
+
+    // Enhanced iOS PWA camera initialization with service worker fix
     async function initializeCameraStream() {
-        console.log('📱 Starting iOS PWA-optimized camera initialization...');
+        console.log('📱 Starting iOS PWA-optimized camera initialization with SW fix...');
+
+        let swRestoreData = { needsRestore: false };
 
         try {
             const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -106,110 +181,70 @@ export default function ReceiptScan() {
                 throw new Error('Camera API not supported on this device');
             }
 
+            // iOS PWA: Try service worker fix if needed
+            if (isIOSPWA) {
+                swRestoreData = await handleIOSPWAServiceWorkerCameraFix();
+            }
+
             let stream = null;
 
             if (isIOSPWA) {
-                // iOS PWA: Immediate simple permission request first
-                console.log('📱 iOS PWA: Requesting immediate camera permission...');
+                // iOS PWA: Simplified approach after SW fix
+                console.log('📱 iOS PWA: Requesting camera with simplified approach...');
 
-                try {
-                    // Step 1: Get permission with absolute minimal constraints
-                    const permissionStream = await navigator.mediaDevices.getUserMedia({
-                        video: true,
+                const strategies = [
+                    // Most basic constraint first
+                    { video: true, audio: false },
+                    // Then environment camera
+                    { video: { facingMode: "environment" }, audio: false },
+                    // Then with basic resolution
+                    {
+                        video: {
+                            facingMode: "environment",
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
                         audio: false
-                    });
+                    }
+                ];
 
-                    console.log('✅ iOS PWA: Initial permission granted');
-
-                    // Step 2: Stop the permission stream immediately
-                    permissionStream.getTracks().forEach(track => track.stop());
-
-                    // Step 3: Wait a moment for iOS to process the permission
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Step 4: Now try to get a proper stream with better constraints
-                    console.log('📱 iOS PWA: Requesting optimized stream...');
-
-                    const strategies = [
-                        // Very conservative constraints for iOS PWA
-                        {
-                            video: {
-                                facingMode: "environment",
-                                width: { ideal: 640 },
-                                height: { ideal: 480 }
-                            },
-                            audio: false
-                        },
-                        // Even simpler fallback
-                        {
-                            video: { facingMode: "environment" },
-                            audio: false
-                        },
-                        // Absolute simplest
-                        {
-                            video: true,
-                            audio: false
-                        }
-                    ];
-
-                    for (let i = 0; i < strategies.length; i++) {
-                        try {
-                            console.log(`📱 iOS PWA: Trying strategy ${i + 1}`);
-                            stream = await navigator.mediaDevices.getUserMedia(strategies[i]);
-                            console.log(`✅ iOS PWA: Success with strategy ${i + 1}`);
-                            break;
-                        } catch (strategyError) {
-                            console.log(`❌ iOS PWA: Strategy ${i + 1} failed:`, strategyError.message);
-                            if (i === strategies.length - 1) {
-                                throw strategyError;
-                            }
+                for (let i = 0; i < strategies.length; i++) {
+                    try {
+                        console.log(`📱 iOS PWA: Trying strategy ${i + 1} (post-SW fix)`);
+                        stream = await navigator.mediaDevices.getUserMedia(strategies[i]);
+                        console.log(`✅ iOS PWA: Success with strategy ${i + 1}`);
+                        break;
+                    } catch (strategyError) {
+                        console.log(`❌ iOS PWA: Strategy ${i + 1} failed:`, strategyError.message);
+                        if (i === strategies.length - 1) {
+                            throw strategyError;
                         }
                     }
-
-                } catch (permissionError) {
-                    console.error('❌ iOS PWA: Permission request failed:', permissionError);
-                    throw new Error(`iOS PWA camera permission failed: ${permissionError.message}`);
                 }
 
             } else {
                 // Standard (non-iOS PWA) initialization
                 const strategies = [
                     {
-                        name: 'Standard Environment High Quality',
-                        constraints: {
-                            video: {
-                                facingMode: "environment",
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 },
-                                aspectRatio: { ideal: 16/9 }
-                            }
+                        video: {
+                            facingMode: "environment",
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 },
+                            aspectRatio: { ideal: 16/9 }
                         }
                     },
-                    {
-                        name: 'Standard Environment Basic',
-                        constraints: {
-                            video: { facingMode: "environment" }
-                        }
-                    },
-                    {
-                        name: 'Standard Fallback',
-                        constraints: {
-                            video: true
-                        }
-                    }
+                    { video: { facingMode: "environment" } },
+                    { video: true }
                 ];
 
-                // Try each strategy for non-PWA
                 for (let i = 0; i < strategies.length; i++) {
-                    const strategy = strategies[i];
-                    console.log(`📱 Trying strategy: ${strategy.name}`);
-
                     try {
-                        stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
-                        console.log(`✅ Success with ${strategy.name}`);
+                        console.log(`📱 Trying strategy ${i + 1}`);
+                        stream = await navigator.mediaDevices.getUserMedia(strategies[i]);
+                        console.log(`✅ Success with strategy ${i + 1}`);
                         break;
                     } catch (error) {
-                        console.log(`❌ ${strategy.name} failed:`, error.message);
+                        console.log(`❌ Strategy ${i + 1} failed:`, error.message);
                         if (i === strategies.length - 1) {
                             throw error;
                         }
@@ -227,10 +262,19 @@ export default function ReceiptScan() {
                 settings: stream.getVideoTracks()[0]?.getSettings()
             });
 
+            // Store restore data for later cleanup
+            stream._swRestoreData = swRestoreData;
+
             return stream;
 
         } catch (error) {
             console.error('❌ Camera initialization failed:', error);
+
+            // Restore service worker even if camera failed
+            if (swRestoreData.needsRestore) {
+                await restoreIOSPWAServiceWorker(swRestoreData);
+            }
+
             throw error;
         }
     }
@@ -492,16 +536,24 @@ This bypasses iOS PWA camera limitations.`;
         </div>
     );
 
-    // Simple camera stop function with iOS PWA cleanup
+    // Enhanced camera stop function with service worker restoration
     function stopCamera() {
-        console.log('🛑 Stopping camera...');
+        console.log('🛑 Stopping camera with iOS PWA cleanup...');
 
         if (streamRef.current) {
+            // Check if we need to restore service worker
+            const swRestoreData = streamRef.current._swRestoreData;
+
             streamRef.current.getTracks().forEach(track => {
                 track.stop();
                 console.log(`🛑 Stopped ${track.kind} track: ${track.label}`);
             });
             streamRef.current = null;
+
+            // Restore service worker if it was disabled for iOS PWA
+            if (swRestoreData && swRestoreData.needsRestore) {
+                restoreIOSPWAServiceWorker(swRestoreData);
+            }
         }
 
         if (videoRef.current) {
