@@ -12,8 +12,13 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 // iOS PWA Camera Fix - Dynamic Manifest Detection and Workaround
 // Place this in your main layout or index.html <head> section
 
-// 1. Detect iOS and create appropriate manifest link
+// 1. Detect iOS and create appropriate manifest link (CLIENT-SIDE ONLY)
 (function() {
+    // Only run on client side to avoid SSR issues
+    if (typeof window === 'undefined') {
+        return;
+    }
+
     console.log('📱 iOS PWA Camera Fix: Dynamic Manifest Loading...');
 
     // Detect iOS
@@ -91,63 +96,65 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
     console.log('📱 iOS PWA Camera Fix initialized:', window.iosPWACameraFix);
 })();
 
-// 2. Camera component helper functions
-window.iosPWACameraHelper = {
-    // Check if camera should work in current mode
-    isCameraSupported: function() {
-        // Camera works in Safari browser mode, not in iOS PWA standalone mode
-        const isIOSPWA = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
-        return !isIOSPWA;
-    },
+// 2. Camera component helper functions (CLIENT-SIDE ONLY)
+if (typeof window !== 'undefined') {
+    window.iosPWACameraHelper = {
+        // Check if camera should work in current mode
+        isCameraSupported: function() {
+            // Camera works in Safari browser mode, not in iOS PWA standalone mode
+            const isIOSPWA = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
+            return !isIOSPWA;
+        },
 
-    // Get recommended camera constraints for iOS
-    getIOSCameraConstraints: function() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        // Get recommended camera constraints for iOS
+        getIOSCameraConstraints: function() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-        if (isIOS) {
-            // Conservative constraints for iOS
-            return [
-                { video: { facingMode: "environment" }, audio: false },
-                { video: true, audio: false }
-            ];
-        } else {
-            // Standard constraints for other platforms
-            return [
-                {
-                    video: {
-                        facingMode: "environment",
-                        width: { ideal: 1280, min: 640 },
-                        height: { ideal: 720, min: 480 }
-                    }
-                },
-                { video: { facingMode: "environment" } },
-                { video: true }
-            ];
+            if (isIOS) {
+                // Conservative constraints for iOS
+                return [
+                    { video: { facingMode: "environment" }, audio: false },
+                    { video: true, audio: false }
+                ];
+            } else {
+                // Standard constraints for other platforms
+                return [
+                    {
+                        video: {
+                            facingMode: "environment",
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 }
+                        }
+                    },
+                    { video: { facingMode: "environment" } },
+                    { video: true }
+                ];
+            }
+        },
+
+        // Provide user guidance for iOS PWA camera issues
+        getIOSCameraGuidance: function() {
+            const isIOSPWA = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
+
+            if (isIOSPWA) {
+                return {
+                    hasIssue: true,
+                    message: "Camera access is limited in iOS PWA mode.",
+                    solutions: [
+                        "Open the app in Safari browser instead",
+                        "Use the 'Upload Image' option as an alternative",
+                        "Manual UPC entry is available"
+                    ],
+                    safariUrl: window.location.origin
+                };
+            }
+
+            return { hasIssue: false };
         }
-    },
-
-    // Provide user guidance for iOS PWA camera issues
-    getIOSCameraGuidance: function() {
-        const isIOSPWA = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
-
-        if (isIOSPWA) {
-            return {
-                hasIssue: true,
-                message: "Camera access is limited in iOS PWA mode.",
-                solutions: [
-                    "Open the app in Safari browser instead",
-                    "Use the 'Upload Image' option as an alternative",
-                    "Manual UPC entry is available"
-                ],
-                safariUrl: window.location.origin
-            };
-        }
-
-        return { hasIssue: false };
-    }
-};
+    };
+}
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSession();
