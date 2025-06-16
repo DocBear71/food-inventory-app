@@ -181,11 +181,10 @@ export default function ReceiptScan() {
         );
     }
 
-    // Enhanced camera start function with aggressive iOS PWA camera fixes
+    // Enhanced camera start function with iOS PWA fixes based on research
     async function startCamera() {
         setCameraError(null);
 
-        // Don't immediately block iOS PWA - try aggressive fixes first
         console.log('📱 Starting camera with device info:', deviceInfo);
 
         try {
@@ -200,84 +199,119 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            // AGGRESSIVE iOS PWA CAMERA FIXES
+            // iOS PWA SPECIFIC FIXES based on research
             if (deviceInfo.isIOSPWA) {
-                console.log('🔧 Applying aggressive iOS PWA camera fixes...');
+                console.log('🔧 Applying iOS PWA camera fixes based on research...');
 
-                // Fix 1: Force user interaction to unlock camera permissions
-                const userInteractionPromise = new Promise((resolve) => {
-                    // Create a temporary button to capture user interaction
-                    const tempButton = document.createElement('button');
-                    tempButton.style.position = 'fixed';
-                    tempButton.style.top = '0';
-                    tempButton.style.left = '0';
-                    tempButton.style.zIndex = '99999';
-                    tempButton.style.opacity = '0';
-                    tempButton.textContent = 'Enable Camera';
-                    document.body.appendChild(tempButton);
+                // Fix 1: Ensure we're in a secure context (HTTPS)
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    throw new Error('Camera requires HTTPS in iOS PWA mode');
+                }
 
-                    tempButton.addEventListener('click', () => {
-                        document.body.removeChild(tempButton);
+                // Fix 2: Request permissions in a user gesture context
+                // This creates a proper user gesture chain
+                const userGesturePromise = new Promise((resolve) => {
+                    const gestureHandler = () => {
+                        document.removeEventListener('touchstart', gestureHandler);
+                        document.removeEventListener('click', gestureHandler);
                         resolve();
-                    });
+                    };
 
-                    // Auto-click after a brief delay
-                    setTimeout(() => {
-                        if (document.body.contains(tempButton)) {
-                            tempButton.click();
-                        }
-                    }, 100);
+                    // Listen for any user interaction
+                    document.addEventListener('touchstart', gestureHandler, {once: true});
+                    document.addEventListener('click', gestureHandler, {once: true});
+
+                    // Trigger immediately if we're already in a gesture context
+                    setTimeout(resolve, 100);
                 });
 
-                await userInteractionPromise;
+                await userGesturePromise;
+                console.log('✅ iOS PWA: User gesture context established');
 
-                // Fix 2: Try to wake up the camera API with a basic call first
-                try {
-                    console.log('🔧 iOS PWA Fix: Waking up camera API...');
-                    const testStream = await navigator.mediaDevices.getUserMedia({video: true});
-                    testStream.getTracks().forEach(track => track.stop());
-                    console.log('✅ iOS PWA: Camera API awakened');
-                } catch (wakeupError) {
-                    console.log('⚠️ iOS PWA: Camera wakeup failed, continuing anyway...');
+                // Fix 3: Force page focus and visibility
+                if (document.hidden) {
+                    console.log('⚠️ iOS PWA: Page is hidden, requesting focus...');
+                    window.focus();
+                    document.body.focus();
+
+                    // Wait for page to become visible
+                    await new Promise((resolve) => {
+                        if (!document.hidden) {
+                            resolve();
+                        } else {
+                            const visibilityHandler = () => {
+                                if (!document.hidden) {
+                                    document.removeEventListener('visibilitychange', visibilityHandler);
+                                    resolve();
+                                }
+                            };
+                            document.addEventListener('visibilitychange', visibilityHandler);
+
+                            // Timeout after 3 seconds
+                            setTimeout(resolve, 3000);
+                        }
+                    });
                 }
 
-                // Fix 3: Request permissions explicitly
-                try {
-                    console.log('🔧 iOS PWA Fix: Requesting camera permissions...');
-                    const permissions = await navigator.permissions.query({name: 'camera'});
-                    console.log('📷 iOS PWA: Camera permission state:', permissions.state);
-                } catch (permError) {
-                    console.log('⚠️ iOS PWA: Permission query not supported, continuing...');
-                }
-
-                // Fix 4: Force focus and visibility
-                window.focus();
-                document.body.focus();
-
-                // Fix 5: Ensure page is fully loaded and stable
+                // Fix 4: Ensure DOM is fully ready and stable
                 if (document.readyState !== 'complete') {
+                    console.log('⚠️ iOS PWA: Waiting for DOM to be ready...');
                     await new Promise(resolve => {
                         if (document.readyState === 'complete') {
                             resolve();
                         } else {
                             window.addEventListener('load', resolve, {once: true});
+                            // Timeout after 5 seconds
+                            setTimeout(resolve, 5000);
                         }
                     });
                 }
+
+                // Fix 5: Clear any existing media streams globally
+                if (typeof window.localStream !== 'undefined' && window.localStream) {
+                    window.localStream.getTracks().forEach(track => track.stop());
+                    window.localStream = null;
+                }
             }
 
-            // iOS PWA-specific camera constraints (very conservative)
+            // iOS PWA-optimized constraints (based on research)
             const iosPWAConstraints = {
                 video: {
-                    facingMode: 'environment',
-                    width: {ideal: 640, max: 1280},
-                    height: {ideal: 480, max: 720}
+                    facingMode: {exact: "environment"},
+                    width: {ideal: 640},
+                    height: {ideal: 480}
                 },
                 audio: false
             };
 
-            // iOS browser constraints (more features)
-            const iosConstraints = {
+            // iOS PWA fallback constraints
+            const iosPWAFallbackConstraints = [
+                // Attempt 1: Exact environment camera
+                {
+                    video: {facingMode: {exact: "environment"}},
+                    audio: false
+                },
+                // Attempt 2: Preferred environment camera
+                {
+                    video: {facingMode: {ideal: "environment"}},
+                    audio: false
+                },
+                // Attempt 3: Just environment
+                {
+                    video: {facingMode: "environment"},
+                    audio: false
+                },
+                // Attempt 4: Any video
+                {
+                    video: true,
+                    audio: false
+                },
+                // Attempt 5: Minimal constraints
+                {video: {}}
+            ];
+
+            // Standard constraints for other devices
+            const standardConstraints = {
                 video: {
                     facingMode: 'environment',
                     width: {ideal: 1280, max: 1920},
@@ -285,115 +319,82 @@ export default function ReceiptScan() {
                 }
             };
 
-            // Android/Desktop constraints (full features)
-            const standardConstraints = {
-                video: {
-                    facingMode: 'environment',
-                    width: {ideal: 1920, min: 1280},
-                    height: {ideal: 1080, min: 720},
-                    aspectRatio: {ideal: 16 / 9},
-                    focusMode: 'continuous',
-                    exposureMode: 'continuous',
-                    whiteBalanceMode: 'continuous'
-                }
-            };
+            let stream = null;
+            let lastError = null;
 
-            // Choose constraints based on device and mode
-            let constraints;
             if (deviceInfo.isIOSPWA) {
-                constraints = iosPWAConstraints;
-                console.log('📱 Using iOS PWA constraints:', constraints);
-            } else if (deviceInfo.isIOS) {
-                constraints = iosConstraints;
-                console.log('📱 Using iOS browser constraints:', constraints);
-            } else {
-                constraints = standardConstraints;
-                console.log('📱 Using standard constraints:', constraints);
-            }
+                console.log('📱 iOS PWA: Trying multiple constraint sets...');
 
-            let stream;
-            let attempts = 0;
-            const maxAttempts = deviceInfo.isIOSPWA ? 5 : 3;
+                // Try each constraint set for iOS PWA
+                for (let i = 0; i < iosPWAFallbackConstraints.length; i++) {
+                    const constraints = iosPWAFallbackConstraints[i];
+                    console.log(`📷 iOS PWA Attempt ${i + 1}/${iosPWAFallbackConstraints.length}:`, constraints);
 
-            // Multiple attempts with different constraint sets for iOS PWA
-            while (!stream && attempts < maxAttempts) {
-                attempts++;
-                console.log(`📷 Camera attempt ${attempts}/${maxAttempts}...`);
+                    try {
+                        // Add timeout to each attempt
+                        const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
+                        const timeoutPromise = new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('Camera timeout')), 8000)
+                        );
 
-                try {
-                    if (deviceInfo.isIOSPWA) {
-                        // For iOS PWA, try progressively simpler constraints
-                        switch (attempts) {
-                            case 1:
-                                // Try ideal constraints
-                                stream = await navigator.mediaDevices.getUserMedia(iosPWAConstraints);
-                                break;
-                            case 2:
-                                // Try basic environment camera
-                                stream = await navigator.mediaDevices.getUserMedia({
-                                    video: {facingMode: 'environment'},
-                                    audio: false
-                                });
-                                break;
-                            case 3:
-                                // Try any back camera
-                                stream = await navigator.mediaDevices.getUserMedia({
-                                    video: {facingMode: {ideal: 'environment'}},
-                                    audio: false
-                                });
-                                break;
-                            case 4:
-                                // Try any camera at all
-                                stream = await navigator.mediaDevices.getUserMedia({
-                                    video: true,
-                                    audio: false
-                                });
-                                break;
-                            case 5:
-                                // Last resort - most basic call
-                                stream = await navigator.mediaDevices.getUserMedia({video: {}});
-                                break;
-                        }
-                    } else {
-                        // Non-PWA devices - try enhanced then basic
-                        if (attempts === 1) {
-                            stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        } else {
-                            stream = await navigator.mediaDevices.getUserMedia({
-                                video: {facingMode: 'environment'}
+                        stream = await Promise.race([streamPromise, timeoutPromise]);
+
+                        if (stream && stream.getVideoTracks().length > 0) {
+                            console.log(`✅ iOS PWA: Camera stream obtained on attempt ${i + 1}`);
+                            console.log('📹 Stream details:', {
+                                videoTracks: stream.getVideoTracks().length,
+                                audioTracks: stream.getAudioTracks().length,
+                                active: stream.active
                             });
+                            break;
+                        } else {
+                            console.log(`❌ iOS PWA: No video tracks in stream from attempt ${i + 1}`);
+                            if (stream) {
+                                stream.getTracks().forEach(track => track.stop());
+                            }
+                            stream = null;
+                        }
+                    } catch (error) {
+                        console.log(`❌ iOS PWA Attempt ${i + 1} failed:`, error.name, error.message);
+                        lastError = error;
+
+                        // Wait between attempts
+                        if (i < iosPWAFallbackConstraints.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
                         }
                     }
-
-                    if (stream) {
-                        console.log(`✅ Camera started successfully on attempt ${attempts}`);
-                        break;
-                    }
-                } catch (attemptError) {
-                    console.log(`❌ Camera attempt ${attempts} failed:`, attemptError.name, attemptError.message);
-
-                    if (attempts === maxAttempts) {
-                        throw attemptError; // Re-throw the last error
-                    }
-
-                    // Wait before next attempt
-                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                }
+            } else {
+                // Standard flow for non-iOS PWA
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(standardConstraints);
+                } catch (error) {
+                    console.log('Standard constraints failed, trying basic:', error);
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {facingMode: 'environment'}
+                    });
                 }
             }
 
             if (!stream) {
-                throw new Error('Failed to get camera stream after all attempts');
+                throw lastError || new Error('Failed to obtain camera stream');
+            }
+
+            // Store stream globally for iOS PWA
+            if (deviceInfo.isIOSPWA) {
+                window.localStream = stream;
             }
 
             streamRef.current = stream;
             setShowCamera(true);
 
-            // Wait for video element to render
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Enhanced video element setup for iOS PWA
+            console.log('🎥 Setting up video element...');
 
-            // Wait for video element with more retries for iOS PWA
-            const maxRetries = deviceInfo.isIOSPWA ? 20 : 10;
+            // Wait longer for video element on iOS PWA
+            const maxRetries = deviceInfo.isIOSPWA ? 30 : 10;
             let retries = 0;
+
             while (!videoRef.current && retries < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 retries++;
@@ -403,112 +404,152 @@ export default function ReceiptScan() {
                 throw new Error('Video element not found after waiting');
             }
 
-            // Set video source
-            videoRef.current.srcObject = stream;
+            const video = videoRef.current;
 
             // iOS PWA specific video setup
             if (deviceInfo.isIOSPWA) {
-                // Force video properties for iOS PWA
-                videoRef.current.playsInline = true;
-                videoRef.current.muted = true;
-                videoRef.current.autoplay = true;
+                console.log('🔧 iOS PWA: Configuring video element...');
 
-                // Set explicit video attributes
-                videoRef.current.setAttribute('playsinline', 'true');
-                videoRef.current.setAttribute('webkit-playsinline', 'true');
-                videoRef.current.setAttribute('muted', 'true');
-                videoRef.current.setAttribute('autoplay', 'true');
+                // Set all iOS-specific attributes
+                video.playsInline = true;
+                video.muted = true;
+                video.autoplay = true;
+                video.controls = false;
+
+                // Set attributes directly on the element
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('webkit-playsinline', 'true');
+                video.setAttribute('muted', 'true');
+                video.setAttribute('autoplay', 'true');
+                video.setAttribute('controls', 'false');
+
+                // Force specific styles
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover';
+                video.style.display = 'block';
             }
 
-            // Wait for video to load with longer timeout for iOS PWA
-            const videoLoadTimeout = deviceInfo.isIOSPWA ? 10000 : 5000;
+            // Set video source
+            video.srcObject = stream;
+            console.log('📹 Video source set to stream');
+
+            // Enhanced video loading for iOS PWA
             await new Promise((resolve, reject) => {
-                const video = videoRef.current;
                 let resolved = false;
+                const timeout = deviceInfo.isIOSPWA ? 15000 : 5000;
 
                 const onLoadedMetadata = () => {
                     if (resolved) return;
                     resolved = true;
-                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    video.removeEventListener('error', onError);
-                    console.log(`✅ Camera loaded: ${video.videoWidth}x${video.videoHeight}`);
+                    cleanup();
+                    console.log(`✅ Video loaded: ${video.videoWidth}x${video.videoHeight}`);
+                    resolve();
+                };
+
+                const onCanPlay = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    cleanup();
+                    console.log(`✅ Video can play: ${video.videoWidth}x${video.videoHeight}`);
                     resolve();
                 };
 
                 const onError = (e) => {
                     if (resolved) return;
                     resolved = true;
-                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    video.removeEventListener('error', onError);
-                    reject(e);
+                    cleanup();
+                    console.error('❌ Video error:', e);
+                    reject(new Error('Video load error'));
                 };
 
-                const timeout = setTimeout(() => {
+                const onTimeout = () => {
                     if (resolved) return;
                     resolved = true;
-                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    video.removeEventListener('error', onError);
+                    cleanup();
 
-                    // Check if video has dimensions even without loadedmetadata event
+                    // Check if video has dimensions even without events
                     if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        console.log(`✅ Camera loaded via timeout check: ${video.videoWidth}x${video.videoHeight}`);
+                        console.log(`✅ Video loaded via timeout check: ${video.videoWidth}x${video.videoHeight}`);
                         resolve();
                     } else {
+                        console.error('❌ Video load timeout - no dimensions');
                         reject(new Error('Video load timeout'));
                     }
-                }, videoLoadTimeout);
+                };
+
+                const cleanup = () => {
+                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    clearTimeout(timeoutId);
+                };
 
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
+                video.addEventListener('canplay', onCanPlay);
                 video.addEventListener('error', onError);
 
-                // Force play for iOS PWA
+                const timeoutId = setTimeout(onTimeout, timeout);
+
+                // Force play for iOS PWA with multiple attempts
                 if (deviceInfo.isIOSPWA) {
-                    // Try multiple play methods
-                    const playPromise = video.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(playError => {
-                            console.log('iOS PWA: Video play promise failed:', playError);
-                            // Try again with a delay
-                            setTimeout(() => {
-                                video.play().catch(e => console.log('iOS PWA: Second play attempt failed:', e));
-                            }, 500);
-                        });
-                    }
+                    const tryPlay = async (attempt = 1) => {
+                        try {
+                            console.log(`🎬 iOS PWA: Play attempt ${attempt}...`);
+                            await video.play();
+                            console.log(`✅ iOS PWA: Video play successful on attempt ${attempt}`);
+                        } catch (playError) {
+                            console.log(`❌ iOS PWA: Play attempt ${attempt} failed:`, playError);
+
+                            if (attempt < 3) {
+                                // Try again after a delay
+                                setTimeout(() => tryPlay(attempt + 1), 500 * attempt);
+                            }
+                        }
+                    };
+
+                    // Start playing immediately
+                    tryPlay();
                 } else {
-                    video.play().catch(() => {
-                        console.log('Video autoplay prevented (normal on some devices)');
-                    });
+                    video.play().catch(e => console.log('Video autoplay prevented:', e));
                 }
             });
 
-            // Additional iOS PWA success confirmation
-            if (deviceInfo.isIOSPWA) {
-                console.log('🎉 iOS PWA Camera Success! Stream tracks:', stream.getTracks().map(t => ({
-                    kind: t.kind,
-                    enabled: t.enabled,
-                    readyState: t.readyState
-                })));
-            }
+            console.log('🎉 Camera setup completed successfully!');
 
         } catch (error) {
-            console.error('❌ Camera start failed:', error);
+            console.error('❌ Camera setup failed:', error);
 
-            // Only show the iOS PWA modal as a last resort after all attempts failed
+            // Clean up any partial streams
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+
+            if (window.localStream) {
+                window.localStream.getTracks().forEach(track => track.stop());
+                window.localStream = null;
+            }
+
+            // Show iOS PWA modal only as last resort
             if (deviceInfo.isIOSPWA) {
-                console.log('💔 All iOS PWA camera attempts failed, showing fallback modal');
+                console.log('💔 All iOS PWA camera methods exhausted');
                 setCameraError('iOS PWA Camera Failed After All Attempts');
                 setShowIOSPWAModal(true);
                 return;
             }
 
+            // Handle other errors
             let errorMessage = 'Failed to start camera: ' + error.message;
 
             if (error.name === 'NotAllowedError') {
-                errorMessage = 'Camera permission denied. Please allow camera access.';
+                errorMessage = 'Camera permission denied. Please allow camera access and try again.';
             } else if (error.name === 'NotFoundError') {
                 errorMessage = 'No camera found on this device.';
             } else if (error.name === 'NotReadableError') {
                 errorMessage = 'Camera is being used by another app.';
+            } else if (error.message.includes('HTTPS')) {
+                errorMessage = 'Camera requires HTTPS. Please access the app via HTTPS.';
             }
 
             setCameraError(errorMessage);
