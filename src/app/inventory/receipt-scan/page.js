@@ -1,4 +1,4 @@
-// file: /src/app/inventory/receipt-scan/page.js - v6 iOS PWA Camera Fixes for black screen issues
+// file: /src/app/inventory/receipt-scan/page.js - v7 iOS PWA Camera Fixes - Consolidated initialization
 
 'use client';
 
@@ -93,135 +93,146 @@ export default function ReceiptScan() {
         );
     }
 
-    // iOS PWA-specific camera initialization
-    const initializeIOSPWACamera = async () => {
-        console.log('📱 Starting iOS PWA camera for receipt scanning...');
+    // Consolidated iOS PWA camera initialization with better error handling
+    async function initializeCameraStream() {
+        console.log('📱 Starting consolidated camera initialization...');
 
         try {
-            const iosPWAConstraints = {
-                video: {
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1920, min: 1280, max: 1920 },
-                    height: { ideal: 1080, min: 720, max: 1080 },
-                    frameRate: { ideal: 30, min: 15, max: 60 },
-                    aspectRatio: { ideal: 16/9 },
-                    focusMode: "continuous",
-                    exposureMode: "continuous",
-                    whiteBalanceMode: "continuous"
-                },
-                audio: false
-            };
+            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            console.log(`📱 Device type: ${isIOSPWA ? 'iOS PWA' : 'Standard'}`);
 
-            console.log('📱 iOS PWA Receipt Scanner: Requesting camera with constraints:', iosPWAConstraints);
+            // Check if camera API is available
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported on this device');
+            }
 
-            const stream = await navigator.mediaDevices.getUserMedia(iosPWAConstraints);
+            let stream = null;
+            const strategies = [];
 
-            console.log('✅ iOS PWA Receipt Scanner: Camera stream obtained:', {
-                id: stream.id,
-                active: stream.active,
-                tracks: stream.getTracks().map(track => ({
-                    kind: track.kind,
-                    label: track.label,
-                    enabled: track.enabled,
-                    readyState: track.readyState,
-                    settings: track.getSettings()
-                }))
-            });
+            if (isIOSPWA) {
+                // iOS PWA strategies - ordered from most specific to most general
+                strategies.push(
+                    // Strategy 1: High quality with iOS-specific settings
+                    {
+                        name: 'iOS PWA High Quality',
+                        constraints: {
+                            video: {
+                                facingMode: { ideal: "environment" },
+                                width: { ideal: 1920, min: 640 },
+                                height: { ideal: 1080, min: 480 },
+                                frameRate: { ideal: 30, min: 15 },
+                                focusMode: "continuous",
+                                exposureMode: "continuous"
+                            },
+                            audio: false
+                        }
+                    },
+                    // Strategy 2: Basic environment camera
+                    {
+                        name: 'iOS PWA Basic Environment',
+                        constraints: {
+                            video: { facingMode: "environment" },
+                            audio: false
+                        }
+                    },
+                    // Strategy 3: Any camera with basic resolution
+                    {
+                        name: 'iOS PWA Any Camera',
+                        constraints: {
+                            video: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 }
+                            },
+                            audio: false
+                        }
+                    },
+                    // Strategy 4: User camera fallback
+                    {
+                        name: 'iOS PWA User Camera',
+                        constraints: {
+                            video: { facingMode: "user" },
+                            audio: false
+                        }
+                    },
+                    // Strategy 5: Minimal constraints
+                    {
+                        name: 'iOS PWA Minimal',
+                        constraints: {
+                            video: true,
+                            audio: false
+                        }
+                    }
+                );
+            } else {
+                // Standard strategies for non-iOS PWA
+                strategies.push(
+                    {
+                        name: 'Standard Environment',
+                        constraints: {
+                            video: {
+                                facingMode: "environment",
+                                width: { ideal: 1280, min: 640 },
+                                height: { ideal: 720, min: 480 },
+                                aspectRatio: { ideal: 16/9 }
+                            }
+                        }
+                    },
+                    {
+                        name: 'Standard Basic',
+                        constraints: {
+                            video: { facingMode: "environment" }
+                        }
+                    },
+                    {
+                        name: 'Standard Fallback',
+                        constraints: {
+                            video: true
+                        }
+                    }
+                );
+            }
+
+            // Try each strategy
+            for (let i = 0; i < strategies.length; i++) {
+                const strategy = strategies[i];
+                console.log(`📱 Trying strategy ${i + 1}/${strategies.length}: ${strategy.name}`);
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
+                    console.log(`✅ Success with ${strategy.name}:`, {
+                        tracks: stream.getTracks().length,
+                        videoTracks: stream.getVideoTracks().length,
+                        settings: stream.getVideoTracks()[0]?.getSettings()
+                    });
+                    break;
+                } catch (error) {
+                    console.log(`❌ ${strategy.name} failed:`, error.name, error.message);
+                    if (i === strategies.length - 1) {
+                        throw error; // Last strategy failed
+                    }
+                    // Try next strategy
+                }
+            }
+
+            if (!stream) {
+                throw new Error('All camera initialization strategies failed');
+            }
 
             return stream;
+
         } catch (error) {
-            console.error('❌ iOS PWA Receipt Scanner: Camera initialization failed:', error);
+            console.error('❌ Camera initialization failed:', error);
             throw error;
-        }
-    };
-
-    // Enhanced iOS PWA camera initialization function (regular function, not useCallback)
-    async function initializeIOSPWAReceiptCamera() {
-        console.log('📄 Starting iOS PWA receipt camera v2 with enhanced fallbacks...');
-
-        try {
-            // Strategy 1: Try with minimal constraints first (most compatible)
-            console.log('📄 iOS PWA Receipt Strategy 1: Minimal constraints');
-            try {
-                const minimalStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Receipt Strategy 1 succeeded with minimal constraints');
-                return minimalStream;
-            } catch (minimalError) {
-                console.log('❌ iOS PWA Receipt Strategy 1 failed:', minimalError.message);
-            }
-
-            // Strategy 2: Try with basic environment camera for receipt scanning
-            console.log('📄 iOS PWA Receipt Strategy 2: Basic environment camera');
-            try {
-                const basicStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment"
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Receipt Strategy 2 succeeded with basic environment camera');
-                return basicStream;
-            } catch (basicError) {
-                console.log('❌ iOS PWA Receipt Strategy 2 failed:', basicError.message);
-            }
-
-            // Strategy 3: Try with any available camera (no constraints)
-            console.log('📄 iOS PWA Receipt Strategy 3: Any available camera');
-            try {
-                const anyStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Receipt Strategy 3 succeeded with any camera');
-                return anyStream;
-            } catch (anyError) {
-                console.log('❌ iOS PWA Receipt Strategy 3 failed:', anyError.message);
-            }
-
-            // Strategy 4: Try with user camera as last resort
-            console.log('📄 iOS PWA Receipt Strategy 4: User-facing camera');
-            try {
-                const userStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "user"
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Receipt Strategy 4 succeeded with user camera');
-                return userStream;
-            } catch (userError) {
-                console.log('❌ iOS PWA Receipt Strategy 4 failed:', userError.message);
-            }
-
-            // All strategies failed
-            throw new Error('All iOS PWA receipt camera initialization strategies failed');
-
-        } catch (error) {
-            console.error('❌ iOS PWA Receipt Camera initialization completely failed:', error);
-            throw new Error(`iOS PWA receipt camera not accessible: ${error.message}`);
         }
     }
 
-// Enhanced startCamera function with multiple fallback strategies (regular function)
+    // Enhanced startCamera function with consolidated iOS PWA handling
     async function startCamera() {
         setCameraError(null);
+        setShowCamera(true);
 
         try {
-            console.log('🚀 Starting iOS PWA-optimized receipt camera v2...');
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera API not supported');
-            }
+            console.log('🚀 Starting camera with consolidated iOS PWA support...');
 
             // Stop any existing stream
             if (streamRef.current) {
@@ -229,58 +240,11 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            // Enhanced iOS PWA-specific camera handling
-            let stream;
-            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-            if (isIOSPWA) {
-                console.log('📄 Using iOS PWA receipt camera initialization v2...');
-                try {
-                    stream = await initializeIOSPWAReceiptCamera();
-                } catch (pwaError) {
-                    console.error('❌ iOS PWA receipt camera failed:', pwaError);
-                    throw new Error(`iOS PWA camera not accessible: ${pwaError.message}`);
-                }
-            } else {
-                // Enhanced camera constraints for better OCR quality (non-PWA)
-                const constraints = {
-                    video: {
-                        facingMode: "environment",
-                        width: {ideal: 1920, min: 1280},
-                        height: {ideal: 1080, min: 720},
-                        aspectRatio: {ideal: 16 / 9},
-                        focusMode: 'continuous',
-                        exposureMode: 'continuous',
-                        whiteBalanceMode: 'continuous',
-                        advanced: [
-                            {focusMode: 'continuous'},
-                            {exposureMode: 'continuous'},
-                            {whiteBalanceMode: 'continuous'}
-                        ]
-                    }
-                };
-
-                // Try enhanced constraints first, fall back to basic if needed
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (enhancedError) {
-                    console.log('Enhanced constraints failed, trying basic constraints:', enhancedError);
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: "environment",
-                            width: {ideal: 1280},
-                            height: {ideal: 720}
-                        }
-                    });
-                }
-            }
-
+            // Initialize camera stream
+            const stream = await initializeCameraStream();
             streamRef.current = stream;
 
-            // Show camera first to ensure video element is rendered
-            setShowCamera(true);
-
-            // AUTO-SCROLL TO CAMERA VIEW (enhanced for iOS PWA)
+            // Auto-scroll to camera view
             setTimeout(() => {
                 const cameraContainer = document.querySelector('[data-camera-container]');
                 if (cameraContainer) {
@@ -290,106 +254,100 @@ export default function ReceiptScan() {
                         inline: 'nearest'
                     });
                     console.log('📄 Auto-scrolled to receipt camera view');
-                } else {
-                    setTimeout(() => {
-                        if (videoRef.current) {
-                            videoRef.current.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                                inline: 'nearest'
-                            });
-                            console.log('📄 Auto-scrolled to video element');
-                        }
-                    }, 200);
                 }
-            }, isIOSPWA ? 500 : 300);
+            }, isPWA ? 500 : 300);
 
-            // iOS PWA: Longer wait for video element
-            const waitTime = isIOSPWA ? 800 : 500;
+            // Wait for video element with retries
+            const waitTime = isPWA ? 800 : 500;
             await new Promise(resolve => setTimeout(resolve, waitTime));
 
-            // Wait for video element with retries (enhanced for iOS PWA)
             let retries = 0;
-            const maxRetries = isIOSPWA ? 25 : 20;
+            const maxRetries = isPWA ? 25 : 20;
             while (!videoRef.current && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, isIOSPWA ? 300 : 200));
+                await new Promise(resolve => setTimeout(resolve, isPWA ? 300 : 200));
                 retries++;
             }
 
             if (!videoRef.current) {
-                setCameraError('Receipt camera video element not found after waiting');
-                return;
+                throw new Error('Video element not found after waiting');
             }
 
-            // Enhanced iOS PWA-specific video setup
+            // Configure video element for iOS PWA
             const video = videoRef.current;
 
-            if (isIOSPWA) {
+            // iOS PWA specific setup
+            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('webkit-playsinline', 'true');
                 video.muted = true;
                 video.autoplay = true;
-
-                console.log('📄 iOS PWA: Set video attributes for receipt scanning');
+                video.controls = false;
+                video.style.objectFit = 'cover';
+                console.log('📱 Applied iOS PWA video attributes');
             }
 
             // Set video source
             video.srcObject = stream;
 
-            // Wait for video to load with iOS PWA optimizations
+            // Wait for video to load and play
             await new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('Video load timeout'));
+                }, 10000);
+
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    console.log(`📄 Receipt Scanner Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
+                    video.removeEventListener('error', onError);
+                    clearTimeout(timeoutId);
+
+                    console.log(`📄 Camera ready: ${video.videoWidth}x${video.videoHeight}`);
                     resolve();
                 };
 
                 const onError = (e) => {
+                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     video.removeEventListener('error', onError);
-                    reject(e);
+                    clearTimeout(timeoutId);
+                    reject(new Error(`Video error: ${e.target.error?.message || 'Unknown error'}`));
                 };
 
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // iOS PWA: Enhanced play handling
+                // Start video playback
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
-                    playPromise
-                        .then(() => {
-                            console.log('📄 iOS PWA Receipt Scanner: Video play successful');
-                        })
-                        .catch((playError) => {
-                            console.log('📄 iOS PWA Receipt Scanner: Video play failed, retrying...', playError);
-                            // Enhanced retry for iOS PWA
-                            setTimeout(() => {
-                                video.play().catch(e => {
-                                    console.log('📄 iOS PWA Receipt Scanner: Video retry failed:', e);
-                                    // Final attempt
-                                    setTimeout(() => {
-                                        video.play().catch(e2 => console.log('📄 iOS PWA Receipt Scanner: Final retry failed:', e2));
-                                    }, 200);
-                                });
-                            }, 100);
-                        });
+                    playPromise.catch((playError) => {
+                        console.log('📱 Initial play failed, retrying...', playError);
+                        setTimeout(() => {
+                            video.play().catch(e => {
+                                console.log('📱 Retry play failed:', e);
+                            });
+                        }, 100);
+                    });
                 }
             });
 
         } catch (error) {
-            console.error('❌ iOS PWA Receipt Scanner: Camera start failed:', error);
+            console.error('❌ Camera start failed:', error);
 
-            let errorMessage = 'Failed to start receipt camera: ' + error.message;
+            let errorMessage = 'Failed to start camera: ' + error.message;
             if (isPWA && error.name === 'NotAllowedError') {
-                errorMessage = 'iOS PWA receipt camera permission denied. Camera permissions are reset each session in iOS PWAs. Please allow camera access.';
+                errorMessage = 'Camera permission denied. iOS PWAs require camera permission each session. Please allow camera access and try again.';
             } else if (isPWA && error.message.includes('not accessible')) {
-                errorMessage = 'iOS PWA receipt camera not accessible. Try opening the app in Safari browser for full camera functionality.';
+                errorMessage = 'Camera not accessible in iOS PWA mode. Try opening the app in Safari browser.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No camera found on this device.';
+            } else if (error.name === 'NotSupportedError') {
+                errorMessage = 'Camera not supported in this browser.';
             }
 
             setCameraError(errorMessage);
+            setShowCamera(false);
         }
     }
 
-// Enhanced error display component specifically for receipt scanner
+    // Enhanced error display component specifically for receipt scanner
     const ReceiptScannerErrorDisplay = () => (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-start">
@@ -401,7 +359,7 @@ export default function ReceiptScan() {
                     </div>
 
                     <div className="text-sm text-red-600 mb-3">
-                        {cameraError && <ReceiptScannerErrorDisplay />}
+                        {cameraError}
                     </div>
 
                     {isPWA && (
@@ -416,29 +374,18 @@ export default function ReceiptScan() {
                     )}
 
                     <div className="space-y-2">
-                        {/* Try Again button with enhanced retry */}
+                        {/* Try Again button */}
                         <TouchEnhancedButton
                             onClick={async () => {
                                 setCameraError(null);
-
                                 try {
-                                    console.log('🔄 Retrying receipt camera with enhanced strategy...');
-
-                                    // Enhanced retry logic for iOS PWA
-                                    if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                        const testStream = await initializeIOSPWAReceiptCamera();
-                                        testStream.getTracks().forEach(track => track.stop());
-                                        console.log('✅ Receipt camera retry test successful');
-                                    } else {
-                                        const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                                        testStream.getTracks().forEach(track => track.stop());
-                                    }
-
-                                    // Restart camera initialization
+                                    console.log('🔄 Retrying camera initialization...');
+                                    const testStream = await initializeCameraStream();
+                                    testStream.getTracks().forEach(track => track.stop());
+                                    console.log('✅ Camera retry test successful');
                                     startCamera();
-
                                 } catch (retryError) {
-                                    console.error('❌ Receipt camera retry failed:', retryError);
+                                    console.error('❌ Camera retry failed:', retryError);
                                     setCameraError(`Retry failed: ${retryError.message}`);
                                 }
                             }}
@@ -501,7 +448,7 @@ This bypasses iOS PWA camera limitations.`;
 
     // Simple camera stop function with iOS PWA cleanup
     function stopCamera() {
-        console.log('🛑 Stopping iOS PWA receipt camera...');
+        console.log('🛑 Stopping camera...');
 
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => {
@@ -515,14 +462,13 @@ This bypasses iOS PWA camera limitations.`;
             videoRef.current.pause();
             videoRef.current.srcObject = null;
             if (isPWA) {
-                // iOS PWA: Force video element cleanup
-                videoRef.current.load();
+                videoRef.current.load(); // Force cleanup for iOS PWA
             }
         }
 
         setShowCamera(false);
         setCameraError(null);
-        console.log('✅ iOS PWA receipt camera stopped');
+        console.log('✅ Camera stopped');
     }
 
     // Enhanced photo capture with iOS PWA optimizations
@@ -540,20 +486,20 @@ This bypasses iOS PWA camera limitations.`;
         const width = video.videoWidth;
         const height = video.videoHeight;
 
-        console.log(`📷 iOS PWA: Capturing receipt at resolution: ${width}x${height}`);
+        console.log(`📷 Capturing receipt at resolution: ${width}x${height}`);
 
         // Set canvas size to match video (high resolution)
         canvas.width = width;
         canvas.height = height;
 
-        // Enhanced canvas drawing with better quality settings for iOS PWA
+        // Enhanced canvas drawing with better quality settings
         context.imageSmoothingEnabled = false;
         context.textRenderingOptimization = 'optimizeLegibility';
 
         // Draw video frame to canvas
         context.drawImage(video, 0, 0, width, height);
 
-        // iOS PWA: Apply image enhancements for better OCR
+        // Apply image enhancements for better OCR
         const imageData = context.getImageData(0, 0, width, height);
         const enhancedImageData = enhanceImageForOCR(imageData);
         context.putImageData(enhancedImageData, 0, 0);
@@ -561,7 +507,7 @@ This bypasses iOS PWA camera limitations.`;
         // Convert to blob with high quality settings
         canvas.toBlob((blob) => {
             if (blob) {
-                console.log(`📷 iOS PWA: Captured receipt image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+                console.log(`📷 Captured receipt image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
 
                 const imageUrl = URL.createObjectURL(blob);
                 setCapturedImage(imageUrl);
@@ -588,7 +534,7 @@ This bypasses iOS PWA camera limitations.`;
         return imageData;
     }
 
-    // Enhanced OCR processing with iOS PWA considerations
+    // Enhanced OCR processing (keeping existing logic)
     async function processImage(imageFile) {
         setIsProcessing(true);
         setStep('processing');
@@ -601,7 +547,7 @@ This bypasses iOS PWA camera limitations.`;
 
             setProcessingStatus('Processing image...');
 
-            // iOS PWA-optimized OCR options
+            // OCR options optimized for receipts
             const ocrOptions = {
                 logger: (m) => {
                     if (m.status === 'recognizing text') {
@@ -613,7 +559,7 @@ This bypasses iOS PWA camera limitations.`;
                 tessedit_pageseg_mode: '6',
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
                 preserve_interword_spaces: '1',
-                user_defined_dpi: isPWA ? '200' : '300' // Slightly lower DPI for iOS PWA performance
+                user_defined_dpi: isPWA ? '200' : '300'
             };
 
             const {data: {text}} = await Tesseract.recognize(
@@ -626,17 +572,17 @@ This bypasses iOS PWA camera limitations.`;
 
             const items = parseReceiptText(text);
 
-            console.log('📄 iOS PWA OCR Text:', text);
-            console.log('📋 iOS PWA Parsed Items:', items);
+            console.log('📄 OCR Text:', text);
+            console.log('📋 Parsed Items:', items);
 
             setExtractedItems(items);
             setProcessingStatus('Complete!');
             setStep('review');
 
         } catch (error) {
-            console.error('❌ iOS PWA OCR processing error:', error);
+            console.error('❌ OCR processing error:', error);
             const errorMsg = isPWA ?
-                'iOS PWA receipt processing failed. Please try again with a clearer image.' :
+                'Receipt processing failed. Please try again with a clearer image.' :
                 'Error processing receipt. Please try again with a clearer image.';
             alert(errorMsg);
             setStep('upload');
@@ -646,7 +592,7 @@ This bypasses iOS PWA camera limitations.`;
         }
     }
 
-    // Handle receipt file upload (renamed to avoid conflict)
+    // Handle receipt file upload
     function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -658,7 +604,7 @@ This bypasses iOS PWA camera limitations.`;
         }
     }
 
-    // Parse receipt text into structured items (keeping existing logic)
+    // Parse receipt text into structured items (keeping existing comprehensive logic)
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
@@ -666,7 +612,6 @@ This bypasses iOS PWA camera limitations.`;
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
-        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
         // COMPREHENSIVE skip patterns - enhanced with Trader Joe's and Smith's
         const skipPatterns = [
@@ -974,11 +919,16 @@ This bypasses iOS PWA camera limitations.`;
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
-            const prevLine = i > 0 ? lines[i - 1] : '';
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
                 console.log(`📋 Skipping pattern match: ${line}`);
+                continue;
+            }
+
+            // Check for quantity continuation pattern (Trader Joe's style)
+            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
+                console.log(`📋 Skipping quantity continuation line: ${line}`);
                 continue;
             }
 
@@ -1047,13 +997,13 @@ This bypasses iOS PWA camera limitations.`;
                         quantity = parseInt(qtyMatch[1]);
                         unitPrice = parseFloat(qtyMatch[2]);
                         itemPrice = quantity * unitPrice;
-                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ $${unitPrice} = $${itemPrice}`);
+                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
 
                         // Verify the math matches the price on the main line
                         if (Math.abs(itemPrice - price) < 0.01) {
-                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × $${unitPrice} = $${itemPrice}`);
+                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
                         } else {
-                            console.log(`📋 TJ's: Quantity math mismatch, using line price: $${price}`);
+                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
                             itemPrice = price;
                             quantity = 1;
                             unitPrice = price;
@@ -1068,7 +1018,7 @@ This bypasses iOS PWA camera limitations.`;
                     quantity = parseInt(embeddedQtyMatch[2]);
                     unitPrice = parseFloat(embeddedQtyMatch[3]);
                     itemPrice = quantity * unitPrice;
-                    console.log(`📋 Embedded quantity found: ${quantity} @ $${unitPrice}`);
+                    console.log(`📋 Embedded quantity found: ${quantity} @ ${unitPrice}`);
                 } else {
                     // Remove price from name
                     nameMatch = line.replace(pricePattern, '').trim();
@@ -1125,7 +1075,7 @@ This bypasses iOS PWA camera limitations.`;
                     }
                 }
 
-                // Check for UPC in current or nearby lines
+                // Check for UPC
                 const upcMatch = line.match(upcPattern) ||
                     (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
                     (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
@@ -1163,17 +1113,56 @@ This bypasses iOS PWA camera limitations.`;
         return combineDuplicateItems(items);
     }
 
-// Enhanced cleanItemName function
+    // Enhanced cleanItemName function (keeping existing logic)
+    function cleanItemName(name) {
+        // Remove UPC codes at the beginning
+        name = name.replace(/^\d{8,}\s+/, '');
+
+        // Remove common store tax codes and artifacts
+        name = name.replace(/\s+NF\s*$/i, '');
+        name = name.replace(/\s+T\s*$/i, '');
+        name = name.replace(/\s+F\s*$/i, '');
+        name = name.replace(/\s+HOME\s*$/i, '');
+
+        // Remove quantity patterns that might have been missed
+        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
+
+        // Remove long product codes and discount info
+        name = name.replace(/^\d{10,}/, '').trim();
+        name = name.replace(/\d+%:?/, '').trim();
+        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim();
+        name = name.replace(/[-\s]*[nt]$/i, '').trim();
+        name = name.replace(/\s*-\s*$/, '').trim();
+
+        // Handle specific brand conversions
+        if (name.match(/birds?\s*eye/i)) {
+            name = "Birds Eye";
+        } else if (name.match(/frosty\s*paws/i)) {
+            name = "Frosty Paws";
+        } else if (name.match(/gg\s*vegetable/i)) {
+            name = "Great Grains Vegetable";
+        }
+
+        // Clean up common OCR artifacts
+        name = name.replace(/[^\w\s\-&']/g, ' ');
+        name = name.replace(/\s+/g, ' ');
+        name = name.trim();
+
+        // Capitalize properly
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    // Combine duplicate items function
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
 
-        // First pass: Group by UPC code (most reliable)
+        // Group by UPC code first (most reliable)
         items.forEach(item => {
             if (item.upc && item.upc.length >= 11) {
-                // Clean UPC for consistent matching
                 const cleanUPC = item.upc.replace(/\D/g, '');
-
                 if (!upcGroups[cleanUPC]) {
                     upcGroups[cleanUPC] = [];
                 }
@@ -1181,7 +1170,6 @@ This bypasses iOS PWA camera limitations.`;
             } else {
                 // Items without UPC codes - check for name matching
                 const cleanName = item.name.toLowerCase().trim();
-
                 if (!nameGroups[cleanName]) {
                     nameGroups[cleanName] = [];
                 }
@@ -1194,104 +1182,55 @@ This bypasses iOS PWA camera limitations.`;
         // Process UPC groups
         Object.values(upcGroups).forEach(group => {
             if (group.length === 1) {
-                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
-                // Multiple items with same UPC - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+                const unitPrice = totalPrice / totalQuantity;
 
-                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (UPC): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random() // New ID for combined item
+                    id: Date.now() + Math.random()
                 };
 
                 combinedItems.push(combinedItem);
-
-                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name} (Total qty: ${totalQuantity})`);
+                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name}`);
             }
         });
 
         // Process name groups (items without UPC)
         Object.values(nameGroups).forEach(group => {
             if (group.length === 1) {
-                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
-                // Multiple items with same name - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+                const unitPrice = totalPrice / totalQuantity;
 
-                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random() // New ID for combined item
+                    id: Date.now() + Math.random()
                 };
 
                 combinedItems.push(combinedItem);
-
-                console.log(`Combined ${group.length} items by name: ${firstItem.name} (Total qty: ${totalQuantity})`);
+                console.log(`Combined ${group.length} items by name: ${firstItem.name}`);
             }
         });
 
         return combinedItems;
     }
 
-// Enhanced cleanItemName function with support for all stores
-    function cleanItemName(name) {
-        // Remove UPC codes at the beginning (Target and others put them first)
-        name = name.replace(/^\d{8,}\s+/, '');
-
-        // Remove common store tax codes and artifacts
-        name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
-        name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
-        name = name.replace(/\s+F\s*$/i, '');  // Remove "F" tax code (Smith's)
-        name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
-
-        // Remove quantity patterns that might have been missed
-        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
-
-        // Remove long product codes and discount info
-        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
-        name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
-        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
-        name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
-        name = name.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
-
-        // Handle specific brand conversions for all stores
-        if (name.match(/birds?\s*eye/i)) {
-            name = "Birds Eye";
-        } else if (name.match(/frosty\s*paws/i)) {
-            name = "Frosty Paws";
-        } else if (name.match(/gg\s*vegetable/i)) {
-            name = "Great Grains Vegetable";
-        }
-
-        // Clean up common OCR artifacts
-        name = name.replace(/[^\w\s\-&']/g, ' '); // Remove special chars except common ones
-        name = name.replace(/\s+/g, ' '); // Normalize whitespace
-        name = name.trim();
-
-        // Capitalize properly
-        return name.split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-    }
-
-// Enhanced guessCategory function with better recognition for all stores
+    // Category guessing function
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
@@ -1338,11 +1277,11 @@ This bypasses iOS PWA camera limitations.`;
             return 'Grains';
         }
 
-        // Pasta
-        if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti') ||
-            nameLower.includes('veggiecraft')) {
-            return 'Pasta';
-        }
+    // Pasta
+    if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti') ||
+        nameLower.includes('veggiecraft')) {
+        return 'Pasta';
+    }
 
         // Beverages
         if (nameLower.includes('coffee') || nameLower.includes('brew') || nameLower.includes('drink') ||
@@ -1358,70 +1297,72 @@ This bypasses iOS PWA camera limitations.`;
             return 'Canned Tomatoes';
         }
 
-        // Snacks
-        if (nameLower.includes('cracker') || nameLower.includes('popcorn') || nameLower.includes('chip')) {
-            return 'Snacks';
-        }
-        if (nameLower.includes('peanut') && nameLower.includes('butter') && nameLower.includes('cup')) {
-            return 'Snacks';
-        }
-
-        // Frozen items
-        if (nameLower.includes('birds eye') || nameLower.includes('frozen vegetable')) {
-            return 'Frozen Vegetables';
-        }
-        if (nameLower.includes('frosty paws') || nameLower.includes('ice cream') || nameLower.includes('frozen treat')) {
-            return 'Frozen Fruit';
-        }
-
-        // Specialty items
-        if (nameLower.includes('hummus')) {
-            return 'Condiments';
-        }
-
-        return 'Other';
+    // Snacks
+    if (nameLower.includes('cracker') || nameLower.includes('popcorn') || nameLower.includes('chip')) {
+        return 'Snacks';
+    }
+    if (nameLower.includes('peanut') && nameLower.includes('butter') && nameLower.includes('cup')) {
+        return 'Snacks';
     }
 
-// Enhanced guessLocation function with kitchen cabinets option
+    // Frozen items
+    if (nameLower.includes('birds eye') || nameLower.includes('frozen vegetable')) {
+        return 'Frozen Vegetables';
+    }
+    if (nameLower.includes('frosty paws') || nameLower.includes('ice cream') || nameLower.includes('frozen treat')) {
+        return 'Frozen Fruit';
+    }
+
+    // Specialty items
+    if (nameLower.includes('hummus')) {
+        return 'Condiments';
+    }
+
+    return 'Other';
+}
+
+    // Location guessing function
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
-        if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
-            return 'freezer';
-        }
-        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
-            return 'fridge';
-        }
-        // Kitchen cabinets for spices, seasonings, and cooking essentials
-        if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
-            nameLower.includes('salt') || nameLower.includes('pepper') ||
-            nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
-            nameLower.includes('cumin') || nameLower.includes('paprika') ||
-            nameLower.includes('oregano') || nameLower.includes('thyme') ||
-            nameLower.includes('vanilla') || nameLower.includes('extract') ||
-            nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
-            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
-            nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
-            nameLower.includes('hot sauce') || nameLower.includes('honey')) {
-            return 'kitchen';
-        }
+    if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
+        return 'freezer';
+    }
+    if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
+        return 'fridge';
+    }
+    // Kitchen cabinets for spices, seasonings, and cooking essentials
+    if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
+        nameLower.includes('salt') || nameLower.includes('pepper') ||
+        nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
+        nameLower.includes('cumin') || nameLower.includes('paprika') ||
+        nameLower.includes('oregano') || nameLower.includes('thyme') ||
+        nameLower.includes('vanilla') || nameLower.includes('extract') ||
+        nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
+        nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
+        nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
+        nameLower.includes('hot sauce') || nameLower.includes('honey')) {
+        return 'kitchen';
+    }
 
         return 'pantry';
     }
 
-    // Update item, toggle selection, UPC lookup functions (keeping existing logic)
+    // Update item function
     function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? {...item, [field]: value} : item
         ));
     }
 
+    // Toggle item selection
     function toggleItemSelection(itemId) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? {...item, selected: !item.selected} : item
         ));
     }
 
+    // UPC checksum calculation
     function calculateUPCCheckDigit(upc12) {
         if (upc12.length !== 12) return null;
 
@@ -1439,6 +1380,7 @@ This bypasses iOS PWA camera limitations.`;
         return checkDigit;
     }
 
+    // UPC lookup function
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
@@ -1454,15 +1396,13 @@ This bypasses iOS PWA camera limitations.`;
         try {
             const originalUPC = item.upc;
             const upcVariations = [];
-            let calculatedVariation = null;
 
             upcVariations.push(originalUPC);
 
             if (originalUPC.length === 12) {
                 const checkDigit = calculateUPCCheckDigit(originalUPC);
                 if (checkDigit !== null) {
-                    calculatedVariation = originalUPC + checkDigit;
-                    upcVariations.push(calculatedVariation);
+                    upcVariations.push(originalUPC + checkDigit);
                 }
             }
 
@@ -1472,21 +1412,11 @@ This bypasses iOS PWA camera limitations.`;
 
                 const checkDigit = calculateUPCCheckDigit(paddedUPC);
                 if (checkDigit !== null) {
-                    calculatedVariation = paddedUPC + checkDigit;
-                    upcVariations.push(calculatedVariation);
+                    upcVariations.push(paddedUPC + checkDigit);
                 }
             }
 
-            if (originalUPC.length === 13) {
-                const truncatedUPC = originalUPC.slice(0, -1);
-                const checkDigit = calculateUPCCheckDigit(truncatedUPC);
-                if (checkDigit !== null) {
-                    calculatedVariation = truncatedUPC + checkDigit;
-                    upcVariations.push(calculatedVariation);
-                }
-            }
-
-            console.log(`📱 iOS PWA UPC lookup for ${originalUPC}. Calculated variation: ${calculatedVariation}`);
+            console.log(`📱 UPC lookup for ${originalUPC}`);
 
             for (const upcCode of upcVariations) {
                 try {
@@ -1523,68 +1453,20 @@ This bypasses iOS PWA camera limitations.`;
                         return;
                     }
                 } catch (error) {
-                    console.log(`📱 iOS PWA UPC ${upcCode} failed:`, error.message);
+                    console.log(`UPC ${upcCode} failed:`, error.message);
                     continue;
                 }
             }
 
-            const shouldTryAll = confirm(`❓ Smart UPC lookup failed for ${originalUPC}.\n\nTry checking all possible check digits? This will make multiple API calls.`);
-
-            if (shouldTryAll && originalUPC.length === 12) {
-                console.log('📱 iOS PWA: User approved brute force UPC search');
-
-                for (let i = 0; i <= 9; i++) {
-                    const testUPC = originalUPC + i;
-
-                    if (calculatedVariation && testUPC === calculatedVariation) {
-                        continue;
-                    }
-
-                    try {
-                        const data = await tryUPCLookup(testUPC);
-
-                        if (data && data.success && data.product && data.product.found) {
-                            if (data.product.name && data.product.name !== 'Unknown Product') {
-                                updateItem(item.id, 'name', data.product.name);
-                            }
-
-                            if (data.product.category && data.product.category !== 'Other') {
-                                updateItem(item.id, 'category', data.product.category);
-                            }
-
-                            if (data.product.brand) {
-                                updateItem(item.id, 'brand', data.product.brand);
-                            }
-
-                            updateItem(item.id, 'upc', testUPC);
-                            updateItem(item.id, 'needsReview', false);
-
-                            let successMessage = `✅ Product found: ${data.product.name}`;
-                            if (data.product.brand) {
-                                successMessage += ` (${data.product.brand})`;
-                            }
-                            successMessage += `\nCorrected UPC: ${originalUPC} → ${testUPC}`;
-                            successMessage += `\n(Found via brute force search)`;
-
-                            alert(successMessage);
-                            return;
-                        }
-                    } catch (error) {
-                        continue;
-                    }
-                }
-            }
-
-            const attemptedCount = shouldTryAll ? 'all variations' : `${upcVariations.length} smart variations`;
-            alert(`❌ Product not found for UPC ${originalUPC} (tried ${attemptedCount})`);
+            alert(`❌ Product not found for UPC ${originalUPC}`);
 
         } catch (error) {
-            console.error('❌ iOS PWA UPC lookup error:', error);
+            console.error('❌ UPC lookup error:', error);
             alert('❌ Network error during UPC lookup. Please check your connection and try again.');
         }
     }
 
-    // Add selected items to inventory
+    // Add items to inventory
     async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
 
@@ -1617,13 +1499,11 @@ This bypasses iOS PWA camera limitations.`;
             await Promise.all(promises);
 
             setProcessingStatus('Complete!');
-
             alert(`✅ Successfully added ${selectedItems.length} items to your inventory!`);
-
             router.push('/inventory');
 
         } catch (error) {
-            console.error('❌ iOS PWA Error adding items:', error);
+            console.error('❌ Error adding items:', error);
             alert('Error adding some items. Please try again.');
             setStep('review');
         }
@@ -1641,7 +1521,6 @@ This bypasses iOS PWA camera limitations.`;
         setShowReportModal(true);
     }
 
-    // Handle report modal file uploads
     function handleReportFileUpload(event) {
         const files = Array.from(event.target.files);
         const validFiles = files.filter(file => {
@@ -1704,13 +1583,13 @@ This bypasses iOS PWA camera limitations.`;
             });
 
             if (response.ok) {
-                alert('✅ Thank you! Your iOS PWA issue report has been sent. We\'ll work on improving the receipt scanner.');
+                alert('✅ Thank you! Your issue report has been sent.');
                 setShowReportModal(false);
             } else {
                 throw new Error('Failed to send report');
             }
         } catch (error) {
-            console.error('❌ iOS PWA Error sending issue report:', error);
+            console.error('❌ Error sending issue report:', error);
             alert('❌ Failed to send issue report. Please try again.');
         }
     }
@@ -1780,7 +1659,7 @@ This bypasses iOS PWA camera limitations.`;
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Enhanced Camera Option for iOS PWA */}
+                                    {/* Camera Option */}
                                     <TouchEnhancedButton
                                         onClick={startCamera}
                                         className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
@@ -1811,40 +1690,10 @@ This bypasses iOS PWA camera limitations.`;
                                     className="hidden"
                                 />
 
-                                {/* Enhanced Error display for iOS PWA */}
-                                {cameraError && (
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                        <div className="text-red-700">❌ {cameraError}</div>
-                                        <div className="text-sm text-red-600 mt-2">
-                                            {isPWA ? (
-                                                <>
-                                                    iOS PWA camera permissions are reset each session. Please allow camera access and try again.
-                                                    {'\n\n'}
-                                                    If issues persist, try opening the app in Safari browser first.
-                                                </>
-                                            ) : (
-                                                'Please try using the upload option instead, or check your camera permissions.'
-                                            )}
-                                        </div>
+                                {/* Error display */}
+                                {cameraError && <ReceiptScannerErrorDisplay />}
 
-                                        {isPWA && (
-                                            <div className="mt-3">
-                                                <TouchEnhancedButton
-                                                    onClick={() => {
-                                                        if (confirm('Try opening this app in Safari browser instead?\n\nThis may resolve iOS PWA camera issues.')) {
-                                                            window.location.href = window.location.href;
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-orange-600 text-white rounded text-sm"
-                                                >
-                                                    🌐 Open in Safari
-                                                </TouchEnhancedButton>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Enhanced Tips for iOS PWA */}
+                                {/* Tips */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                     <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
                                     <ul className="text-sm text-blue-800 space-y-1">
@@ -1856,13 +1705,12 @@ This bypasses iOS PWA camera limitations.`;
                                     </ul>
                                 </div>
 
-                                {/* Enhanced Report Issue Section for iOS PWA */}
+                                {/* Report Issue Section */}
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                     <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                     <p className="text-sm text-yellow-800 mb-3">
-                                        If the receipt scanner isn't working properly with your receipt
-                                        {isPWA && ' (especially in iOS PWA mode)'}, you can report
-                                        the issue to help us improve it.
+                                        If the receipt scanner isn't working properly{isPWA && ' (especially in iOS PWA mode)'},
+                                        you can report the issue to help us improve it.
                                     </p>
                                     <TouchEnhancedButton
                                         onClick={openReportModal}
@@ -1874,7 +1722,7 @@ This bypasses iOS PWA camera limitations.`;
                             </div>
                         )}
 
-                        {/* Enhanced Camera View for iOS PWA */}
+                        {/* Camera View */}
                         {showCamera && (
                             <div className="space-y-4" data-camera-container>
                                 <div className="text-center">
@@ -1896,7 +1744,7 @@ This bypasses iOS PWA camera limitations.`;
                                         }}
                                     />
 
-                                    {/* Enhanced overlay for iOS PWA */}
+                                    {/* Overlay */}
                                     <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
                                         <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📱 Position receipt here {isPWA && '(iOS PWA)'}
@@ -1925,20 +1773,15 @@ This bypasses iOS PWA camera limitations.`;
                                     </TouchEnhancedButton>
                                 </div>
 
-                                {/* Enhanced debug info for iOS PWA */}
+                                {/* Debug info */}
                                 <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                     Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
                                     {isPWA && ' • iOS PWA Mode'}
                                 </div>
-
-                                {/* Auto-scroll indicator for user feedback */}
-                                <div className="text-xs text-center text-blue-600 bg-blue-50 p-2 rounded">
-                                    📱 Camera view opened • Scrolled automatically to camera
-                                </div>
                             </div>
                         )}
 
-                        {/* Step 2: Enhanced Processing for iOS PWA */}
+                        {/* Processing Step */}
                         {step === 'processing' && (
                             <div className="text-center space-y-6">
                                 <div className="text-6xl mb-4">🔍</div>
@@ -1976,7 +1819,7 @@ This bypasses iOS PWA camera limitations.`;
                             </div>
                         )}
 
-                        {/* Step 3: Review Items (keeping existing UI with iOS PWA enhancements) */}
+                        {/* Review Items Step */}
                         {step === 'review' && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
@@ -2160,7 +2003,7 @@ This bypasses iOS PWA camera limitations.`;
                             </div>
                         )}
 
-                        {/* Step 4: Enhanced Adding to Inventory for iOS PWA */}
+                        {/* Adding to Inventory Step */}
                         {step === 'adding' && (
                             <div className="text-center space-y-6">
                                 <div className="text-6xl mb-4">📦</div>
@@ -2176,10 +2019,10 @@ This bypasses iOS PWA camera limitations.`;
                     </div>
                 </div>
 
-                {/* Hidden canvas for photo capture - Always rendered */}
+                {/* Hidden canvas for photo capture */}
                 <canvas ref={canvasRef} className="hidden"/>
 
-                {/* Enhanced Report Issue Modal for iOS PWA */}
+                {/* Report Issue Modal */}
                 {showReportModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
@@ -2316,7 +2159,7 @@ This bypasses iOS PWA camera limitations.`;
 
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                         <p className="text-sm text-blue-800">
-                                            📝 <strong>Your iOS PWA report will include:</strong>
+                                            📝 <strong>Your report will include:</strong>
                                         </p>
                                         <ul className="text-sm text-blue-700 mt-1 space-y-1">
                                             <li>• Your issue description</li>

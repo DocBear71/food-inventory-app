@@ -1,11 +1,11 @@
-// file: /src/components/inventory/BarcodeScanner.js v8 - iOS PWA Camera Fixes for black screen issues
+// file: /src/components/inventory/BarcodeScanner.js v9 - iOS PWA Camera Fixes - Consolidated initialization
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
-export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive }) {
+export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const scannerRef = useRef(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
@@ -23,7 +23,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const streamRef = useRef(null);
     const videoElementRef = useRef(null);
 
-    console.log('🆕 BarcodeScanner v8 loaded - iOS PWA CAMERA FIXES');
+    console.log('🆕 BarcodeScanner v9 loaded - iOS PWA CAMERA FIXES - Consolidated');
 
     // Detect PWA mode and mobile device
     useEffect(() => {
@@ -37,7 +37,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             setIsMobile(isMobileDevice || isSmallScreen);
             setIsPWA(isPWAMode);
 
-            console.log('📱 Environment:', {
+            console.log('📱 Barcode Scanner Environment:', {
                 isMobile: isMobileDevice || isSmallScreen,
                 isPWA: isPWAMode,
                 userAgent: navigator.userAgent,
@@ -73,24 +73,24 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         const validLengths = [8, 12, 13, 14];
         if (!validLengths.includes(cleanCode.length)) {
             console.log(`❌ Invalid length: ${cleanCode.length}, expected one of ${validLengths.join(', ')}`);
-            return { valid: false, reason: 'invalid_length' };
+            return {valid: false, reason: 'invalid_length'};
         }
 
         if (cleanCode.match(/^0+$/)) {
             console.log('❌ All zeros detected');
-            return { valid: false, reason: 'all_zeros' };
+            return {valid: false, reason: 'all_zeros'};
         }
 
         if (/^(.)\1+$/.test(cleanCode)) {
             console.log('❌ All same digit detected');
-            return { valid: false, reason: 'all_same' };
+            return {valid: false, reason: 'all_same'};
         }
 
         if (cleanCode.length >= 10) {
             const uniqueDigits = new Set(cleanCode).size;
             if (uniqueDigits < 3) {
                 console.log(`❌ Insufficient digit variation: only ${uniqueDigits} unique digits`);
-                return { valid: false, reason: 'insufficient_variation' };
+                return {valid: false, reason: 'insufficient_variation'};
             }
         }
 
@@ -101,7 +101,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         for (const pattern of invalidPatterns) {
             if (pattern.test(cleanCode)) {
                 console.log(`❌ Invalid pattern detected: ${pattern}`);
-                return { valid: false, reason: 'invalid_pattern' };
+                return {valid: false, reason: 'invalid_pattern'};
             }
         }
 
@@ -119,7 +119,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
             if (checkDigit !== calculatedCheck) {
                 console.log(`❌ UPC-A checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
-                return { valid: false, reason: 'checksum_failed' };
+                return {valid: false, reason: 'checksum_failed'};
             }
         }
 
@@ -137,17 +137,149 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
             if (checkDigit !== calculatedCheck) {
                 console.log(`❌ EAN-13 checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
-                return { valid: false, reason: 'checksum_failed' };
+                return {valid: false, reason: 'checksum_failed'};
             }
         }
 
         console.log(`✅ UPC validation passed: "${cleanCode}"`);
-        return { valid: true, cleanCode };
+        return {valid: true, cleanCode};
     }, []);
+
+    // Consolidated camera initialization function
+    const initializeCameraStream = useCallback(async () => {
+        console.log('📱 Starting consolidated camera initialization for barcode scanner...');
+
+        try {
+            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            console.log(`📱 Device type: ${isIOSPWA ? 'iOS PWA' : 'Standard'}`);
+
+            // Check if camera API is available
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported on this device');
+            }
+
+            let stream = null;
+            const strategies = [];
+
+            if (isIOSPWA) {
+                // iOS PWA strategies - ordered from most specific to most general
+                strategies.push(
+                    // Strategy 1: Environment camera with quality settings
+                    {
+                        name: 'iOS PWA Environment High Quality',
+                        constraints: {
+                            video: {
+                                facingMode: {ideal: "environment"},
+                                width: {ideal: 1280, min: 640},
+                                height: {ideal: 720, min: 480},
+                                frameRate: {ideal: 30, min: 15},
+                                focusMode: "continuous"
+                            },
+                            audio: false
+                        }
+                    },
+                    // Strategy 2: Basic environment camera
+                    {
+                        name: 'iOS PWA Environment Basic',
+                        constraints: {
+                            video: {facingMode: "environment"},
+                            audio: false
+                        }
+                    },
+                    // Strategy 3: Any camera with basic resolution
+                    {
+                        name: 'iOS PWA Any Camera',
+                        constraints: {
+                            video: {
+                                width: {ideal: 640},
+                                height: {ideal: 480}
+                            },
+                            audio: false
+                        }
+                    },
+                    // Strategy 4: User camera fallback
+                    {
+                        name: 'iOS PWA User Camera',
+                        constraints: {
+                            video: {facingMode: "user"},
+                            audio: false
+                        }
+                    },
+                    // Strategy 5: Minimal constraints
+                    {
+                        name: 'iOS PWA Minimal',
+                        constraints: {
+                            video: true,
+                            audio: false
+                        }
+                    }
+                );
+            } else {
+                // Standard strategies for non-iOS PWA
+                strategies.push(
+                    {
+                        name: 'Standard Environment High Quality',
+                        constraints: {
+                            video: {
+                                facingMode: "environment",
+                                width: {ideal: 1280, min: 640},
+                                height: {ideal: 720, min: 480},
+                                aspectRatio: {ideal: 16 / 9}
+                            }
+                        }
+                    },
+                    {
+                        name: 'Standard Environment Basic',
+                        constraints: {
+                            video: {facingMode: "environment"}
+                        }
+                    },
+                    {
+                        name: 'Standard Fallback',
+                        constraints: {
+                            video: true
+                        }
+                    }
+                );
+            }
+
+            // Try each strategy
+            for (let i = 0; i < strategies.length; i++) {
+                const strategy = strategies[i];
+                console.log(`📱 Trying strategy ${i + 1}/${strategies.length}: ${strategy.name}`);
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
+                    console.log(`✅ Success with ${strategy.name}:`, {
+                        tracks: stream.getTracks().length,
+                        videoTracks: stream.getVideoTracks().length,
+                        settings: stream.getVideoTracks()[0]?.getSettings()
+                    });
+                    break;
+                } catch (error) {
+                    console.log(`❌ ${strategy.name} failed:`, error.name, error.message);
+                    if (i === strategies.length - 1) {
+                        throw error; // Last strategy failed
+                    }
+                    // Try next strategy
+                }
+            }
+
+            if (!stream) {
+                throw new Error('All camera initialization strategies failed');
+            }
+
+            return stream;
+
+        } catch (error) {
+            console.error('❌ Camera initialization failed:', error);
+            throw error;
+        }
+    }, [isPWA]);
 
     // Enhanced cleanup function for iOS PWA
     const cleanupScanner = useCallback(() => {
-        console.log('🧹 Starting iOS PWA scanner cleanup...');
+        console.log('🧹 Starting scanner cleanup...');
 
         // Stop any active media streams first
         if (streamRef.current) {
@@ -164,7 +296,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             console.log('📺 Cleaning up video element...');
             videoElementRef.current.pause();
             videoElementRef.current.srcObject = null;
-            videoElementRef.current.load(); // Force cleanup
+            videoElementRef.current.load();
             videoElementRef.current = null;
         }
 
@@ -181,7 +313,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 console.log('🛑 Stopping Quagga');
                 quaggaRef.current.stop();
 
-                // Force clear the scanner container
+// Force clear the scanner container
                 if (scannerRef.current) {
                     scannerRef.current.innerHTML = '';
                     console.log('🧹 Cleared scanner container HTML');
@@ -193,7 +325,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         }
 
-        // Reset all state
+// Reset all state
         setIsInitialized(false);
         setIsScanning(false);
         setIsLoading(true);
@@ -203,10 +335,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         lastValidCodeRef.current = null;
         detectionHistoryRef.current = [];
 
-        console.log('✅ iOS PWA scanner cleanup completed');
+        console.log('✅ Scanner cleanup completed');
     }, []);
 
-    // Enhanced barcode detection handler
+// Enhanced barcode detection handler
     const handleBarcodeDetection = useCallback((result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -221,6 +353,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         console.log(`📱 Raw barcode detected: "${code}" (format: ${format}, scan #${scanCountRef.current})`);
 
+        // Check decode quality
         if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
             const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
             console.log(`📊 Average decode error: ${avgError.toFixed(3)}`);
@@ -239,6 +372,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         const cleanCode = validation.cleanCode;
 
+        // Check for recent duplicates
         const now = Date.now();
         detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000);
 
@@ -248,7 +382,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             return;
         }
 
-        detectionHistoryRef.current.push({ code: cleanCode, timestamp: now });
+        detectionHistoryRef.current.push({code: cleanCode, timestamp: now});
 
         if (lastValidCodeRef.current === cleanCode) {
             console.log(`⏩ Same code as last detection, ignoring: "${cleanCode}"`);
@@ -263,6 +397,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         playBeepSound();
 
+        // Visual feedback
         if (scannerRef.current && mountedRef.current) {
             scannerRef.current.style.backgroundColor = '#10B981';
             scannerRef.current.style.border = '4px solid #10B981';
@@ -283,362 +418,64 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         }, 800);
     }, [isScanning, validateUPC, onBarcodeDetected]);
 
-   // Enhanced iOS PWA camera initialization with multiple fallback strategies
-    const initializeIOSPWACamera = useCallback(async () => {
-        console.log('📱 Starting iOS PWA camera v2 with enhanced fallbacks...');
+// Enhanced error handling with iOS PWA specific messages
+    const handleCameraError = useCallback((error) => {
+        console.error('📱 Camera Error:', error);
 
-        try {
-            // Strategy 1: Try with minimal constraints first (most compatible)
-            console.log('📱 iOS PWA Strategy 1: Minimal constraints');
-            try {
-                const minimalStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Strategy 1 succeeded with minimal constraints');
-                return minimalStream;
-            } catch (minimalError) {
-                console.log('❌ iOS PWA Strategy 1 failed:', minimalError.message);
-            }
-
-            // Strategy 2: Try with basic environment camera
-            console.log('📱 iOS PWA Strategy 2: Basic environment camera');
-            try {
-                const basicStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment"
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Strategy 2 succeeded with basic environment camera');
-                return basicStream;
-            } catch (basicError) {
-                console.log('❌ iOS PWA Strategy 2 failed:', basicError.message);
-            }
-
-            // Strategy 3: Try with any available camera (no facingMode)
-            console.log('📱 iOS PWA Strategy 3: Any available camera');
-            try {
-                const anyStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Strategy 3 succeeded with any camera');
-                return anyStream;
-            } catch (anyError) {
-                console.log('❌ iOS PWA Strategy 3 failed:', anyError.message);
-            }
-
-            // Strategy 4: Try with user camera explicitly
-            console.log('📱 iOS PWA Strategy 4: User-facing camera');
-            try {
-                const userStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "user"
-                    },
-                    audio: false
-                });
-
-                console.log('✅ iOS PWA Strategy 4 succeeded with user camera');
-                return userStream;
-            } catch (userError) {
-                console.log('❌ iOS PWA Strategy 4 failed:', userError.message);
-            }
-
-            // Strategy 5: Enumerate devices and try specific camera
-            console.log('📱 iOS PWA Strategy 5: Device enumeration');
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-                console.log(`📱 iOS PWA: Found ${videoDevices.length} video devices:`,
-                    videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId.substring(0, 8) + '...' })));
-
-                if (videoDevices.length > 0) {
-                    // Try the first available video device
-                    const deviceStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            deviceId: videoDevices[0].deviceId
-                        },
-                        audio: false
-                    });
-
-                    console.log('✅ iOS PWA Strategy 5 succeeded with specific device');
-                    return deviceStream;
-                }
-            } catch (deviceError) {
-                console.log('❌ iOS PWA Strategy 5 failed:', deviceError.message);
-            }
-
-            // All strategies failed
-            throw new Error('All iOS PWA camera initialization strategies failed');
-
-        } catch (error) {
-            console.error('❌ iOS PWA Camera initialization completely failed:', error);
-            throw new Error(`iOS PWA camera not accessible: ${error.message}`);
-        }
-    }, []);
-
-    // Enhanced camera permissions check with iOS PWA specific logic
-    const checkIOSPWAPermissions = useCallback(async () => {
-        console.log('🔍 Checking iOS PWA camera permissions...');
-
-        try {
-            // Check if getUserMedia is available
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('getUserMedia not available in this PWA context');
-            }
-
-            // Check permissions API if available
-            if (navigator.permissions && navigator.permissions.query) {
-                try {
-                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-                    console.log('📱 iOS PWA Camera permission status:', permissionStatus.state);
-
-                    if (permissionStatus.state === 'denied') {
-                        throw new Error('Camera permission explicitly denied');
-                    }
-                } catch (permError) {
-                    console.log('📱 iOS PWA Permissions API not fully supported:', permError.message);
-                    // Continue anyway - permissions API isn't always available in PWA
-                }
-            }
-
-            // Test actual camera access
-            const testStream = await initializeIOSPWACamera();
-
-            console.log('✅ iOS PWA Camera permission check successful');
-            return testStream;
-
-        } catch (error) {
-            console.error('❌ iOS PWA Camera permission check failed:', error);
-            throw error;
-        }
-    }, [initializeIOSPWACamera]);
-
-    // Enhanced error handling with iOS PWA specific messages
-    const handleIOSPWAError = useCallback((error) => {
-        console.error('📱 iOS PWA Camera Error:', error);
-
-        let userMessage = 'iOS PWA camera initialization failed.';
-        let technicalDetails = error.message;
+        let userMessage = 'Camera initialization failed.';
         let suggestions = [];
 
         // Categorize errors and provide specific guidance
         if (error.name === 'NotAllowedError' || error.message.includes('permission')) {
-            userMessage = 'Camera permission denied in iOS PWA.';
-            suggestions = [
-                'iOS PWAs reset camera permissions each session',
-                'Try allowing camera access when prompted',
-                'Consider opening the app in Safari browser instead'
-            ];
+            if (isPWA) {
+                userMessage = 'Camera permission denied. iOS PWAs reset camera permissions each session.';
+                suggestions = [
+                    'Please allow camera access when prompted',
+                    'Try opening the app in Safari browser for full camera functionality'
+                ];
+            } else {
+                userMessage = 'Camera permission denied.';
+                suggestions = ['Please allow camera access when prompted'];
+            }
         } else if (error.name === 'NotFoundError' || error.message.includes('not found')) {
             userMessage = 'No camera found on this device.';
-            suggestions = [
-                'Ensure your device has a working camera',
-                'Try restarting the app'
-            ];
+            suggestions = ['Ensure your device has a working camera'];
         } else if (error.name === 'NotSupportedError' || error.message.includes('not supported')) {
-            userMessage = 'Camera not supported in this iOS PWA context.';
-            suggestions = [
-                'This iOS version may have limited PWA camera support',
-                'Try opening the app in Safari browser instead',
-                'Update iOS if possible'
-            ];
+            if (isPWA) {
+                userMessage = 'Camera not supported in this iOS PWA context.';
+                suggestions = [
+                    'This iOS version may have limited PWA camera support',
+                    'Try opening the app in Safari browser instead'
+                ];
+            } else {
+                userMessage = 'Camera not supported in this browser.';
+                suggestions = ['Try using a different browser'];
+            }
         } else if (error.name === 'NotReadableError' || error.message.includes('in use')) {
             userMessage = 'Camera is currently in use by another app.';
-            suggestions = [
-                'Close other apps that might be using the camera',
-                'Try restarting the app'
-            ];
-        } else if (error.message.includes('getUserMedia not available')) {
-            userMessage = 'Camera API not available in this PWA.';
-            suggestions = [
-                'iOS PWA camera support may be limited',
-                'Try opening the app in Safari browser instead'
-            ];
+            suggestions = ['Close other apps that might be using the camera'];
         }
 
         return {
             userMessage,
-            technicalDetails,
             suggestions,
-            shouldSuggestSafari: true
+            isPWARelated: isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)
         };
-    }, []);
+    }, [isPWA]);
 
-    // Enhanced initialization with better iOS PWA handling
-    const initializeScannerWithIOSPWASupport = useCallback(async () => {
-        if (!isActive || isInitialized || !mountedRef.current) {
-            console.log('🚫 Skipping iOS PWA init - not ready');
-            return;
-        }
-
-        try {
-            console.log('🚀 Starting iOS PWA scanner initialization v2...');
-            setError(null);
-            setIsScanning(true);
-            setIsLoading(true);
-
-            // Step 1: Check iOS PWA environment
-            const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
-            console.log(`📱 iOS PWA Environment: ${isIOSPWA ? 'YES' : 'NO'}`);
-
-            if (isIOSPWA) {
-                console.log('📱 Applying iOS PWA specific initialization...');
-
-                // Add extra delay for iOS PWA DOM stabilization
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Step 2: Test camera permissions with enhanced strategy
-            let cameraStream;
-            try {
-                if (isIOSPWA) {
-                    cameraStream = await checkIOSPWAPermissions();
-                } else {
-                    // Standard camera test for non-iOS PWA
-                    cameraStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
-                }
-
-                console.log('✅ Camera permissions confirmed');
-
-                // Keep stream for iOS PWA, stop for others during testing
-                if (isIOSPWA) {
-                    streamRef.current = cameraStream;
-                    console.log('📱 Keeping iOS PWA camera stream active');
-                } else {
-                    cameraStream.getTracks().forEach(track => track.stop());
-                }
-
-            } catch (permissionError) {
-                const errorInfo = handleIOSPWAError(permissionError);
-                console.error('❌ Camera permission test failed:', errorInfo);
-
-                setError(errorInfo.userMessage);
-                setIsLoading(false);
-                return;
-            }
-
-            // Step 3: Continue with scanner initialization...
-            // [Rest of the existing Quagga initialization code]
-
-        } catch (error) {
-            const errorInfo = handleIOSPWAError(error);
-            console.error('❌ iOS PWA Scanner initialization failed:', errorInfo);
-
-            if (mountedRef.current) {
-                setError(errorInfo.userMessage);
-                setIsLoading(false);
-            }
-        }
-    }, [isActive, isInitialized, isPWA, checkIOSPWAPermissions, handleIOSPWAError]);
-
-    // Enhanced error display component for iOS PWA
-    const IOSPWAErrorDisplay = ({ error, onRetry, onClose, onOpenInSafari }) => (
-        <div className="flex-1 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                <div className="text-red-600 mb-4 text-lg font-semibold">
-                    📱 iOS PWA Camera Issue
-                </div>
-
-                <div className="text-sm text-gray-700 mb-4">
-                    {error}
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                    <div className="text-xs text-yellow-800">
-                        <div className="font-semibold mb-1">📋 Known iOS PWA Limitations:</div>
-                        <div>• Camera permissions reset each session</div>
-                        <div>• Limited camera API support in PWA mode</div>
-                        <div>• iOS Safari engine restrictions</div>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    <TouchEnhancedButton
-                        onClick={onRetry}
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                        🔄 Try Again
-                    </TouchEnhancedButton>
-
-                    <TouchEnhancedButton
-                        onClick={onOpenInSafari}
-                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                        🌐 Open in Safari
-                    </TouchEnhancedButton>
-
-                    <TouchEnhancedButton
-                        onClick={onClose}
-                        className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                    >
-                        ✕ Close Scanner
-                    </TouchEnhancedButton>
-                </div>
-
-                <div className="mt-4 text-xs text-gray-500">
-                    iOS {navigator.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || 'Unknown'} • PWA Mode
-                </div>
-            </div>
-        </div>
-    );
-
-    // Usage in the main component:
-    const handleOpenInSafari = useCallback(() => {
-        // Provide user with instructions to open in Safari
-        const safariInstructions = `To use the camera scanner:
-
-1. Open Safari browser
-2. Go to: ${window.location.origin}
-3. Navigate to the scanner
-4. Allow camera permissions
-
-This bypasses iOS PWA camera limitations.`;
-
-        if (confirm(`Open app in Safari browser?\n\n${safariInstructions}`)) {
-            // Try to open in Safari (this may or may not work depending on iOS version)
-            window.location.href = window.location.href;
-        }
-    }, []);
-
-    const handleRetryCamera = useCallback(async () => {
-        console.log('🔄 Retrying iOS PWA camera initialization...');
-        setError(null);
-        setIsLoading(true);
-        setIsInitialized(false);
-
-        // Brief delay before retry
-        setTimeout(() => {
-            if (mountedRef.current) {
-                initializeScannerWithIOSPWASupport();
-            }
-        }, 500);
-    }, [initializeScannerWithIOSPWASupport]);
-
-
-    // Main scanner initialization with iOS PWA fixes
+// Main scanner initialization with consolidated camera handling
     useEffect(() => {
         let Quagga;
         let initTimeoutId;
 
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current) {
-                console.log('🚫 Skipping init - not active, already initialized, or unmounted');
+                console.log('🚫 Skipping init - not ready');
                 return;
             }
 
             try {
-                console.log('🚀 Initializing iOS PWA-optimized barcode scanner...', { isPWA, isMobile });
+                console.log('🚀 Initializing barcode scanner with consolidated camera support...');
                 setError(null);
                 setIsScanning(true);
                 cooldownRef.current = false;
@@ -646,11 +483,9 @@ This bypasses iOS PWA camera limitations.`;
                 lastValidCodeRef.current = null;
                 detectionHistoryRef.current = [];
 
-                // AUTO-SCROLL TO SCANNER VIEW
-                // For mobile devices, auto-scroll to the scanner when it becomes active
+                // Auto-scroll to scanner view for mobile
                 if (isMobile && isActive) {
                     setTimeout(() => {
-                        // Find the scanner container and scroll to it
                         const scannerContainer = document.querySelector('[data-barcode-scanner]');
                         if (scannerContainer) {
                             scannerContainer.scrollIntoView({
@@ -659,73 +494,34 @@ This bypasses iOS PWA camera limitations.`;
                                 inline: 'nearest'
                             });
                             console.log('📱 Auto-scrolled to barcode scanner view');
-                        } else {
-                            // Fallback: scroll to the scanner ref element
-                            if (scannerRef.current) {
-                                scannerRef.current.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'center',
-                                    inline: 'nearest'
-                                });
-                                console.log('📱 Auto-scrolled to scanner element');
-                            }
                         }
-                    }, 400); // Small delay to ensure rendering
+                    }, 400);
                 }
 
-                // Enhanced camera availability check for iOS PWA
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Camera API not supported on this device or browser');
-                }
-
-                // iOS PWA camera permission handling
-                console.log('🔍 Testing iOS PWA camera access...');
+                // Test camera access using consolidated function
+                console.log('🔍 Testing camera access...');
                 let testStream;
 
                 try {
+                    testStream = await initializeCameraStream();
+                    console.log('✅ Camera access test successful');
+
+                    // Keep stream for iOS PWA, stop for others during testing
                     if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                        // Use iOS PWA-specific initialization
-                        testStream = await initializeIOSPWACamera();
-                    } else {
-                        // Standard camera test
-                        testStream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: "environment" }
-                        });
-                    }
-
-                    console.log('✅ iOS PWA camera access test successful');
-
-                    // Keep stream reference for iOS PWA
-                    if (isPWA) {
                         streamRef.current = testStream;
-                        console.log('📱 Keeping iOS PWA stream active for scanner initialization');
+                        console.log('📱 Keeping iOS PWA camera stream active');
                     } else {
-                        // Stop test stream for non-PWA
                         testStream.getTracks().forEach(track => track.stop());
                     }
                 } catch (permissionError) {
-                    console.error('❌ iOS PWA camera permission test failed:', permissionError);
-
-                    let errorMessage = 'Camera access denied';
-                    if (permissionError.name === 'NotAllowedError') {
-                        if (isPWA) {
-                            errorMessage = 'Camera permission denied. iOS PWAs require camera permission on each session. Please allow camera access and try again.';
-                        } else {
-                            errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-                        }
-                    } else if (permissionError.name === 'NotFoundError') {
-                        errorMessage = 'No camera found. Please ensure your device has a camera.';
-                    } else if (permissionError.name === 'NotSupportedError') {
-                        errorMessage = 'Camera not supported by this browser.';
-                    } else if (permissionError.name === 'NotReadableError') {
-                        errorMessage = 'Camera is being used by another application.';
-                    }
-
-                    setError(errorMessage);
+                    const errorInfo = handleCameraError(permissionError);
+                    console.error('❌ Camera permission test failed:', errorInfo);
+                    setError(errorInfo.userMessage);
                     setIsLoading(false);
                     return;
                 }
 
+                // Load Quagga
                 console.log('📦 Loading Quagga module...');
                 const QuaggaModule = await import('@ericblade/quagga2');
                 Quagga = QuaggaModule.default;
@@ -737,6 +533,7 @@ This bypasses iOS PWA camera limitations.`;
                     return;
                 }
 
+                // Wait for scanner container
                 if (!scannerRef.current) {
                     console.log('❌ Scanner ref is null, waiting...');
                     await new Promise(resolve => setTimeout(resolve, 500));
@@ -746,11 +543,10 @@ This bypasses iOS PWA camera limitations.`;
                         setIsLoading(false);
                         return;
                     }
-                    console.log('✅ Scanner ref found after wait');
                 }
 
-                // iOS PWA DOM stabilization
-                console.log('⏳ Waiting for iOS PWA DOM element to stabilize...');
+                // DOM stabilization for iOS PWA
+                console.log('⏳ Waiting for DOM element to stabilize...');
                 await new Promise(resolve => setTimeout(resolve, isPWA ? 800 : 300));
 
                 if (!scannerRef.current || !mountedRef.current) {
@@ -758,15 +554,9 @@ This bypasses iOS PWA camera limitations.`;
                     return;
                 }
 
-                console.log('📐 Scanner container dimensions:', {
-                    width: scannerRef.current.offsetWidth,
-                    height: scannerRef.current.offsetHeight,
-                    clientWidth: scannerRef.current.clientWidth,
-                    clientHeight: scannerRef.current.clientHeight,
-                    parent: scannerRef.current.parentElement ? 'exists' : 'missing'
-                });
+                // Configure Quagga with device-specific settings
+                const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-                // iOS PWA-optimized configuration
                 const baseConfig = {
                     inputStream: {
                         name: "Live",
@@ -778,10 +568,10 @@ This bypasses iOS PWA camera limitations.`;
                     },
                     locator: {
                         patchSize: isPWA ? "large" : "medium",
-                        halfSample: isPWA ? false : true // Better quality for PWA
+                        halfSample: isPWA ? false : true
                     },
                     numOfWorkers: isPWA ? 1 : Math.min(navigator.hardwareConcurrency || 2, 4),
-                    frequency: isPWA ? 2 : 3, // Slower frequency for PWA stability
+                    frequency: isPWA ? 2 : 3,
                     decoder: {
                         readers: [
                             "ean_reader",
@@ -813,282 +603,225 @@ This bypasses iOS PWA camera limitations.`;
                     }
                 };
 
-                // iOS PWA-specific configurations
-                const iosPWAConfigs = [
-                    // Config 1: Use existing stream if available (iOS PWA)
-                    ...(streamRef.current ? [{
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                deviceId: streamRef.current.getVideoTracks()[0].getSettings().deviceId,
-                                facingMode: "environment"
+                // Try configurations with consolidated approach
+                const configsToTry = [];
+
+                if (isIOSPWA) {
+                    // Use existing stream if available
+                    if (streamRef.current) {
+                        configsToTry.push({
+                            ...baseConfig,
+                            inputStream: {
+                                ...baseConfig.inputStream,
+                                constraints: {
+                                    deviceId: streamRef.current.getVideoTracks()[0].getSettings().deviceId,
+                                    facingMode: "environment"
+                                }
                             }
-                        }
-                    }] : []),
-                    // Config 2: iOS PWA optimized constraints
-                    {
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                video: {
-                                    facingMode: { ideal: "environment" },
-                                    width: { ideal: 1280, min: 640 },
-                                    height: { ideal: 720, min: 480 },
-                                    frameRate: { ideal: 30 }
+                        });
+                    }
+
+                    // iOS PWA fallback configs
+                    configsToTry.push(
+                        {
+                            ...baseConfig,
+                            inputStream: {
+                                ...baseConfig.inputStream,
+                                constraints: {
+                                    video: {
+                                        facingMode: {ideal: "environment"},
+                                        width: {ideal: 1280, min: 640},
+                                        height: {ideal: 720, min: 480}
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            ...baseConfig,
+                            inputStream: {
+                                ...baseConfig.inputStream,
+                                constraints: {
+                                    facingMode: "environment"
                                 }
                             }
                         }
-                    },
-                    // Config 3: Fallback for iOS PWA
-                    {
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                facingMode: "environment"
+                    );
+                } else {
+                    // Standard configurations
+                    configsToTry.push(
+                        {
+                            ...baseConfig,
+                            inputStream: {
+                                ...baseConfig.inputStream,
+                                constraints: {
+                                    facingMode: "environment"
+                                }
                             }
                         }
+                    );
+                }
+
+                // Try configurations
+                for (let configIndex = 0; configIndex < configsToTry.length; configIndex++) {
+                    if (!mountedRef.current) {
+                        console.log('⚠️ Component unmounted during config attempts');
+                        return;
                     }
-                ];
 
-                const standardConfigs = [
-                    {
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                facingMode: "environment"
-                            }
-                        }
-                    },
-                    {
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                width: { ideal: 640 },
-                                height: { ideal: 480 },
-                                facingMode: "environment"
-                            }
-                        }
-                    }
-                ];
+                    const currentConfig = configsToTry[configIndex];
+                    console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}`);
 
-                const configsToTry = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) ?
-                    iosPWAConfigs :
-                    (isMobile ? standardConfigs : [{
-                        ...baseConfig,
-                        inputStream: {
-                            ...baseConfig.inputStream,
-                            constraints: {
-                                width: { min: 640, ideal: 1280, max: 1920 },
-                                height: { min: 480, ideal: 720, max: 1080 },
-                                facingMode: "environment",
-                                aspectRatio: { min: 1, max: 2 }
-                            }
-                        },
-                        numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
-                        frequency: 5
-                    }]);
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const timeoutId = setTimeout(() => {
+                                reject(new Error('Quagga init timeout'));
+                            }, isPWA ? 15000 : 10000);
 
-                console.log('📋 Will try configs for iOS PWA:', isPWA, 'Total configs:', configsToTry.length);
+                            Quagga.init(currentConfig, (err) => {
+                                clearTimeout(timeoutId);
+                                console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
 
-                // Try configurations with iOS PWA handling
-                const tryConfigs = async () => {
-                    for (let configIndex = 0; configIndex < configsToTry.length; configIndex++) {
-                        if (!mountedRef.current) {
-                            console.log('⚠️ Component unmounted during config attempts');
-                            return;
-                        }
-
-                        const currentConfig = configsToTry[configIndex];
-                        console.log(`🔄 Trying iOS PWA config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
-
-                        try {
-                            await new Promise((resolve, reject) => {
-                                const timeoutId = setTimeout(() => {
-                                    reject(new Error('iOS PWA Quagga init timeout'));
-                                }, isPWA ? 15000 : 10000); // Longer timeout for iOS PWA
-
-                                Quagga.init(currentConfig, (err) => {
-                                    clearTimeout(timeoutId);
-                                    console.log(`🔄 iOS PWA Quagga.init callback triggered for config ${configIndex + 1}`);
-
-                                    if (err) {
-                                        console.error(`❌ iOS PWA Config ${configIndex + 1} failed:`, err.name, err.message);
-                                        reject(err);
-                                    } else {
-                                        console.log(`✅ iOS PWA Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
-                                        resolve();
-                                    }
-                                });
+                                if (err) {
+                                    console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message);
+                                    reject(err);
+                                } else {
+                                    console.log(`✅ Config ${configIndex + 1} succeeded!`);
+                                    resolve();
+                                }
                             });
+                        });
 
-                            console.log('🚀 Starting iOS PWA Quagga...');
-                            Quagga.start();
-                            console.log('✅ iOS PWA Quagga.start() completed successfully');
+                        console.log('🚀 Starting Quagga...');
+                        Quagga.start();
+                        console.log('✅ Quagga.start() completed successfully');
 
-                            setIsInitialized(true);
-                            setIsLoading(false);
+                        setIsInitialized(true);
+                        setIsLoading(false);
 
-                            detectionHandlerRef.current = handleBarcodeDetection;
-                            Quagga.onDetected(detectionHandlerRef.current);
+                        detectionHandlerRef.current = handleBarcodeDetection;
+                        Quagga.onDetected(detectionHandlerRef.current);
 
-                            console.log('🎯 iOS PWA Enhanced detection handler registered successfully');
+                        console.log('🎯 Enhanced detection handler registered successfully');
 
-                            // iOS PWA-specific video element handling
-                            const styleVideoElements = () => {
-                                if (scannerRef.current && mountedRef.current) {
-                                    console.log('🔍 iOS PWA: Searching for video/canvas elements...');
+                        // Style video elements for proper display
+                        const styleVideoElements = () => {
+                            if (scannerRef.current && mountedRef.current) {
+                                const allVideos = scannerRef.current.querySelectorAll('video');
+                                const allCanvases = scannerRef.current.querySelectorAll('canvas');
 
-                                    const allVideos = scannerRef.current.querySelectorAll('video');
-                                    const allCanvases = scannerRef.current.querySelectorAll('canvas');
+                                console.log(`📺 Found ${allVideos.length} video element(s)`);
+                                console.log(`🎨 Found ${allCanvases.length} canvas element(s)`);
 
-                                    console.log(`📺 iOS PWA: Found ${allVideos.length} video element(s)`);
-                                    console.log(`🎨 iOS PWA: Found ${allCanvases.length} canvas element(s)`);
+                                allVideos.forEach((video, index) => {
+                                    console.log(`📺 Video ${index} details:`, {
+                                        width: video.offsetWidth,
+                                        height: video.offsetHeight,
+                                        videoWidth: video.videoWidth,
+                                        videoHeight: video.videoHeight,
+                                        readyState: video.readyState,
+                                        paused: video.paused
+                                    });
 
-                                    allVideos.forEach((video, index) => {
-                                        console.log(`📺 iOS PWA Video ${index} details:`, {
-                                            width: video.offsetWidth,
-                                            height: video.offsetHeight,
-                                            videoWidth: video.videoWidth,
-                                            videoHeight: video.videoHeight,
-                                            readyState: video.readyState,
-                                            paused: video.paused,
-                                            muted: video.muted,
-                                            autoplay: video.autoplay
-                                        });
+                                    // Video styling
+                                    video.style.width = '100%';
+                                    video.style.height = '100%';
+                                    video.style.objectFit = 'cover';
+                                    video.style.display = 'block';
+                                    video.style.position = 'absolute';
+                                    video.style.top = '0';
+                                    video.style.left = '0';
+                                    video.style.zIndex = '1';
+                                    video.style.background = 'black';
 
-                                        // iOS PWA-specific video styling
-                                        video.style.width = '100%';
-                                        video.style.height = '100%';
-                                        video.style.objectFit = 'cover';
-                                        video.style.display = 'block';
-                                        video.style.position = 'absolute';
-                                        video.style.top = '0';
-                                        video.style.left = '0';
-                                        video.style.zIndex = '1';
-                                        video.style.background = 'black';
-                                        video.style.opacity = '1';
-                                        video.style.visibility = 'visible';
-
-                                        // iOS PWA-specific attributes
+                                    // iOS PWA specific attributes
+                                    if (isIOSPWA) {
                                         video.setAttribute('playsinline', 'true');
                                         video.setAttribute('webkit-playsinline', 'true');
                                         video.muted = true;
                                         video.autoplay = true;
-
-                                        // Store reference for cleanup
-                                        videoElementRef.current = video;
-
-                                        // Force play for iOS PWA
-                                        if (video.paused) {
-                                            const playPromise = video.play();
-                                            if (playPromise !== undefined) {
-                                                playPromise.catch(e => {
-                                                    console.log('📺 iOS PWA Video play failed:', e);
-                                                    // Try again with user interaction simulation
-                                                    setTimeout(() => {
-                                                        video.play().catch(e2 => console.log('📺 iOS PWA Video retry play failed:', e2));
-                                                    }, 100);
-                                                });
-                                            }
-                                        }
-
-                                        console.log(`📺 iOS PWA Video ${index} styled and play attempted`);
-                                    });
-
-                                    allCanvases.forEach((canvas, index) => {
-                                        console.log(`🎨 iOS PWA Canvas ${index} details:`, {
-                                            width: canvas.offsetWidth,
-                                            height: canvas.offsetHeight,
-                                            canvasWidth: canvas.width,
-                                            canvasHeight: canvas.height
-                                        });
-
-                                        canvas.style.position = 'absolute';
-                                        canvas.style.top = '0';
-                                        canvas.style.left = '0';
-                                        canvas.style.width = '100%';
-                                        canvas.style.height = '100%';
-                                        canvas.style.zIndex = '2';
-                                        canvas.style.pointerEvents = 'none';
-                                        canvas.style.opacity = '0.1';
-
-                                        console.log(`🎨 iOS PWA Canvas ${index} styled`);
-                                    });
-
-                                    if (allVideos.length === 0) {
-                                        console.error('❌ CRITICAL iOS PWA: No video elements found after successful Quagga start!');
-                                        console.log('📋 iOS PWA Scanner container HTML:', scannerRef.current.innerHTML);
+                                        console.log('📱 Applied iOS PWA video attributes');
                                     }
-                                }
-                            };
 
-                            // iOS PWA: Multiple styling attempts with longer delays
-                            styleVideoElements();
-                            setTimeout(styleVideoElements, 500);
-                            setTimeout(styleVideoElements, 1000);
+                                    // Store reference for cleanup
+                                    videoElementRef.current = video;
+
+                                    // Ensure video is playing
+                                    if (video.paused) {
+                                        const playPromise = video.play();
+                                        if (playPromise !== undefined) {
+                                            playPromise.catch(e => {
+                                                console.log('📺 Video play failed:', e);
+                                                setTimeout(() => {
+                                                    video.play().catch(e2 => console.log('📺 Video retry failed:', e2));
+                                                }, 100);
+                                            });
+                                        }
+                                    }
+                                });
+
+                                allCanvases.forEach((canvas, index) => {
+                                    canvas.style.position = 'absolute';
+                                    canvas.style.top = '0';
+                                    canvas.style.left = '0';
+                                    canvas.style.width = '100%';
+                                    canvas.style.height = '100%';
+                                    canvas.style.zIndex = '2';
+                                    canvas.style.pointerEvents = 'none';
+                                    canvas.style.opacity = '0.1';
+
+                                    console.log(`🎨 Canvas ${index} styled`);
+                                });
+                            }
+                        };
+
+                        // Apply styling with multiple attempts
+                        styleVideoElements();
+                        setTimeout(styleVideoElements, 500);
+                        setTimeout(styleVideoElements, 1000);
+                        if (isPWA) {
                             setTimeout(styleVideoElements, 2000);
-                            if (isPWA) {
-                                setTimeout(styleVideoElements, 3000);
-                                setTimeout(styleVideoElements, 5000);
-                            }
-
-                            return;
-
-                        } catch (error) {
-                            console.error(`❌ iOS PWA Config ${configIndex + 1} failed with error:`, error);
-
-                            if (configIndex === configsToTry.length - 1) {
-                                console.error('❌ All iOS PWA configurations failed');
-                                setError(isPWA ?
-                                    'iOS PWA camera initialization failed. Try opening the app in Safari browser first.' :
-                                    'Camera initialization failed. Please try refreshing the page.');
-                                setIsLoading(false);
-                                return;
-                            }
-
-                            console.log(`🔄 Trying next iOS PWA configuration...`);
-                            await new Promise(resolve => setTimeout(resolve, isPWA ? 1000 : 500));
+                            setTimeout(styleVideoElements, 3000);
                         }
-                    }
-                };
 
-                await tryConfigs();
+                        return; // Success!
+
+                    } catch (error) {
+                        console.error(`❌ Config ${configIndex + 1} failed with error:`, error);
+
+                        if (configIndex === configsToTry.length - 1) {
+                            console.error('❌ All configurations failed');
+                            const errorInfo = handleCameraError(error);
+                            setError(errorInfo.userMessage);
+                            setIsLoading(false);
+                            return;
+                        }
+
+                        console.log(`🔄 Trying next configuration...`);
+                        await new Promise(resolve => setTimeout(resolve, isPWA ? 1000 : 500));
+                    }
+                }
 
             } catch (error) {
-                console.error('❌ iOS PWA Scanner setup error:', error);
+                console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError(isPWA ?
-                        'iOS PWA camera scanner initialization failed. Please ensure camera permissions are granted.' :
-                        'Camera scanner not supported on this device.');
+                    const errorInfo = handleCameraError(error);
+                    setError(errorInfo.userMessage);
                     setIsLoading(false);
                 }
             }
         };
 
         if (isActive && mountedRef.current) {
-            console.log('🕐 Scheduling iOS PWA scanner initialization...');
-            console.log('🔍 Debug state:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized, isPWA });
-
-            // Longer delay for iOS PWA to ensure proper initialization
+            console.log('🕐 Scheduling scanner initialization...');
             const delay = isPWA ? 1000 : 500;
             initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
-                    console.log('🚀 Starting delayed iOS PWA initialization...');
+                    console.log('🚀 Starting delayed initialization...');
                     initializeScanner();
                 } else {
-                    console.log('❌ Component or ref not ready for delayed iOS PWA init');
-                    console.log('Component mounted:', !!mountedRef.current);
-                    console.log('Scanner ref exists:', !!scannerRef.current);
-                    console.log('IsLoading:', isLoading);
+                    console.log('❌ Component or ref not ready for delayed init');
                 }
             }, delay);
-        } else {
-            console.log('🚫 Not scheduling iOS PWA init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
         }
 
         return () => {
@@ -1099,15 +832,16 @@ This bypasses iOS PWA camera limitations.`;
                 cleanupScanner();
             }
         };
-    }, [isActive, isInitialized, isMobile, isPWA, handleBarcodeDetection, cleanupScanner, initializeIOSPWACamera]);
+    }, [isActive, isInitialized, isMobile, isPWA, handleBarcodeDetection, cleanupScanner, initializeCameraStream, handleCameraError]);
 
     useEffect(() => {
         return () => {
-            console.log('🧹 iOS PWA Component unmounting, cleaning up scanner...');
+            console.log('🧹 Component unmounting, cleaning up scanner...');
             cleanupScanner();
         };
     }, [cleanupScanner]);
 
+// Audio feedback function
     const playBeepSound = () => {
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -1128,13 +862,63 @@ This bypasses iOS PWA camera limitations.`;
         }
     };
 
+// Handle retry camera functionality
+    const handleRetryCamera = useCallback(async () => {
+        console.log('🔄 Retrying camera initialization...');
+        setError(null);
+        setIsLoading(true);
+        setIsInitialized(false);
+
+        try {
+            // Test camera access first
+            const testStream = await initializeCameraStream();
+            testStream.getTracks().forEach(track => track.stop());
+            console.log('✅ Camera retry test successful');
+
+            // Brief delay before retry
+            setTimeout(() => {
+                if (mountedRef.current) {
+                    setIsLoading(false);
+                    setIsInitialized(false);
+                }
+            }, 500);
+
+        } catch (retryError) {
+            console.error('❌ Camera retry failed:', retryError);
+            const errorInfo = handleCameraError(retryError);
+            setError(errorInfo.userMessage);
+            setIsLoading(false);
+        }
+    }, [initializeCameraStream, handleCameraError]);
+
+// Handle open in Safari functionality
+    const handleOpenInSafari = useCallback(() => {
+        const safariInstructions = `To use the barcode scanner with full functionality:
+
+1. Open Safari browser
+2. Navigate to: ${window.location.origin}
+3. Use the barcode scanner there
+
+This bypasses iOS PWA camera limitations.`;
+
+        if (confirm(`Open app in Safari browser?\n\n${safariInstructions}`)) {
+            const link = document.createElement('a');
+            link.href = window.location.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }, []);
+
     if (!isActive) return null;
 
-    // iOS PWA-optimized mobile layout
+// Mobile layout with enhanced iOS PWA support
     if (isMobile) {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col" data-barcode-scanner>
-                {/* Enhanced Mobile Header for iOS PWA */}
+                {/* Header */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
@@ -1193,68 +977,7 @@ This bypasses iOS PWA camera limitations.`;
                             <div className="space-y-3">
                                 {/* Test Camera Access button */}
                                 <TouchEnhancedButton
-                                    onClick={async () => {
-                                        try {
-                                            setError(null);
-                                            setIsLoading(true);
-
-                                            console.log('🔍 Manual camera permission test...');
-
-                                            // Use the enhanced iOS PWA camera initialization
-                                            let testStream;
-                                            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                                // Try multiple strategies for iOS PWA
-                                                try {
-                                                    testStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                                                } catch (firstError) {
-                                                    console.log('First attempt failed, trying environment camera...');
-                                                    try {
-                                                        testStream = await navigator.mediaDevices.getUserMedia({
-                                                            video: { facingMode: "environment" }
-                                                        });
-                                                    } catch (secondError) {
-                                                        console.log('Environment camera failed, trying user camera...');
-                                                        testStream = await navigator.mediaDevices.getUserMedia({
-                                                            video: { facingMode: "user" }
-                                                        });
-                                                    }
-                                                }
-                                            } else {
-                                                testStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                                            }
-
-                                            console.log('✅ Camera permission test successful');
-                                            testStream.getTracks().forEach(track => track.stop());
-
-                                            // Reset component state for retry
-                                            setIsLoading(true);
-                                            setIsInitialized(false);
-
-                                            setTimeout(() => {
-                                                if (mountedRef.current) {
-                                                    console.log('🔄 Retrying scanner initialization...');
-                                                    // Trigger re-initialization
-                                                    setIsLoading(false);
-                                                    setIsInitialized(false);
-                                                }
-                                            }, 500);
-
-                                        } catch (testError) {
-                                            console.error('❌ Manual camera test failed:', testError);
-
-                                            let errorMessage = `Camera test failed: ${testError.message}`;
-                                            if (testError.name === 'NotAllowedError') {
-                                                errorMessage = 'Camera permission denied. Please allow camera access when prompted.';
-                                            } else if (testError.name === 'NotFoundError') {
-                                                errorMessage = 'No camera found on this device.';
-                                            } else if (testError.name === 'NotSupportedError') {
-                                                errorMessage = 'Camera not supported in this browser/mode.';
-                                            }
-
-                                            setError(errorMessage);
-                                            setIsLoading(false);
-                                        }
-                                    }}
+                                    onClick={handleRetryCamera}
                                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
                                 >
                                     🔍 Test Camera Access
@@ -1263,41 +986,18 @@ This bypasses iOS PWA camera limitations.`;
                                 {/* Open in Safari button - only for iOS PWA */}
                                 {isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
                                     <TouchEnhancedButton
-                                        onClick={() => {
-                                            const safariUrl = window.location.href.replace(/\?.*$/, ''); // Remove query params
-                                            const instructions = `To use the camera scanner with full functionality:
-
-1. Open Safari browser
-2. Navigate to: ${safariUrl}
-3. Use the barcode scanner there
-
-This bypasses iOS PWA camera limitations and should work reliably.`;
-
-                                            if (confirm(`Open app in Safari browser?\n\n${instructions}`)) {
-                                                // Create a link that opens in Safari
-                                                const link = document.createElement('a');
-                                                link.href = safariUrl;
-                                                link.target = '_blank';
-                                                link.rel = 'noopener noreferrer';
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                document.body.removeChild(link);
-                                            }
-                                        }}
+                                        onClick={handleOpenInSafari}
                                         className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
                                     >
                                         🌐 Open in Safari Browser
                                     </TouchEnhancedButton>
                                 )}
 
-                                {/* Alternative: Manual UPC Entry */}
+                                {/* Manual UPC Entry */}
                                 <TouchEnhancedButton
                                     onClick={() => {
-                                        // Close scanner and suggest manual entry
                                         cleanupScanner();
                                         onClose();
-
-                                        // Show helpful message about manual entry
                                         setTimeout(() => {
                                             alert('💡 Tip: You can manually enter UPC codes in the UPC/Barcode field, or use the "Search by Name" tab to find products by typing their name.');
                                         }, 300);
@@ -1319,7 +1019,7 @@ This bypasses iOS PWA camera limitations and should work reliably.`;
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Device info for debugging */}
+                            {/* Device info */}
                             <div className="mt-4 pt-3 border-t border-gray-200">
                                 <div className="text-xs text-gray-500 space-y-1">
                                     <div>
@@ -1333,39 +1033,16 @@ This bypasses iOS PWA camera limitations and should work reliably.`;
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Report issue link */}
-                            <div className="mt-3">
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        const issueDetails = `iOS PWA Camera Issue Report:
-- Device: ${navigator.userAgent}
-- Mode: ${isPWA ? 'PWA' : 'Browser'}
-- Error: ${error}
-- Timestamp: ${new Date().toISOString()}
-
-Please describe what happened and any steps you tried.`;
-
-                                        const emailSubject = encodeURIComponent('iOS PWA Camera Issue Report');
-                                        const emailBody = encodeURIComponent(issueDetails);
-                                        const emailLink = `mailto:support@example.com?subject=${emailSubject}&body=${emailBody}`;
-
-                                        window.location.href = emailLink;
-                                    }}
-                                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                                >
-                                    📧 Report this issue
-                                </TouchEnhancedButton>
-                            </div>
                         </div>
                     </div>
                 ) : (
                     <>
-                        {/* Enhanced Loading State for iOS PWA */}
+                        {/* Loading State */}
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                 <div className="text-center text-white">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                    <div
+                                        className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                     <div className="text-lg">
                                         {isPWA ? 'Starting iOS PWA camera...' : 'Starting camera...'}
                                     </div>
@@ -1381,7 +1058,7 @@ Please describe what happened and any steps you tried.`;
                             </div>
                         )}
 
-                        {/* Enhanced Camera Container for iOS PWA */}
+                        {/* Camera Container */}
                         <div className="flex-1 relative bg-black">
                             <div
                                 ref={scannerRef}
@@ -1406,14 +1083,15 @@ Please describe what happened and any steps you tried.`;
                                 </div>
                             )}
 
-                            {/* Enhanced Reticle Overlay for iOS PWA */}
+                            {/* Reticle Overlay */}
                             {!isLoading && (
-                                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{zIndex: 10}}>
+                                    {/* Dark overlay areas */}
                                     <div className="absolute inset-0">
                                         <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-60"
-                                             style={{ height: 'calc(50% - 80px)' }}></div>
+                                             style={{height: 'calc(50% - 80px)'}}></div>
                                         <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60"
-                                             style={{ height: 'calc(50% - 80px)' }}></div>
+                                             style={{height: 'calc(50% - 80px)'}}></div>
                                         <div className="absolute left-0 bg-black bg-opacity-60"
                                              style={{
                                                  top: 'calc(50% - 80px)',
@@ -1428,9 +1106,11 @@ Please describe what happened and any steps you tried.`;
                                              }}></div>
                                     </div>
 
-                                    {/* Enhanced Scanning Target Area for iOS PWA */}
-                                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-40">
-                                        <div className="w-full h-full border-2 border-red-500 rounded-lg relative bg-transparent">
+                                    {/* Scanning Target Area */}
+                                    <div
+                                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-40">
+                                        <div
+                                            className="w-full h-full border-2 border-red-500 rounded-lg relative bg-transparent">
                                             {isScanning && (
                                                 <div
                                                     className="absolute left-0 right-0 h-1 bg-red-500 shadow-lg"
@@ -1441,46 +1121,68 @@ Please describe what happened and any steps you tried.`;
                                                 />
                                             )}
 
-                                            <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
-                                            <div className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
-                                            <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
-                                            <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
+                                            {/* Corner indicators */}
+                                            <div
+                                                className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
+                                            <div
+                                                className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
+                                            <div
+                                                className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
+                                            <div
+                                                className="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
 
-                                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6">
-                                                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
-                                                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
+                                            {/* Center crosshair */}
+                                            <div
+                                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6">
+                                                <div
+                                                    className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
+                                                <div
+                                                    className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
                                             </div>
 
-                                            <div className="absolute top-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
-                                            <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
-                                            <div className="absolute bottom-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
-                                            <div className="absolute bottom-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            {/* Corner dots */}
+                                            <div
+                                                className="absolute top-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div
+                                                className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div
+                                                className="absolute bottom-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                                            <div
+                                                className="absolute bottom-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
                                         </div>
                                     </div>
 
-                                    {/* Enhanced Instructions for iOS PWA */}
+                                    {/* Instructions */}
                                     <div className="absolute top-16 left-4 right-4 z-20">
-                                        <div className="bg-black bg-opacity-80 text-white text-sm p-4 rounded-lg text-center">
+                                        <div
+                                            className="bg-black bg-opacity-80 text-white text-sm p-4 rounded-lg text-center">
                                             {isScanning ? (
                                                 <div>
-                                                    <div className="font-semibold text-lg mb-1">📱 Position barcode in the red frame</div>
-                                                    <div className="text-xs opacity-90">Hold steady • Ensure good lighting • Keep barcode flat</div>
+                                                    <div className="font-semibold text-lg mb-1">📱 Position barcode in
+                                                        the red frame
+                                                    </div>
+                                                    <div className="text-xs opacity-90">Hold steady • Ensure good
+                                                        lighting • Keep barcode flat
+                                                    </div>
                                                     <div className="text-xs opacity-75 mt-1">
                                                         ✅ Enhanced validation active
                                                         {isPWA && ' • iOS PWA optimized'}
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="font-semibold text-green-400 text-lg">✅ Valid barcode detected! Processing...</div>
+                                                <div className="font-semibold text-green-400 text-lg">✅ Valid barcode
+                                                    detected! Processing...</div>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Enhanced Status indicator for iOS PWA */}
+                                    {/* Status indicator */}
                                     <div className="absolute bottom-4 left-4 right-4 z-20">
-                                        <div className="bg-black bg-opacity-80 text-white text-center py-2 px-4 rounded-lg">
+                                        <div
+                                            className="bg-black bg-opacity-80 text-white text-center py-2 px-4 rounded-lg">
                                             <div className="text-sm">
-                                                Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
+                                                Scan
+                                                #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
                                                 {isPWA && ' • PWA Mode'}
                                             </div>
                                         </div>
@@ -1489,7 +1191,7 @@ Please describe what happened and any steps you tried.`;
                             )}
                         </div>
 
-                        {/* Enhanced Mobile Footer for iOS PWA */}
+                        {/* Footer */}
                         <div className="flex-shrink-0 bg-black px-4 py-3">
                             <TouchEnhancedButton
                                 onClick={() => {
@@ -1505,7 +1207,7 @@ Please describe what happened and any steps you tried.`;
                     </>
                 )}
 
-                {/* Enhanced CSS animations for iOS PWA */}
+                {/* CSS animations */}
                 <style jsx>{`
                     @keyframes scanline {
                         0% {
@@ -1541,7 +1243,7 @@ Please describe what happened and any steps you tried.`;
         );
     }
 
-    // Enhanced Desktop layout with iOS PWA awareness
+// Desktop layout
     return (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
@@ -1573,21 +1275,41 @@ Please describe what happened and any steps you tried.`;
                                 'Please ensure your browser has camera permissions enabled and try again.'
                             )}
                         </div>
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                cleanupScanner();
-                                onClose();
-                            }}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                        >
-                            Close Scanner
-                        </TouchEnhancedButton>
+
+                        <div className="space-y-3">
+                            <TouchEnhancedButton
+                                onClick={handleRetryCamera}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mr-2"
+                            >
+                                🔄 Try Again
+                            </TouchEnhancedButton>
+
+                            {isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
+                                <TouchEnhancedButton
+                                    onClick={handleOpenInSafari}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mr-2"
+                                >
+                                    🌐 Open in Safari
+                                </TouchEnhancedButton>
+                            )}
+
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    cleanupScanner();
+                                    onClose();
+                                }}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                            >
+                                Close Scanner
+                            </TouchEnhancedButton>
+                        </div>
                     </div>
                 ) : (
                     <>
                         {isLoading && (
                             <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                                 <div className="text-gray-600">
                                     {isPWA ? 'Starting iOS PWA camera...' : 'Starting camera...'}
                                 </div>
@@ -1602,26 +1324,34 @@ Please describe what happened and any steps you tried.`;
                             <div
                                 ref={scannerRef}
                                 className="w-full h-64 bg-gray-200 rounded-lg overflow-hidden"
-                                style={{ display: isLoading ? 'none' : 'block' }}
+                                style={{display: isLoading ? 'none' : 'block'}}
                             />
 
                             {!isLoading && (
                                 <>
-                                    <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
+                                    <div
+                                        className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
                                         <div className="absolute inset-4 border-2 border-red-500 rounded-lg">
                                             {isScanning && (
-                                                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
+                                                <div
+                                                    className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
                                             )}
-                                            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
-                                            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
-                                            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
-                                            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
+                                            <div
+                                                className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
+                                            <div
+                                                className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
+                                            <div
+                                                className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
+                                            <div
+                                                className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
                                         </div>
                                     </div>
 
-                                    <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+                                    <div
+                                        className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                                         {isScanning ? (
-                                            <>📱 Position barcode within the red frame • ✅ Enhanced validation active{isPWA && ' • iOS PWA optimized'}</>
+                                            <>📱 Position barcode within the red frame • ✅ Enhanced validation
+                                                active{isPWA && ' • iOS PWA optimized'}</>
                                         ) : (
                                             <>✅ Valid barcode detected! Processing...</>
                                         )}
