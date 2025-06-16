@@ -110,26 +110,25 @@ export default function ReceiptScan() {
             const strategies = [];
 
             if (isIOSPWA) {
-                // iOS PWA strategies - ordered from most specific to most general
+                // iOS PWA strategies - exactly matching barcode scanner
                 strategies.push(
-                    // Strategy 1: High quality with iOS-specific settings
+                    // Strategy 1: Environment camera with quality settings
                     {
-                        name: 'iOS PWA High Quality',
+                        name: 'iOS PWA Environment High Quality',
                         constraints: {
                             video: {
                                 facingMode: { ideal: "environment" },
-                                width: { ideal: 1920, min: 640 },
-                                height: { ideal: 1080, min: 480 },
+                                width: { ideal: 1280, min: 640 },
+                                height: { ideal: 720, min: 480 },
                                 frameRate: { ideal: 30, min: 15 },
-                                focusMode: "continuous",
-                                exposureMode: "continuous"
+                                focusMode: "continuous"
                             },
                             audio: false
                         }
                     },
                     // Strategy 2: Basic environment camera
                     {
-                        name: 'iOS PWA Basic Environment',
+                        name: 'iOS PWA Environment Basic',
                         constraints: {
                             video: { facingMode: "environment" },
                             audio: false
@@ -167,7 +166,7 @@ export default function ReceiptScan() {
                 // Standard strategies for non-iOS PWA
                 strategies.push(
                     {
-                        name: 'Standard Environment',
+                        name: 'Standard Environment High Quality',
                         constraints: {
                             video: {
                                 facingMode: "environment",
@@ -178,7 +177,7 @@ export default function ReceiptScan() {
                         }
                     },
                     {
-                        name: 'Standard Basic',
+                        name: 'Standard Environment Basic',
                         constraints: {
                             video: { facingMode: "environment" }
                         }
@@ -289,11 +288,11 @@ export default function ReceiptScan() {
             // Set video source
             video.srcObject = stream;
 
-            // Wait for video to load and play
+            // Wait for video to load and play with enhanced iOS PWA handling
             await new Promise((resolve, reject) => {
                 const timeoutId = setTimeout(() => {
-                    reject(new Error('Video load timeout'));
-                }, 10000);
+                    reject(new Error('Video initialization timeout'));
+                }, isIOSPWA ? 15000 : 10000); // Longer timeout for iOS PWA
 
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -308,38 +307,49 @@ export default function ReceiptScan() {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     video.removeEventListener('error', onError);
                     clearTimeout(timeoutId);
-                    reject(new Error(`Video error: ${e.target.error?.message || 'Unknown error'}`));
+                    reject(new Error(`Video error: ${e.target.error?.message || 'Video load failed'}`));
                 };
 
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // Start video playback
+                // Enhanced video play handling for iOS PWA
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
-                    playPromise.catch((playError) => {
-                        console.log('📱 Initial play failed, retrying...', playError);
-                        setTimeout(() => {
-                            video.play().catch(e => {
-                                console.log('📱 Retry play failed:', e);
-                            });
-                        }, 100);
-                    });
+                    playPromise
+                        .then(() => {
+                            console.log('📱 Video play successful');
+                        })
+                        .catch((playError) => {
+                            console.log('📱 Video play failed, retrying...', playError);
+                            // Enhanced retry for iOS PWA
+                            setTimeout(() => {
+                                video.play().catch(e => {
+                                    console.log('📱 Video play retry failed:', e);
+                                    // Final attempt with user interaction simulation
+                                    setTimeout(() => {
+                                        video.play().catch(e2 => console.log('📱 Final video play attempt failed:', e2));
+                                    }, 200);
+                                });
+                            }, 100);
+                        });
                 }
             });
 
         } catch (error) {
             console.error('❌ Camera start failed:', error);
 
-            let errorMessage = 'Failed to start camera: ' + error.message;
+            let errorMessage = 'Camera initialization failed.';
             if (isPWA && error.name === 'NotAllowedError') {
-                errorMessage = 'Camera permission denied. iOS PWAs require camera permission each session. Please allow camera access and try again.';
-            } else if (isPWA && error.message.includes('not accessible')) {
-                errorMessage = 'Camera not accessible in iOS PWA mode. Try opening the app in Safari browser.';
+                errorMessage = 'Camera permission denied. iOS PWAs require camera permission each session.';
+            } else if (isPWA && error.message.includes('timeout')) {
+                errorMessage = 'Camera initialization timeout. iOS PWA camera may need more time.';
             } else if (error.name === 'NotFoundError') {
                 errorMessage = 'No camera found on this device.';
             } else if (error.name === 'NotSupportedError') {
                 errorMessage = 'Camera not supported in this browser.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = 'Camera is currently in use by another app.';
             }
 
             setCameraError(errorMessage);
@@ -1277,11 +1287,10 @@ This bypasses iOS PWA camera limitations.`;
             return 'Grains';
         }
 
-    // Pasta
-    if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti') ||
-        nameLower.includes('veggiecraft')) {
-        return 'Pasta';
-    }
+        // Pasta
+        if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti')) {
+            return 'Pasta';
+        }
 
         // Beverages
         if (nameLower.includes('coffee') || nameLower.includes('brew') || nameLower.includes('drink') ||

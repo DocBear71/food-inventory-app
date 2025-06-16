@@ -674,8 +674,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     try {
                         await new Promise((resolve, reject) => {
                             const timeoutId = setTimeout(() => {
-                                reject(new Error('Quagga init timeout'));
-                            }, isPWA ? 15000 : 10000);
+                                reject(new Error('Video initialization timeout'));
+                            }, isIOSPWA ? 15000 : 10000); // Longer timeout for iOS PWA
 
                             Quagga.init(currentConfig, (err) => {
                                 clearTimeout(timeoutId);
@@ -790,8 +790,19 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
                         if (configIndex === configsToTry.length - 1) {
                             console.error('❌ All configurations failed');
-                            const errorInfo = handleCameraError(error);
-                            setError(errorInfo.userMessage);
+                            let errorMessage = 'Camera initialization failed.';
+                            if (isPWA && error.name === 'NotAllowedError') {
+                                errorMessage = 'Camera permission denied. iOS PWAs require camera permission each session.';
+                            } else if (isPWA && error.message.includes('timeout')) {
+                                errorMessage = 'Camera initialization timeout. iOS PWA camera may need more time.';
+                            } else if (error.name === 'NotFoundError') {
+                                errorMessage = 'No camera found on this device.';
+                            } else if (error.name === 'NotSupportedError') {
+                                errorMessage = 'Camera not supported in this browser.';
+                            } else if (error.name === 'NotReadableError') {
+                                errorMessage = 'Camera is currently in use by another app.';
+                            }
+                            setError(errorMessage);
                             setIsLoading(false);
                             return;
                         }
