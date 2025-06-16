@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v7 - Enhanced validation and error handling for accurate UPC detection
+// file: /src/components/inventory/BarcodeScanner.js v8 - iOS PWA Camera Fixes for black screen issues
 
 'use client';
 
@@ -12,6 +12,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const [isLoading, setIsLoading] = useState(true);
     const [isScanning, setIsScanning] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [isPWA, setIsPWA] = useState(false);
     const cooldownRef = useRef(false);
     const quaggaRef = useRef(null);
     const mountedRef = useRef(true);
@@ -19,24 +20,39 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const scanCountRef = useRef(0);
     const lastValidCodeRef = useRef(null);
     const detectionHistoryRef = useRef([]);
+    const streamRef = useRef(null);
+    const videoElementRef = useRef(null);
 
-    console.log('🆕 BarcodeScanner v7 loaded - ENHANCED VALIDATION VERSION');
+    console.log('🆕 BarcodeScanner v8 loaded - iOS PWA CAMERA FIXES');
 
-    // Detect mobile device and orientation
+    // Detect PWA mode and mobile device
     useEffect(() => {
-        const checkMobile = () => {
+        const checkEnvironment = () => {
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const isSmallScreen = window.innerWidth <= 768;
+            const isPWAMode = window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true ||
+                document.referrer.includes('android-app://');
+
             setIsMobile(isMobileDevice || isSmallScreen);
+            setIsPWA(isPWAMode);
+
+            console.log('📱 Environment:', {
+                isMobile: isMobileDevice || isSmallScreen,
+                isPWA: isPWAMode,
+                userAgent: navigator.userAgent,
+                standalone: window.navigator.standalone,
+                displayMode: window.matchMedia('(display-mode: standalone)').matches
+            });
         };
 
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        window.addEventListener('orientationchange', checkMobile);
+        checkEnvironment();
+        window.addEventListener('resize', checkEnvironment);
+        window.addEventListener('orientationchange', checkEnvironment);
 
         return () => {
-            window.removeEventListener('resize', checkMobile);
-            window.removeEventListener('orientationchange', checkMobile);
+            window.removeEventListener('resize', checkEnvironment);
+            window.removeEventListener('orientationchange', checkEnvironment);
         };
     }, []);
 
@@ -51,18 +67,15 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const validateUPC = useCallback((code) => {
         console.log(`🔍 Validating UPC: "${code}"`);
 
-        // Clean the code - remove all non-digits
         const cleanCode = code.replace(/\D/g, '');
         console.log(`🧹 Cleaned code: "${cleanCode}" (length: ${cleanCode.length})`);
 
-        // Check length - must be valid UPC length
-        const validLengths = [8, 12, 13, 14]; // UPC-E, UPC-A, EAN-13, ITF-14
+        const validLengths = [8, 12, 13, 14];
         if (!validLengths.includes(cleanCode.length)) {
             console.log(`❌ Invalid length: ${cleanCode.length}, expected one of ${validLengths.join(', ')}`);
             return { valid: false, reason: 'invalid_length' };
         }
 
-        // Check for obviously invalid patterns
         if (cleanCode.match(/^0+$/)) {
             console.log('❌ All zeros detected');
             return { valid: false, reason: 'all_zeros' };
@@ -73,7 +86,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             return { valid: false, reason: 'all_same' };
         }
 
-        // Check for minimum digit variation (at least 3 different digits for codes 10+ digits)
         if (cleanCode.length >= 10) {
             const uniqueDigits = new Set(cleanCode).size;
             if (uniqueDigits < 3) {
@@ -82,13 +94,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         }
 
-        // Enhanced pattern checks for common invalid sequences
         const invalidPatterns = [
-            /^123456/, // Sequential start
-            /^111111/, // Repeated digits
-            /^000000/, // Leading zeros beyond normal
-            /^999999/, // Repeated 9s
-            /1234567890/, // Sequential pattern
+            /^123456/, /^111111/, /^000000/, /^999999/, /1234567890/,
         ];
 
         for (const pattern of invalidPatterns) {
@@ -98,7 +105,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         }
 
-        // UPC-A checksum validation for 12-digit codes
+        // Checksum validation for UPC-A (12 digits)
         if (cleanCode.length === 12) {
             const checkDigit = parseInt(cleanCode[11]);
             let sum = 0;
@@ -116,7 +123,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
         }
 
-        // EAN-13 checksum validation for 13-digit codes
+        // Checksum validation for EAN-13 (13 digits)
         if (cleanCode.length === 13) {
             const checkDigit = parseInt(cleanCode[12]);
             let sum = 0;
@@ -138,20 +145,40 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         return { valid: true, cleanCode };
     }, []);
 
-    // Enhanced cleanup function
+    // Enhanced cleanup function for iOS PWA
     const cleanupScanner = useCallback(() => {
-        console.log('🧹 Starting scanner cleanup...');
+        console.log('🧹 Starting iOS PWA scanner cleanup...');
 
+        // Stop any active media streams first
+        if (streamRef.current) {
+            console.log('🛑 Stopping media stream...');
+            streamRef.current.getTracks().forEach(track => {
+                track.stop();
+                console.log(`🛑 Stopped track: ${track.kind} - ${track.label}`);
+            });
+            streamRef.current = null;
+        }
+
+        // Clean up video element
+        if (videoElementRef.current) {
+            console.log('📺 Cleaning up video element...');
+            videoElementRef.current.pause();
+            videoElementRef.current.srcObject = null;
+            videoElementRef.current.load(); // Force cleanup
+            videoElementRef.current = null;
+        }
+
+        // Clean up Quagga
         if (quaggaRef.current) {
             try {
                 if (detectionHandlerRef.current) {
-                    console.log('Removing detection handler');
+                    console.log('🔇 Removing detection handler');
                     quaggaRef.current.offDetected(detectionHandlerRef.current);
                     detectionHandlerRef.current = null;
                 }
 
                 quaggaRef.current.offDetected();
-                console.log('Stopping Quagga');
+                console.log('🛑 Stopping Quagga');
                 quaggaRef.current.stop();
 
                 // Force clear the scanner container
@@ -162,7 +189,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                 quaggaRef.current = null;
             } catch (error) {
-                console.log('Error during cleanup:', error);
+                console.log('⚠️ Error during Quagga cleanup:', error);
             }
         }
 
@@ -176,10 +203,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         lastValidCodeRef.current = null;
         detectionHistoryRef.current = [];
 
-        console.log('✅ Scanner cleanup completed');
+        console.log('✅ iOS PWA scanner cleanup completed');
     }, []);
 
-    // Enhanced barcode detection handler with better validation
+    // Enhanced barcode detection handler
     const handleBarcodeDetection = useCallback((result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -194,18 +221,16 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         console.log(`📱 Raw barcode detected: "${code}" (format: ${format}, scan #${scanCountRef.current})`);
 
-        // Enhanced confidence checking
         if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
             const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
             console.log(`📊 Average decode error: ${avgError.toFixed(3)}`);
 
-            if (avgError > 0.1) { // Stricter error threshold
+            if (avgError > 0.1) {
                 console.log(`❌ High error rate rejected: ${avgError.toFixed(3)} > 0.1`);
                 return;
             }
         }
 
-        // Validate the UPC
         const validation = validateUPC(code);
         if (!validation.valid) {
             console.log(`❌ UPC validation failed: ${validation.reason}`);
@@ -214,9 +239,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
         const cleanCode = validation.cleanCode;
 
-        // Check against recent detection history to avoid duplicates
         const now = Date.now();
-        detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000); // Keep last 5 seconds
+        detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000);
 
         const recentDetection = detectionHistoryRef.current.find(entry => entry.code === cleanCode);
         if (recentDetection) {
@@ -224,10 +248,8 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             return;
         }
 
-        // Add to detection history
         detectionHistoryRef.current.push({ code: cleanCode, timestamp: now });
 
-        // Check if this is the same as the last valid code (additional safety)
         if (lastValidCodeRef.current === cleanCode) {
             console.log(`⏩ Same code as last detection, ignoring: "${cleanCode}"`);
             return;
@@ -236,15 +258,12 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         console.log(`✅ Valid UPC accepted: "${cleanCode}"`);
         lastValidCodeRef.current = cleanCode;
 
-        // Set cooldown to prevent multiple rapid detections
         cooldownRef.current = true;
         setIsScanning(false);
 
-        // Enhanced visual feedback
         playBeepSound();
 
         if (scannerRef.current && mountedRef.current) {
-            // Flash the entire scanner area green
             scannerRef.current.style.backgroundColor = '#10B981';
             scannerRef.current.style.border = '4px solid #10B981';
 
@@ -256,16 +275,69 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }, 500);
         }
 
-        // Process result with a longer delay to ensure user sees the feedback
         setTimeout(() => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
                 onBarcodeDetected(cleanCode);
             }
-        }, 800); // Increased delay
+        }, 800);
     }, [isScanning, validateUPC, onBarcodeDetected]);
 
-    // Main scanner initialization effect (unchanged from previous version)
+    // iOS PWA-specific camera initialization
+    const initializeIOSPWACamera = useCallback(async () => {
+        console.log('📱 Starting iOS PWA camera initialization...');
+
+        try {
+            // Enhanced iOS PWA camera constraints
+            const iosPWAConstraints = {
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1280, min: 640, max: 1920 },
+                    height: { ideal: 720, min: 480, max: 1080 },
+                    frameRate: { ideal: 30, min: 15, max: 60 },
+                    // iOS-specific enhancements
+                    aspectRatio: { ideal: 16/9 },
+                    resizeMode: "crop-and-scale"
+                },
+                audio: false
+            };
+
+            console.log('📱 Requesting iOS PWA camera with constraints:', iosPWAConstraints);
+
+            const stream = await navigator.mediaDevices.getUserMedia(iosPWAConstraints);
+
+            console.log('✅ iOS PWA camera stream obtained:', {
+                id: stream.id,
+                active: stream.active,
+                tracks: stream.getTracks().map(track => ({
+                    kind: track.kind,
+                    label: track.label,
+                    enabled: track.enabled,
+                    readyState: track.readyState,
+                    settings: track.getSettings()
+                }))
+            });
+
+            streamRef.current = stream;
+
+            // Store reference to video track for iOS PWA cleanup
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+                console.log('📹 Video track details:', {
+                    label: videoTrack.label,
+                    settings: videoTrack.getSettings(),
+                    capabilities: videoTrack.getCapabilities()
+                });
+            }
+
+            return stream;
+        } catch (error) {
+            console.error('❌ iOS PWA camera initialization failed:', error);
+            throw error;
+        }
+    }, []);
+
+    // Main scanner initialization with iOS PWA fixes
     useEffect(() => {
         let Quagga;
         let initTimeoutId;
@@ -277,7 +349,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             }
 
             try {
-                console.log('🚀 Initializing mobile-optimized barcode scanner...');
+                console.log('🚀 Initializing iOS PWA-optimized barcode scanner...', { isPWA, isMobile });
                 setError(null);
                 setIsScanning(true);
                 cooldownRef.current = false;
@@ -285,27 +357,46 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 lastValidCodeRef.current = null;
                 detectionHistoryRef.current = [];
 
-                // Enhanced camera availability check
+                // Enhanced camera availability check for iOS PWA
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error('Camera API not supported on this device or browser');
                 }
 
-                // Test camera access before initializing Quagga
-                console.log('🔍 Testing camera access...');
-                try {
-                    const testStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
-                    console.log('✅ Camera access test successful');
+                // iOS PWA camera permission handling
+                console.log('🔍 Testing iOS PWA camera access...');
+                let testStream;
 
-                    // Stop test stream immediately
-                    testStream.getTracks().forEach(track => track.stop());
+                try {
+                    if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                        // Use iOS PWA-specific initialization
+                        testStream = await initializeIOSPWACamera();
+                    } else {
+                        // Standard camera test
+                        testStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: "environment" }
+                        });
+                    }
+
+                    console.log('✅ iOS PWA camera access test successful');
+
+                    // Keep stream reference for iOS PWA
+                    if (isPWA) {
+                        streamRef.current = testStream;
+                        console.log('📱 Keeping iOS PWA stream active for scanner initialization');
+                    } else {
+                        // Stop test stream for non-PWA
+                        testStream.getTracks().forEach(track => track.stop());
+                    }
                 } catch (permissionError) {
-                    console.error('❌ Camera permission test failed:', permissionError);
+                    console.error('❌ iOS PWA camera permission test failed:', permissionError);
 
                     let errorMessage = 'Camera access denied';
                     if (permissionError.name === 'NotAllowedError') {
-                        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+                        if (isPWA) {
+                            errorMessage = 'Camera permission denied. iOS PWAs require camera permission on each session. Please allow camera access and try again.';
+                        } else {
+                            errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+                        }
                     } else if (permissionError.name === 'NotFoundError') {
                         errorMessage = 'No camera found. Please ensure your device has a camera.';
                     } else if (permissionError.name === 'NotSupportedError') {
@@ -342,11 +433,10 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     console.log('✅ Scanner ref found after wait');
                 }
 
-                // Wait for DOM element to be properly sized and ensure it's stable
-                console.log('⏳ Waiting for DOM element to stabilize...');
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // iOS PWA DOM stabilization
+                console.log('⏳ Waiting for iOS PWA DOM element to stabilize...');
+                await new Promise(resolve => setTimeout(resolve, isPWA ? 800 : 300));
 
-                // Double-check the scanner ref is still available
                 if (!scannerRef.current || !mountedRef.current) {
                     console.log('❌ Scanner ref lost during DOM wait');
                     return;
@@ -360,7 +450,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     parent: scannerRef.current.parentElement ? 'exists' : 'missing'
                 });
 
-                // Enhanced mobile-optimized configuration
+                // iOS PWA-optimized configuration
                 const baseConfig = {
                     inputStream: {
                         name: "Live",
@@ -371,16 +461,16 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         }
                     },
                     locator: {
-                        patchSize: "large",
-                        halfSample: false
+                        patchSize: isPWA ? "large" : "medium",
+                        halfSample: isPWA ? false : true // Better quality for PWA
                     },
-                    numOfWorkers: 1,
-                    frequency: 3, // Reduced frequency to avoid false positives
+                    numOfWorkers: isPWA ? 1 : Math.min(navigator.hardwareConcurrency || 2, 4),
+                    frequency: isPWA ? 2 : 3, // Slower frequency for PWA stability
                     decoder: {
                         readers: [
-                            "ean_reader",      // EAN-13, EAN-8
-                            "upc_reader",      // UPC-A
-                            "upc_e_reader"     // UPC-E
+                            "ean_reader",
+                            "upc_reader",
+                            "upc_e_reader"
                         ],
                         multiple: false,
                         debug: {
@@ -407,9 +497,47 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     }
                 };
 
-                // Try different constraint configurations for mobile
-                const mobileConfigs = [
-                    // Config 1: Simple constraints (most compatible)
+                // iOS PWA-specific configurations
+                const iosPWAConfigs = [
+                    // Config 1: Use existing stream if available (iOS PWA)
+                    ...(streamRef.current ? [{
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                deviceId: streamRef.current.getVideoTracks()[0].getSettings().deviceId,
+                                facingMode: "environment"
+                            }
+                        }
+                    }] : []),
+                    // Config 2: iOS PWA optimized constraints
+                    {
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                video: {
+                                    facingMode: { ideal: "environment" },
+                                    width: { ideal: 1280, min: 640 },
+                                    height: { ideal: 720, min: 480 },
+                                    frameRate: { ideal: 30 }
+                                }
+                            }
+                        }
+                    },
+                    // Config 3: Fallback for iOS PWA
+                    {
+                        ...baseConfig,
+                        inputStream: {
+                            ...baseConfig.inputStream,
+                            constraints: {
+                                facingMode: "environment"
+                            }
+                        }
+                    }
+                ];
+
+                const standardConfigs = [
                     {
                         ...baseConfig,
                         inputStream: {
@@ -419,7 +547,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             }
                         }
                     },
-                    // Config 2: Basic resolution constraints
                     {
                         ...baseConfig,
                         inputStream: {
@@ -430,39 +557,29 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                 facingMode: "environment"
                             }
                         }
-                    },
-                    // Config 3: Fallback to any camera
-                    {
+                    }
+                ];
+
+                const configsToTry = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) ?
+                    iosPWAConfigs :
+                    (isMobile ? standardConfigs : [{
                         ...baseConfig,
                         inputStream: {
                             ...baseConfig.inputStream,
                             constraints: {
-                                video: true
+                                width: { min: 640, ideal: 1280, max: 1920 },
+                                height: { min: 480, ideal: 720, max: 1080 },
+                                facingMode: "environment",
+                                aspectRatio: { min: 1, max: 2 }
                             }
-                        }
-                    }
-                ];
+                        },
+                        numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
+                        frequency: 5
+                    }]);
 
-                const desktopConfig = {
-                    ...baseConfig,
-                    inputStream: {
-                        ...baseConfig.inputStream,
-                        constraints: {
-                            width: { min: 640, ideal: 1280, max: 1920 },
-                            height: { min: 480, ideal: 720, max: 1080 },
-                            facingMode: "environment",
-                            aspectRatio: { min: 1, max: 2 }
-                        }
-                    },
-                    numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
-                    frequency: 5
-                };
+                console.log('📋 Will try configs for iOS PWA:', isPWA, 'Total configs:', configsToTry.length);
 
-                const configsToTry = isMobile ? mobileConfigs : [desktopConfig];
-
-                console.log('📋 Will try configs for mobile:', isMobile, 'Total configs:', configsToTry.length);
-
-                // Try configurations sequentially
+                // Try configurations with iOS PWA handling
                 const tryConfigs = async () => {
                     for (let configIndex = 0; configIndex < configsToTry.length; configIndex++) {
                         if (!mountedRef.current) {
@@ -471,33 +588,31 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         }
 
                         const currentConfig = configsToTry[configIndex];
-                        console.log(`🔄 Trying config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
+                        console.log(`🔄 Trying iOS PWA config ${configIndex + 1}/${configsToTry.length}:`, currentConfig.inputStream.constraints);
 
                         try {
-                            // Wrap Quagga.init in a Promise for better control
                             await new Promise((resolve, reject) => {
                                 const timeoutId = setTimeout(() => {
-                                    reject(new Error('Quagga init timeout'));
-                                }, 10000); // 10 second timeout
+                                    reject(new Error('iOS PWA Quagga init timeout'));
+                                }, isPWA ? 15000 : 10000); // Longer timeout for iOS PWA
 
                                 Quagga.init(currentConfig, (err) => {
                                     clearTimeout(timeoutId);
-                                    console.log(`🔄 Quagga.init callback triggered for config ${configIndex + 1}`);
+                                    console.log(`🔄 iOS PWA Quagga.init callback triggered for config ${configIndex + 1}`);
 
                                     if (err) {
-                                        console.error(`❌ Config ${configIndex + 1} failed:`, err.name, err.message);
+                                        console.error(`❌ iOS PWA Config ${configIndex + 1} failed:`, err.name, err.message);
                                         reject(err);
                                     } else {
-                                        console.log(`✅ Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
+                                        console.log(`✅ iOS PWA Config ${configIndex + 1} succeeded! Quagga initialized successfully`);
                                         resolve();
                                     }
                                 });
                             });
 
-                            // If we get here, initialization succeeded
-                            console.log('🚀 Starting Quagga...');
+                            console.log('🚀 Starting iOS PWA Quagga...');
                             Quagga.start();
-                            console.log('✅ Quagga.start() completed successfully');
+                            console.log('✅ iOS PWA Quagga.start() completed successfully');
 
                             setIsInitialized(true);
                             setIsLoading(false);
@@ -505,21 +620,21 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             detectionHandlerRef.current = handleBarcodeDetection;
                             Quagga.onDetected(detectionHandlerRef.current);
 
-                            console.log('🎯 Enhanced detection handler registered successfully');
+                            console.log('🎯 iOS PWA Enhanced detection handler registered successfully');
 
-                            // Enhanced video element detection and styling
+                            // iOS PWA-specific video element handling
                             const styleVideoElements = () => {
                                 if (scannerRef.current && mountedRef.current) {
-                                    console.log('🔍 Searching for video/canvas elements...');
+                                    console.log('🔍 iOS PWA: Searching for video/canvas elements...');
 
                                     const allVideos = scannerRef.current.querySelectorAll('video');
                                     const allCanvases = scannerRef.current.querySelectorAll('canvas');
 
-                                    console.log(`📺 Found ${allVideos.length} video element(s)`);
-                                    console.log(`🎨 Found ${allCanvases.length} canvas element(s)`);
+                                    console.log(`📺 iOS PWA: Found ${allVideos.length} video element(s)`);
+                                    console.log(`🎨 iOS PWA: Found ${allCanvases.length} canvas element(s)`);
 
                                     allVideos.forEach((video, index) => {
-                                        console.log(`📺 Video ${index} details:`, {
+                                        console.log(`📺 iOS PWA Video ${index} details:`, {
                                             width: video.offsetWidth,
                                             height: video.offsetHeight,
                                             videoWidth: video.videoWidth,
@@ -530,7 +645,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                             autoplay: video.autoplay
                                         });
 
-                                        // Force comprehensive video styling
+                                        // iOS PWA-specific video styling
                                         video.style.width = '100%';
                                         video.style.height = '100%';
                                         video.style.objectFit = 'cover';
@@ -543,23 +658,40 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         video.style.opacity = '1';
                                         video.style.visibility = 'visible';
 
-                                        // Ensure video is playing
+                                        // iOS PWA-specific attributes
+                                        video.setAttribute('playsinline', 'true');
+                                        video.setAttribute('webkit-playsinline', 'true');
+                                        video.muted = true;
+                                        video.autoplay = true;
+
+                                        // Store reference for cleanup
+                                        videoElementRef.current = video;
+
+                                        // Force play for iOS PWA
                                         if (video.paused) {
-                                            video.play().catch(e => console.log('Video play failed:', e));
+                                            const playPromise = video.play();
+                                            if (playPromise !== undefined) {
+                                                playPromise.catch(e => {
+                                                    console.log('📺 iOS PWA Video play failed:', e);
+                                                    // Try again with user interaction simulation
+                                                    setTimeout(() => {
+                                                        video.play().catch(e2 => console.log('📺 iOS PWA Video retry play failed:', e2));
+                                                    }, 100);
+                                                });
+                                            }
                                         }
 
-                                        console.log(`📺 Video ${index} styled and play attempted`);
+                                        console.log(`📺 iOS PWA Video ${index} styled and play attempted`);
                                     });
 
                                     allCanvases.forEach((canvas, index) => {
-                                        console.log(`🎨 Canvas ${index} details:`, {
+                                        console.log(`🎨 iOS PWA Canvas ${index} details:`, {
                                             width: canvas.offsetWidth,
                                             height: canvas.offsetHeight,
                                             canvasWidth: canvas.width,
                                             canvasHeight: canvas.height
                                         });
 
-                                        // Style canvas but keep it visible for debugging
                                         canvas.style.position = 'absolute';
                                         canvas.style.top = '0';
                                         canvas.style.left = '0';
@@ -567,75 +699,80 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         canvas.style.height = '100%';
                                         canvas.style.zIndex = '2';
                                         canvas.style.pointerEvents = 'none';
-                                        canvas.style.opacity = '0.1'; // Very transparent so we can see the video
+                                        canvas.style.opacity = '0.1';
 
-                                        console.log(`🎨 Canvas ${index} styled`);
+                                        console.log(`🎨 iOS PWA Canvas ${index} styled`);
                                     });
 
                                     if (allVideos.length === 0) {
-                                        console.error('❌ CRITICAL: No video elements found after successful Quagga start!');
-                                        console.log('📋 Scanner container HTML:', scannerRef.current.innerHTML);
+                                        console.error('❌ CRITICAL iOS PWA: No video elements found after successful Quagga start!');
+                                        console.log('📋 iOS PWA Scanner container HTML:', scannerRef.current.innerHTML);
                                     }
                                 }
                             };
 
-                            // Style elements with multiple attempts
+                            // iOS PWA: Multiple styling attempts with longer delays
                             styleVideoElements();
                             setTimeout(styleVideoElements, 500);
                             setTimeout(styleVideoElements, 1000);
                             setTimeout(styleVideoElements, 2000);
+                            if (isPWA) {
+                                setTimeout(styleVideoElements, 3000);
+                                setTimeout(styleVideoElements, 5000);
+                            }
 
-                            // Success - exit the loop
                             return;
 
                         } catch (error) {
-                            console.error(`❌ Config ${configIndex + 1} failed with error:`, error);
+                            console.error(`❌ iOS PWA Config ${configIndex + 1} failed with error:`, error);
 
-                            // If this was the last config, show error
                             if (configIndex === configsToTry.length - 1) {
-                                console.error('❌ All configurations failed');
-                                setError('Camera initialization failed. Please try refreshing the page.');
+                                console.error('❌ All iOS PWA configurations failed');
+                                setError(isPWA ?
+                                    'iOS PWA camera initialization failed. Try opening the app in Safari browser first.' :
+                                    'Camera initialization failed. Please try refreshing the page.');
                                 setIsLoading(false);
                                 return;
                             }
 
-                            // Otherwise, continue to next config
-                            console.log(`🔄 Trying next configuration...`);
-                            await new Promise(resolve => setTimeout(resolve, 500)); // Wait before next attempt
+                            console.log(`🔄 Trying next iOS PWA configuration...`);
+                            await new Promise(resolve => setTimeout(resolve, isPWA ? 1000 : 500));
                         }
                     }
                 };
 
-                // Start trying configurations
                 await tryConfigs();
 
             } catch (error) {
-                console.error('❌ Scanner setup error:', error);
+                console.error('❌ iOS PWA Scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError('Camera scanner not supported on this device.');
+                    setError(isPWA ?
+                        'iOS PWA camera scanner initialization failed. Please ensure camera permissions are granted.' :
+                        'Camera scanner not supported on this device.');
                     setIsLoading(false);
                 }
             }
         };
 
-        // Wait for the camera container to be rendered before initializing
         if (isActive && mountedRef.current) {
-            console.log('🕐 Scheduling scanner initialization...');
-            console.log('🔍 Debug state:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
+            console.log('🕐 Scheduling iOS PWA scanner initialization...');
+            console.log('🔍 Debug state:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized, isPWA });
 
+            // Longer delay for iOS PWA to ensure proper initialization
+            const delay = isPWA ? 1000 : 500;
             initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
-                    console.log('🚀 Starting delayed initialization...');
+                    console.log('🚀 Starting delayed iOS PWA initialization...');
                     initializeScanner();
                 } else {
-                    console.log('❌ Component or ref not ready for delayed init');
+                    console.log('❌ Component or ref not ready for delayed iOS PWA init');
                     console.log('Component mounted:', !!mountedRef.current);
                     console.log('Scanner ref exists:', !!scannerRef.current);
                     console.log('IsLoading:', isLoading);
                 }
-            }, 500);
+            }, delay);
         } else {
-            console.log('🚫 Not scheduling init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
+            console.log('🚫 Not scheduling iOS PWA init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
         }
 
         return () => {
@@ -646,11 +783,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 cleanupScanner();
             }
         };
-    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner]);
+    }, [isActive, isInitialized, isMobile, isPWA, handleBarcodeDetection, cleanupScanner, initializeIOSPWACamera]);
 
     useEffect(() => {
         return () => {
-            console.log('🧹 Component unmounting, cleaning up scanner...');
+            console.log('🧹 iOS PWA Component unmounting, cleaning up scanner...');
             cleanupScanner();
         };
     }, [cleanupScanner]);
@@ -677,13 +814,18 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
     if (!isActive) return null;
 
-    // Mobile-optimized layout (keeping the same UI as before)
+    // iOS PWA-optimized mobile layout
     if (isMobile) {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                {/* Mobile Header - Fixed at top */}
+                {/* Enhanced Mobile Header for iOS PWA */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
-                    <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
+                    <div>
+                        <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
+                        {isPWA && (
+                            <div className="text-xs text-yellow-400">iOS PWA Mode</div>
+                        )}
+                    </div>
                     <TouchEnhancedButton
                         onClick={() => {
                             cleanupScanner();
@@ -700,17 +842,33 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
                             <div className="text-red-600 mb-4">❌ {error}</div>
                             <div className="text-sm text-gray-500 mb-4">
-                                Please ensure camera permissions are enabled.
+                                {isPWA ? (
+                                    <>
+                                        iOS PWA camera permissions are reset each session.
+                                        Please ensure camera permissions are enabled.
+                                        {'\n\n'}
+                                        Try opening the app in Safari first if issues persist.
+                                    </>
+                                ) : (
+                                    'Please ensure camera permissions are enabled.'
+                                )}
                             </div>
 
                             <div className="space-y-3">
                                 <TouchEnhancedButton
                                     onClick={async () => {
                                         try {
-                                            console.log('🔍 Testing camera permissions...');
-                                            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                                            console.log('✅ Camera permission granted');
-                                            stream.getTracks().forEach(track => track.stop());
+                                            console.log('🔍 Testing iOS PWA camera permissions...');
+
+                                            let testStream;
+                                            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                                testStream = await initializeIOSPWACamera();
+                                            } else {
+                                                testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                            }
+
+                                            console.log('✅ iOS PWA Camera permission granted');
+                                            testStream.getTracks().forEach(track => track.stop());
 
                                             setError(null);
                                             setIsLoading(true);
@@ -720,7 +878,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                                 }
                                             }, 100);
                                         } catch (testError) {
-                                            console.error('❌ Camera test failed:', testError);
+                                            console.error('❌ iOS PWA Camera test failed:', testError);
                                             setError(`Camera test failed: ${testError.message}`);
                                         }
                                     }}
@@ -728,6 +886,20 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                 >
                                     🔍 Test Camera Access
                                 </TouchEnhancedButton>
+
+                                {isPWA && (
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            // Suggest opening in Safari
+                                            if (confirm('Try opening this app in Safari browser instead?\n\nThis may resolve iOS PWA camera issues.')) {
+                                                window.location.href = window.location.href;
+                                            }
+                                        }}
+                                        className="w-full px-4 py-2 bg-orange-600 text-white rounded-md"
+                                    >
+                                        🌐 Open in Safari
+                                    </TouchEnhancedButton>
+                                )}
 
                                 <TouchEnhancedButton
                                     onClick={() => {
@@ -743,22 +915,28 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     </div>
                 ) : (
                     <>
-                        {/* Loading State - Overlay on top of camera container */}
+                        {/* Enhanced Loading State for iOS PWA */}
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                 <div className="text-center text-white">
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                                    <div className="text-lg">Starting camera...</div>
+                                    <div className="text-lg">
+                                        {isPWA ? 'Starting iOS PWA camera...' : 'Starting camera...'}
+                                    </div>
                                     <div className="text-sm mt-2 opacity-75">
                                         Enhanced validation active
                                     </div>
+                                    {isPWA && (
+                                        <div className="text-xs mt-3 opacity-60">
+                                            iOS PWA mode may take longer to initialize
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
 
-                        {/* Camera Container - ALWAYS rendered, hidden by loading overlay when needed */}
+                        {/* Enhanced Camera Container for iOS PWA */}
                         <div className="flex-1 relative bg-black">
-                            {/* Camera View - Full container with proper sizing */}
                             <div
                                 ref={scannerRef}
                                 className="absolute inset-0 w-full h-full bg-black"
@@ -769,32 +947,24 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     top: 0,
                                     left: 0,
                                     zIndex: 1,
-                                    minHeight: '400px' // Ensure minimum height
+                                    minHeight: '400px'
                                 }}
                             />
 
-                            {/* Enhanced Reticle Overlay - Higher z-index - Only show when not loading */}
+                            {/* Enhanced Reticle Overlay for iOS PWA */}
                             {!isLoading && (
                                 <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-                                    {/* Dark overlay with transparent center */}
                                     <div className="absolute inset-0">
-                                        {/* Top overlay */}
                                         <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-60"
                                              style={{ height: 'calc(50% - 80px)' }}></div>
-
-                                        {/* Bottom overlay */}
                                         <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60"
                                              style={{ height: 'calc(50% - 80px)' }}></div>
-
-                                        {/* Left overlay */}
                                         <div className="absolute left-0 bg-black bg-opacity-60"
                                              style={{
                                                  top: 'calc(50% - 80px)',
                                                  height: '160px',
                                                  width: 'calc(50% - 140px)'
                                              }}></div>
-
-                                        {/* Right overlay */}
                                         <div className="absolute right-0 bg-black bg-opacity-60"
                                              style={{
                                                  top: 'calc(50% - 80px)',
@@ -803,34 +973,29 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                              }}></div>
                                     </div>
 
-                                    {/* Scanning Target Area - Centered */}
+                                    {/* Enhanced Scanning Target Area for iOS PWA */}
                                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-40">
-                                        {/* Main scanning frame */}
                                         <div className="w-full h-full border-2 border-red-500 rounded-lg relative bg-transparent">
-                                            {/* Animated scanning line */}
                                             {isScanning && (
                                                 <div
                                                     className="absolute left-0 right-0 h-1 bg-red-500 shadow-lg"
                                                     style={{
-                                                        animation: 'scanline 2s ease-in-out infinite',
+                                                        animation: isPWA ? 'scanline-slow 3s ease-in-out infinite' : 'scanline 2s ease-in-out infinite',
                                                         boxShadow: '0 0 10px rgba(239, 68, 68, 0.8)'
                                                     }}
                                                 />
                                             )}
 
-                                            {/* Enhanced corner brackets */}
                                             <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
                                             <div className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
                                             <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
                                             <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
 
-                                            {/* Center crosshair */}
                                             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6">
                                                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -translate-y-1/2"></div>
                                                 <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 transform -translate-x-1/2"></div>
                                             </div>
 
-                                            {/* Helper dots in corners of scan area */}
                                             <div className="absolute top-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
                                             <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></div>
                                             <div className="absolute bottom-2 left-2 w-2 h-2 bg-red-500 rounded-full"></div>
@@ -838,14 +1003,17 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         </div>
                                     </div>
 
-                                    {/* Instructions - Positioned at top */}
+                                    {/* Enhanced Instructions for iOS PWA */}
                                     <div className="absolute top-16 left-4 right-4 z-20">
                                         <div className="bg-black bg-opacity-80 text-white text-sm p-4 rounded-lg text-center">
                                             {isScanning ? (
                                                 <div>
                                                     <div className="font-semibold text-lg mb-1">📱 Position barcode in the red frame</div>
                                                     <div className="text-xs opacity-90">Hold steady • Ensure good lighting • Keep barcode flat</div>
-                                                    <div className="text-xs opacity-75 mt-1">✅ Enhanced validation active</div>
+                                                    <div className="text-xs opacity-75 mt-1">
+                                                        ✅ Enhanced validation active
+                                                        {isPWA && ' • iOS PWA optimized'}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="font-semibold text-green-400 text-lg">✅ Valid barcode detected! Processing...</div>
@@ -853,11 +1021,12 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                         </div>
                                     </div>
 
-                                    {/* Status indicator - Bottom */}
+                                    {/* Enhanced Status indicator for iOS PWA */}
                                     <div className="absolute bottom-4 left-4 right-4 z-20">
                                         <div className="bg-black bg-opacity-80 text-white text-center py-2 px-4 rounded-lg">
                                             <div className="text-sm">
                                                 Scan #{scanCountRef.current + 1} • {isScanning ? 'Scanning...' : 'Processing...'}
+                                                {isPWA && ' • PWA Mode'}
                                             </div>
                                         </div>
                                     </div>
@@ -865,7 +1034,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             )}
                         </div>
 
-                        {/* Mobile Footer - Always visible */}
+                        {/* Enhanced Mobile Footer for iOS PWA */}
                         <div className="flex-shrink-0 bg-black px-4 py-3">
                             <TouchEnhancedButton
                                 onClick={() => {
@@ -881,7 +1050,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     </>
                 )}
 
-                {/* Enhanced CSS animations */}
+                {/* Enhanced CSS animations for iOS PWA */}
                 <style jsx>{`
                     @keyframes scanline {
                         0% {
@@ -897,17 +1066,37 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             opacity: 1;
                         }
                     }
+
+                    @keyframes scanline-slow {
+                        0% {
+                            top: 0;
+                            opacity: 1;
+                        }
+                        50% {
+                            top: calc(50% - 2px);
+                            opacity: 0.8;
+                        }
+                        100% {
+                            top: calc(100% - 4px);
+                            opacity: 1;
+                        }
+                    }
                 `}</style>
             </div>
         );
     }
 
-    // Desktop layout (unchanged)
+    // Enhanced Desktop layout with iOS PWA awareness
     return (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
+                    <div>
+                        <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
+                        {isPWA && (
+                            <div className="text-xs text-orange-600">iOS PWA Mode</div>
+                        )}
+                    </div>
                     <TouchEnhancedButton
                         onClick={() => {
                             cleanupScanner();
@@ -923,7 +1112,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     <div className="text-center py-8">
                         <div className="text-red-600 mb-4">❌ {error}</div>
                         <div className="text-sm text-gray-500 mb-4">
-                            Please ensure your browser has camera permissions enabled and try again.
+                            {isPWA ? (
+                                'iOS PWA camera permissions are reset each session. Please ensure your browser has camera permissions enabled and try again.'
+                            ) : (
+                                'Please ensure your browser has camera permissions enabled and try again.'
+                            )}
                         </div>
                         <TouchEnhancedButton
                             onClick={() => {
@@ -940,8 +1133,13 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                         {isLoading && (
                             <div className="text-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                                <div className="text-gray-600">Starting camera...</div>
+                                <div className="text-gray-600">
+                                    {isPWA ? 'Starting iOS PWA camera...' : 'Starting camera...'}
+                                </div>
                                 <div className="text-xs text-gray-500 mt-2">Enhanced validation enabled</div>
+                                {isPWA && (
+                                    <div className="text-xs text-orange-600 mt-1">iOS PWA optimization active</div>
+                                )}
                             </div>
                         )}
 
@@ -968,7 +1166,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
                                     <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                                         {isScanning ? (
-                                            <>📱 Position barcode within the red frame • ✅ Enhanced validation active</>
+                                            <>📱 Position barcode within the red frame • ✅ Enhanced validation active{isPWA && ' • iOS PWA optimized'}</>
                                         ) : (
                                             <>✅ Valid barcode detected! Processing...</>
                                         )}
