@@ -357,6 +357,33 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 lastValidCodeRef.current = null;
                 detectionHistoryRef.current = [];
 
+                // AUTO-SCROLL TO SCANNER VIEW
+                // For mobile devices, auto-scroll to the scanner when it becomes active
+                if (isMobile && isActive) {
+                    setTimeout(() => {
+                        // Find the scanner container and scroll to it
+                        const scannerContainer = document.querySelector('[data-barcode-scanner]');
+                        if (scannerContainer) {
+                            scannerContainer.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                                inline: 'nearest'
+                            });
+                            console.log('📱 Auto-scrolled to barcode scanner view');
+                        } else {
+                            // Fallback: scroll to the scanner ref element
+                            if (scannerRef.current) {
+                                scannerRef.current.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center',
+                                    inline: 'nearest'
+                                });
+                                console.log('📱 Auto-scrolled to scanner element');
+                            }
+                        }
+                    }, 400); // Small delay to ensure rendering
+                }
+
                 // Enhanced camera availability check for iOS PWA
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error('Camera API not supported on this device or browser');
@@ -817,7 +844,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     // iOS PWA-optimized mobile layout
     if (isMobile) {
         return (
-            <div className="fixed inset-0 bg-black z-50 flex flex-col">
+            <div className="fixed inset-0 bg-black z-50 flex flex-col" data-barcode-scanner>
                 {/* Enhanced Mobile Header for iOS PWA */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div>
@@ -950,6 +977,15 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     minHeight: '400px'
                                 }}
                             />
+
+                            {/* Auto-scroll success indicator */}
+                            {!isLoading && (
+                                <div className="absolute top-16 left-4 right-4 z-20">
+                                    <div className="bg-green-900 bg-opacity-80 text-green-200 text-xs p-2 rounded mb-2">
+                                        📱 Scanner ready • Auto-scrolled to camera view
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Enhanced Reticle Overlay for iOS PWA */}
                             {!isLoading && (

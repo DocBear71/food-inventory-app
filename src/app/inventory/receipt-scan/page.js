@@ -196,6 +196,33 @@ export default function ReceiptScan() {
             // Show camera first to ensure video element is rendered
             setShowCamera(true);
 
+            // AUTO-SCROLL TO CAMERA VIEW
+            // Wait a brief moment for the camera view to render, then scroll to it
+            setTimeout(() => {
+                // Find the camera container and scroll to it smoothly
+                const cameraContainer = document.querySelector('[data-camera-container]');
+                if (cameraContainer) {
+                    cameraContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                    console.log('📱 Auto-scrolled to camera view');
+                } else {
+                    // Fallback: scroll to the video element if camera container not found
+                    setTimeout(() => {
+                        if (videoRef.current) {
+                            videoRef.current.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'nearest'
+                            });
+                            console.log('📱 Auto-scrolled to video element');
+                        }
+                    }, 200);
+                }
+            }, 300); // Small delay to ensure rendering
+
             // iOS PWA: Longer wait for video element
             const waitTime = isPWA ? 500 : 100;
             await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -1651,7 +1678,7 @@ export default function ReceiptScan() {
 
                         {/* Enhanced Camera View for iOS PWA */}
                         {showCamera && (
-                            <div className="space-y-4">
+                            <div className="space-y-4" data-camera-container>
                                 <div className="text-center">
                                     <h3 className="text-lg font-medium mb-4">
                                         📷 Camera View {isPWA && '(iOS PWA)'}
@@ -1704,6 +1731,11 @@ export default function ReceiptScan() {
                                 <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                     Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
                                     {isPWA && ' • iOS PWA Mode'}
+                                </div>
+
+                                {/* Auto-scroll indicator for user feedback */}
+                                <div className="text-xs text-center text-blue-600 bg-blue-50 p-2 rounded">
+                                    📱 Camera view opened • Scrolled automatically to camera
                                 </div>
                             </div>
                         )}
