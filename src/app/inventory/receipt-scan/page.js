@@ -1,4 +1,4 @@
-// file: /src/app/inventory/receipt-scan/page.js - v7 iOS PWA Camera Fixes - Consolidated initialization
+// file: /src/app/inventory/receipt-scan/page.js - v5 Receipt scanning with OCR - Added Kitchen Cabinets location option
 
 'use client';
 
@@ -27,8 +27,6 @@ export default function ReceiptScan() {
     const [processingStatus, setProcessingStatus] = useState('');
     const [cameraError, setCameraError] = useState(null);
     const [showReportModal, setShowReportModal] = useState(false);
-    const [isPWA, setIsPWA] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
     const [reportData, setReportData] = useState({
         issue: '',
         description: '',
@@ -36,37 +34,6 @@ export default function ReceiptScan() {
         receiptImage: null,
         additionalFiles: []
     });
-
-    // Detect PWA mode and mobile device
-    useEffect(() => {
-        const checkEnvironment = () => {
-            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const isSmallScreen = window.innerWidth <= 768;
-            const isPWAMode = window.matchMedia('(display-mode: standalone)').matches ||
-                window.navigator.standalone === true ||
-                document.referrer.includes('android-app://');
-
-            setIsMobile(isMobileDevice || isSmallScreen);
-            setIsPWA(isPWAMode);
-
-            console.log('📱 Receipt Scanner Environment:', {
-                isMobile: isMobileDevice || isSmallScreen,
-                isPWA: isPWAMode,
-                userAgent: navigator.userAgent,
-                standalone: window.navigator.standalone,
-                displayMode: window.matchMedia('(display-mode: standalone)').matches
-            });
-        };
-
-        checkEnvironment();
-        window.addEventListener('resize', checkEnvironment);
-        window.addEventListener('orientationchange', checkEnvironment);
-
-        return () => {
-            window.removeEventListener('resize', checkEnvironment);
-            window.removeEventListener('orientationchange', checkEnvironment);
-        };
-    }, []);
 
     // Cleanup effect
     useEffect(() => {
@@ -93,74 +60,15 @@ export default function ReceiptScan() {
         );
     }
 
-    // Simplified iOS PWA camera initialization using the manifest fix
-    async function initializeCameraStream() {
-        console.log('📱 Starting camera with iOS PWA manifest fix approach...');
-
-        try {
-            // Use the global detection from our manifest fix
-            const { isIOS, isIOSPWA, cameraSupported } = window.iosPWACameraFix || {};
-
-            console.log('📱 Camera Fix Detection:', { isIOS, isIOSPWA, cameraSupported });
-
-            // Check if camera API is available
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera API not supported on this device');
-            }
-
-            // If we're in iOS PWA standalone mode, camera won't work
-            if (isIOSPWA && !cameraSupported) {
-                throw new Error('Camera not available in iOS PWA standalone mode. Please use Safari browser.');
-            }
-
-            // Get appropriate constraints for the platform
-            const constraints = window.iosPWACameraHelper?.getIOSCameraConstraints() || [
-                { video: { facingMode: "environment" } },
-                { video: true }
-            ];
-
-            let stream = null;
-
-            // Try each constraint set
-            for (let i = 0; i < constraints.length; i++) {
-                try {
-                    console.log(`📱 Trying constraint set ${i + 1}:`, constraints[i]);
-                    stream = await navigator.mediaDevices.getUserMedia(constraints[i]);
-                    console.log(`✅ Success with constraint set ${i + 1}`);
-                    break;
-                } catch (error) {
-                    console.log(`❌ Constraint set ${i + 1} failed:`, error.message);
-                    if (i === constraints.length - 1) {
-                        throw error;
-                    }
-                }
-            }
-
-            if (!stream) {
-                throw new Error('All camera initialization attempts failed');
-            }
-
-            console.log('✅ Camera stream obtained:', {
-                tracks: stream.getTracks().length,
-                videoTracks: stream.getVideoTracks().length,
-                settings: stream.getVideoTracks()[0]?.getSettings()
-            });
-
-            return stream;
-
-        } catch (error) {
-            console.error('❌ Camera initialization failed:', error);
-            throw error;
-        }
-    }
-
-    // Enhanced startCamera function with consolidated iOS PWA handling
+    // Enhanced camera start function with better quality settings
     async function startCamera() {
         setCameraError(null);
-        setShowCamera(true);
 
         try {
-            console.log('🚀 Starting camera with consolidated iOS PWA support...');
+            // Check camera support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported');
+            }
 
             // Stop any existing stream
             if (streamRef.current) {
@@ -168,278 +76,112 @@ export default function ReceiptScan() {
                 streamRef.current = null;
             }
 
-            // Initialize camera stream
-            const stream = await initializeCameraStream();
+            // Enhanced camera constraints for better OCR quality
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: {ideal: 1920, min: 1280}, // Higher resolution
+                    height: {ideal: 1080, min: 720},
+                    aspectRatio: {ideal: 16 / 9},
+                    focusMode: 'continuous', // Continuous autofocus
+                    exposureMode: 'continuous', // Auto exposure
+                    whiteBalanceMode: 'continuous', // Auto white balance
+                    advanced: [
+                        {focusMode: 'continuous'},
+                        {exposureMode: 'continuous'},
+                        {whiteBalanceMode: 'continuous'}
+                    ]
+                }
+            };
+
+            // Try enhanced constraints first, fall back to basic if needed
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (enhancedError) {
+                console.log('Enhanced constraints failed, trying basic constraints:', enhancedError);
+                // Fallback to basic constraints
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: {ideal: 1280},
+                        height: {ideal: 720}
+                    }
+                });
+            }
+
             streamRef.current = stream;
 
-            // Auto-scroll to camera view
-            setTimeout(() => {
-                const cameraContainer = document.querySelector('[data-camera-container]');
-                if (cameraContainer) {
-                    cameraContainer.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                    console.log('📄 Auto-scrolled to receipt camera view');
-                }
-            }, isPWA ? 500 : 300);
+            // Show camera first to ensure video element is rendered
+            setShowCamera(true);
+
+            // Wait for video element to render
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             // Wait for video element with retries
-            const waitTime = isPWA ? 800 : 500;
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-
             let retries = 0;
-            const maxRetries = isPWA ? 25 : 20;
-            while (!videoRef.current && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, isPWA ? 300 : 200));
+            while (!videoRef.current && retries < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
                 retries++;
             }
 
             if (!videoRef.current) {
-                throw new Error('Video element not found after waiting');
+                setCameraError('Video element not found after waiting');
+                return;
             }
 
-            // Configure video element for iOS PWA with enhanced settings
-            const video = videoRef.current;
+            // Set video source
+            videoRef.current.srcObject = stream;
 
-            // iOS PWA specific setup with more aggressive settings
-            if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                // Set all iOS-specific attributes before setting srcObject
-                video.setAttribute('playsinline', 'true');
-                video.setAttribute('webkit-playsinline', 'true');
-                video.setAttribute('preload', 'metadata');
-                video.muted = true;
-                video.autoplay = true;
-                video.controls = false;
-                video.style.objectFit = 'cover';
-                video.style.width = '100%';
-                video.style.height = '100%';
-
-                console.log('📱 Applied enhanced iOS PWA video attributes');
-
-                // Set source and wait for it to be ready
-                video.srcObject = stream;
-
-                // Force immediate play attempt for iOS PWA
-                try {
-                    await video.play();
-                    console.log('📱 iOS PWA: Video play successful immediately');
-                } catch (playError) {
-                    console.log('📱 iOS PWA: Initial play failed, will retry in metadata handler');
-                }
-            } else {
-                // Standard setup for non-PWA
-                video.srcObject = stream;
-            }
-
-            // Wait for video to load and play with enhanced iOS PWA handling
+            // Wait for video to load with better settings
             await new Promise((resolve, reject) => {
-                const timeoutId = setTimeout(() => {
-                    reject(new Error('Video initialization timeout after ' + (isIOSPWA ? '20' : '10') + ' seconds'));
-                }, isIOSPWA ? 20000 : 10000); // Even longer timeout for iOS PWA
+                const video = videoRef.current;
 
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    video.removeEventListener('error', onError);
-                    clearTimeout(timeoutId);
 
-                    console.log(`📄 Camera ready: ${video.videoWidth}x${video.videoHeight}`);
+                    // Log actual video dimensions for debugging
+                    console.log(`Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
 
-                    // For iOS PWA, ensure video is playing after metadata loads
-                    if (isIOSPWA && video.paused) {
-                        console.log('📱 iOS PWA: Ensuring video plays after metadata load');
-                        video.play().then(() => {
-                            console.log('📱 iOS PWA: Video playing after metadata');
-                            resolve();
-                        }).catch((playError) => {
-                            console.log('📱 iOS PWA: Play after metadata failed, but continuing:', playError);
-                            resolve(); // Continue anyway, might work
-                        });
-                    } else {
-                        resolve();
-                    }
+                    resolve();
                 };
 
                 const onError = (e) => {
-                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
                     video.removeEventListener('error', onError);
-                    clearTimeout(timeoutId);
-                    reject(new Error(`Video error: ${e.target.error?.message || 'Video load failed'}`));
+                    reject(e);
                 };
 
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // Enhanced video play handling for iOS PWA - multiple attempts
-                if (!isIOSPWA) {
-                    const playPromise = video.play();
-                    if (playPromise !== undefined) {
-                        playPromise
-                            .then(() => {
-                                console.log('📱 Video play successful');
-                            })
-                            .catch((playError) => {
-                                console.log('📱 Video play failed, retrying...', playError);
-                                setTimeout(() => {
-                                    video.play().catch(e => {
-                                        console.log('📱 Video play retry failed:', e);
-                                    });
-                                }, 100);
-                            });
-                    }
-                }
+                // Force play with better settings
+                video.play().catch(() => {
+                    // Ignore play errors - common on mobile
+                });
             });
 
         } catch (error) {
-            console.error('❌ Camera start failed:', error);
-
-            // Use the iOS PWA helper for better error messages
-            const guidance = window.iosPWACameraHelper?.getIOSCameraGuidance() || {};
-
-            let errorMessage = 'Camera initialization failed.';
-            if (guidance.hasIssue) {
-                errorMessage = guidance.message;
-            } else if (error.name === 'NotAllowedError') {
-                errorMessage = 'Camera permission denied. Please allow camera access.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = 'No camera found on this device.';
-            } else if (error.name === 'NotSupportedError') {
-                errorMessage = 'Camera not supported in this browser.';
-            } else if (error.name === 'NotReadableError') {
-                errorMessage = 'Camera is currently in use by another app.';
-            }
-
-            setCameraError(errorMessage);
-            setShowCamera(false);
+            setCameraError('Failed to start camera: ' + error.message);
         }
     }
 
-    // Enhanced error display component specifically for receipt scanner
-    const ReceiptScannerErrorDisplay = () => (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-start">
-                <div className="text-red-600 text-xl mr-3">📄❌</div>
-                <div className="flex-1">
-                    <div className="text-red-700 font-semibold mb-2">
-                        Receipt Camera Not Available
-                        {isPWA && <span className="text-sm font-normal text-orange-600 ml-2">(iOS PWA Mode)</span>}
-                    </div>
-
-                    <div className="text-sm text-red-600 mb-3">
-                        {cameraError}
-                    </div>
-
-                    {isPWA && (
-                        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
-                            <div className="text-xs text-blue-800">
-                                <div className="font-semibold mb-1">💡 iOS PWA Receipt Scanning Limitations:</div>
-                                <div>• Camera permissions reset each PWA session</div>
-                                <div>• Limited camera API support in standalone mode</div>
-                                <div>• Safari browser provides full camera functionality</div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        {/* Try Again button */}
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                setCameraError(null);
-                                try {
-                                    console.log('🔄 Retrying camera initialization...');
-                                    const testStream = await initializeCameraStream();
-                                    testStream.getTracks().forEach(track => track.stop());
-                                    console.log('✅ Camera retry test successful');
-                                    startCamera();
-                                } catch (retryError) {
-                                    console.error('❌ Camera retry failed:', retryError);
-                                    setCameraError(`Retry failed: ${retryError.message}`);
-                                }
-                            }}
-                            className="mr-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                        >
-                            🔄 Try Again
-                        </TouchEnhancedButton>
-
-                        {/* Open in Safari button for iOS PWA */}
-                        {isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
-                            <TouchEnhancedButton
-                                onClick={() => {
-                                    const safariUrl = window.location.href.replace(/\?.*$/, '');
-                                    const instructions = `For reliable receipt scanning:
-
-1. Open Safari browser
-2. Navigate to: ${safariUrl}
-3. Use the receipt scanner there
-
-This bypasses iOS PWA camera limitations.`;
-
-                                    if (confirm(`Open app in Safari browser?\n\n${instructions}`)) {
-                                        const link = document.createElement('a');
-                                        link.href = safariUrl;
-                                        link.target = '_blank';
-                                        link.rel = 'noopener noreferrer';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    }
-                                }}
-                                className="mr-2 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                            >
-                                🌐 Open in Safari
-                            </TouchEnhancedButton>
-                        )}
-
-                        {/* Upload Image alternative */}
-                        <TouchEnhancedButton
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
-                        >
-                            📁 Upload Receipt Image Instead
-                        </TouchEnhancedButton>
-                    </div>
-
-                    {/* Device info */}
-                    <div className="mt-3 pt-2 border-t border-red-200">
-                        <div className="text-xs text-gray-600">
-                            iOS {(() => {
-                            const match = navigator.userAgent.match(/OS (\d+_\d+)/);
-                            return match ? match[1].replace('_', '.') : 'Unknown';
-                        })()} • {isPWA ? 'PWA' : 'Browser'} Mode • Receipt Scanner
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
 
     // Simple camera stop function
     function stopCamera() {
-        console.log('🛑 Stopping camera...');
-
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => {
-                track.stop();
-                console.log(`🛑 Stopped ${track.kind} track: ${track.label}`);
-            });
+            streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
 
         if (videoRef.current) {
-            videoRef.current.pause();
             videoRef.current.srcObject = null;
-            if (isPWA) {
-                videoRef.current.load(); // Force cleanup for iOS PWA
-            }
         }
 
         setShowCamera(false);
         setCameraError(null);
-        console.log('✅ Camera stopped');
     }
 
-    // Enhanced photo capture with iOS PWA optimizations
+    // Enhanced photo capture with better quality and processing
     function capturePhoto() {
         if (!videoRef.current || !canvasRef.current || !streamRef.current) {
             alert('Camera not ready');
@@ -454,20 +196,20 @@ This bypasses iOS PWA camera limitations.`;
         const width = video.videoWidth;
         const height = video.videoHeight;
 
-        console.log(`📷 Capturing receipt at resolution: ${width}x${height}`);
+        console.log(`Capturing at resolution: ${width}x${height}`);
 
         // Set canvas size to match video (high resolution)
         canvas.width = width;
         canvas.height = height;
 
         // Enhanced canvas drawing with better quality settings
-        context.imageSmoothingEnabled = false;
+        context.imageSmoothingEnabled = false; // Disable smoothing for sharper text
         context.textRenderingOptimization = 'optimizeLegibility';
 
         // Draw video frame to canvas
         context.drawImage(video, 0, 0, width, height);
 
-        // Apply image enhancements for better OCR
+        // Optional: Apply image enhancements for better OCR
         const imageData = context.getImageData(0, 0, width, height);
         const enhancedImageData = enhanceImageForOCR(imageData);
         context.putImageData(enhancedImageData, 0, 0);
@@ -475,34 +217,37 @@ This bypasses iOS PWA camera limitations.`;
         // Convert to blob with high quality settings
         canvas.toBlob((blob) => {
             if (blob) {
-                console.log(`📷 Captured receipt image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+                console.log(`Captured image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
 
                 const imageUrl = URL.createObjectURL(blob);
                 setCapturedImage(imageUrl);
                 stopCamera();
                 processImage(blob);
             }
-        }, 'image/jpeg', 0.95);
+        }, 'image/jpeg', 0.95); // Higher quality (95% instead of 90%)
     }
 
-    // Image enhancement function for better OCR (unchanged)
+    // Image enhancement function for better OCR
     function enhanceImageForOCR(imageData) {
         const data = imageData.data;
         const length = data.length;
 
-        const contrast = 1.2;
-        const brightness = 10;
+        // Apply contrast and brightness enhancement
+        const contrast = 1.2; // Increase contrast
+        const brightness = 10; // Slight brightness increase
 
         for (let i = 0; i < length; i += 4) {
-            data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));
-            data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness));
-            data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness));
+            // Apply contrast and brightness to RGB channels
+            data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));     // Red
+            data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness)); // Green
+            data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness)); // Blue
+            // Alpha channel (data[i + 3]) remains unchanged
         }
 
         return imageData;
     }
 
-    // Enhanced OCR processing (keeping existing logic)
+    // Enhanced OCR processing with better settings
     async function processImage(imageFile) {
         setIsProcessing(true);
         setStep('processing');
@@ -510,12 +255,13 @@ This bypasses iOS PWA camera limitations.`;
         setProcessingStatus('Initializing OCR...');
 
         try {
+            // Dynamically import Tesseract.js
             setProcessingStatus('Loading OCR engine...');
             const Tesseract = (await import('tesseract.js')).default;
 
             setProcessingStatus('Processing image...');
 
-            // OCR options optimized for receipts
+            // Enhanced OCR options for better accuracy
             const ocrOptions = {
                 logger: (m) => {
                     if (m.status === 'recognizing text') {
@@ -524,10 +270,11 @@ This bypasses iOS PWA camera limitations.`;
                         setProcessingStatus(`Extracting text... ${progress}%`);
                     }
                 },
-                tessedit_pageseg_mode: '6',
+                // Enhanced OCR parameters
+                tessedit_pageseg_mode: '6', // Uniform block of text
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
                 preserve_interword_spaces: '1',
-                user_defined_dpi: isPWA ? '200' : '300'
+                user_defined_dpi: '300' // Higher DPI for better recognition
             };
 
             const {data: {text}} = await Tesseract.recognize(
@@ -538,21 +285,21 @@ This bypasses iOS PWA camera limitations.`;
 
             setProcessingStatus('Analyzing receipt...');
 
+            // Parse extracted text into items
             const items = parseReceiptText(text);
 
-            console.log('📄 OCR Text:', text);
-            console.log('📋 Parsed Items:', items);
+            // Log results for debugging
+            console.log('OCR Text:', text);
+            console.log('Parsed Items:', items);
 
             setExtractedItems(items);
+
             setProcessingStatus('Complete!');
             setStep('review');
 
         } catch (error) {
-            console.error('❌ OCR processing error:', error);
-            const errorMsg = isPWA ?
-                'Receipt processing failed. Please try again with a clearer image.' :
-                'Error processing receipt. Please try again with a clearer image.';
-            alert(errorMsg);
+            console.error('OCR processing error:', error);
+            alert('Error processing receipt. Please try again with a clearer image.');
             setStep('upload');
         } finally {
             setIsProcessing(false);
@@ -560,7 +307,8 @@ This bypasses iOS PWA camera limitations.`;
         }
     }
 
-    // Handle receipt file upload
+
+    // FIXED: Handle receipt file upload (renamed to avoid conflict)
     function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -572,7 +320,7 @@ This bypasses iOS PWA camera limitations.`;
         }
     }
 
-    // Parse receipt text into structured items (keeping existing comprehensive logic)
+    // Parse receipt text into structured items
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
@@ -580,162 +328,234 @@ This bypasses iOS PWA camera limitations.`;
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
+        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
-        // COMPREHENSIVE skip patterns - enhanced with Trader Joe's and Smith's
+        // Enhanced skip patterns with ALL store-specific patterns
         const skipPatterns = [
-            // ============ STORE NAMES AND HEADERS ============
+            // Store names and basic headers
             /^(walmart|target|kroger|publix|safeway|hy-vee|hyvee|sam's club|sams club|costco)/i,
-            /^(trader joe's|trader joes|smith's|smiths)/i,
             /^(total|subtotal|tax|change|card|cash)/i,
             /^(thank you|receipt|store|phone|address)/i,
             /^\d{2}\/\d{2}\/\d{4}/,
             /^[\d\s\-\(\)]+$/,
 
-            // ============ PAYMENT AND TRANSACTION LINES ============
+            // Payment and transaction lines
             /^(debit|credit|card|cash|tend|tender)/i,
             /^(debit tend|credit tend|cash tend)/i,
             /^(payment|transaction|approval)/i,
             /^(ref|reference|auth|authorization)/i,
-            /^(visa|mastercard|amex|discover|american express)/i,
-            /^(visa credit|visa debit|mastercard credit)/i,
 
-            // TRADER JOE'S SPECIFIC PAYMENT PATTERNS
-            /^visa\s*$/i,
-            /^payment\s+card\s+purchase\s+transaction/i,
-            /^customer\s+copy/i,
-            /^type:\s+contactless/i,
-            /^aid:\s*\*+\d+/i,
-            /^tid:\s*\*+\d+/i,
-            /^no\s+cardholder\s+verification/i,
-            /^please\s+retain\s+for\s+your\s+records/i,
-            /^total\s+purchase/i,
-            /^\*+\d{4}$/i, // Card number fragments
-
-            // SMITH'S (KROGER) SPECIFIC PAYMENT PATTERNS
-            /^your\s+cashier\s+was/i,
-            /^fresh\s+value\s+customer/i,
-            /^\*+\s*balance/i,
-            /^\d{3}-\d{3}-\d{4}/i, // Phone numbers
-
-            // ============ RECEIPT FOOTER INFORMATION ============
+            // Receipt footer information
             /^(change due|amount due|balance)/i,
             /^(customer|member|rewards)/i,
             /^(save|saved|you saved)/i,
             /^(coupon|discount|promotion)/i,
-            /^items\s+in\s+transaction/i,
-            /^balance\s+to\s+pay/i,
 
-            // ============ STORE OPERATION CODES AND IDS ============
+            // Store operation codes and IDs
             /^(st#|store|op|operator|te|terminal)/i,
             /^(tc#|transaction|seq|sequence)/i,
-            /^[\d\s]{10,}$/,
+            /^[\d\s]{10,}$/, // Long strings of numbers and spaces
 
-            // ============ ITEMS SOLD COUNTER ============
+            // Items sold counter
             /^#?\s*items?\s+sold/i,
             /^\d+\s+items?\s+sold/i,
 
-            // ============ BARCODE NUMBERS (STANDALONE) ============
+            // Barcode numbers (standalone)
             /^[\d\s]{15,}$/,
 
             // ============ HY-VEE SPECIFIC PATTERNS ============
+            // Hy-Vee subtotal and total patterns
             /^(sub-total|subtotal|sub total)/i,
             /^(net amount|netamount|net)/i,
-            /^subtotal\s*\[\d+\]/i,
-            /btl\s+dep/i,
-            /btl\.\s+dep/i,
-            /bottle\s+deposit/i,
-            /deposit/i,
-            /^\.?\d+\s*fs?\s*btl\s*dep/i,
-            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^(total|amount)$/i,
+            /^subtotal\s*\[\d+\]/i, // "SUBTOTAL [18]"
+
+            // Bottle deposit lines - these are fees, not inventory items
+            /btl\s+dep/i,        // "BTL DEP"
+            /btl\.\s+dep/i,        // "BTL.DEP"
+            /bottle\s+deposit/i,  // "BOTTLE DEPOSIT"
+            /deposit/i,           // Generic deposit
+            /^\.?\d+\s*fs?\s*btl\s*dep/i, // ".30 FS BTL DEP"
+
+            // Bottle deposit with OCR periods/punctuation
+            /btl\.\s+dep/i,        // "BTL.DEP" - OCR adds periods
+            /btl\s*\.\s*dep/i,     // "BTL . DEP" - OCR with spaced periods
+            /bottle\.\s+deposit/i, // "BOTTLE.DEPOSIT"
+
+            // Tax calculation lines (based on actual OCR output)
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i, // "; X 23.93 @ 6.000% = 1.44"
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,        // "I 23.93 @ 1.000% = 0.24"
 
             // Variations with punctuation and OCR artifacts
-            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
-            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
 
             // Also add these additional OCR artifact patterns:
-            /^manual\s*weight/i,
-            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,
+            /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,                // Weight calculation line
 
             // Tax reference fragments (OCR splitting)
-            /^x\s+\d+\s+\d+\s+\d+$/i,
-            /^[tx]\s+\d+(\s+\d+)*$/i,
+            /^x\s+\d+\s+\d+\s+\d+$/i,    // "X 6 1 44" - tax calculation fragments
+            /^[tx]\s+\d+(\s+\d+)*$/i,    // "T 23" or "X 6 1 44" patterns
 
             // Subtotal/total fragments (OCR number splitting)
-            /^\d+\s+\d+\s+\d+\s+\d+$/i,
-            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,  // "1 1 0 24" - numbers split by OCR
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i, // Specific pattern for split totals
 
             // Receipt formatting artifacts
-            /^[\d\s]+\d{2}$/i,
-            /^[a-z]\s+[\d\s]+$/i,
+            /^[\d\s]+\d{2}$/i,           // Lines that are just spaced numbers ending in 2 digits
+            /^[a-z]\s+[\d\s]+$/i,        // Single letter followed by spaced numbers
 
             // Mathematical operation fragments
-            /^@\s*\d+\.\d+%/i,
-            /^=\s*[\d\s]+$/i,
-            /^\d+\.\d+%\s*=?$/i,
+            /^@\s*\d+\.\d+%/i,           // "@ 6.000%" - calculation fragments
+            /^=\s*[\d\s]+$/i,            // "= 1 44" - result fragments
+            /^\d+\.\d+%\s*=?$/i,         // "6.000% =" - percentage fragments
 
             // OCR misreads of common receipt elements
-            /^sub\s*total\s*[\[\d\]]*$/i,
-            /^total\s*[\[\d\]]*$/i,
+            /^sub\s*total\s*[\[\d\]]*$/i, // "SUB TOTAL [18]" or variations
+            /^total\s*[\[\d\]]*$/i,       // "TOTAL [18]" or variations
 
             // Additional Hy-Vee specific OCR issues
-            /employee\s*owned/i,
-            /storeman/i,
-            /group.*hy.*vee/i,
+            /employee\s*owned/i,          // Header text
+            /storeman/i,                  // "StoreManagement" fragments
+            /group.*hy.*vee/i,           // URL fragments
 
             // Generic OCR line-splitting artifacts
-            /^[\d\s]{3,}$/,
-            /^[a-z]{1,2}\s+[\d\s]+$/i,
+            /^[\d\s]{3,}$/,              // Lines of just numbers and spaces (3+ chars)
+            /^[a-z]{1,2}\s+[\d\s]+$/i,   // 1-2 letters followed by spaced numbers
+
+            // Tax calculation lines
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i, // "23.93 @ 6.000% = 1.44"
+            /^[tx]\s+\d+\.\d+\s*@/i, // "T 23.93 @"
+
+            // Standalone tax/percentage lines
+            /^\d+\.\d+%\s*=/i,    // "6.000% = 1.44"
+            /^=\s*\d+\.\d+$/i,    // "= 1.44"
+
+            // Weight and measurement lines
+            /^\d+\.?\d*\s*x\s*\$?\d+\.?\d*$/i,
+            /^\d+\.\d+\s*lb\s*@/i, // "10.258 LB @"
+            /manual\s*weight/i,    // "Manual Weight"
+            /^\d+\.\d+\s*usd\/lb/i, // "2.98 USD/LB"
+
+            // Discount/savings lines (negative amounts or percentage discounts)
+            /^\d+%?\s*(off|discount|save)/i,
+            /^\(\$\d+\.\d{2}\)$/,  // Negative amounts in parentheses
+            /^-\$?\d+\.\d{2}$/,    // Negative amounts with minus sign
+
+            // Product codes that aren't actual items
+            /^\d{10,}$/,
+
+            // Weight only lines
+            /^\d+\.?\d*x?$/i,
+
+            // Lines that are just numbers and measurement units
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
+
+            // Discount lines with product codes and percentages
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
+
+            // Fuel rewards and loyalty programs
+            /fuel\s*saver/i,
+            /fuel\s*reward/i,
+            /\d+\s+fuel\s+saver/i,
+            /hormel\s*loins/i,
+            /\d+\s+hormel\s*loins/i,
+
+            // Tax lines
+            /^(ia|iowa)\s+state/i,
+            /^linn\s+county/i,
+            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%/i,
+            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%/i,
+
+            // Cart and spending promotions
+            /bottom\s*of\s*cart/i,
+            /spend\s*\$?\d+/i,
+            /\d+x\s*\d+of\d+/i,
+
+            // Payment information section
+            /^payment\s*information/i,
+            /^total\s*paid/i,
+
+            // OCR parsing errors
+            /^[a-z]\s*—?\s*$/i,
+            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
+
+            // Deals and coupons section
+            /deals\s*&?\s*coupons/i,
+            /view\s*coupons/i,
 
             // ============ SAM'S CLUB SPECIFIC PATTERNS ============
+            // Instant Savings (V INST SV) - These are discounts, not items
             /^v\s+inst\s+sv/i,
             /^e\s+v\s+inst\s+sv/i,
             /^v\s+inst\s+sv.*\d+\.\d{2}[-\s]*[nt]$/i,
+
+            // Sam's Club specific instant savings patterns
             /inst\s+sv.*[-\s]*[nt]$/i,
             /instant\s+sav/i,
-            /^\d+\.\d{2}[-\s]*[nt]$/i,
+
+            // Sam's Club membership and payment lines
+            /^(member|membership)/i,
+            /^(plus|advantage)/i,
+
+            // Sam's Club specific discount patterns
+            /^\d+\.\d{2}[-\s]*[nt]$/i, // Prices ending with -N or -T (negative)
+
+            // Payment due and tender lines
             /tenbe\s*due/i,
             /tender\s*due/i,
             /change\s*due/i,
             /amount\s*due/i,
             /balance\s*due/i,
+
+            // Card transaction lines
             /voided\s*bankcard/i,
             /bank\s*card/i,
             /transaction\s*not\s*complete/i,
-            /^es\s*\|?\s*~?tenbe/i,
+
+            // Sam's Club specific footer patterns
+            /^es\s*\|?\s*~?tenbe/i, // "Es |~TENBE DUE"
             /^es\s*\|?\s*~?tender/i,
             /^es\s*\|?\s*~?change/i,
+
+            // Generic payment completion patterns
             /transaction\s*complete/i,
+            /transaction\s*not\s*complete/i,
             /debit\s*tend/i,
             /cash\s*tend/i,
+
+            // Sam's Club specific codes and IDs
             /terminal\s*#/i,
-            /^[\d\s]{8,}$/,
-            /\d+\.\d{2}[-\s]*n$/i,
-            /\d+\.\d{2}[-\s]*t$/i,
+            /^[\d\s]{8,}$/,  // Long number sequences (transaction IDs)
+
+            // Additional negative amount patterns
+            /\d+\.\d{2}[-\s]*n$/i,  // Amounts ending with -N
+            /\d+\.\d{2}[-\s]*t$/i,   // Amounts ending with -T
 
             // ============ TARGET SPECIFIC PATTERNS ============
             // Quantity-only lines (these are part of the previous item)
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^\d+\s*ea$/i,
-            /^ea$/i,
+            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,        // "2 @ $3.89 ea"
+            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,             // "2 @ $3.89"
+            /^\d+\s*ea$/i,                            // "2 ea"
+            /^ea$/i,                                  // Just "ea"
 
             // Regular price lines (discount information)
-            /^regular\s+price/i,
-            /^reg\s+price/i,
-            /^was\s+\$?\d+\.\d{2}/i,
+            /^regular\s+price/i,                      // "Regular Price $5.59"
+            /^reg\s+price/i,                          // "Reg Price"
+            /^was\s+\$?\d+\.\d{2}/i,                 // "Was $5.59"
 
             // Target tax calculation patterns
-            /^t\s*=\s*ia\s+tax/i,
-            /^[t]\s*-\s*ia\s+tax/i,
-            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,
+            /^t\s*=\s*ia\s+tax/i,                    // "T = IA TAX 7.00000 on $15.96"
+            /^[t]\s*-\s*ia\s+tax/i,                  // Variations with dash
+            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,      // "7.00000 on $15.96"
 
             // Payment method lines
-            /^\*?\d{4}\s+debit\s+total/i,
-            /^aid[:;]\s*[a-z0-9]+/i,
-            /^auth\s+code[:;]/i,
-            /^us\s+debit/i,
+            /^\*?\d{4}\s+debit\s+total/i,            // "*8642 DEBIT TOTAL PAYMENT"
+            /^aid[:;]\s*[a-z0-9]+/i,                 // "AID: A000000098040"
+            /^auth\s+code[:;]/i,                     // "AUTH CODE: 395098"
+            /^us\s+debit/i,                          // "US DEBIT"
 
             // Return policy text
             /when\s+you\s+return/i,
@@ -760,282 +580,200 @@ This bypasses iOS PWA camera limitations.`;
             /cedar\s+rapids/i,
             /blairs\s+ferry/i,
             /iowa\s+\d{5}/i,
-            /\d{3}-\d{3}-\d{4}/i,
+            /\d{3}-\d{3}-\d{4}/i,  // Phone numbers
 
             // Additional Target-specific footer patterns
-            /^nf$/i,
-            /^t$/i,
+            /^nf$/i,               // Tax code "NF"
+            /^t$/i,                // Tax code "T"
 
             // Standalone letters/codes that appear on separate lines
-            /^[a-z]$/i,
-            /^[nt]$/i,
+            /^[a-z]$/i,            // Single letters
+            /^[nt]$/i,             // N or T codes
 
             // Store section headers
             /^grocery$/i,
             /^home$/i,
             /^electronics$/i,
             /^clothing$/i,
-
-            // ============ TRADER JOE'S SPECIFIC PATTERNS ============
-            // Header and footer text
-            /^trader\s+joe/i,
-            /^neighborhood\s+grocery\s+store/i,
-            /^your\s+neighborhood/i,
-
-            // Quantity continuation lines (these are part of previous item)
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i, // "2 @ $8.49"
-            /^@\s*\$?\d+\.\d{2}$/i, // "@ $8.49"
-
-            // Transaction summary lines
-            /^items\s+in\s+transaction[:;]?\s*\d+/i, // "Items in Transaction:6"
-            /^balance\s+to\s+pay/i, // "Balance to pay"
-
-            // Receipt type indicators
-            /^customer\s+copy/i,
-            /^merchant\s+copy/i,
-
-            // Payment card info
-            /^type[:;]\s*(contactless|chip|swipe)/i,
-            /^aid[:;]\s*\*+/i,
-            /^tid[:;]\s*\*+/i,
-            /^nid[:;]\s*\*+/i,
-            /^mid[:;]\s*\*+/i,
-            /^auth\s+code[:;]/i,
-            /^approval\s+code/i,
-
-            // Footer instructions
-            /^no\s+cardholder\s+verification/i,
-            /^please\s+retain/i,
-            /^retain\s+for/i,
-            /^for\s+your\s+records/i,
-
-            // ============ SMITH'S (KROGER) SPECIFIC PATTERNS ============
-            // Store header info
-            /^smith's$/i,
-            /^smiths$/i,
-            /^kroger$/i,
-            /^\d+\s+s\.\s+maryland\s+pkwy/i, // Address patterns
-            /^\(\d{3}\)\s+\d{3}-\d{4}/i, // Phone number patterns
-
-            // Cashier and service info
-            /^your\s+cashier\s+was/i,
-            /^chec\s+\d+/i, // "CHEC 500"
-
-            // Customer loyalty patterns
-            /^fresh\s+value\s+customer/i,
-            /^kroger\s+plus/i,
-            /^fuel\s+points/i,
-            /^you\s+earned/i,
-            /^points\s+earned/i,
-
-            // Weight/pricing calculation lines
-            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb/i, // "0.12 lb @ $1.99 / lb"
-            /^wt\s+.*lb/i, // "WT" followed by weight info
-            /^\d+\.\d+\s*\/\s*lb/i, // "$1.99 / lb"
-
-            // Tax lines specific to Kroger/Smith's
-            /^tax/i,
-            /^\*+\s*balance/i,
-            /^balance\s*\*+/i,
-
-            // Receipt artifacts and codes
-            /^f$/i, // Tax code "F"
-            /^t$/i, // Tax code "T"
-            /^[f|t]\s*$/i, // Standalone tax codes
-
-            // OCR misreads of store-specific elements
-            /^ro\s+lrg/i, // OCR misread of item codes
-            /^darnc[n|g]/i, // OCR misread of "DANNON"
-            /^spwd\s+gr/i, // OCR misread of item codes
-
-            // ============ GENERIC OCR ARTIFACTS AND DISCOUNTS ============
-            /^manual\s*weight/i,
-            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,
-            /^[tx]\s+\d+\.\d+/i,
-            /^\d+\.\d+%/i,
-            /^=\s*\d+\.\d+$/i,
-            /^[\d\s]{3,}$/,
-            /^[a-z]{1,2}\s+[\d\s]+$/i,
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i,
-            /^\d+\.\d+\s*x\s*\$?\d+\.\d{2}$/i,
-            /^\d+\.?\d*x?$/i,
-            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
-            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
-            /fuel\s*saver/i,
-            /fuel\s*reward/i,
-            /\d+\s+fuel\s+saver/i,
-            /hormel\s*loins/i,
-            /\d+\s+hormel\s*loins/i,
-            /^(ia|iowa)\s+state/i,
-            /^linn\s+county/i,
-            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%/i,
-            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%/i,
-            /bottom\s*of\s*cart/i,
-            /spend\s*\$?\d+/i,
-            /\d+x\s*\d+of\d+/i,
-            /^payment\s*information/i,
-            /^total\s*paid/i,
-            /^[a-z]\s*—?\s*$/i,
-            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
-            /deals\s*&?\s*coupons/i,
-            /view\s*coupons/i,
         ];
 
-        console.log(`📄 Processing ${lines.length} lines from receipt...`);
-
-        // Process lines with enhanced context awareness
+        // Process lines with context awareness
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+            const prevLine = i > 0 ? lines[i - 1] : '';
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
-                console.log(`📋 Skipping pattern match: ${line}`);
+                console.log(`Skipping pattern match: ${line}`);
                 continue;
             }
 
-            // Check for quantity continuation pattern (Trader Joe's style)
-            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
-                console.log(`📋 Skipping quantity continuation line: ${line}`);
+            // ============ ENHANCED HY-VEE FILTERING ============
+            // Skip bottle deposit lines specifically
+            if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
+                console.log(`Skipping bottle deposit: ${line}`);
                 continue;
             }
 
-            // ============ ENHANCED TRADER JOE'S PROCESSING ============
-            // Check for Trader Joe's quantity continuation pattern
-            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i) && prevLine) {
-                console.log(`📋 TJ's: Skipping quantity continuation line: ${line} (part of: ${prevLine})`);
+            // Skip tax calculation lines
+            if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
+                console.log(`Skipping tax calculation: ${line}`);
                 continue;
             }
 
-            // Skip total amount that equals entire transaction
-            if (line.match(/^fo\s+ui\s+geting/i)) {
-                console.log(`📋 TJ's: Skipping transaction total line: ${line}`);
+            // Skip weight information lines
+            if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
+                console.log(`Skipping weight info: ${line}`);
                 continue;
             }
 
-            // Check for lines that are just prices without descriptive text (likely totals)
-            if (line.match(/^\$?\d+\.\d{2}$/)) {
-                const linePrice = line.match(pricePattern);
-                if (linePrice && parseFloat(linePrice[1]) > 25) { // Likely total if > $25
-                    console.log(`📋 TJ's: Skipping likely total amount: ${line}`);
-                    continue;
-                }
-            }
-
-            // ============ ENHANCED SMITH'S (KROGER) PROCESSING ============
-            // Skip weight information lines that are part of weighted items
-            if (line.match(/^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/?\s*lb/i)) {
-                console.log(`📋 Smith's: Skipping weight info line: ${line}`);
+            // Skip lines that are just mathematical calculations or references
+            if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
+                console.log(`Skipping calculation line: ${line}`);
                 continue;
             }
 
-            // Skip lines that are clearly OCR artifacts from Smith's receipts
-            if (line.match(/^[a-z]{1,3}\s*$/i) && line.length <= 4) {
-                console.log(`📋 Smith's: Skipping short OCR artifact: ${line}`);
+            // ============ ENHANCED SAM'S CLUB FILTERING ============
+            // Skip lines that are clearly instant savings (discounts)
+            if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`Skipping instant savings: ${line}`);
                 continue;
             }
 
-            // ============ ENHANCED PRICE DETECTION ============
+            // Skip lines with negative amounts (discounts)
+            if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`Skipping negative amount: ${line}`);
+                continue;
+            }
+
+            // Skip zero-amount lines (like "Es |~TENBE DUE 0.00")
+            if (line.match(/\$?0\.00/i)) {
+                console.log(`Skipping zero amount: ${line}`);
+                continue;
+            }
+
+            // Skip payment/tender related lines
+            if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
+                console.log(`Skipping payment line: ${line}`);
+                continue;
+            }
+
+            // ============ TARGET-SPECIFIC PROCESSING ============
+            // Skip if this line is just a quantity/price continuation of previous item
+            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
+                console.log(`Skipping quantity line (part of previous item): ${line}`);
+                continue;
+            }
+
+            // Skip regular price lines
+            if (line.match(/^regular\s+price/i)) {
+                console.log(`Skipping regular price line: ${line}`);
+                continue;
+            }
+
+            // Skip tax calculation lines
+            if (line.match(/^t\s*=\s*ia\s+tax/i) || line.match(/^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i)) {
+                console.log(`Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just whitespace or tax codes
+            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
+                console.log(`Skipping tax code or whitespace: ${line}`);
+                continue;
+            }
+
+            // ============ ENHANCED DISCOUNT FILTERING ============
+            // Skip discount lines (negative amounts or percentage-based)
+            if (line.match(/^\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                console.log(`Skipping discount line: ${line}`);
+                continue;
+            }
+
+            // Skip lines that contain discount codes with percentages
+            if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                console.log(`Skipping discount code line: ${line}`);
+                continue;
+            }
+
+            // Skip measurement calculation lines
+            if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
+                console.log(`Skipping measurement line: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just weights/measurements
+            if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
+                console.log(`Skipping weight line: ${line}`);
+                continue;
+            }
+
+            // Skip specific total lines (case insensitive)
+            if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
+                console.log(`Skipping total line: ${line}`);
+                continue;
+            }
+
+            // ============ ENHANCED NEGATIVE AMOUNT DETECTION ============
+            // Check for negative amounts in various formats
+            const negativeAmountPatterns = [
+                /^.*-\$?\d+\.\d{2}$/i,        // Ends with negative amount
+                /^.*\s+-\$?\d+\.\d{2}$/i,     // Space before negative amount
+                /^.*\s+\$?-\d+\.\d{2}$/i,     // Dollar sign before negative
+            ];
+
+            // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
                 const price = parseFloat(priceMatch[1]);
 
-                // Skip very high prices that are likely totals (over $50)
-                if (price > 50) {
-                    console.log(`📋 Skipping high price line (likely total): ${line}`);
+                // Skip very high prices that are likely totals (over $100)
+                if (price > 100) {
+                    console.log(`Skipping high price line (likely total): ${line}`);
                     continue;
                 }
 
-                // Skip very low prices that are likely tax or fees (under $0.10)
-                if (price < 0.10) {
-                    console.log(`📋 Skipping very low price (likely fee): ${line}`);
+                // Skip negative amounts
+                if (negativeAmountPatterns.some(pattern => pattern.test(line))) {
+                    console.log(`Skipping negative amount line: ${line}`);
                     continue;
                 }
 
+                // ============ ENHANCED TARGET ITEM PROCESSING ============
                 let nameMatch = line;
                 let itemPrice = price;
                 let quantity = 1;
                 let unitPrice = price;
 
-                // ============ ENHANCED TRADER JOE'S QUANTITY HANDLING ============
-                // Check if next line contains Trader Joe's quantity information
-                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
+                // Check if next line contains quantity information
+                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea$/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
                         unitPrice = parseFloat(qtyMatch[2]);
                         itemPrice = quantity * unitPrice;
-                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
-
-                        // Verify the math matches the price on the main line
-                        if (Math.abs(itemPrice - price) < 0.01) {
-                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
-                        } else {
-                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
-                            itemPrice = price;
-                            quantity = 1;
-                            unitPrice = price;
-                        }
+                        console.log(`Found quantity info in next line: ${quantity} @ $${unitPrice}`);
                     }
                 }
 
-                // ============ ENHANCED TARGET-STYLE QUANTITY HANDLING ============
+                // Check if current line contains embedded quantity information
                 const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
                 if (embeddedQtyMatch) {
                     nameMatch = embeddedQtyMatch[1];
                     quantity = parseInt(embeddedQtyMatch[2]);
                     unitPrice = parseFloat(embeddedQtyMatch[3]);
                     itemPrice = quantity * unitPrice;
-                    console.log(`📋 Embedded quantity found: ${quantity} @ ${unitPrice}`);
                 } else {
                     // Remove price from name
                     nameMatch = line.replace(pricePattern, '').trim();
                 }
 
-                // ============ ENHANCED NAME CLEANING ============
+                // Clean up the item name
                 nameMatch = cleanItemName(nameMatch);
 
-                // ============ ENHANCED SMITH'S NAME PROCESSING ============
-                // Handle Smith's specific abbreviations and OCR issues
-                if (nameMatch.match(/^ro\s+lrg\s+white\s+bak/i)) {
-                    nameMatch = "King's Hawaiian White Bread";
-                } else if (nameMatch.match(/^darn?c?n?\s+l[ef]\s+yogu?rt/i)) {
-                    nameMatch = "Dannon Light & Fit Yogurt";
-                } else if (nameMatch.match(/^spwd\s+gr\s+mwc/i)) {
-                    nameMatch = "Ground Turkey";
-                } else if (nameMatch.match(/^silk\s+alm?ond/i)) {
-                    nameMatch = "Silk Almond Milk";
-                } else if (nameMatch.match(/^sara\s+ml?tgrn\s+bread/i)) {
-                    nameMatch = "Sara Lee Multigrain Bread";
-                } else if (nameMatch.match(/^csdt\s+tomato/i)) {
-                    nameMatch = "Crushed Tomatoes";
-                } else if (nameMatch.match(/^org\s+hummus/i)) {
-                    nameMatch = "Organic Hummus";
-                } else if (nameMatch.match(/^veggiecraft\s+pasta/i)) {
-                    nameMatch = "Veggiecraft Pasta";
-                } else if (nameMatch.match(/^kroger\s+carrots/i)) {
-                    nameMatch = "Kroger Carrots";
-                } else if (nameMatch.match(/^onions?\s+shallots?/i)) {
-                    nameMatch = "Onions & Shallots";
-                } else if (nameMatch.match(/^sto\s+parsley/i)) {
-                    nameMatch = "Fresh Parsley";
-                }
-
-                // ============ ENHANCED TRADER JOE'S NAME PROCESSING ============
-                // Handle common Trader Joe's item names and OCR issues
-                if (nameMatch.match(/^org\s+mini\s+peanut\s+butter/i)) {
-                    nameMatch = "Organic Mini Peanut Butter Cups";
-                } else if (nameMatch.match(/^peanut\s+crunchy\s+crispy/i)) {
-                    nameMatch = "Peanut Butter Crunchy & Crispy";
-                } else if (nameMatch.match(/^cold\s+brew\s+coffee\s+bags/i)) {
-                    nameMatch = "Cold Brew Coffee Bags";
-                } else if (nameMatch.match(/^popcorn\s+synergistically/i)) {
-                    nameMatch = "Synergistically Seasoned Popcorn";
-                } else if (nameMatch.match(/^crackers\s+sandwich\s+every/i)) {
-                    nameMatch = "Sandwich Crackers";
-                }
-
-                // Enhanced ground beef detection and cleaning (all stores)
+                // Enhanced ground beef detection and cleaning
+                // Convert "80% 20% FT GRD BF" to "80/20 Ground Beef"
                 if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
                     const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
                     if (percentMatch) {
@@ -1043,19 +781,17 @@ This bypasses iOS PWA camera limitations.`;
                     }
                 }
 
-                // Check for UPC
+                // Check for UPC in current or nearby lines
                 const upcMatch = line.match(upcPattern) ||
                     (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
                     (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
 
-                // Only process if we have a meaningful item name
-                if (nameMatch && nameMatch.length > 2 &&
-                    !nameMatch.match(/^\d+\.?\d*$/) &&
-                    !nameMatch.match(/^[tx]\s*\d/i) &&
-                    !nameMatch.match(/^(visa|card|payment|total|balance)$/i)) {
+                // Check for quantity pattern
+                const qtyMatch = line.match(quantityPattern);
 
-                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ $${unitPrice} = $${itemPrice}`);
-
+                // Only process if we have a meaningful item name (more than 2 characters, not just numbers)
+                if (nameMatch && nameMatch.length > 2 && !nameMatch.match(/^\d+\.?\d*$/) && !nameMatch.match(/^[tx]\s*\d/i)) {
+                    console.log(`Processing item: ${nameMatch} - Qty: ${quantity} @ $${unitPrice} = $${itemPrice}`);
                     const item = {
                         id: Date.now() + Math.random(),
                         name: nameMatch,
@@ -1065,72 +801,33 @@ This bypasses iOS PWA camera limitations.`;
                         upc: upcMatch ? upcMatch[0] : '',
                         category: guessCategory(nameMatch),
                         location: guessLocation(nameMatch),
-                        rawText: line + (nextLine && nextLine.match(/^\d+\s*@.*$/i) ? ` + ${nextLine}` : ''),
-                        selected: true,
+                        rawText: line + (nextLine && nextLine.match(/^\d+\s*@.*ea$/i) ? ` + ${nextLine}` : ''),
+                        selected: true, // Selected by default
                         needsReview: false
                     };
 
                     items.push(item);
                 } else {
-                    console.log(`📋 Skipping line with insufficient name: "${nameMatch}" from "${line}"`);
+                    console.log(`Skipping line with insufficient name: ${line}`);
                 }
             }
         }
 
-        console.log(`📋 Extracted ${items.length} items from receipt`);
+        // Combine duplicate items based on UPC code
         return combineDuplicateItems(items);
     }
 
-    // Enhanced cleanItemName function (keeping existing logic)
-    function cleanItemName(name) {
-        // Remove UPC codes at the beginning
-        name = name.replace(/^\d{8,}\s+/, '');
-
-        // Remove common store tax codes and artifacts
-        name = name.replace(/\s+NF\s*$/i, '');
-        name = name.replace(/\s+T\s*$/i, '');
-        name = name.replace(/\s+F\s*$/i, '');
-        name = name.replace(/\s+HOME\s*$/i, '');
-
-        // Remove quantity patterns that might have been missed
-        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
-
-        // Remove long product codes and discount info
-        name = name.replace(/^\d{10,}/, '').trim();
-        name = name.replace(/\d+%:?/, '').trim();
-        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim();
-        name = name.replace(/[-\s]*[nt]$/i, '').trim();
-        name = name.replace(/\s*-\s*$/, '').trim();
-
-        // Handle specific brand conversions
-        if (name.match(/birds?\s*eye/i)) {
-            name = "Birds Eye";
-        } else if (name.match(/frosty\s*paws/i)) {
-            name = "Frosty Paws";
-        } else if (name.match(/gg\s*vegetable/i)) {
-            name = "Great Grains Vegetable";
-        }
-
-        // Clean up common OCR artifacts
-        name = name.replace(/[^\w\s\-&']/g, ' ');
-        name = name.replace(/\s+/g, ' ');
-        name = name.trim();
-
-        // Capitalize properly
-        return name.split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-    }
-
-    // Combine duplicate items function
+// Combine items with the same UPC code or identical names
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
 
-        // Group by UPC code first (most reliable)
+        // First pass: Group by UPC code (most reliable)
         items.forEach(item => {
             if (item.upc && item.upc.length >= 11) {
+                // Clean UPC for consistent matching
                 const cleanUPC = item.upc.replace(/\D/g, '');
+
                 if (!upcGroups[cleanUPC]) {
                     upcGroups[cleanUPC] = [];
                 }
@@ -1138,6 +835,7 @@ This bypasses iOS PWA camera limitations.`;
             } else {
                 // Items without UPC codes - check for name matching
                 const cleanName = item.name.toLowerCase().trim();
+
                 if (!nameGroups[cleanName]) {
                     nameGroups[cleanName] = [];
                 }
@@ -1150,187 +848,183 @@ This bypasses iOS PWA camera limitations.`;
         // Process UPC groups
         Object.values(upcGroups).forEach(group => {
             if (group.length === 1) {
+                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
+                // Multiple items with same UPC - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = totalPrice / totalQuantity;
+                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
 
+                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (UPC): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random()
+                    id: Date.now() + Math.random() // New ID for combined item
                 };
 
                 combinedItems.push(combinedItem);
-                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name}`);
+
+                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name} (Total qty: ${totalQuantity})`);
             }
         });
 
         // Process name groups (items without UPC)
         Object.values(nameGroups).forEach(group => {
             if (group.length === 1) {
+                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
+                // Multiple items with same name - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = totalPrice / totalQuantity;
+                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
 
+                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random()
+                    id: Date.now() + Math.random() // New ID for combined item
                 };
 
                 combinedItems.push(combinedItem);
-                console.log(`Combined ${group.length} items by name: ${firstItem.name}`);
+
+                console.log(`Combined ${group.length} items by name: ${firstItem.name} (Total qty: ${totalQuantity})`);
             }
         });
 
         return combinedItems;
     }
 
-    // Category guessing function
+    /// Enhanced cleanItemName function with support for all stores
+    function cleanItemName(name) {
+        // Remove UPC codes at the beginning (Target and others put them first)
+        name = name.replace(/^\d{8,}\s+/, '');
+
+        // Remove common store tax codes and artifacts
+        name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
+        name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
+        name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
+
+        // Remove quantity patterns that might have been missed
+        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
+
+        // Remove long product codes and discount info
+        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
+        name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
+        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
+        name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
+        name = name.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
+
+        // Handle specific brand conversions for Target
+        if (name.match(/birds?\s*eye/i)) {
+            name = "Birds Eye";
+        } else if (name.match(/frosty\s*paws/i)) {
+            name = "Frosty Paws";
+        } else if (name.match(/gg\s*vegetable/i)) {
+            name = "Great Grains Vegetable";
+        }
+
+        // Clean up common OCR artifacts
+        name = name.replace(/[^\w\s\-&']/g, ' '); // Remove special chars except common ones
+        name = name.replace(/\s+/g, ' '); // Normalize whitespace
+        name = name.trim();
+
+        // Capitalize properly
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+// Guess category based on item name
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
-        // Dairy products
-        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('yoghurt')) {
+        if (nameLower.includes('milk') || nameLower.includes('cheese') || nameLower.includes('yogurt')) {
             return 'Dairy';
         }
-        if (nameLower.includes('cheese') || nameLower.includes('cheddar') || nameLower.includes('mozzarella')) {
-            return 'Cheese';
-        }
-
-        // Bread products
-        if (nameLower.includes('bread') || nameLower.includes('bagel') || nameLower.includes('rolls') ||
-            nameLower.includes('bun') || nameLower.includes('bak')) {
+        if (nameLower.includes('bread') || nameLower.includes('bagel') || nameLower.includes('rolls')) {
             return 'Breads';
         }
-
-        // Fresh produce
-        if (nameLower.includes('apple') || nameLower.includes('banana') || nameLower.includes('orange') ||
-            nameLower.includes('lemon') || nameLower.includes('lime')) {
+        if (nameLower.includes('apple') || nameLower.includes('banana') || nameLower.includes('orange')) {
             return 'Fresh Fruits';
         }
-        if (nameLower.includes('lettuce') || nameLower.includes('tomato') || nameLower.includes('carrot') ||
-            nameLower.includes('onion') || nameLower.includes('shallot') || nameLower.includes('parsley')) {
+        if (nameLower.includes('lettuce') || nameLower.includes('tomato') || nameLower.includes('carrot')) {
             return 'Fresh Vegetables';
         }
-
-        // Meat products
-        if (nameLower.includes('chicken') || nameLower.includes('poultry')) {
+        if (nameLower.includes('chicken') || nameLower.includes('beef') || nameLower.includes('pork')) {
             return 'Fresh/Frozen Poultry';
         }
-        if (nameLower.includes('beef') || nameLower.includes('ground beef')) {
-            return 'Fresh/Frozen Beef';
-        }
-        if (nameLower.includes('pork') || nameLower.includes('ham') || nameLower.includes('bacon')) {
-            return 'Fresh/Frozen Pork';
-        }
-        if (nameLower.includes('turkey') || nameLower.includes('ground turkey')) {
-            return 'Fresh/Frozen Poultry';
-        }
-
-        // Grains and cereals
         if (nameLower.includes('cereal') || nameLower.includes('oats') || nameLower.includes('rice')) {
             return 'Grains';
         }
-
-    // Pasta
-    if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti') ||
-        nameLower.includes('veggiecraft')) {
-        return 'Pasta';
-    }
-
-        // Beverages
-        if (nameLower.includes('coffee') || nameLower.includes('brew') || nameLower.includes('drink') ||
-            nameLower.includes('juice') || nameLower.includes('soda')) {
-            return 'Beverages';
+        if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti')) {
+            return 'Pasta';
         }
-
-        // Canned goods
         if (nameLower.includes('soup') || nameLower.includes('can') || nameLower.includes('sauce')) {
             return 'Canned Meals';
         }
-        if (nameLower.includes('tomato') && (nameLower.includes('crushed') || nameLower.includes('csdt'))) {
-            return 'Canned Tomatoes';
+        // Enhanced categories for Target items
+        if (nameLower.includes('birds eye') || nameLower.includes('frozen vegetable')) {
+            return 'Frozen Vegetables';
+        }
+        if (nameLower.includes('frosty paws') || nameLower.includes('ice cream') || nameLower.includes('frozen treat')) {
+            return 'Frozen Fruit'; // or could be 'Frozen Desserts' if you have that category
         }
 
-    // Snacks
-    if (nameLower.includes('cracker') || nameLower.includes('popcorn') || nameLower.includes('chip')) {
-        return 'Snacks';
-    }
-    if (nameLower.includes('peanut') && nameLower.includes('butter') && nameLower.includes('cup')) {
-        return 'Snacks';
+        return 'Other';
     }
 
-    // Frozen items
-    if (nameLower.includes('birds eye') || nameLower.includes('frozen vegetable')) {
-        return 'Frozen Vegetables';
-    }
-    if (nameLower.includes('frosty paws') || nameLower.includes('ice cream') || nameLower.includes('frozen treat')) {
-        return 'Frozen Fruit';
-    }
-
-    // Specialty items
-    if (nameLower.includes('hummus')) {
-        return 'Condiments';
-    }
-
-    return 'Other';
-}
-
-    // Location guessing function
+// UPDATED: Guess storage location with kitchen cabinets option
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
-    if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
-        return 'freezer';
-    }
-    if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
-        return 'fridge';
-    }
-    // Kitchen cabinets for spices, seasonings, and cooking essentials
-    if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
-        nameLower.includes('salt') || nameLower.includes('pepper') ||
-        nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
-        nameLower.includes('cumin') || nameLower.includes('paprika') ||
-        nameLower.includes('oregano') || nameLower.includes('thyme') ||
-        nameLower.includes('vanilla') || nameLower.includes('extract') ||
-        nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
-        nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
-        nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
-        nameLower.includes('hot sauce') || nameLower.includes('honey')) {
-        return 'kitchen';
-    }
+        if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
+            return 'freezer';
+        }
+        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
+            return 'fridge';
+        }
+        // ADDED: Kitchen cabinets for spices, seasonings, and cooking essentials
+        if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
+            nameLower.includes('salt') || nameLower.includes('pepper') ||
+            nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
+            nameLower.includes('cumin') || nameLower.includes('paprika') ||
+            nameLower.includes('oregano') || nameLower.includes('thyme') ||
+            nameLower.includes('vanilla') || nameLower.includes('extract') ||
+            nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
+            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
+            nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
+            nameLower.includes('hot sauce') || nameLower.includes('honey')) {
+            return 'kitchen';
+        }
 
         return 'pantry';
     }
 
-    // Update item function
+// Update item in the list
     function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? {...item, [field]: value} : item
         ));
     }
 
-    // Toggle item selection
+// Toggle item selection
     function toggleItemSelection(itemId) {
         setExtractedItems(prev => prev.map(item =>
             item.id === itemId ? {...item, selected: !item.selected} : item
         ));
     }
 
-    // UPC checksum calculation
+// Calculate UPC check digit using standard algorithm
     function calculateUPCCheckDigit(upc12) {
         if (upc12.length !== 12) return null;
 
@@ -1338,9 +1032,9 @@ This bypasses iOS PWA camera limitations.`;
         for (let i = 0; i < 12; i++) {
             const digit = parseInt(upc12[i]);
             if (i % 2 === 0) {
-                sum += digit * 1;
+                sum += digit * 1; // Even positions (0,2,4,6,8,10) multiply by 1
             } else {
-                sum += digit * 3;
+                sum += digit * 3; // Odd positions (1,3,5,7,9,11) multiply by 3
             }
         }
 
@@ -1348,10 +1042,11 @@ This bypasses iOS PWA camera limitations.`;
         return checkDigit;
     }
 
-    // UPC lookup function
+// Lookup item by UPC with intelligent check digit calculation
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
+        // Function to try UPC lookup with a specific code
         async function tryUPCLookup(upcCode) {
             const response = await fetch(`/api/upc/lookup?upc=${upcCode}`);
             if (!response.ok) {
@@ -1364,33 +1059,51 @@ This bypasses iOS PWA camera limitations.`;
         try {
             const originalUPC = item.upc;
             const upcVariations = [];
+            let calculatedVariation = null;
 
+            // Strategy 1: Try original UPC first
             upcVariations.push(originalUPC);
 
+            // Strategy 2: If 12 digits, calculate the correct check digit
             if (originalUPC.length === 12) {
                 const checkDigit = calculateUPCCheckDigit(originalUPC);
                 if (checkDigit !== null) {
-                    upcVariations.push(originalUPC + checkDigit);
+                    calculatedVariation = originalUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
             }
 
+            // Strategy 3: If 11 digits, pad with zero and calculate check digit
             if (originalUPC.length === 11) {
                 const paddedUPC = '0' + originalUPC;
                 upcVariations.push(paddedUPC);
 
                 const checkDigit = calculateUPCCheckDigit(paddedUPC);
                 if (checkDigit !== null) {
-                    upcVariations.push(paddedUPC + checkDigit);
+                    calculatedVariation = paddedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
             }
 
-            console.log(`📱 UPC lookup for ${originalUPC}`);
+            // Strategy 4: If 13 digits, try removing last digit and recalculating
+            if (originalUPC.length === 13) {
+                const truncatedUPC = originalUPC.slice(0, -1);
+                const checkDigit = calculateUPCCheckDigit(truncatedUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = truncatedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
+                }
+            }
 
+            console.log(`Smart UPC lookup for ${originalUPC}. Calculated variation: ${calculatedVariation}`);
+
+            // Try the smart variations first (original + calculated)
             for (const upcCode of upcVariations) {
                 try {
                     const data = await tryUPCLookup(upcCode);
 
                     if (data && data.success && data.product && data.product.found) {
+                        // Update item with product information
                         if (data.product.name && data.product.name !== 'Unknown Product') {
                             updateItem(item.id, 'name', data.product.name);
                         }
@@ -1403,9 +1116,11 @@ This bypasses iOS PWA camera limitations.`;
                             updateItem(item.id, 'brand', data.product.brand);
                         }
 
+                        // Update the UPC with the working version
                         updateItem(item.id, 'upc', upcCode);
                         updateItem(item.id, 'needsReview', false);
 
+                        // Show success message
                         let successMessage = `✅ Product found: ${data.product.name}`;
                         if (data.product.brand) {
                             successMessage += ` (${data.product.brand})`;
@@ -1418,7 +1133,7 @@ This bypasses iOS PWA camera limitations.`;
                         }
 
                         alert(successMessage);
-                        return;
+                        return; // Success, exit function
                     }
                 } catch (error) {
                     console.log(`UPC ${upcCode} failed:`, error.message);
@@ -1426,15 +1141,68 @@ This bypasses iOS PWA camera limitations.`;
                 }
             }
 
-            alert(`❌ Product not found for UPC ${originalUPC}`);
+            // Strategy 5: Only if smart calculation fails, try brute force (with user confirmation)
+            const shouldTryAll = confirm(`❓ Smart UPC lookup failed for ${originalUPC}.\n\nTry checking all possible check digits? This will make multiple API calls.`);
+
+            if (shouldTryAll && originalUPC.length === 12) {
+                console.log('User approved brute force UPC search');
+
+                // Try all possible check digits 0-9 (excluding calculated one already tried)
+                for (let i = 0; i <= 9; i++) {
+                    const testUPC = originalUPC + i;
+
+                    // Skip if we already tried this one
+                    if (calculatedVariation && testUPC === calculatedVariation) {
+                        continue;
+                    }
+
+                    try {
+                        const data = await tryUPCLookup(testUPC);
+
+                        if (data && data.success && data.product && data.product.found) {
+                            // Update item with product information
+                            if (data.product.name && data.product.name !== 'Unknown Product') {
+                                updateItem(item.id, 'name', data.product.name);
+                            }
+
+                            if (data.product.category && data.product.category !== 'Other') {
+                                updateItem(item.id, 'category', data.product.category);
+                            }
+
+                            if (data.product.brand) {
+                                updateItem(item.id, 'brand', data.product.brand);
+                            }
+
+                            updateItem(item.id, 'upc', testUPC);
+                            updateItem(item.id, 'needsReview', false);
+
+                            let successMessage = `✅ Product found: ${data.product.name}`;
+                            if (data.product.brand) {
+                                successMessage += ` (${data.product.brand})`;
+                            }
+                            successMessage += `\nCorrected UPC: ${originalUPC} → ${testUPC}`;
+                            successMessage += `\n(Found via brute force search)`;
+
+                            alert(successMessage);
+                            return;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+            }
+
+            // If we get here, nothing worked
+            const attemptedCount = shouldTryAll ? 'all variations' : `${upcVariations.length} smart variations`;
+            alert(`❌ Product not found for UPC ${originalUPC} (tried ${attemptedCount})`);
 
         } catch (error) {
-            console.error('❌ UPC lookup error:', error);
+            console.error('UPC lookup error:', error);
             alert('❌ Network error during UPC lookup. Please check your connection and try again.');
         }
     }
 
-    // Add items to inventory
+// Add selected items to inventory
     async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
 
@@ -1459,7 +1227,7 @@ This bypasses iOS PWA camera limitations.`;
                         unit: 'item',
                         location: item.location,
                         upc: item.upc,
-                        expirationDate: null
+                        expirationDate: null // User can set this later
                     })
                 })
             );
@@ -1467,17 +1235,21 @@ This bypasses iOS PWA camera limitations.`;
             await Promise.all(promises);
 
             setProcessingStatus('Complete!');
+
+            // Show success message
             alert(`✅ Successfully added ${selectedItems.length} items to your inventory!`);
+
+            // Redirect to inventory page
             router.push('/inventory');
 
         } catch (error) {
-            console.error('❌ Error adding items:', error);
+            console.error('Error adding items:', error);
             alert('Error adding some items. Please try again.');
             setStep('review');
         }
     }
 
-    // Report issue functionality
+// Report issue functionality
     function openReportModal() {
         setReportData({
             issue: '',
@@ -1489,6 +1261,7 @@ This bypasses iOS PWA camera limitations.`;
         setShowReportModal(true);
     }
 
+// FIXED: Handle report modal file uploads (renamed to avoid conflict)
     function handleReportFileUpload(event) {
         const files = Array.from(event.target.files);
         const validFiles = files.filter(file => {
@@ -1532,15 +1305,16 @@ This bypasses iOS PWA camera limitations.`;
             formData.append('issue', reportData.issue);
             formData.append('description', reportData.description);
             formData.append('email', reportData.email);
-            formData.append('isPWA', isPWA.toString());
-            formData.append('userAgent', navigator.userAgent);
 
+            // If there's a receipt image, include it
             if (reportData.receiptImage) {
+                // Convert image URL to blob
                 const response = await fetch(reportData.receiptImage);
                 const blob = await response.blob();
                 formData.append('receiptImage', blob, 'receipt.jpg');
             }
 
+            // Add additional files
             reportData.additionalFiles.forEach((file, index) => {
                 formData.append(`additionalFile_${index}`, file, file.name);
             });
@@ -1551,20 +1325,22 @@ This bypasses iOS PWA camera limitations.`;
             });
 
             if (response.ok) {
-                alert('✅ Thank you! Your issue report has been sent.');
+                alert('✅ Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.');
                 setShowReportModal(false);
             } else {
                 throw new Error('Failed to send report');
             }
         } catch (error) {
-            console.error('❌ Error sending issue report:', error);
+            console.error('Error sending issue report:', error);
             alert('❌ Failed to send issue report. Please try again.');
         }
     }
 
     function resetScan() {
+        // Stop camera first
         stopCamera();
 
+        // Reset all state
         setStep('upload');
         setCapturedImage(prevImage => {
             if (prevImage) {
@@ -1578,6 +1354,7 @@ This bypasses iOS PWA camera limitations.`;
         setProcessingStatus('');
         setCameraError(null);
 
+        // Clear file input
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -1586,19 +1363,12 @@ This bypasses iOS PWA camera limitations.`;
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Enhanced Header with iOS PWA indicator */}
+                {/* Header */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">📄 Receipt Scanner</h1>
-                            <div className="flex items-center space-x-2">
-                                <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
-                                {isPWA && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                        iOS PWA
-                                    </span>
-                                )}
-                            </div>
+                            <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
                         </div>
                         <TouchEnhancedButton
                             onClick={() => router.push('/inventory')}
@@ -1622,7 +1392,6 @@ This bypasses iOS PWA camera limitations.`;
                                     </h3>
                                     <p className="text-gray-600 mb-6">
                                         Take a photo or upload an image of your shopping receipt
-                                        {isPWA && ' (iOS PWA Mode)'}
                                     </p>
                                 </div>
 
@@ -1634,9 +1403,7 @@ This bypasses iOS PWA camera limitations.`;
                                     >
                                         <div className="text-4xl mb-2">📷</div>
                                         <div className="text-lg font-medium text-indigo-700">Take Photo</div>
-                                        <div className="text-sm text-gray-500">
-                                            {isPWA ? 'Use camera (iOS PWA)' : 'Use device camera'}
-                                        </div>
+                                        <div className="text-sm text-gray-500">Use device camera</div>
                                     </TouchEnhancedButton>
 
                                     {/* Upload Option */}
@@ -1659,17 +1426,25 @@ This bypasses iOS PWA camera limitations.`;
                                 />
 
                                 {/* Error display */}
-                                {cameraError && <ReceiptScannerErrorDisplay />}
+                                {cameraError && (
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                        <div className="text-red-700">❌ {cameraError}</div>
+                                        <div className="text-sm text-red-600 mt-2">
+                                            Please try using the upload option instead, or check your camera
+                                            permissions.
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Tips */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
+                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best
+                                        Results:</h4>
                                     <ul className="text-sm text-blue-800 space-y-1">
                                         <li>• Ensure receipt is flat and well-lit</li>
                                         <li>• Avoid shadows and glare</li>
                                         <li>• Include the entire receipt in the frame</li>
                                         <li>• Higher resolution images work better</li>
-                                        {isPWA && <li>• iOS PWA may take longer to initialize camera</li>}
                                     </ul>
                                 </div>
 
@@ -1677,8 +1452,9 @@ This bypasses iOS PWA camera limitations.`;
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                     <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                     <p className="text-sm text-yellow-800 mb-3">
-                                        If the receipt scanner isn't working properly{isPWA && ' (especially in iOS PWA mode)'},
-                                        you can report the issue to help us improve it.
+                                        If the receipt scanner isn't working properly with your receipt, you can
+                                        report
+                                        the issue to help us improve it.
                                     </p>
                                     <TouchEnhancedButton
                                         onClick={openReportModal}
@@ -1690,16 +1466,15 @@ This bypasses iOS PWA camera limitations.`;
                             </div>
                         )}
 
-                        {/* Camera View */}
+                        {/* Camera View - Simplified */}
                         {showCamera && (
-                            <div className="space-y-4" data-camera-container>
+                            <div className="space-y-4">
                                 <div className="text-center">
-                                    <h3 className="text-lg font-medium mb-4">
-                                        📷 Camera View {isPWA && '(iOS PWA)'}
-                                    </h3>
+                                    <h3 className="text-lg font-medium mb-4">📷 Camera View</h3>
                                 </div>
 
                                 <div className="relative bg-black rounded-lg overflow-hidden">
+                                    {/* Simple video container */}
                                     <video
                                         ref={videoRef}
                                         autoPlay
@@ -1712,16 +1487,20 @@ This bypasses iOS PWA camera limitations.`;
                                         }}
                                     />
 
-                                    {/* Overlay */}
-                                    <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
-                                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                            📱 Position receipt here {isPWA && '(iOS PWA)'}
+                                    {/* Simple overlay */}
+                                    <div
+                                        className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
+                                        <div
+                                            className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            📱 Position receipt here
                                         </div>
-                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        <div
+                                            className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            📱 Keep receipt flat and well-lit
+                                        </div>
+                                        <div
+                                            className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                             📏 Fill frame completely
-                                        </div>
-                                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                            ✨ Keep receipt flat and well-lit
                                         </div>
                                     </div>
                                 </div>
@@ -1741,25 +1520,25 @@ This bypasses iOS PWA camera limitations.`;
                                     </TouchEnhancedButton>
                                 </div>
 
-                                {/* Debug info */}
+                                {/* Simple debug for camera view */}
                                 <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                     Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
-                                    {isPWA && ' • iOS PWA Mode'}
                                 </div>
                             </div>
                         )}
 
-                        {/* Processing Step */}
+                        {/* Step 2: Processing */}
                         {step === 'processing' && (
                             <div className="text-center space-y-6">
                                 <div className="text-6xl mb-4">🔍</div>
                                 <h3 className="text-lg font-medium text-gray-900">
-                                    Processing Receipt {isPWA && '(iOS PWA)'}
+                                    Processing Receipt
                                 </h3>
                                 <p className="text-gray-600 mb-6">
                                     {processingStatus}
                                 </p>
 
+                                {/* Progress Bar */}
                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                                     <div
                                         className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
@@ -1777,26 +1556,22 @@ This bypasses iOS PWA camera limitations.`;
                                     </div>
                                 )}
 
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-
-                                {isPWA && (
-                                    <div className="text-xs text-orange-600 mt-2">
-                                        iOS PWA processing may take slightly longer
-                                    </div>
-                                )}
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                             </div>
                         )}
 
-                        {/* Review Items Step */}
+                        {/* Step 3: Review Items */}
                         {step === 'review' && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h3 className="text-lg font-medium text-gray-900">
-                                            Review Extracted Items {isPWA && '(iOS PWA)'}
+                                            Review Extracted Items
                                         </h3>
                                         <p className="text-gray-600">
-                                            {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected
+                                            {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
+                                            selected
                                         </p>
                                     </div>
                                     <div className="flex space-x-2">
@@ -1836,8 +1611,9 @@ This bypasses iOS PWA camera limitations.`;
                                 <div className="space-y-4">
                                     {extractedItems.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">
-                                            No items were extracted from the receipt. Please try again with a clearer image.
-                                            {isPWA && ' iOS PWA OCR processing may be affected by image quality.'}
+                                            No items were extracted from the receipt. Please try again with a
+                                            clearer
+                                            image.
                                         </div>
                                     ) : (
                                         extractedItems.map((item) => (
@@ -1846,6 +1622,7 @@ This bypasses iOS PWA camera limitations.`;
                                                 className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
                                             >
                                                 <div className="flex items-start space-x-3">
+                                                    {/* Selection Checkbox */}
                                                     <input
                                                         type="checkbox"
                                                         checked={item.selected}
@@ -1853,9 +1630,12 @@ This bypasses iOS PWA camera limitations.`;
                                                         className="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                                     />
 
+                                                    {/* Item Details */}
                                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        {/* Name */}
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            <label
+                                                                className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Item Name
                                                             </label>
                                                             <input
@@ -1866,8 +1646,10 @@ This bypasses iOS PWA camera limitations.`;
                                                             />
                                                         </div>
 
+                                                        {/* Category */}
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            <label
+                                                                className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Category
                                                             </label>
                                                             <select
@@ -1876,33 +1658,57 @@ This bypasses iOS PWA camera limitations.`;
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                             >
                                                                 <option value="Other">Other</option>
-                                                                <option value="Fresh Vegetables">Fresh Vegetables</option>
+                                                                <option value="Fresh Vegetables">Fresh Vegetables
+                                                                </option>
                                                                 <option value="Fresh Fruits">Fresh Fruits</option>
                                                                 <option value="Fresh Spices">Fresh Spices</option>
                                                                 <option value="Dairy">Dairy</option>
                                                                 <option value="Cheese">Cheese</option>
                                                                 <option value="Eggs">Eggs</option>
-                                                                <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                                                <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                                                <option value="Fresh/Frozen Poultry">Fresh/Frozen
+                                                                    Poultry
+                                                                </option>
+                                                                <option value="Fresh/Frozen Beef">Fresh/Frozen Beef
+                                                                </option>
+                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork
+                                                                </option>
+                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb
+                                                                </option>
+                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen
+                                                                    Rabbit
+                                                                </option>
+                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen
+                                                                    Venison
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                    Fish & Seafood
+                                                                </option>
                                                                 <option value="Beans">Beans</option>
-                                                                <option value="Canned Meat">Canned/Jarred Meat</option>
-                                                                <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
-                                                                <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                                                <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                                                <option value="Canned Beans">Canned/Jarred Beans</option>
-                                                                <option value="Canned Meals">Canned/Jarred Meals</option>
-                                                                <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                                                <option value="Canned Meat">Canned/Jarred Meat
+                                                                </option>
+                                                                <option value="Canned Vegetables">Canned/Jarred
+                                                                    Vegetables
+                                                                </option>
+                                                                <option value="Canned Fruit">Canned/Jarred Fruit
+                                                                </option>
+                                                                <option value="Canned Sauces">Canned/Jarred Sauces
+                                                                </option>
+                                                                <option value="Canned Tomatoes">Canned/Jarred
+                                                                    Tomatoes
+                                                                </option>
+                                                                <option value="Canned Beans">Canned/Jarred Beans
+                                                                </option>
+                                                                <option value="Canned Meals">Canned/Jarred Meals
+                                                                </option>
+                                                                <option value="Frozen Vegetables">Frozen Vegetables
+                                                                </option>
                                                                 <option value="Frozen Fruit">Frozen Fruit</option>
                                                                 <option value="Grains">Grains</option>
                                                                 <option value="Breads">Breads</option>
                                                                 <option value="Pasta">Pasta</option>
-                                                                <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                                                <option value="Stuffing & Sides">Stuffing & Sides
+                                                                </option>
                                                                 <option value="Boxed Meals">Boxed Meals</option>
                                                                 <option value="Seasonings">Seasonings</option>
                                                                 <option value="Spices">Spices</option>
@@ -1914,9 +1720,11 @@ This bypasses iOS PWA camera limitations.`;
                                                             </select>
                                                         </div>
 
+                                                        {/* Quantity & Location */}
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Qty
                                                                 </label>
                                                                 <input
@@ -1928,7 +1736,8 @@ This bypasses iOS PWA camera limitations.`;
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Location
                                                                 </label>
                                                                 <select
@@ -1937,7 +1746,8 @@ This bypasses iOS PWA camera limitations.`;
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
                                                                     <option value="pantry">Pantry</option>
-                                                                    <option value="kitchen">Kitchen Cabinets</option>
+                                                                    <option value="kitchen">Kitchen Cabinets
+                                                                    </option>
                                                                     <option value="fridge">Fridge</option>
                                                                     <option value="freezer">Freezer</option>
                                                                     <option value="other">Other</option>
@@ -1946,6 +1756,7 @@ This bypasses iOS PWA camera limitations.`;
                                                         </div>
                                                     </div>
 
+                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */}
                                                     {item.upc && (
                                                         <TouchEnhancedButton
                                                             onClick={() => lookupByUPC(item)}
@@ -1957,7 +1768,9 @@ This bypasses iOS PWA camera limitations.`;
                                                     )}
                                                 </div>
 
-                                                <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
+                                                {/* Additional Info */}
+                                                <div
+                                                    className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
                                                     {item.upc && <span>UPC: {item.upc}</span>}
                                                     <span className="text-xs bg-gray-200 px-2 py-1 rounded">
@@ -1971,23 +1784,24 @@ This bypasses iOS PWA camera limitations.`;
                             </div>
                         )}
 
-                        {/* Adding to Inventory Step */}
+                        {/* Step 4: Adding to Inventory */}
                         {step === 'adding' && (
                             <div className="text-center space-y-6">
                                 <div className="text-6xl mb-4">📦</div>
                                 <h3 className="text-lg font-medium text-gray-900">
-                                    Adding Items to Inventory {isPWA && '(iOS PWA)'}
+                                    Adding Items to Inventory
                                 </h3>
                                 <p className="text-gray-600 mb-6">
                                     {processingStatus}
                                 </p>
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Hidden canvas for photo capture */}
+                {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden"/>
 
                 {/* Report Issue Modal */}
@@ -1996,9 +1810,7 @@ This bypasses iOS PWA camera limitations.`;
                         <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
                             <div className="p-6">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        📧 Report Receipt Issue {isPWA && '(iOS PWA)'}
-                                    </h3>
+                                    <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
                                     <TouchEnhancedButton
                                         onClick={() => setShowReportModal(false)}
                                         className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -2022,15 +1834,12 @@ This bypasses iOS PWA camera limitations.`;
                                         >
                                             <option value="">Select an issue...</option>
                                             <option value="camera-not-working">Camera not working</option>
-                                            <option value="camera-black-screen">Camera shows black screen</option>
-                                            <option value="ios-pwa-camera-issues">iOS PWA camera issues</option>
                                             <option value="ocr-poor-accuracy">Poor text recognition</option>
                                             <option value="wrong-items-detected">Wrong items detected</option>
                                             <option value="missing-items">Items not detected</option>
                                             <option value="categories-wrong">Wrong categories assigned</option>
                                             <option value="upc-lookup-failed">UPC lookup not working</option>
                                             <option value="app-crash">App crashed/froze</option>
-                                            <option value="permission-issues">Camera permission issues</option>
                                             <option value="other">Other issue</option>
                                         </select>
                                     </div>
@@ -2093,7 +1902,9 @@ This bypasses iOS PWA camera limitations.`;
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max 10MB each)
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP
+                                                (max
+                                                10MB each)
                                             </p>
 
                                             {reportData.additionalFiles.length > 0 && (
@@ -2102,7 +1913,8 @@ This bypasses iOS PWA camera limitations.`;
                                                         Files to be sent ({reportData.additionalFiles.length}):
                                                     </p>
                                                     {reportData.additionalFiles.map((file, index) => (
-                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                                             <div className="flex items-center space-x-2">
                                                                 <span className="text-sm">📸</span>
                                                                 <span className="text-sm text-gray-700 truncate">
@@ -2133,10 +1945,10 @@ This bypasses iOS PWA camera limitations.`;
                                             <li>• Your issue description</li>
                                             {capturedImage && <li>• Receipt image</li>}
                                             {reportData.additionalFiles.length > 0 && (
-                                                <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                <li>• {reportData.additionalFiles.length} additional
+                                                    screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
                                             )}
                                             <li>• Browser and device information</li>
-                                            <li>• iOS PWA mode status</li>
                                             <li>• No personal information from your account</li>
                                         </ul>
                                     </div>
