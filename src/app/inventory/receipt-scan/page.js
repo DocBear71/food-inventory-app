@@ -93,9 +93,9 @@ export default function ReceiptScan() {
         );
     }
 
-    // Consolidated iOS PWA camera initialization with better error handling
+    // Enhanced iOS PWA camera initialization with immediate permission request
     async function initializeCameraStream() {
-        console.log('📱 Starting consolidated camera initialization...');
+        console.log('📱 Starting iOS PWA-optimized camera initialization...');
 
         try {
             const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -107,64 +107,73 @@ export default function ReceiptScan() {
             }
 
             let stream = null;
-            const strategies = [];
 
             if (isIOSPWA) {
-                // iOS PWA strategies - exactly matching barcode scanner
-                strategies.push(
-                    // Strategy 1: Environment camera with quality settings
-                    {
-                        name: 'iOS PWA Environment High Quality',
-                        constraints: {
+                // iOS PWA: Immediate simple permission request first
+                console.log('📱 iOS PWA: Requesting immediate camera permission...');
+
+                try {
+                    // Step 1: Get permission with absolute minimal constraints
+                    const permissionStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+
+                    console.log('✅ iOS PWA: Initial permission granted');
+
+                    // Step 2: Stop the permission stream immediately
+                    permissionStream.getTracks().forEach(track => track.stop());
+
+                    // Step 3: Wait a moment for iOS to process the permission
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Step 4: Now try to get a proper stream with better constraints
+                    console.log('📱 iOS PWA: Requesting optimized stream...');
+
+                    const strategies = [
+                        // Very conservative constraints for iOS PWA
+                        {
                             video: {
-                                facingMode: { ideal: "environment" },
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 },
-                                frameRate: { ideal: 30, min: 15 },
-                                focusMode: "continuous"
-                            },
-                            audio: false
-                        }
-                    },
-                    // Strategy 2: Basic environment camera
-                    {
-                        name: 'iOS PWA Environment Basic',
-                        constraints: {
-                            video: { facingMode: "environment" },
-                            audio: false
-                        }
-                    },
-                    // Strategy 3: Any camera with basic resolution
-                    {
-                        name: 'iOS PWA Any Camera',
-                        constraints: {
-                            video: {
+                                facingMode: "environment",
                                 width: { ideal: 640 },
                                 height: { ideal: 480 }
                             },
                             audio: false
-                        }
-                    },
-                    // Strategy 4: User camera fallback
-                    {
-                        name: 'iOS PWA User Camera',
-                        constraints: {
-                            video: { facingMode: "user" },
+                        },
+                        // Even simpler fallback
+                        {
+                            video: { facingMode: "environment" },
                             audio: false
-                        }
-                    },
-                    // Strategy 5: Minimal constraints
-                    {
-                        name: 'iOS PWA Minimal',
-                        constraints: {
+                        },
+                        // Absolute simplest
+                        {
                             video: true,
                             audio: false
                         }
+                    ];
+
+                    for (let i = 0; i < strategies.length; i++) {
+                        try {
+                            console.log(`📱 iOS PWA: Trying strategy ${i + 1}`);
+                            stream = await navigator.mediaDevices.getUserMedia(strategies[i]);
+                            console.log(`✅ iOS PWA: Success with strategy ${i + 1}`);
+                            break;
+                        } catch (strategyError) {
+                            console.log(`❌ iOS PWA: Strategy ${i + 1} failed:`, strategyError.message);
+                            if (i === strategies.length - 1) {
+                                throw strategyError;
+                            }
+                        }
                     }
-                );
+
+                } catch (permissionError) {
+                    console.error('❌ iOS PWA: Permission request failed:', permissionError);
+                    throw new Error(`iOS PWA camera permission failed: ${permissionError.message}`);
+                }
+
             } else {
-                // Standard strategies for non-iOS PWA
-                strategies.push(
+                // Standard (non-iOS PWA) initialization
+                const strategies = [
                     {
                         name: 'Standard Environment High Quality',
                         constraints: {
@@ -188,34 +197,35 @@ export default function ReceiptScan() {
                             video: true
                         }
                     }
-                );
-            }
+                ];
 
-            // Try each strategy
-            for (let i = 0; i < strategies.length; i++) {
-                const strategy = strategies[i];
-                console.log(`📱 Trying strategy ${i + 1}/${strategies.length}: ${strategy.name}`);
+                // Try each strategy for non-PWA
+                for (let i = 0; i < strategies.length; i++) {
+                    const strategy = strategies[i];
+                    console.log(`📱 Trying strategy: ${strategy.name}`);
 
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
-                    console.log(`✅ Success with ${strategy.name}:`, {
-                        tracks: stream.getTracks().length,
-                        videoTracks: stream.getVideoTracks().length,
-                        settings: stream.getVideoTracks()[0]?.getSettings()
-                    });
-                    break;
-                } catch (error) {
-                    console.log(`❌ ${strategy.name} failed:`, error.name, error.message);
-                    if (i === strategies.length - 1) {
-                        throw error; // Last strategy failed
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
+                        console.log(`✅ Success with ${strategy.name}`);
+                        break;
+                    } catch (error) {
+                        console.log(`❌ ${strategy.name} failed:`, error.message);
+                        if (i === strategies.length - 1) {
+                            throw error;
+                        }
                     }
-                    // Try next strategy
                 }
             }
 
             if (!stream) {
                 throw new Error('All camera initialization strategies failed');
             }
+
+            console.log('✅ Camera stream obtained:', {
+                tracks: stream.getTracks().length,
+                videoTracks: stream.getVideoTracks().length,
+                settings: stream.getVideoTracks()[0]?.getSettings()
+            });
 
             return stream;
 
@@ -271,28 +281,44 @@ export default function ReceiptScan() {
                 throw new Error('Video element not found after waiting');
             }
 
-            // Configure video element for iOS PWA
+            // Configure video element for iOS PWA with enhanced settings
             const video = videoRef.current;
 
-            // iOS PWA specific setup
+            // iOS PWA specific setup with more aggressive settings
             if (isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                // Set all iOS-specific attributes before setting srcObject
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('webkit-playsinline', 'true');
+                video.setAttribute('preload', 'metadata');
                 video.muted = true;
                 video.autoplay = true;
                 video.controls = false;
                 video.style.objectFit = 'cover';
-                console.log('📱 Applied iOS PWA video attributes');
-            }
+                video.style.width = '100%';
+                video.style.height = '100%';
 
-            // Set video source
-            video.srcObject = stream;
+                console.log('📱 Applied enhanced iOS PWA video attributes');
+
+                // Set source and wait for it to be ready
+                video.srcObject = stream;
+
+                // Force immediate play attempt for iOS PWA
+                try {
+                    await video.play();
+                    console.log('📱 iOS PWA: Video play successful immediately');
+                } catch (playError) {
+                    console.log('📱 iOS PWA: Initial play failed, will retry in metadata handler');
+                }
+            } else {
+                // Standard setup for non-PWA
+                video.srcObject = stream;
+            }
 
             // Wait for video to load and play with enhanced iOS PWA handling
             await new Promise((resolve, reject) => {
                 const timeoutId = setTimeout(() => {
-                    reject(new Error('Video initialization timeout'));
-                }, isIOSPWA ? 15000 : 10000); // Longer timeout for iOS PWA
+                    reject(new Error('Video initialization timeout after ' + (isIOSPWA ? '20' : '10') + ' seconds'));
+                }, isIOSPWA ? 20000 : 10000); // Even longer timeout for iOS PWA
 
                 const onLoadedMetadata = () => {
                     video.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -300,7 +326,20 @@ export default function ReceiptScan() {
                     clearTimeout(timeoutId);
 
                     console.log(`📄 Camera ready: ${video.videoWidth}x${video.videoHeight}`);
-                    resolve();
+
+                    // For iOS PWA, ensure video is playing after metadata loads
+                    if (isIOSPWA && video.paused) {
+                        console.log('📱 iOS PWA: Ensuring video plays after metadata load');
+                        video.play().then(() => {
+                            console.log('📱 iOS PWA: Video playing after metadata');
+                            resolve();
+                        }).catch((playError) => {
+                            console.log('📱 iOS PWA: Play after metadata failed, but continuing:', playError);
+                            resolve(); // Continue anyway, might work
+                        });
+                    } else {
+                        resolve();
+                    }
                 };
 
                 const onError = (e) => {
@@ -313,26 +352,23 @@ export default function ReceiptScan() {
                 video.addEventListener('loadedmetadata', onLoadedMetadata);
                 video.addEventListener('error', onError);
 
-                // Enhanced video play handling for iOS PWA
-                const playPromise = video.play();
-                if (playPromise !== undefined) {
-                    playPromise
-                        .then(() => {
-                            console.log('📱 Video play successful');
-                        })
-                        .catch((playError) => {
-                            console.log('📱 Video play failed, retrying...', playError);
-                            // Enhanced retry for iOS PWA
-                            setTimeout(() => {
-                                video.play().catch(e => {
-                                    console.log('📱 Video play retry failed:', e);
-                                    // Final attempt with user interaction simulation
-                                    setTimeout(() => {
-                                        video.play().catch(e2 => console.log('📱 Final video play attempt failed:', e2));
-                                    }, 200);
-                                });
-                            }, 100);
-                        });
+                // Enhanced video play handling for iOS PWA - multiple attempts
+                if (!isIOSPWA) {
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log('📱 Video play successful');
+                            })
+                            .catch((playError) => {
+                                console.log('📱 Video play failed, retrying...', playError);
+                                setTimeout(() => {
+                                    video.play().catch(e => {
+                                        console.log('📱 Video play retry failed:', e);
+                                    });
+                                }, 100);
+                            });
+                    }
                 }
             });
 
@@ -1287,10 +1323,11 @@ This bypasses iOS PWA camera limitations.`;
             return 'Grains';
         }
 
-        // Pasta
-        if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti')) {
-            return 'Pasta';
-        }
+    // Pasta
+    if (nameLower.includes('pasta') || nameLower.includes('noodle') || nameLower.includes('spaghetti') ||
+        nameLower.includes('veggiecraft')) {
+        return 'Pasta';
+    }
 
         // Beverages
         if (nameLower.includes('coffee') || nameLower.includes('brew') || nameLower.includes('drink') ||

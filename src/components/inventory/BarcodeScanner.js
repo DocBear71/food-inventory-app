@@ -145,9 +145,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         return {valid: true, cleanCode};
     }, []);
 
-    // Consolidated camera initialization function
+    // Enhanced iOS PWA camera initialization with immediate permission request
     const initializeCameraStream = useCallback(async () => {
-        console.log('📱 Starting consolidated camera initialization for barcode scanner...');
+        console.log('📱 Starting iOS PWA-optimized camera initialization for barcode scanner...');
 
         try {
             const isIOSPWA = isPWA && /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -159,64 +159,73 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
 
             let stream = null;
-            const strategies = [];
 
             if (isIOSPWA) {
-                // iOS PWA strategies - ordered from most specific to most general
-                strategies.push(
-                    // Strategy 1: Environment camera with quality settings
-                    {
-                        name: 'iOS PWA Environment High Quality',
-                        constraints: {
+                // iOS PWA: Immediate simple permission request first
+                console.log('📱 iOS PWA: Requesting immediate camera permission...');
+
+                try {
+                    // Step 1: Get permission with absolute minimal constraints
+                    const permissionStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+
+                    console.log('✅ iOS PWA: Initial permission granted');
+
+                    // Step 2: Stop the permission stream immediately
+                    permissionStream.getTracks().forEach(track => track.stop());
+
+                    // Step 3: Wait a moment for iOS to process the permission
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Step 4: Now try to get a proper stream with better constraints
+                    console.log('📱 iOS PWA: Requesting optimized stream...');
+
+                    const strategies = [
+                        // Very conservative constraints for iOS PWA
+                        {
                             video: {
-                                facingMode: {ideal: "environment"},
-                                width: {ideal: 1280, min: 640},
-                                height: {ideal: 720, min: 480},
-                                frameRate: {ideal: 30, min: 15},
-                                focusMode: "continuous"
-                            },
-                            audio: false
-                        }
-                    },
-                    // Strategy 2: Basic environment camera
-                    {
-                        name: 'iOS PWA Environment Basic',
-                        constraints: {
-                            video: {facingMode: "environment"},
-                            audio: false
-                        }
-                    },
-                    // Strategy 3: Any camera with basic resolution
-                    {
-                        name: 'iOS PWA Any Camera',
-                        constraints: {
-                            video: {
+                                facingMode: "environment",
                                 width: {ideal: 640},
                                 height: {ideal: 480}
                             },
                             audio: false
-                        }
-                    },
-                    // Strategy 4: User camera fallback
-                    {
-                        name: 'iOS PWA User Camera',
-                        constraints: {
-                            video: {facingMode: "user"},
+                        },
+                        // Even simpler fallback
+                        {
+                            video: {facingMode: "environment"},
                             audio: false
-                        }
-                    },
-                    // Strategy 5: Minimal constraints
-                    {
-                        name: 'iOS PWA Minimal',
-                        constraints: {
+                        },
+                        // Absolute simplest
+                        {
                             video: true,
                             audio: false
                         }
+                    ];
+
+                    for (let i = 0; i < strategies.length; i++) {
+                        try {
+                            console.log(`📱 iOS PWA: Trying strategy ${i + 1}`);
+                            stream = await navigator.mediaDevices.getUserMedia(strategies[i]);
+                            console.log(`✅ iOS PWA: Success with strategy ${i + 1}`);
+                            break;
+                        } catch (strategyError) {
+                            console.log(`❌ iOS PWA: Strategy ${i + 1} failed:`, strategyError.message);
+                            if (i === strategies.length - 1) {
+                                throw strategyError;
+                            }
+                        }
                     }
-                );
+
+                } catch (permissionError) {
+                    console.error('❌ iOS PWA: Permission request failed:', permissionError);
+                    throw new Error(`iOS PWA camera permission failed: ${permissionError.message}`);
+                }
+
             } else {
-                // Standard strategies for non-iOS PWA
-                strategies.push(
+                // Standard (non-iOS PWA) initialization
+                const strategies = [
                     {
                         name: 'Standard Environment High Quality',
                         constraints: {
@@ -240,34 +249,35 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             video: true
                         }
                     }
-                );
-            }
+                ];
 
-            // Try each strategy
-            for (let i = 0; i < strategies.length; i++) {
-                const strategy = strategies[i];
-                console.log(`📱 Trying strategy ${i + 1}/${strategies.length}: ${strategy.name}`);
+                // Try each strategy for non-PWA
+                for (let i = 0; i < strategies.length; i++) {
+                    const strategy = strategies[i];
+                    console.log(`📱 Trying strategy: ${strategy.name}`);
 
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
-                    console.log(`✅ Success with ${strategy.name}:`, {
-                        tracks: stream.getTracks().length,
-                        videoTracks: stream.getVideoTracks().length,
-                        settings: stream.getVideoTracks()[0]?.getSettings()
-                    });
-                    break;
-                } catch (error) {
-                    console.log(`❌ ${strategy.name} failed:`, error.name, error.message);
-                    if (i === strategies.length - 1) {
-                        throw error; // Last strategy failed
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(strategy.constraints);
+                        console.log(`✅ Success with ${strategy.name}`);
+                        break;
+                    } catch (error) {
+                        console.log(`❌ ${strategy.name} failed:`, error.message);
+                        if (i === strategies.length - 1) {
+                            throw error;
+                        }
                     }
-                    // Try next strategy
                 }
             }
 
             if (!stream) {
                 throw new Error('All camera initialization strategies failed');
             }
+
+            console.log('✅ Camera stream obtained:', {
+                tracks: stream.getTracks().length,
+                videoTracks: stream.getVideoTracks().length,
+                settings: stream.getVideoTracks()[0]?.getSettings()
+            });
 
             return stream;
 
@@ -674,8 +684,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     try {
                         await new Promise((resolve, reject) => {
                             const timeoutId = setTimeout(() => {
-                                reject(new Error('Video initialization timeout'));
-                            }, isIOSPWA ? 15000 : 10000); // Longer timeout for iOS PWA
+                                reject(new Error('Video initialization timeout after ' + (isIOSPWA ? '20' : '10') + ' seconds'));
+                            }, isIOSPWA ? 20000 : 10000); // Even longer timeout for iOS PWA
 
                             Quagga.init(currentConfig, (err) => {
                                 clearTimeout(timeoutId);
@@ -733,28 +743,28 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     video.style.zIndex = '1';
                                     video.style.background = 'black';
 
-                                    // iOS PWA specific attributes
+                                    // iOS PWA specific attributes with enhanced settings
                                     if (isIOSPWA) {
                                         video.setAttribute('playsinline', 'true');
                                         video.setAttribute('webkit-playsinline', 'true');
+                                        video.setAttribute('preload', 'metadata');
                                         video.muted = true;
                                         video.autoplay = true;
-                                        console.log('📱 Applied iOS PWA video attributes');
-                                    }
+                                        console.log('📱 Applied enhanced iOS PWA video attributes');
 
-                                    // Store reference for cleanup
-                                    videoElementRef.current = video;
-
-                                    // Ensure video is playing
-                                    if (video.paused) {
-                                        const playPromise = video.play();
-                                        if (playPromise !== undefined) {
-                                            playPromise.catch(e => {
-                                                console.log('📺 Video play failed:', e);
-                                                setTimeout(() => {
-                                                    video.play().catch(e2 => console.log('📺 Video retry failed:', e2));
-                                                }, 100);
-                                            });
+                                        // Force immediate play attempt for iOS PWA
+                                        if (video.paused) {
+                                            const playPromise = video.play();
+                                            if (playPromise !== undefined) {
+                                                playPromise.then(() => {
+                                                    console.log('📱 iOS PWA: Video play successful immediately');
+                                                }).catch(e => {
+                                                    console.log('📱 iOS PWA: Initial play failed, will retry:', e);
+                                                    setTimeout(() => {
+                                                        video.play().catch(e2 => console.log('📱 iOS PWA: Video retry failed:', e2));
+                                                    }, 100);
+                                                });
+                                            }
                                         }
                                     }
                                 });
