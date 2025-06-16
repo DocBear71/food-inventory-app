@@ -97,7 +97,7 @@ export default function ReceiptScan() {
         );
     }
 
-    // iOS PWA Camera Modal Component (only shows after camera attempts fail)
+    // iOS PWA Camera Modal Component - Enhanced with better UX
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
@@ -108,28 +108,42 @@ export default function ReceiptScan() {
                 <div className="bg-white rounded-xl max-w-md w-full p-6">
                     <div className="text-center">
                         <div className="text-4xl mb-4">📱</div>
-                        <h3 className="text-lg font-bold text-red-600 mb-2">
-                            iOS PWA Camera Failed
+                        <h3 className="text-lg font-bold text-blue-600 mb-2">
+                            iOS PWA Camera Workaround
                         </h3>
                         <p className="text-gray-600 mb-4">
-                            We tried multiple camera initialization methods, but iOS PWA camera access still failed.
+                            iOS has strict camera limitations in PWA mode. Let's use the next best option!
                         </p>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                        <h4 className="text-sm font-medium text-blue-900 mb-2">
-                            🔧 What we tried:
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-green-900 mb-2">
+                            📸 Recommended: Use Your Camera App
                         </h4>
-                        <ul className="text-sm text-blue-800 space-y-1">
-                            <li>• Multiple camera permission requests</li>
-                            <li>• Progressive constraint fallbacks</li>
-                            <li>• iOS-specific video element setup</li>
-                            <li>• User interaction triggers</li>
-                            <li>• Extended timeout handling</li>
-                        </ul>
+                        <div className="text-sm text-green-800 space-y-2">
+                            <p><strong>Step 1:</strong> Take a photo of your receipt with your iPhone camera</p>
+                            <p><strong>Step 2:</strong> Come back here and tap "Upload Receipt Image"</p>
+                            <p><strong>Step 3:</strong> Select the photo you just took</p>
+                        </div>
                     </div>
 
                     <div className="space-y-3">
+                        <TouchEnhancedButton
+                            onClick={() => {
+                                setShowIOSPWAModal(false);
+                                // Trigger file input immediately
+                                setTimeout(() => {
+                                    fileInputRef.current?.click();
+                                }, 100);
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-medium"
+                        >
+                            <span>📁</span>
+                            <span>Upload Receipt Image</span>
+                        </TouchEnhancedButton>
+
+                        <div className="text-center text-sm text-gray-500 my-2">or</div>
+
                         <TouchEnhancedButton
                             onClick={() => {
                                 // Open current page in Safari
@@ -144,24 +158,12 @@ export default function ReceiptScan() {
                         <TouchEnhancedButton
                             onClick={() => {
                                 setShowIOSPWAModal(false);
-                                // Trigger file input instead
-                                fileInputRef.current?.click();
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                            <span>📁</span>
-                            <span>Upload Receipt Image Instead</span>
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                setShowIOSPWAModal(false);
-                                // Try camera again with even more aggressive settings
-                                startCamera();
+                                // Try camera again with minimal constraints
+                                startCameraMinimal();
                             }}
                             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                         >
-                            🔄 Try Camera Again
+                            🔄 Try Minimal Camera Mode
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
@@ -173,12 +175,191 @@ export default function ReceiptScan() {
                     </div>
 
                     <div className="mt-4 text-center text-xs text-gray-500">
-                        {deviceInfo.userAgent.includes('iPhone') ? 'iPhone' : 'iOS'} {deviceInfo.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || ''} •
-                        PWA Mode • Advanced Camera Fixes Applied
+                        iOS PWA Camera Limitations
+                        • {deviceInfo.userAgent.includes('iPhone') ? 'iPhone' : 'iOS'} {deviceInfo.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || ''}
                     </div>
                 </div>
             </div>
         );
+    }
+
+    // Minimal camera attempt function (last resort)
+    async function startCameraMinimal() {
+        console.log('🔄 Trying minimal camera mode for iOS PWA...');
+        setCameraError(null);
+
+        try {
+            // Most basic camera request possible
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {width: 320, height: 240},
+                audio: false
+            });
+
+            if (stream && stream.getVideoTracks().length > 0) {
+                console.log('✅ Minimal camera mode worked!');
+                streamRef.current = stream;
+                setShowCamera(true);
+
+                // Basic video setup
+                setTimeout(() => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.play().catch(console.log);
+                    }
+                }, 500);
+            } else {
+                throw new Error('No video tracks in minimal stream');
+            }
+        } catch (error) {
+            console.log('❌ Even minimal camera mode failed:', error);
+            setCameraError('Camera not available in iOS PWA mode. Please use the upload option.');
+
+            // Auto-trigger upload as fallback
+            setTimeout(() => {
+                fileInputRef.current?.click();
+            }, 1000);
+        }
+    }
+
+    // Simplified camera start function - one attempt then fallback
+    async function startCamera() {
+        setCameraError(null);
+        console.log('📱 Starting camera with device info:', deviceInfo);
+
+        try {
+            // Check basic support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera API not supported');
+            }
+
+            // Stop any existing stream
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+
+            // For iOS PWA, try one optimized attempt then fallback gracefully
+            if (deviceInfo.isIOSPWA) {
+                console.log('📱 iOS PWA: Attempting camera with research-based approach...');
+
+                // Ensure HTTPS
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    throw new Error('Camera requires HTTPS in iOS PWA mode');
+                }
+
+                // Single optimized attempt based on research
+                const constraints = {
+                    video: {
+                        facingMode: "environment",
+                        width: {ideal: 640},
+                        height: {ideal: 480}
+                    },
+                    audio: false
+                };
+
+                try {
+                    // 5-second timeout for iOS PWA
+                    const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('iOS PWA camera timeout')), 5000)
+                    );
+
+                    const stream = await Promise.race([streamPromise, timeoutPromise]);
+
+                    if (stream && stream.getVideoTracks().length > 0) {
+                        console.log('✅ iOS PWA camera success!');
+                        streamRef.current = stream;
+                        setShowCamera(true);
+
+                        // Setup video with iOS PWA optimizations
+                        setTimeout(async () => {
+                            if (videoRef.current) {
+                                const video = videoRef.current;
+                                video.srcObject = stream;
+                                video.playsInline = true;
+                                video.muted = true;
+                                video.setAttribute('playsinline', 'true');
+                                video.setAttribute('webkit-playsinline', 'true');
+
+                                try {
+                                    await video.play();
+                                    console.log('✅ iOS PWA video playing');
+                                } catch (playError) {
+                                    console.log('iOS PWA video play issue:', playError);
+                                }
+                            }
+                        }, 200);
+
+                        return; // Success!
+                    } else {
+                        throw new Error('iOS PWA: No video tracks in stream');
+                    }
+                } catch (iosError) {
+                    console.log('❌ iOS PWA camera failed:', iosError.message);
+
+                    // Immediately show helpful fallback modal
+                    setShowIOSPWAModal(true);
+                    return;
+                }
+            }
+
+            // Standard camera logic for non-iOS PWA
+            else {
+                console.log('📱 Standard camera initialization...');
+
+                const constraints = deviceInfo.isIOS ? {
+                    video: {
+                        facingMode: 'environment',
+                        width: {ideal: 1280},
+                        height: {ideal: 720}
+                    }
+                } : {
+                    video: {
+                        facingMode: 'environment',
+                        width: {ideal: 1920, min: 1280},
+                        height: {ideal: 1080, min: 720}
+                    }
+                };
+
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (enhancedError) {
+                    console.log('Enhanced constraints failed, trying basic:', enhancedError);
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {facingMode: 'environment'}
+                    });
+                }
+
+                streamRef.current = stream;
+                setShowCamera(true);
+
+                // Standard video setup
+                setTimeout(() => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.play().catch(console.log);
+                    }
+                }, 100);
+            }
+
+        } catch (error) {
+            console.error('❌ Camera start failed:', error);
+
+            let errorMessage = 'Failed to start camera: ' + error.message;
+
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No camera found on this device.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = 'Camera is being used by another app.';
+            } else if (error.message.includes('HTTPS')) {
+                errorMessage = 'Camera requires HTTPS. Please access the app via HTTPS.';
+            }
+
+            setCameraError(errorMessage);
+        }
     }
 
     // Enhanced camera start function with iOS PWA fixes based on research
@@ -1800,20 +1981,20 @@ export default function ReceiptScan() {
                                     className="hidden"
                                 />
 
-                                {/* iOS PWA specific guidance - Updated to be more encouraging */}
+                                {/* iOS PWA specific guidance - Reframed positively */}
                                 {deviceInfo.isIOSPWA && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                         <h4 className="text-sm font-medium text-blue-900 mb-2">
-                                            📱 iOS PWA Camera Enhancement
+                                            📱 iOS PWA Camera Tips
                                         </h4>
                                         <p className="text-sm text-blue-800 mb-3">
-                                            This app includes advanced iOS PWA camera fixes. The "Take Photo" button
-                                            will attempt multiple
-                                            camera initialization methods to work around iOS limitations.
+                                            <strong>Quick tip:</strong> If the camera doesn't work immediately, the
+                                            "Upload Image" option
+                                            works perfectly! Just take a photo with your iPhone camera first, then
+                                            upload it here.
                                         </p>
                                         <div className="text-xs text-blue-700">
-                                            <strong>If camera doesn't work:</strong> The "Upload Image" option below
-                                            provides the same functionality.
+                                            Both methods provide identical OCR processing and results.
                                         </div>
                                     </div>
                                 )}
@@ -2153,23 +2334,19 @@ export default function ReceiptScan() {
                                                         </div>
                                                     </div>
 
-                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */
-                                                    }
-                                                    {
-                                                        item.upc && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => lookupByUPC(item)}
-                                                                className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                                                title={`Lookup product details for UPC: ${item.upc}`}
-                                                            >
-                                                                🔍 Lookup
-                                                            </TouchEnhancedButton>
-                                                        )
-                                                    }
+                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */}
+                                                    {item.upc && (
+                                                        <TouchEnhancedButton
+                                                            onClick={() => lookupByUPC(item)}
+                                                            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                                                            title={`Lookup product details for UPC: ${item.upc}`}
+                                                        >
+                                                            🔍 Lookup
+                                                        </TouchEnhancedButton>
+                                                    )}
                                                 </div>
 
-                                                {/* Additional Info */
-                                                }
+                                                {/* Additional Info */}
                                                 <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
                                                     {item.upc && <span>UPC: {item.upc}</span>}
@@ -2179,233 +2356,204 @@ export default function ReceiptScan() {
                                                 </div>
                                             </div>
                                         ))
-                                    )
-                                    }
+                                    )}
                                 </div>
                             </div>
-                        )
-                        }
+                        )}
 
-                        {/* Step 4: Adding to Inventory */
-                        }
-                        {
-                            step === 'adding' && (
-                                <div className="text-center space-y-6">
-                                    <div className="text-6xl mb-4">📦</div>
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Adding Items to Inventory
-                                    </h3>
-                                    <p className="text-gray-600 mb-6">
-                                        {processingStatus}
-                                    </p>
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                </div>
-                            )
-                        }
+                        {/* Step 4: Adding to Inventory */}
+                        {step === 'adding' && (
+                            <div className="text-center space-y-6">
+                                <div className="text-6xl mb-4">📦</div>
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Adding Items to Inventory
+                                </h3>
+                                <p className="text-gray-600 mb-6">
+                                    {processingStatus}
+                                </p>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Hidden canvas for photo capture - Always rendered */
-                }
+                {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden"/>
 
-                {/* iOS PWA Camera Modal */
-                }
+                {/* iOS PWA Camera Modal */}
                 <IOSPWACameraModal/>
 
-                {/* Report Issue Modal */
-                }
-                {
-                    showReportModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
-                                <div className="p-6">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                {/* Report Issue Modal */}
+                {showReportModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                    >
+                                        ×
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            What type of issue are you experiencing? *
+                                        </label>
+                                        <select
+                                            value={reportData.issue}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                issue: e.target.value
+                                            }))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         >
-                                            ×
-                                        </TouchEnhancedButton>
+                                            <option value="">Select an issue...</option>
+                                            <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
+                                            <option value="camera-not-working">Camera not working</option>
+                                            <option value="ocr-poor-accuracy">Poor text recognition</option>
+                                            <option value="wrong-items-detected">Wrong items detected</option>
+                                            <option value="missing-items">Items not detected</option>
+                                            <option value="categories-wrong">Wrong categories assigned</option>
+                                            <option value="upc-lookup-failed">UPC lookup not working</option>
+                                            <option value="app-crash">App crashed/froze</option>
+                                            <option value="other">Other issue</option>
+                                        </select>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                What type of issue are you experiencing? *
-                                            </label>
-                                            <select
-                                                value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    issue: e.target.value
-                                                }))}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                <option value="">Select an issue...</option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
-                                                </option>
-                                                <option value="camera-not-working">Camera not working
-                                                </option>
-                                                <option value="ocr-poor-accuracy">Poor text
-                                                    recognition
-                                                </option>
-                                                <option value="wrong-items-detected">Wrong items
-                                                    detected
-                                                </option>
-                                                <option value="missing-items">Items not detected
-                                                </option>
-                                                <option value="categories-wrong">Wrong categories
-                                                    assigned
-                                                </option>
-                                                <option value="upc-lookup-failed">UPC lookup not
-                                                    working
-                                                </option>
-                                                <option value="app-crash">App crashed/froze</option>
-                                                <option value="other">Other issue</option>
-                                            </select>
-                                        </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Please describe the issue in detail *
+                                        </label>
+                                        <textarea
+                                            value={reportData.description}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                description: e.target.value
+                                            }))}
+                                            placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            rows={4}
+                                        />
+                                    </div>
 
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Your email (for follow-up)
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={reportData.email}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                email: e.target.value
+                                            }))}
+                                            placeholder="your.email@example.com"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+
+                                    {capturedImage && (
                                         <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
-                                                Please describe the issue in detail *
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Receipt Image (will be included)
                                             </label>
-                                            <textarea
-                                                value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    description: e.target.value
-                                                }))}
-                                                placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                rows={4}
+                                            <img
+                                                src={capturedImage}
+                                                alt="Receipt to be sent"
+                                                className="max-w-full h-32 object-contain border rounded"
                                             />
                                         </div>
+                                    )}
 
-                                        <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
-                                                Your email (for follow-up)
-                                            </label>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Additional Screenshots/Images
+                                        </label>
+                                        <div className="space-y-3">
                                             <input
-                                                type="email"
-                                                value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    email: e.target.value
-                                                }))}
-                                                placeholder="your.email@example.com"
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleReportFileUpload}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
-                                        </div>
+                                            <p className="text-xs text-gray-500">
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max
+                                                10MB each)
+                                            </p>
 
-                                        {capturedImage && (
-                                            <div>
-                                                <label
-                                                    className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Receipt Image (will be included)
-                                                </label>
-                                                <img
-                                                    src={capturedImage}
-                                                    alt="Receipt to be sent"
-                                                    className="max-w-full h-32 object-contain border rounded"
-                                                />
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-2">
-                                                Additional Screenshots/Images
-                                            </label>
-                                            <div className="space-y-3">
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    onChange={handleReportFileUpload}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                />
-                                                <p className="text-xs text-gray-500">
-                                                    Upload screenshots showing the issue. Supports: JPG,
-                                                    PNG, GIF, WebP (max 10MB each)
-                                                </p>
-
-                                                {reportData.additionalFiles.length > 0 && (
-                                                    <div className="space-y-2">
-                                                        <p className="text-sm font-medium text-gray-700">
-                                                            Files to be sent
-                                                            ({reportData.additionalFiles.length}):
-                                                        </p>
-                                                        {reportData.additionalFiles.map((file, index) => (
-                                                            <div key={index}
-                                                                 className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                                <div
-                                                                    className="flex items-center space-x-2">
-                                                                    <span className="text-sm">📸</span>
-                                                                    <span
-                                                                        className="text-sm text-gray-700 truncate">
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-gray-700">
+                                                        Files to be sent ({reportData.additionalFiles.length}):
+                                                    </p>
+                                                    {reportData.additionalFiles.map((file, index) => (
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-sm">📸</span>
+                                                                <span className="text-sm text-gray-700 truncate">
                                                                     {file.name}
                                                                 </span>
-                                                                    <span
-                                                                        className="text-xs text-gray-500">
+                                                                <span className="text-xs text-gray-500">
                                                                     ({(file.size / 1024 / 1024).toFixed(1)}MB)
                                                                 </span>
-                                                                </div>
-                                                                <TouchEnhancedButton
-                                                                    onClick={() => removeFile(index)}
-                                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                                                >
-                                                                    Remove
-                                                                </TouchEnhancedButton>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                            <p className="text-sm text-blue-800">
-                                                📝 <strong>Your report will include:</strong>
-                                            </p>
-                                            <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                                                <li>• Your issue description</li>
-                                                <li>• Device
-                                                    info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
-                                                {capturedImage && <li>• Receipt image</li>}
-                                                {reportData.additionalFiles.length > 0 && (
-                                                    <li>• {reportData.additionalFiles.length} additional
-                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
-                                                )}
-                                                <li>• Browser and device information</li>
-                                                <li>• No personal information from your account</li>
-                                            </ul>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => removeFile(index)}
+                                                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                            >
+                                                                Remove
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <div className="flex space-x-3 mt-6">
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                                        >
-                                            Cancel
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={submitIssueReport}
-                                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                                        >
-                                            📧 Send Report
-                                        </TouchEnhancedButton>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                        <p className="text-sm text-blue-800">
+                                            📝 <strong>Your report will include:</strong>
+                                        </p>
+                                        <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                                            <li>• Your issue description</li>
+                                            <li>• Device
+                                                info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
+                                            {capturedImage && <li>• Receipt image</li>}
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <li>• {reportData.additionalFiles.length} additional
+                                                    screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                            )}
+                                            <li>• Browser and device information</li>
+                                            <li>• No personal information from your account</li>
+                                        </ul>
                                     </div>
+                                </div>
+
+                                <div className="flex space-x-3 mt-6">
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={submitIssueReport}
+                                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                    >
+                                        📧 Send Report
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+                )}
 
                 <Footer/>
             </div>
