@@ -1,6 +1,6 @@
+'use client';
 // file: /src/app/auth/signup/page.js v4 - WITH PASSWORD REQUIREMENTS DISPLAY
 
-'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';

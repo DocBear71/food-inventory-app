@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/meal-planning/MealPlanTemplateLibrary.js v2 - Fixed button styling
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 
@@ -13,7 +13,7 @@ export default function MealPlanTemplateLibrary({
                                                     onClose,
                                                     onTemplateApplied
                                                 }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');

@@ -1,5 +1,5 @@
-// file: /src/components/mobile/QuickActionButton.js - Floating action button
 'use client';
+// file: /src/components/mobile/QuickActionButton.js - Floating action button
 
 import { TouchEnhancedButton } from './TouchEnhancedButton';
 

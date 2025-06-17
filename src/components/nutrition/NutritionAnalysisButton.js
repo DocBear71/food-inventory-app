@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/nutrition/NutritionAnalysisButton.js v1
 
-'use client';
 
 import { useState } from 'react';
 import WeeklyNutritionDashboard from './WeeklyNutritionDashboard';

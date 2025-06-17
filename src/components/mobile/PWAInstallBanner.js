@@ -1,29 +1,24 @@
-// file: /src/components/mobile/PWAInstallBanner.js v9 - Fixed crash with proper null checking
 'use client';
 
+// file: /src/components/mobile/PWAInstallBanner.js v9 - Fixed crash with proper null checking
+
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 import { Capacitor } from '@capacitor/core';
 
 
 export function PWAInstallBanner() {
-
     if (Capacitor.isNativePlatform()) {
-        return null;
+        return null; // Don't show banner in mobile apps
     }
 
-    // Add try-catch for session
-    let sessionResult;
-    try {
-        sessionResult = useSession();
-    } catch (error) {
-        console.log('Session not available in mobile build');
-        return null;
-    }
+    return <PWAInstallBannerContent/>;
+}
 
-
+function PWAInstallBannerContent() {
+    const sessionResult = useSafeSession();
     const [showBanner, setShowBanner] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);

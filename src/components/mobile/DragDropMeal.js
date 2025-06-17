@@ -1,5 +1,5 @@
-// file: /src/components/mobile/DragDropMeal.js - Drag and drop for meals
 'use client';
+// file: /src/components/mobile/DragDropMeal.js - Drag and drop for meals
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

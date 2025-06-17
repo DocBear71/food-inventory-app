@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/recipes/RecipeCookingIntegration.js v1
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
@@ -14,7 +14,7 @@ export default function RecipeCookingIntegration({
                                                      onClose,
                                                      servingsMultiplier = 1
                                                  }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [matchedIngredients, setMatchedIngredients] = useState([]);

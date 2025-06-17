@@ -1,5 +1,5 @@
-// file: /src/utils/registerSW.js - Service Worker registration
 'use client';
+// file: /src/utils/registerSW.js - Service Worker registration
 
 export function registerServiceWorker() {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

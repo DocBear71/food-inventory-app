@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/shopping/SavedShoppingListsButton.js v2 - Updated with Tailwind classes
 
-'use client';
 
 import { useRouter } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

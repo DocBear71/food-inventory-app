@@ -1,6 +1,6 @@
+'use client';
 
 // file: /src/components/PWAWrapper.js - PWA functionality wrapper
-'use client';
 
 import { useEffect } from 'react';
 import { PWAInstallBanner } from '@/components/mobile/PWAInstallBanner';

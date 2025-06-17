@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/recipes/suggestions/page.js v6 - Enhanced brand-aware categorization and improved meal suggestions
 
-'use client';
 
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {redirect} from 'next/navigation';
@@ -12,7 +12,18 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function RecipeSuggestions() {
-    const {data: session, status} = useSession();
+    let session = null;
+    let status = 'loading';
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+        status = sessionResult?.status || 'loading';
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+        status = 'unauthenticated';
+    }
     const [suggestions, setSuggestions] = useState([]);
     const [simpleMealSuggestions, setSimpleMealSuggestions] = useState([]);
     const [inventory, setInventory] = useState([]);

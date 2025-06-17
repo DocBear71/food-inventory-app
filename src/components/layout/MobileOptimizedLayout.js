@@ -1,5 +1,5 @@
-// file: /src/components/layout/MobileOptimizedLayout.js - Conditionally use mobile layout
 'use client';
+// file: /src/components/layout/MobileOptimizedLayout.js - Conditionally use mobile layout
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';

@@ -11,14 +11,12 @@ const nextConfig = {
     images: {
         unoptimized: true
     },
-    // Skip building API routes entirely
+    // Skip dynamic routes during static export
     experimental: {
-        outputFileTracingExcludes: {
-            '*': [
-                './src/app/api/**/*',
-            ],
-        },
+        missingSuspenseWithCSRBailout: false,
     }
 }
+
+console.log('🔥 MOBILE CONFIG LOADED - output: export should create out/ folder');
 
 module.exports = nextConfig

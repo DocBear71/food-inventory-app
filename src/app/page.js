@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/page.js v2
 
-'use client';
 
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect} from 'react';
 import {useRouter} from 'next/navigation';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function Home() {
-    const {data: session, status} = useSession();
+    const {data: session, status} = useSafeSession();
     const router = useRouter();
 
     useEffect(() => {

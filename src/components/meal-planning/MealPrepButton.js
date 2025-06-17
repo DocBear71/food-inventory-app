@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/meal-planning/MealPrepButton.js v3
 
-'use client';
 
 import { useState } from 'react';
 import MealPrepSuggestions from './MealPrepSuggestions';

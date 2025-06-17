@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/recipes/[id]/edit/page.js v3 - Fixed layout and labels
 
-'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -10,7 +10,15 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function EditRecipePage() {
-    const { data: session } = useSession();
+    let session = null;
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+    }
     const router = useRouter();
     const params = useParams();
     const recipeId = params.id;

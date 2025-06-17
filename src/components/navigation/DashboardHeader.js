@@ -1,14 +1,14 @@
+'use client';
 
 // file: /src/components/navigation/DashboardHeader.js
 
-'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import Link from 'next/link';
 import ProfileDropdown from './ProfileDropdown';
 
 export default function DashboardHeader() {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
 
     return (
         <header className="bg-white shadow-sm border-b border-gray-200">

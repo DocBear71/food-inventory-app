@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/reviews/ReviewDisplay.js v1
 
-'use client';
 
 import { useState } from 'react';
 import { StarRating } from './RecipeRating';

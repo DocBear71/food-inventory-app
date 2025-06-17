@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/inventory/BarcodeScanner.js v7 - Enhanced validation and error handling for accurate UPC detection
 
-'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

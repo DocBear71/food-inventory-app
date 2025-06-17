@@ -1,5 +1,5 @@
-// file: /src/components/mobile/MobileHaptics.js - Haptic feedback utility
 'use client';
+// file: /src/components/mobile/MobileHaptics.js - Haptic feedback utility
 
 export class MobileHaptics {
     static isSupported() {

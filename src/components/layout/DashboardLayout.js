@@ -1,15 +1,16 @@
+'use client';
 // file: /src/components/layout/DashboardLayout.js - v3
 
-'use client';
 
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function DashboardLayout({ children }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState({});
     const pathname = usePathname();

@@ -1,15 +1,16 @@
+'use client';
 // file: /src/components/navigation/ProfileDropdown.js
 
-'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 
 export default function ProfileDropdown() {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);

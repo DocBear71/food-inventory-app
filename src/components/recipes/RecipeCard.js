@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/recipes/RecipeCard.js - v2 (With Cooking Integration)
 
-'use client';
 
 import { useState } from 'react';
 import RecipeCookingIntegration from '@/components/recipes/RecipeCookingIntegration';

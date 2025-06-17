@@ -1,16 +1,17 @@
+'use client';
 // file: /src/components/layout/MobileDashboardLayout.js v5 - Added Receipt Scanner to header and hamburger menu
 
-'use client';
 
 import {useState, useEffect} from 'react';
-import {useSession, signOut} from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useRouter, usePathname} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MobileDashboardLayout({children}) {
-    const {data: session} = useSession();
+    const {data: session} = useSafeSession();
     const router = useRouter();
     const pathname = usePathname();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

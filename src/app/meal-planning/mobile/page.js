@@ -1,8 +1,8 @@
-// file: /src/app/meal-planning/mobile/page.js - Mobile-optimized meal planning
 'use client';
+// file: /src/app/meal-planning/mobile/page.js - Mobile-optimized meal planning
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import MobileDashboardLayout from '@/components/layout/MobileDashboardLayout';
 import { SwipeableWeekNavigation } from '@/components/mobile/SwipeNavigation';
 import { DragDropMealCard, MealDropZone } from '@/components/mobile/DragDropMeal';
@@ -12,7 +12,7 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function MobileMealPlanningPage() {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
     const [mealPlans, setMealPlans] = useState([]);
     const [activeMealPlan, setActiveMealPlan] = useState(null);

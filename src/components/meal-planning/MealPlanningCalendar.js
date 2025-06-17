@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/meal-planning/MealPlanningCalendar.js v15 - Updated with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
 
-'use client';
 
 import {useState, useEffect} from 'react';
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import ShoppingListGenerator from './ShoppingListGenerator';
 import MealPrepButton from './MealPrepButton';
 import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
@@ -13,7 +13,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function MealPlanningCalendar() {
-    const {data: session} = useSession();
+    const {data: session} = useSafeSession();
     const [currentWeek, setCurrentWeek] = useState(new Date());
     const [mealPlan, setMealPlan] = useState(null);
     const [recipes, setRecipes] = useState([]);

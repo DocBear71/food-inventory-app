@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:mobile": "set NEXT_CONFIG_FILE=next.config.mobile.js&& next build",
+    "build:mobile": "node build-mobile.js",
     "start": "next start",
     "lint": "next lint",
     "cap:sync": "npx cap sync",

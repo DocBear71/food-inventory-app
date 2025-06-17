@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/shopping/ShoppingListDisplay.js v9
 
-'use client';
 
 import { useState } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';

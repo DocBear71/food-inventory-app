@@ -1,6 +1,6 @@
+'use client';
 // file: /src/app/auth/signin/page.js v2 - FIXED VERSION
 
-'use client';
 
 import { useState } from 'react';
 import { signIn, getSession } from 'next-auth/react';
@@ -24,6 +24,10 @@ export default function SignIn() {
         setLoading(true);
         setError('');
 
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Email:', formData.email);
+        console.log('Password length:', formData.password.length);
+
         try {
             const result = await signIn('credentials', {
                 email: formData.email,
@@ -31,12 +35,37 @@ export default function SignIn() {
                 redirect: false,
             });
 
+            console.log('SignIn result:', result);
+            console.log('Result error:', result?.error);
+            console.log('Result ok:', result?.ok);
+            console.log('Result status:', result?.status);
+
             if (result?.error) {
+                console.error('Login failed with error:', result.error);
                 setError('Invalid email or password');
+            } else if (result?.ok) {
+                console.log('Login appears successful, checking session...');
+
+                setTimeout(async () => {
+                    const session = await getSession();
+                    console.log('Session after login:', session);
+
+                    if (session) {
+                        console.log('Session confirmed, redirecting to dashboard');
+                        router.push('/dashboard');
+                    } else {
+                        console.error('No session found after successful login');
+                        setError('Login succeeded but session not created');
+                    }
+                }, 1000);
             } else {
-                router.push('/dashboard');
+                console.error('Unexpected login result:', result);
+                setError('Unexpected login result');
             }
+
+
         } catch (error) {
+            console.error('Login exception:', error);
             setError('An error occurred. Please try again.');
         } finally {
             setLoading(false);

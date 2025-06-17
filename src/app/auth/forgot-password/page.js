@@ -1,12 +1,13 @@
+'use client';
 // file: /src/app/auth/forgot-password/page.js
 
-'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from "@/lib/api-config";
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');

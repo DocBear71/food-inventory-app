@@ -1,5 +1,5 @@
-// file: /src/components/mobile/TouchGestures.js - Touch gesture handler
 'use client';
+// file: /src/components/mobile/TouchGestures.js - Touch gesture handler
 
 import { useState, useRef, useEffect } from 'react';
 

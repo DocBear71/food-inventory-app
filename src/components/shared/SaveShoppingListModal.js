@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/shared/SaveShoppingListModal.js v1
 
-'use client';
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/inventory/page.js - v12
 
-'use client';
 
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
 import UPCLookup from '@/components/inventory/UPCLookup';
@@ -26,7 +26,7 @@ import {
 
 // Separate component for search params to wrap in Suspense
 function InventoryContent() {
-    const {data: session, status, update} = useSession();
+    const {data: session, status, update} = useSafeSession();
     const searchParams = useSearchParams();
     const shouldShowAddForm = searchParams.get('action') === 'add';
 

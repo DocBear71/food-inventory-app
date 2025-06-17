@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/shopping/saved/page.js v3 - Final fixes for button layout and mobile responsiveness
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -11,7 +11,16 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function SavedShoppingListsPage() {
-    const { data: session } = useSession();
+    let session = null;
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+    }
+
     const [savedLists, setSavedLists] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

@@ -1,5 +1,5 @@
-// file: /src/hooks/usePWA.js v2 - iOS Safari compatible PWA hook
 'use client';
+// file: /src/hooks/usePWA.js v2 - iOS Safari compatible PWA hook
 
 import { useState, useEffect } from 'react';
 

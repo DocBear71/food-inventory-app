@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/support/IssueReporter.js - General issue reporting component
 
-'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 
@@ -13,7 +13,7 @@ export default function IssueReporter({
                                           buttonClassName = "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm",
                                           context = "general" // Context of where the issue is being reported from
                                       }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [showModal, setShowModal] = useState(false);
     const [reportData, setReportData] = useState({
         issue: '',

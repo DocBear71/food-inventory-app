@@ -1,9 +1,8 @@
+'use client';
 // file: /src/app/shopping/page.js v8 - Enhanced with alphabetical tag browser
 
-'use client';
 
 import {useState, useEffect} from 'react';
-import {useSession} from 'next-auth/react';
 import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -12,7 +11,6 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function ShoppingPage() {
-    const {data: session} = useSession();
     const [recipes, setRecipes] = useState([]);
     const [filteredRecipes, setFilteredRecipes] = useState([]);
     const [selectedRecipes, setSelectedRecipes] = useState([]);

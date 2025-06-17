@@ -1,13 +1,13 @@
+'use client';
 // file: /src/components/inventory/ConsumptionHistory.js v2 - Enhanced with dual unit support and better display
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ConsumptionHistory({ onClose }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

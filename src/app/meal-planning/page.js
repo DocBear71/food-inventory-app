@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/meal-planning/page.js v1
 
-'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect } from 'react';
 import { redirect } from 'next/navigation';
 import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
@@ -10,7 +10,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function MealPlanningPage() {
-    const { data: session, status } = useSession();
+    const { data: session, status } = useSafeSession();
 
     useEffect(() => {
         if (status === 'unauthenticated') {

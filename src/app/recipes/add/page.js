@@ -1,9 +1,7 @@
+'use client';
 // file: /src/app/recipes/add/page.js v4
 
-'use client';
 
-import { useSession } from 'next-auth/react';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -12,7 +10,6 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function AddRecipePage() {
-    const { data: session } = useSession();
     const router = useRouter();
 
     // Handle recipe submission
@@ -20,7 +17,7 @@ export default function AddRecipePage() {
         console.log('Submitting recipe:', recipeData);
 
         try {
-            // Transform data to match your API expectations
+            // Transform to match your API expectations
             const apiData = {
                 title: recipeData.title,
                 description: recipeData.description,

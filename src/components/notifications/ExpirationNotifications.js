@@ -1,13 +1,13 @@
+'use client';
 // file: /src/components/notifications/ExpirationNotifications.js v1
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function ExpirationNotifications({ onItemsUpdated }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [notifications, setNotifications] = useState({
         expired: [],
         expiresToday: [],

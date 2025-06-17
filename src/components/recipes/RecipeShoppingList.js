@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/recipes/RecipeShoppingList.js v8
 
-'use client';
 
 import { useState, useEffect } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';

@@ -1,5 +1,5 @@
-// file: /src/hooks/useDeviceDetection.js - Device detection hook
 'use client';
+// file: /src/hooks/useDeviceDetection.js - Device detection hook
 
 import { useState, useEffect } from 'react';
 

@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/shared/EmailShareModal.js v1
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 
@@ -14,7 +14,7 @@ export default function EmailShareModal({
                                             context = 'recipes',
                                             contextName = 'Selected Recipes'
                                         }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [recipients, setRecipients] = useState(['']);
     const [personalMessage, setPersonalMessage] = useState('');
     const [contacts, setContacts] = useState([]);

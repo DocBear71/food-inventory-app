@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/meal-planning/SimpleMealBuilder.js v2 - Added dietary filtering and conflict warnings
 
-'use client';
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';

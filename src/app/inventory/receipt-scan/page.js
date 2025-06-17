@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/inventory/receipt-scan/page.js - v6 Enhanced iOS PWA camera handling with proper fallbacks - FIXED React Error
 
-'use client';
 
 import {useState, useRef, useEffect} from 'react';
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -11,7 +11,7 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function ReceiptScan() {
-    const {data: session, status} = useSession();
+    // const {data: session, status} = useSafeSession();
     const router = useRouter();
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
@@ -46,6 +46,19 @@ export default function ReceiptScan() {
         displayMode: '',
         standalone: false
     });
+
+    let session = null;
+    let status = 'loading';
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+        status = sessionResult?.status || 'loading';
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+        status = 'unauthenticated';
+    }
 
     // Device detection effect
     useEffect(() => {

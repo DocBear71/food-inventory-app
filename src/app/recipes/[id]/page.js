@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/recipes/[id]/page.js v9 - Fixed scaling bug and improved user tracking
 
-'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useParams, useRouter } from 'next/navigation';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
@@ -15,7 +15,15 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function RecipeDetailPage() {
-    const { data: session } = useSession();
+    let session = null;
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+    }
     const params = useParams();
     const router = useRouter();
     const recipeId = params.id;

@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/reviews/RecipeReviewsSection.js v2 - COMPLETE WORKING VERSION
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 // Simple Star Rating Component
@@ -308,7 +308,7 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
 
 // Main Reviews Section Component
 export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [reviews, setReviews] = useState([]);
     const [ratingStats, setRatingStats] = useState(null);
     const [loading, setLoading] = useState(true);

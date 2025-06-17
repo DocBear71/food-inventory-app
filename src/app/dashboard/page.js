@@ -1,8 +1,8 @@
+'use client';
 // file: src/app/dashboard/page.js v14 - Added Receipt Scanner to Quick Actions
 
-'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
 import ExpirationNotifications from '@/components/notifications/ExpirationNotifications';
 import { redirect } from 'next/navigation';
@@ -12,7 +12,7 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function Dashboard() {
-    const { data: session, status } = useSession();
+    const { data: session, status } = useSafeSession();
     const [inventoryStats, setInventoryStats] = useState({
         totalItems: 0,
         expiringItems: 0,

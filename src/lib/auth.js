@@ -1,5 +1,5 @@
 // file: /src/lib/auth.js
-
+console.log('Auth config loading...');
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
@@ -67,7 +67,8 @@ export const authOptions = {
                 session.user.id = token.id;
             }
             return session;
-        },async redirect({ url, baseUrl }) {
+        },
+        async redirect({ url, baseUrl }) {
             // Handle redirects for mobile app
             if (url.startsWith('/')) return url
             if (url.startsWith(baseUrl)) return url
@@ -76,4 +77,16 @@ export const authOptions = {
     },
     // Add this for mobile compatibility
     trustHost: true,
+    // Allow mobile app origins
+    cookies: {
+        sessionToken: {
+            name: `next-auth.session-token`,
+            options: {
+                httpOnly: true,
+                sameSite: 'none',
+                path: '/',
+                secure: true,
+            },
+        },
+    },
 };

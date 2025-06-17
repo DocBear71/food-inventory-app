@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/profile/AccountDeletionModal.js
 
-'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';

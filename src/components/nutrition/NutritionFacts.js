@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/nutrition/NutritionFacts.js v1
 
-'use client';
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/profile/change-password/page.js
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -12,7 +12,19 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function ChangePasswordPage() {
-    const { data: session, status } = useSession();
+    let session = null;
+    let status = 'loading';
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+        status = sessionResult?.status || 'loading';
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+        status = 'unauthenticated';
+    }
+
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');

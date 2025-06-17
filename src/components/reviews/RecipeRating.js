@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/reviews/RecipeRating.js v2
 
-'use client';
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

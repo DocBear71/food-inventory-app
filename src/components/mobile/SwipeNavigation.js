@@ -1,5 +1,5 @@
-// file: /src/components/mobile/SwipeNavigation.js - Week navigation with swipe
 'use client';
+// file: /src/components/mobile/SwipeNavigation.js - Week navigation with swipe
 
 import { TouchSwipeContainer } from './TouchGestures';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

@@ -1,5 +1,5 @@
-// file: /src/components/mobile/TouchEnhancedButton.js - Enhanced button component
 'use client';
+// file: /src/components/mobile/TouchEnhancedButton.js - Enhanced button component
 
 import { MobileHaptics } from './MobileHaptics';
 

@@ -1,8 +1,8 @@
+'use client';
 // file: /src/app/recipes/page.js v5 - Enhanced with tabbed interface and ingredient search functionality for bulk import cleanup
 
-'use client';
 
-import {useSession} from 'next-auth/react';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {StarRating} from '@/components/reviews/RecipeRating';
@@ -14,7 +14,7 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 function RecipesContent() {
-    const {data: session, status} = useSession();
+    const {data: session, status} = useSafeSession();
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');

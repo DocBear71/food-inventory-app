@@ -1,16 +1,17 @@
+'use client';
 // file: /src/app/inventory/history/page.js v1
 
-'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ConsumptionHistoryPage() {
-    const { data: session, status } = useSession();
+    const { data: session, status } = useSafeSession();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

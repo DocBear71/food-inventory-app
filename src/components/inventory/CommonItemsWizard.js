@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/inventory/CommonItemsWizard.js - v5 (Fixed dual unit validation and smart defaults)
 
-'use client';
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';

@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/meal-planning/TemplateLibraryButton.js v1
 
-'use client';
 
 import { useState } from 'react';
 import MealPlanTemplateLibrary from './MealPlanTemplateLibrary';

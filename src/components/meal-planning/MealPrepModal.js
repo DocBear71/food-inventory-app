@@ -1,13 +1,13 @@
+'use client';
 // file: /src/components/meal-planning/MealPrepModal.js v1
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 
 export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [mealPrepData, setMealPrepData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

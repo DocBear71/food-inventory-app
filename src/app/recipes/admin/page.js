@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/recipes/admin/page.js v3 - Updated for Delimited Format
 
-'use client';
 
 import {useState} from 'react';
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -31,7 +31,19 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function AdminRecipes() {
-    const {data: session, status} = useSession();
+    let session = null;
+    let status = 'loading';
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+        status = sessionResult?.status || 'loading';
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+        status = 'unauthenticated';
+    }
+
     const [uploadedFile, setUploadedFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [extractedText, setExtractedText] = useState('');

@@ -1,16 +1,16 @@
+'use client';
 // file: /src/components/meal-planning/ShoppingListGenerator.js v9
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
     const [shoppingList, setShoppingList] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');

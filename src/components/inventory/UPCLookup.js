@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/inventory/UPCLookup.js - v8 Fixed UPC input issue
 
-'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import BarcodeScanner from './BarcodeScanner';

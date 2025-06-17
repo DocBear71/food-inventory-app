@@ -1,7 +1,7 @@
+'use client';
 // file: /src/components/recipes/UrlImportTest.js - v1
 // This is a standalone test component to verify URL importing works
 
-'use client';
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

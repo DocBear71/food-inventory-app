@@ -1,9 +1,9 @@
+'use client';
 // file: /src/app/profile/page.js v6 - Updated meal types to include expanded snack options
 
-'use client';
 
 import {useState, useEffect, useRef} from 'react';
-import {useSession} from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {useRouter} from 'next/navigation';
 import AccountDeletionModal from '@/components/profile/AccountDeletionModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -12,7 +12,22 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 export default function ProfilePage() {
-    const {data: session, status, update} = useSession();
+    let session = null;
+    let status = 'loading';
+    let update = () => Promise.resolve(null);
+
+    try {
+        const sessionResult = useSafeSession();
+        session = sessionResult?.data || null;
+        status = sessionResult?.status || 'loading';
+        update = sessionResult?.update || (() => Promise.resolve(null));
+    } catch (error) {
+        // Mobile build fallback
+        session = null;
+        status = 'unauthenticated';
+        update = () => Promise.resolve(null);
+    }
+
     const router = useRouter();
     const fileInputRef = useRef(null);
     const [loading, setLoading] = useState(true);

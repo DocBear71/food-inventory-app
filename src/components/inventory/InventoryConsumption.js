@@ -1,9 +1,9 @@
+'use client';
 // file: /src/components/inventory/InventoryConsumption.js v3 - Enhanced dual unit support for partial consumption
 
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { formatInventoryDisplayText, hasDualUnits, getSmartUnitName } from '@/lib/inventoryDisplayUtils';
 
@@ -15,7 +15,7 @@ export default function InventoryConsumption({
                                                  recipeIngredients = [], // For recipe mode
                                                  recipeName = ''
                                              }) {
-    const { data: session } = useSession();
+    const { data: session } = useSafeSession();
 
     // Determine if item has dual units and which unit to prioritize
     const hasDualQuantities = hasDualUnits(item);

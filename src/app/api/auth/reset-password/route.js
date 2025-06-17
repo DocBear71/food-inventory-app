@@ -1,6 +1,6 @@
+'use client';
 // file: /src/app/auth/reset-password/page.js v3 - WITH PASSWORD REQUIREMENTS DISPLAY
 
-'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';

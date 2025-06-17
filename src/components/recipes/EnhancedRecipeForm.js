@@ -1,6 +1,6 @@
+'use client';
 // file: /src/components/recipes/EnhancedRecipeForm.js v4 - FIXED DUPLICATE BACK BUTTON
 
-'use client';
 
 import { useState } from 'react';
 import RecipeParser from './RecipeParser';
