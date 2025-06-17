@@ -8,11 +8,6 @@ export default function CapacitorAuthProvider({ children }) {
         // Try multiple ways to log for debugging
         console.log('CapacitorAuthProvider started')
 
-        if (typeof window !== 'undefined') {
-            // This should show in Android Studio
-            window.alert && window.alert('Mobile auth setup starting')
-        }
-
         if (Capacitor.isNativePlatform()) {
             console.log('Installing mobile auth override')
 

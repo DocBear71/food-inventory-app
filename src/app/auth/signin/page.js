@@ -40,24 +40,10 @@ export default function SignIn() {
             console.log('Result ok:', result?.ok);
             console.log('Result status:', result?.status);
 
-            if (result?.error) {
-                console.error('Login failed with error:', result.error);
-                setError('Invalid email or password');
-            } else if (result?.ok) {
-                console.log('Login appears successful, checking session...');
-
-                setTimeout(async () => {
-                    const session = await getSession();
-                    console.log('Session after login:', session);
-
-                    if (session) {
-                        console.log('Session confirmed, redirecting to dashboard');
-                        router.push('/dashboard');
-                    } else {
-                        console.error('No session found after successful login');
-                        setError('Login succeeded but session not created');
-                    }
-                }, 1000);
+            if (result?.ok) {
+                console.log('Login appears successful, redirecting immediately...');
+                // Don't wait for session check, just redirect
+                router.push('/dashboard');
             } else {
                 console.error('Unexpected login result:', result);
                 setError('Unexpected login result');
