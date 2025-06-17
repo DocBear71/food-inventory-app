@@ -20,8 +20,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const lastValidCodeRef = useRef(null);
     const detectionHistoryRef = useRef([]);
 
-    console.log('🆕 BarcodeScanner v7 loaded - ENHANCED VALIDATION VERSION');
-
     // Detect mobile device and orientation
     useEffect(() => {
         const checkMobile = () => {
