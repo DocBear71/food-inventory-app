@@ -17,6 +17,7 @@ export default function SignIn() {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [redirecting, setRedirecting] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (e) => {
@@ -42,14 +43,15 @@ export default function SignIn() {
 
             if (result?.ok) {
                 console.log('Login appears successful, redirecting immediately...');
-                // Don't wait for session check, just redirect
-                router.push('/dashboard');
+                setRedirecting(true);
+
+                // Force redirect
+                window.location.href = '/dashboard';
             } else {
-                console.error('Unexpected login result:', result);
-                setError('Unexpected login result');
+                // ← ADD THIS MISSING ERROR HANDLING:
+                console.error('Login failed with error:', result?.error);
+                setError('Invalid email or password');
             }
-
-
         } catch (error) {
             console.error('Login exception:', error);
             setError('An error occurred. Please try again.');
@@ -146,6 +148,11 @@ export default function SignIn() {
                             </Link>
                         </div>
                     </form>
+                    {redirecting && (
+                        <div className="text-center">
+                            <div className="text-lg text-indigo-600">Login successful! Redirecting...</div>
+                        </div>
+                    )}
                 </div>
             </div>
 
