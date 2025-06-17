@@ -2,7 +2,7 @@
 // file: /src/app/auth/signin/page.js v2 - FIXED VERSION
 
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -19,6 +19,21 @@ export default function SignIn() {
     const [error, setError] = useState('');
     const [redirecting, setRedirecting] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Don't render until mounted (prevents hydration mismatch)
+    if (!mounted) {
+        return (
+            <MobileOptimizedLayout>
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="text-lg">Loading...</div>
+                </div>
+            </MobileOptimizedLayout>
+        );
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
