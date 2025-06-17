@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const router = useRouter();
@@ -43,7 +44,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const fetchDataSummary = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/user/delete-account');
+            const response = await fetch(getApiUrl('/api/user/delete-account'));
             const data = await response.json();
 
             if (response.ok) {
@@ -63,7 +64,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
         setError('');
 
         try {
-            const response = await fetch('/api/user/delete-account', {
+            const response = await fetch(getApiUrl('/api/user/delete-account', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -72,7 +73,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                     password: formData.password,
                     confirmDeletion: formData.confirmDeletion
                 }),
-            });
+            }));
 
             const data = await response.json();
 

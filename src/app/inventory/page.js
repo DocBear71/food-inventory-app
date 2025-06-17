@@ -13,6 +13,8 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
+
 // Import smart display utilities
 import {
     formatInventoryDisplayText,
@@ -77,7 +79,7 @@ function InventoryContent() {
 
     const fetchInventory = async () => {
         try {
-            const response = await fetch('/api/inventory');
+            const response = await fetch(getApiUrl('/api/inventory'));
             const data = await response.json();
 
             if (data.success) {
@@ -107,7 +109,7 @@ function InventoryContent() {
         try {
             console.log('Handling consumption:', { consumptionData, mode });
 
-            const response = await fetch('/api/inventory/consume', {
+            const response = await fetch(getApiUrl('/api/inventory/consume', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -116,7 +118,7 @@ function InventoryContent() {
                     consumptions: consumptionData,
                     mode: mode
                 }),
-            });
+            }));
 
             const result = await response.json();
 
@@ -437,9 +439,9 @@ function InventoryContent() {
         if (!confirm('Are you sure you want to delete this item?')) return;
 
         try {
-            const response = await fetch(`/api/inventory?itemId=${itemId}`, {
+            const response = await fetch(getApiUrl(`/api/inventory?itemId=${itemId}`, {
                 method: 'DELETE',
-            });
+            }));
 
             const data = await response.json();
 

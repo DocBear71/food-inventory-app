@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
     const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
@@ -113,13 +114,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         try {
             console.log('Importing recipe from URL:', url);
 
-            const response = await fetch('/api/recipes/scrape', {
+            const response = await fetch(getApiUrl('/api/recipes/scrape', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ url: url.trim() })
-            });
+            }));
 
             const data = await response.json();
 

@@ -9,6 +9,7 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function RecipeSuggestions() {
     const {data: session, status} = useSession();
@@ -1024,8 +1025,8 @@ export default function RecipeSuggestions() {
         setLoading(true);
         try {
             const [inventoryResponse, recipesResponse] = await Promise.all([
-                fetch('/api/inventory'),
-                fetch('/api/recipes')
+                fetch(getApiUrl('/api/inventory')),
+                fetch(getApiUrl('/api/recipes'))
             ]);
 
             const inventoryData = await inventoryResponse.json();
@@ -1058,7 +1059,7 @@ export default function RecipeSuggestions() {
     const loadRecipeDetails = async (recipeId) => {
         setLoadingRecipe(true);
         try {
-            const response = await fetch(`/api/recipes/${recipeId}`);
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`));
             const data = await response.json();
 
             if (data.success) {

@@ -137,7 +137,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         try {
             // Use your existing API
-            const response = await fetch(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`);
+            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`));
             const data = await response.json();
 
             if (data.success && data.product.found) {

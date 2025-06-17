@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -31,7 +32,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
         try {
             // First try to fetch existing suggestions
-            const response = await fetch(`/api/meal-prep/generate?mealPlanId=${mealPlanId}`);
+            const response = await fetch(getApiUrl(`/api/meal-prep/generate?mealPlanId=${mealPlanId}`));
             const result = await response.json();
 
             if (result.success && result.suggestions) {
@@ -54,7 +55,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         setError('');
 
         try {
-            const response = await fetch('/api/meal-prep/generate', {
+            const response = await fetch(getApiUrl('/api/meal-prep/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -64,7 +65,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     userPreferences,
                     regenerate
                 }),
-            });
+            }));
 
             const result = await response.json();
 
@@ -84,7 +85,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     const handleTaskComplete = async (taskId) => {
         try {
-            const response = await fetch(`/api/meal-prep/${suggestions._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-prep/${suggestions._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     action: 'markTaskComplete',
                     taskId
                 }),
-            });
+            }));
 
             if (response.ok) {
                 const updatedCompletedTasks = new Set(completedTasks);

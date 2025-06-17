@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function RecipeCookingIntegration({
                                                      recipe,
@@ -31,7 +32,7 @@ export default function RecipeCookingIntegration({
         setLoading(true);
 
         try {
-            const response = await fetch('/api/inventory');
+            const response = await fetch(getApiUrl('/api/inventory'));
             const data = await response.json();
 
             if (data.success) {
@@ -128,7 +129,7 @@ export default function RecipeCookingIntegration({
 
     const handleCookingConsumption = async (consumptions) => {
         try {
-            const response = await fetch('/api/inventory/consume', {
+            const response = await fetch(getApiUrl('/api/inventory/consume', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -137,7 +138,7 @@ export default function RecipeCookingIntegration({
                     consumptions: consumptions,
                     mode: 'recipe'
                 }),
-            });
+            }));
 
             const result = await response.json();
 

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     const [shoppingList, setShoppingList] = useState(null);
@@ -28,7 +29,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         setError('');
 
         try {
-            const response = await fetch('/api/shopping/generate', {
+            const response = await fetch(getApiUrl('/api/shopping/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
                 body: JSON.stringify({
                     recipeIds: [recipeId]
                 }),
-            });
+            }));
 
             const result = await response.json();
 

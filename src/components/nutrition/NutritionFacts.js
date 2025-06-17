@@ -32,7 +32,7 @@ export default function NutritionFacts({
         setError(null);
 
         try {
-            const response = await fetch(`/api/recipes/nutrition?recipeId=${recipeId}`);
+            const response = await fetch(getApiUrl(`/api/recipes/nutrition?recipeId=${recipeId}`));
             const data = await response.json();
 
             if (data.success) {

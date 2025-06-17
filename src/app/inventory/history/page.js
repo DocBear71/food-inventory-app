@@ -39,7 +39,7 @@ export default function ConsumptionHistoryPage() {
                 reason: filterReason
             });
 
-            const response = await fetch(`/api/inventory/consume?${params}`);
+            const response = await fetch(getApiUrl(`/api/inventory/consume?${params}`));
             const result = await response.json();
 
             if (result.success) {

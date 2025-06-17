@@ -9,6 +9,7 @@ import AccountDeletionModal from '@/components/profile/AccountDeletionModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ProfilePage() {
     const {data: session, status, update} = useSession();
@@ -229,11 +230,11 @@ export default function ProfilePage() {
 
             let response;
             try {
-                response = await fetch('/api/user/avatar', {
+                response = await fetch(getApiUrl('/api/user/avatar', {
                     method: 'POST',
                     body: uploadFormData,
                     signal: controller.signal
-                });
+                }));
 
                 clearTimeout(timeoutId);
                 clearInterval(progressInterval);
@@ -303,10 +304,10 @@ export default function ProfilePage() {
                 controller.abort();
             }, 10000); // 10 second timeout
 
-            const response = await fetch('/api/user/avatar', {
+            const response = await fetch(getApiUrl('/api/user/avatar', {
                 method: 'DELETE',
                 signal: controller.signal
-            });
+            }));
 
             clearTimeout(timeoutId);
             console.log('Remove response received:', response.status);
@@ -378,7 +379,7 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/user/profile');
+            const response = await fetch(getApiUrl('/api/user/profile'));
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -452,13 +453,13 @@ export default function ProfilePage() {
                 }
             };
 
-            const response = await fetch('/api/user/profile', {
+            const response = await fetch(getApiUrl('/api/user/profile', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(finalFormData),
-            });
+            }));
 
             const data = await parseResponse(response);
 

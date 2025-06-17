@@ -8,6 +8,7 @@ import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ReceiptScan() {
     const {data: session, status} = useSession();
@@ -1628,7 +1629,7 @@ export default function ReceiptScan() {
 
         // Function to try UPC lookup with a specific code
         async function tryUPCLookup(upcCode) {
-            const response = await fetch(`/api/upc/lookup?upc=${upcCode}`);
+            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${upcCode}`));
             if (!response.ok) {
                 return null;
             }
@@ -1795,7 +1796,7 @@ export default function ReceiptScan() {
 
         try {
             const promises = selectedItems.map(item =>
-                fetch('/api/inventory', {
+                fetch(getApiUrl('/api/inventory', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1809,7 +1810,7 @@ export default function ReceiptScan() {
                         expirationDate: null
                     })
                 })
-            );
+            ));
 
             await Promise.all(promises);
             setProcessingStatus('Complete!');
@@ -1889,10 +1890,10 @@ export default function ReceiptScan() {
                 formData.append(`additionalFile_${index}`, file, file.name);
             });
 
-            const response = await fetch('/api/receipt-issue-report', {
+            const response = await fetch(getApiUrl('/api/receipt-issue-report', {
                 method: 'POST',
                 body: formData
-            });
+            }));
 
             if (response.ok) {
                 alert('✅ Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.');

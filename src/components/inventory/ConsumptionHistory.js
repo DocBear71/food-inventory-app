@@ -30,7 +30,7 @@ export default function ConsumptionHistory({ onClose }) {
                 reason: filterReason
             });
 
-            const response = await fetch(`/api/inventory/consume?${params}`);
+            const response = await fetch(getApiUrl(`/api/inventory/consume?${params}`));
             const result = await response.json();
 
             if (result.success) {

@@ -5,6 +5,8 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
+
 
 export default function IssueReporter({
                                           buttonText = "📧 Report Issue",
@@ -83,10 +85,10 @@ export default function IssueReporter({
                 formData.append(`additionalFile_${index}`, file, file.name);
             });
 
-            const response = await fetch('/api/general-issue-report', {
+            const response = await fetch(getApiUrl('/api/general-issue-report', {
                 method: 'POST',
                 body: formData
-            });
+            }));
 
             if (response.ok) {
                 alert('✅ Thank you! Your issue report has been sent. We\'ll look into it and get back to you.');

@@ -24,7 +24,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
         setError('');
 
         try {
-            const response = await fetch(`/api/meal-prep/${mealPlanId}`);
+            const response = await fetch(getApiUrl(`/api/meal-prep/${mealPlanId}`));
             const data = await response.json();
 
             if (data.success) {

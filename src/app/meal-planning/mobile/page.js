@@ -9,6 +9,7 @@ import { DragDropMealCard, MealDropZone } from '@/components/mobile/DragDropMeal
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton";
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function MobileMealPlanningPage() {
     const { data: session } = useSession();
@@ -28,7 +29,7 @@ export default function MobileMealPlanningPage() {
 
     const fetchMealPlans = async () => {
         try {
-            const response = await fetch('/api/meal-plans');
+            const response = await fetch(getApiUrl('/api/meal-plans'));
             const data = await response.json();
             if (data.success) {
                 setMealPlans(data.mealPlans);
@@ -65,7 +66,7 @@ export default function MobileMealPlanningPage() {
         if (!activeMealPlan) {
             // Create new meal plan if none exists
             try {
-                const response = await fetch('/api/meal-plans', {
+                const response = await fetch(getApiUrl('/api/meal-plans', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -78,7 +79,7 @@ export default function MobileMealPlanningPage() {
                             }]
                         }
                     })
-                });
+                }));
 
                 if (response.ok) {
                     await fetchMealPlans();
@@ -110,11 +111,11 @@ export default function MobileMealPlanningPage() {
                 mealType: targetMealType
             });
 
-            const response = await fetch(`/api/meal-plans/${activeMealPlan._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${activeMealPlan._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ meals: updatedMeals })
-            });
+            }));
 
             if (response.ok) {
                 await fetchMealPlans();

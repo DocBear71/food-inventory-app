@@ -10,6 +10,7 @@ import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
 import TemplateLibraryButton from './TemplateLibraryButton';
 import SimpleMealBuilder from './SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSession();
@@ -203,7 +204,7 @@ export default function MealPlanningCalendar() {
 
     const loadUserPreferences = async () => {
         try {
-            const response = await fetch('/api/user/preferences');
+            const response = await fetch(getApiUrl('/api/user/preferences'));
             const data = await response.json();
             if (data.success && data.preferences) {
                 // Set week start day
@@ -239,7 +240,7 @@ export default function MealPlanningCalendar() {
 
     const updateWeekStartPreference = async (newStartDay) => {
         try {
-            const response = await fetch('/api/user/preferences', {
+            const response = await fetch(getApiUrl('/api/user/preferences', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -247,7 +248,7 @@ export default function MealPlanningCalendar() {
                 body: JSON.stringify({
                     weekStartDay: newStartDay
                 })
-            });
+            }));
 
             const data = await response.json();
             if (data.success) {
@@ -262,7 +263,7 @@ export default function MealPlanningCalendar() {
 
     const updateMealTypePreferences = async (newMealTypes) => {
         try {
-            const response = await fetch('/api/user/preferences', {
+            const response = await fetch(getApiUrl('/api/user/preferences', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -270,7 +271,7 @@ export default function MealPlanningCalendar() {
                 body: JSON.stringify({
                     defaultMealTypes: newMealTypes
                 })
-            });
+            }));
 
             const data = await response.json();
             if (data.success) {
@@ -323,7 +324,7 @@ export default function MealPlanningCalendar() {
         const weekStartParam = getFormattedWeekStart(currentWeek);
 
         try {
-            const response = await fetch(`/api/meal-plans?weekStart=${weekStartParam}`);
+            const response = await fetch(getApiUrl(`/api/meal-plans?weekStart=${weekStartParam}`));
             const data = await response.json();
 
             if (data.success && data.mealPlans.length > 0) {
@@ -347,7 +348,7 @@ export default function MealPlanningCalendar() {
                 mealsObject[day] = [];
             });
 
-            const response = await fetch('/api/meal-plans', {
+            const response = await fetch(getApiUrl('/api/meal-plans', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -368,7 +369,7 @@ export default function MealPlanningCalendar() {
                         avoidIngredients: userAvoidIngredients
                     }
                 })
-            });
+            }));
 
             const data = await response.json();
             if (data.success) {
@@ -381,7 +382,7 @@ export default function MealPlanningCalendar() {
 
     const fetchRecipes = async () => {
         try {
-            const response = await fetch('/api/recipes');
+            const response = await fetch(getApiUrl('/api/recipes'));
             const data = await response.json();
             if (data.success) {
                 setRecipes(data.recipes);
@@ -417,7 +418,7 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(`/api/meal-plans/${mealPlan._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -425,7 +426,7 @@ export default function MealPlanningCalendar() {
                 body: JSON.stringify({
                     meals: updatedMeals
                 })
-            });
+            }));
 
             const data = await response.json();
 
@@ -461,7 +462,7 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(`/api/meal-plans/${mealPlan._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -469,7 +470,7 @@ export default function MealPlanningCalendar() {
                 body: JSON.stringify({
                     meals: updatedMeals
                 })
-            });
+            }));
 
             const data = await response.json();
 
@@ -496,7 +497,7 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(`/api/meal-plans/${mealPlan._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -504,7 +505,7 @@ export default function MealPlanningCalendar() {
                 body: JSON.stringify({
                     meals: updatedMeals
                 })
-            });
+            }));
 
             const data = await response.json();
 

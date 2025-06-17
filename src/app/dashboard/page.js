@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
@@ -34,7 +35,7 @@ export default function Dashboard() {
 
     const fetchInventoryStats = async () => {
         try {
-            const response = await fetch('/api/inventory');
+            const response = await fetch(getApiUrl('/api/inventory'));
             const data = await response.json();
 
             if (data.success) {

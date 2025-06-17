@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 function RecipesContent() {
     const {data: session, status} = useSession();
@@ -74,7 +75,7 @@ function RecipesContent() {
 
     const fetchRecipes = async () => {
         try {
-            const response = await fetch('/api/recipes');
+            const response = await fetch(getApiUrl('/api/recipes'));
             const data = await response.json();
 
             if (data.success) {
@@ -107,9 +108,9 @@ function RecipesContent() {
         }
 
         try {
-            const response = await fetch(`/api/recipes/${recipeId}`, {
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`, {
                 method: 'DELETE'
-            });
+            }));
 
             if (response.ok) {
                 setRecipes(prev => prev.filter(recipe => recipe._id !== recipeId));

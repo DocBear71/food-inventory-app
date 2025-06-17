@@ -38,7 +38,7 @@ export default function NutritionSearch({
         setError(null);
 
         try {
-            const response = await fetch(`/api/nutrition?query=${encodeURIComponent(query)}&limit=8`);
+            const response = await fetch(getApiUrl(`/api/nutrition?query=${encodeURIComponent(query)}&limit=8`));
             const data = await response.json();
 
             if (data.success) {
@@ -63,7 +63,7 @@ export default function NutritionSearch({
 
         // Get detailed nutrition information
         try {
-            const response = await fetch(`/api/nutrition?fdcId=${food.fdcId}`);
+            const response = await fetch(getApiUrl(`/api/nutrition?fdcId=${food.fdcId}`));
             const data = await response.json();
 
             if (data.success && data.food) {

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -37,13 +38,13 @@ function ResetPasswordContent() {
 
     const verifyToken = async () => {
         try {
-            const response = await fetch('/api/auth/verify-reset-token', {
+            const response = await fetch(getApiUrl('/api/auth/verify-reset-token', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ token }),
-            });
+            }));
 
             const data = await response.json();
 
@@ -126,7 +127,7 @@ function ResetPasswordContent() {
         }
 
         try {
-            const response = await fetch('/api/auth/reset-password', {
+            const response = await fetch(getApiUrl('/api/auth/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -136,7 +137,7 @@ function ResetPasswordContent() {
                     password: formData.password,
                     confirmPassword: formData.confirmPassword
                 }),
-            });
+            }));
 
             const data = await response.json();
 

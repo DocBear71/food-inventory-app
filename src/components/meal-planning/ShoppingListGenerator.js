@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import EmailShareModal from '@/components/shared/EmailShareModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -31,7 +32,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
             console.log('Meal Plan ID:', mealPlanId);
             console.log('User ID:', session?.user?.id);
 
-            const response = await fetch('/api/shopping/generate', {
+            const response = await fetch(getApiUrl('/api/shopping/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -39,7 +40,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 body: JSON.stringify({
                     mealPlanId: mealPlanId
                 }),
-            });
+            }));
 
             console.log('Response status:', response.status);
             const result = await response.json();

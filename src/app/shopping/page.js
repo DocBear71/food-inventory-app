@@ -9,6 +9,7 @@ import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsBu
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ShoppingPage() {
     const {data: session} = useSession();
@@ -231,7 +232,7 @@ export default function ShoppingPage() {
 
     const fetchRecipes = async () => {
         try {
-            const response = await fetch('/api/recipes');
+            const response = await fetch(getApiUrl('/api/recipes'));
             const result = await response.json();
             if (result.success) {
                 setRecipes(result.recipes);
@@ -400,7 +401,7 @@ export default function ShoppingPage() {
         try {
             console.log('Generating shopping list for recipes:', selectedRecipes);
 
-            const response = await fetch('/api/shopping/generate', {
+            const response = await fetch(getApiUrl('/api/shopping/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -408,7 +409,7 @@ export default function ShoppingPage() {
                 body: JSON.stringify({
                     recipeIds: selectedRecipes
                 }),
-            });
+            }));
 
             const result = await response.json();
 

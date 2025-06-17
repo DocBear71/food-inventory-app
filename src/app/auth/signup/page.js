@@ -9,6 +9,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import PrivacyPolicy from '@/components/legal/PrivacyPolicy';
 import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function SignUp() {
     const [formData, setFormData] = useState({
@@ -92,7 +93,7 @@ export default function SignUp() {
         }
 
         try {
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch(getApiUrl('/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -105,7 +106,7 @@ export default function SignUp() {
                     acceptedPrivacy: true,
                     acceptanceDate: new Date().toISOString(),
                 }),
-            });
+            }));
 
             const data = await response.json();
 

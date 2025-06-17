@@ -8,6 +8,7 @@ import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function SavedShoppingListsPage() {
     const { data: session } = useSession();
@@ -39,7 +40,7 @@ export default function SavedShoppingListsPage() {
             if (filters.tags) params.append('tags', filters.tags);
             if (filters.includeArchived) params.append('includeArchived', 'true');
 
-            const response = await fetch(`/api/shopping/saved?${params}`);
+            const response = await fetch(getApiUrl(`/api/shopping/saved?${params}`));
             const result = await response.json();
 
             if (!response.ok) {
@@ -59,7 +60,7 @@ export default function SavedShoppingListsPage() {
 
     const loadSavedList = async (listId, options = {}) => {
         try {
-            const response = await fetch(`/api/shopping/saved/${listId}/load`, {
+            const response = await fetch(getApiUrl(`/api/shopping/saved/${listId}/load`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -68,7 +69,7 @@ export default function SavedShoppingListsPage() {
                     startShoppingSession: true,
                     ...options
                 })
-            });
+            }));
 
             const result = await response.json();
 
@@ -90,11 +91,11 @@ export default function SavedShoppingListsPage() {
 
     const deleteSavedLists = async (listIds, archive = false) => {
         try {
-            const response = await fetch('/api/shopping/saved', {
+            const response = await fetch(getApiUrl('/api/shopping/saved', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ listIds, archive })
-            });
+            }));
 
             const result = await response.json();
 
@@ -113,11 +114,11 @@ export default function SavedShoppingListsPage() {
 
     const unarchiveSavedLists = async (listIds) => {
         try {
-            const response = await fetch('/api/shopping/saved/unarchive', {
+            const response = await fetch(getApiUrl('/api/shopping/saved/unarchive', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ listIds })
-            });
+            }));
 
             const result = await response.json();
 

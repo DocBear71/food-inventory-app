@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ChangePasswordPage() {
     const { data: session, status } = useSession();
@@ -132,13 +133,13 @@ export default function ChangePasswordPage() {
         }
 
         try {
-            const response = await fetch('/api/user/change-password', {
+            const response = await fetch(getApiUrl('/api/user/change-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
-            });
+            }));
 
             const data = await response.json();
 

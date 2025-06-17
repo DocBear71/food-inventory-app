@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSession();
@@ -28,8 +29,8 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
         try {
             // Fetch goals and analysis in parallel
             const [goalsResponse, analysisResponse] = await Promise.all([
-                fetch('/api/nutrition/goals'),
-                fetch(`/api/nutrition/analyze?mealPlanId=${mealPlanId}`)
+                fetch(getApiUrl('/api/nutrition/goals')),
+                fetch(getApiUrl(`/api/nutrition/analyze?mealPlanId=${mealPlanId}`))
             ]);
 
             const goalsData = await goalsResponse.json();
@@ -55,13 +56,13 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
 
     const generateAnalysis = async () => {
         try {
-            const response = await fetch('/api/nutrition/analyze', {
+            const response = await fetch(getApiUrl('/api/nutrition/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ mealPlanId }),
-            });
+            }));
 
             const result = await response.json();
 
@@ -528,13 +529,13 @@ function GoalsEditor({ goals, onUpdate }) {
         setLoading(true);
 
         try {
-            const response = await fetch('/api/nutrition/goals', {
+            const response = await fetch(getApiUrl('/api/nutrition/goals', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
-            });
+            }));
 
             const result = await response.json();
 
@@ -561,12 +562,12 @@ function GoalsEditor({ goals, onUpdate }) {
     const resetToDefaults = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/nutrition/goals', {
+            const response = await fetch(getApiUrl('/api/nutrition/goals', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 }
-            });
+            }));
 
             const result = await response.json();
 

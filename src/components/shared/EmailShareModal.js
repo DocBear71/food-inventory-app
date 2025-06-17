@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function EmailShareModal({
                                             isOpen,
@@ -40,7 +41,7 @@ export default function EmailShareModal({
 
     const fetchContacts = async () => {
         try {
-            const response = await fetch('/api/contacts');
+            const response = await fetch(getApiUrl('/api/contacts'));
             const data = await response.json();
             if (data.success) {
                 setContacts(data.contacts);
@@ -82,11 +83,11 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch('/api/contacts', {
+            const response = await fetch(getApiUrl('/api/contacts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newContact)
-            });
+            }));
 
             const data = await response.json();
             if (data.success) {
@@ -125,7 +126,7 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch('/api/email/send-shopping-list', {
+            const response = await fetch(getApiUrl('/api/email/send-shopping-list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -135,7 +136,7 @@ export default function EmailShareModal({
                     context,
                     contextName
                 })
-            });
+            }));
 
             const data = await response.json();
 

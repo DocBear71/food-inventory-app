@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { COMMON_ITEMS } from '@/lib/commonItems';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [selectedItems, setSelectedItems] = useState(new Map());
@@ -192,7 +193,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         try {
             const itemsToAdd = Array.from(validatedItems.values());
 
-            const response = await fetch('/api/inventory/bulk-add', {
+            const response = await fetch(getApiUrl('/api/inventory/bulk-add', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -201,7 +202,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                     items: itemsToAdd,
                     source: 'Common Items Wizard'
                 }),
-            });
+            }));
 
             const data = await response.json();
 

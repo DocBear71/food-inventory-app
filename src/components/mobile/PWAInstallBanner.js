@@ -4,9 +4,26 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from '@/lib/api-config';
+import { Capacitor } from '@capacitor/core';
+
 
 export function PWAInstallBanner() {
-    const sessionResult = useSession();
+
+    if (Capacitor.isNativePlatform()) {
+        return null;
+    }
+
+    // Add try-catch for session
+    let sessionResult;
+    try {
+        sessionResult = useSession();
+    } catch (error) {
+        console.log('Session not available in mobile build');
+        return null;
+    }
+
+
     const [showBanner, setShowBanner] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
@@ -47,7 +64,7 @@ export function PWAInstallBanner() {
             // Only check if session is loaded and user is authenticated
             if (sessionStatus === 'authenticated' && userId) {
                 try {
-                    const response = await fetch('/api/user/preferences');
+                    const response = await fetch(getApiUrl('/api/user/preferences'));
                     if (response.ok) {
                         const data = await response.json();
                         return data.preferences?.disablePWABanner === true;
@@ -159,7 +176,7 @@ export function PWAInstallBanner() {
                         ${sessionStatus === 'authenticated' && userId ? `
                         <button 
                             onclick="
-                                fetch('/api/user/preferences', { 
+                                fetch(getApiUrl('/api/user/preferences', { 
                                     method: 'PATCH', 
                                     headers: { 'Content-Type': 'application/json' }, 
                                     body: JSON.stringify({ disablePWABanner: true }) 
@@ -169,7 +186,7 @@ export function PWAInstallBanner() {
                                 }).catch(err => {
                                     console.error('Failed to disable PWA banner:', err);
                                     this.closest('.fixed').remove();
-                                });
+                                }));
                             "
                             style="width: 100%; background: transparent; color: #6b7280; padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer; font-size: 14px;"
                         >
