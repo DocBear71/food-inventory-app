@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
 // Your Vercel deployment URL
-const PRODUCTION_API_URL = 'https://food-inventory-a6bstbeti-edward-mckeowns-projects.vercel.app';
+const PRODUCTION_API_URL = 'https://www.docbearscomfort.kitchen';
 
 // Function to get the correct API base URL
 export function getApiBaseUrl() {
