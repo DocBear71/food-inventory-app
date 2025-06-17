@@ -67,6 +67,13 @@ export const authOptions = {
                 session.user.id = token.id;
             }
             return session;
+        },async redirect({ url, baseUrl }) {
+            // Handle redirects for mobile app
+            if (url.startsWith('/')) return url
+            if (url.startsWith(baseUrl)) return url
+            return baseUrl || '/'
         },
     },
+    // Add this for mobile compatibility
+    trustHost: true,
 };

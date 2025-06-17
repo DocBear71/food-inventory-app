@@ -1,5 +1,6 @@
 // file: /src/app/layout.js v2 - Updated with iOS Safari PWA support
 
+import '@/lib/capacitor-auth-fix'
 import { Inter } from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
