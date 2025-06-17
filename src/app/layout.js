@@ -1,22 +1,18 @@
 // file: /src/app/layout.js v2 - Updated with iOS Safari PWA support
 
-'use client'
-
-import '@/lib/capacitor-auth-fix'
-
-console.log('Layout Loading with Auth Fix')
 
 import { Inter } from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import PWAWrapper from '@/components/PWAWrapper';
+import CapacitorAuthProvider from '@/components/CapacitorAuthProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
     title: 'Doc Bear\'s Comfort Kitchen',
     description: 'Manage your Food Inventory and find recipes based on what you have',
-    // PWA metadata
+    // ... keep all your existing metadata
     manifest: '/manifest.json',
     themeColor: '#4f46e5',
     viewport: {
@@ -133,11 +129,13 @@ export default function RootLayout({ children }) {
             />
         </head>
         <body className={inter.className}>
-        <PWAWrapper>
-            <SessionProvider>
-                {children}
-            </SessionProvider>
-        </PWAWrapper>
+        <CapacitorAuthProvider>
+            <PWAWrapper>
+                <SessionProvider>
+                    {children}
+                </SessionProvider>
+            </PWAWrapper>
+        </CapacitorAuthProvider>
         </body>
         </html>
     );
