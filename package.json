@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:mobile": "next build",
+    "build:mobile": "set NEXT_CONFIG_FILE=next.config.mobile.js&& next build",
     "start": "next start",
     "lint": "next lint",
     "cap:sync": "npx cap sync",
-    "cap:open:ios": "npx cap open ios",
-    "cap:build:ios": "npm run build:mobile && npx cap sync"
+    "cap:open:android": "npx cap open android",
+    "cap:build:android": "npm run build:mobile && npx cap sync android"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^7.2.1",
