@@ -222,147 +222,6 @@ export default function ReceiptScan() {
         }
     }
 
-    // Simplified camera start function - one attempt then fallback
-    async function startCamera() {
-        setCameraError(null);
-        console.log('📱 Starting camera with device info:', deviceInfo);
-
-        try {
-            // Check basic support
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera API not supported');
-            }
-
-            // Stop any existing stream
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
-
-            // For iOS PWA, try one optimized attempt then fallback gracefully
-            if (deviceInfo.isIOSPWA) {
-                console.log('📱 iOS PWA: Attempting camera with research-based approach...');
-
-                // Ensure HTTPS
-                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                    throw new Error('Camera requires HTTPS in iOS PWA mode');
-                }
-
-                // Single optimized attempt based on research
-                const constraints = {
-                    video: {
-                        facingMode: "environment",
-                        width: {ideal: 640},
-                        height: {ideal: 480}
-                    },
-                    audio: false
-                };
-
-                try {
-                    // 5-second timeout for iOS PWA
-                    const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('iOS PWA camera timeout')), 5000)
-                    );
-
-                    const stream = await Promise.race([streamPromise, timeoutPromise]);
-
-                    if (stream && stream.getVideoTracks().length > 0) {
-                        console.log('✅ iOS PWA camera success!');
-                        streamRef.current = stream;
-                        setShowCamera(true);
-
-                        // Setup video with iOS PWA optimizations
-                        setTimeout(async () => {
-                            if (videoRef.current) {
-                                const video = videoRef.current;
-                                video.srcObject = stream;
-                                video.playsInline = true;
-                                video.muted = true;
-                                video.setAttribute('playsinline', 'true');
-                                video.setAttribute('webkit-playsinline', 'true');
-
-                                try {
-                                    await video.play();
-                                    console.log('✅ iOS PWA video playing');
-                                } catch (playError) {
-                                    console.log('iOS PWA video play issue:', playError);
-                                }
-                            }
-                        }, 200);
-
-                        return; // Success!
-                    } else {
-                        throw new Error('iOS PWA: No video tracks in stream');
-                    }
-                } catch (iosError) {
-                    console.log('❌ iOS PWA camera failed:', iosError.message);
-
-                    // Immediately show helpful fallback modal
-                    setShowIOSPWAModal(true);
-                    return;
-                }
-            }
-
-            // Standard camera logic for non-iOS PWA
-            else {
-                console.log('📱 Standard camera initialization...');
-
-                const constraints = deviceInfo.isIOS ? {
-                    video: {
-                        facingMode: 'environment',
-                        width: {ideal: 1280},
-                        height: {ideal: 720}
-                    }
-                } : {
-                    video: {
-                        facingMode: 'environment',
-                        width: {ideal: 1920, min: 1280},
-                        height: {ideal: 1080, min: 720}
-                    }
-                };
-
-                let stream;
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (enhancedError) {
-                    console.log('Enhanced constraints failed, trying basic:', enhancedError);
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {facingMode: 'environment'}
-                    });
-                }
-
-                streamRef.current = stream;
-                setShowCamera(true);
-
-                // Standard video setup
-                setTimeout(() => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                        videoRef.current.play().catch(console.log);
-                    }
-                }, 100);
-            }
-
-        } catch (error) {
-            console.error('❌ Camera start failed:', error);
-
-            let errorMessage = 'Failed to start camera: ' + error.message;
-
-            if (error.name === 'NotAllowedError') {
-                errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = 'No camera found on this device.';
-            } else if (error.name === 'NotReadableError') {
-                errorMessage = 'Camera is being used by another app.';
-            } else if (error.message.includes('HTTPS')) {
-                errorMessage = 'Camera requires HTTPS. Please access the app via HTTPS.';
-            }
-
-            setCameraError(errorMessage);
-        }
-    }
-
     // Enhanced camera start function with iOS PWA fixes based on research
     async function startCamera() {
         setCameraError(null);
@@ -569,6 +428,31 @@ export default function ReceiptScan() {
 
             streamRef.current = stream;
             setShowCamera(true);
+
+            setTimeout(() => {
+                // Find the camera container and scroll to it smoothly
+                const cameraContainer = document.querySelector('[data-camera-container]');
+                if (cameraContainer) {
+                    cameraContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                    console.log('📱 Auto-scrolled to camera view');
+                } else {
+                    // Fallback: scroll to the video element if camera container not found
+                    setTimeout(() => {
+                        if (videoRef.current) {
+                            videoRef.current.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'nearest'
+                            });
+                            console.log('📱 Auto-scrolled to video element');
+                        }
+                    }, 200);
+                }
+            }, 300); // Small delay to ensure rendering
 
             // Enhanced video element setup for iOS PWA
             console.log('🎥 Setting up video element...');
