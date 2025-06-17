@@ -1,9 +1,9 @@
 'use client';
+
 // file: /src/app/auth/signin/page.js v2 - FIXED VERSION
 
-
-import { useState, useEffect } from 'react';
-import { signIn, getSession } from 'next-auth/react';
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -20,21 +20,6 @@ export default function SignIn() {
     const [redirecting, setRedirecting] = useState(false);
     const router = useRouter();
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Don't render until mounted (prevents hydration mismatch)
-    if (!mounted) {
-        return (
-            <MobileOptimizedLayout>
-                <div className="flex items-center justify-center min-h-screen">
-                    <div className="text-lg">Loading...</div>
-                </div>
-            </MobileOptimizedLayout>
-        );
-    }
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -42,7 +27,6 @@ export default function SignIn() {
 
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
-        console.log('Password length:', formData.password.length);
 
         try {
             const result = await signIn('credentials', {
@@ -52,19 +36,16 @@ export default function SignIn() {
             });
 
             console.log('SignIn result:', result);
-            console.log('Result error:', result?.error);
-            console.log('Result ok:', result?.ok);
-            console.log('Result status:', result?.status);
 
             if (result?.ok) {
                 console.log('Login appears successful, redirecting immediately...');
                 setRedirecting(true);
 
-                // Force redirect
-                window.location.href = '/dashboard';
+                // Use setTimeout to ensure state updates before redirect
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 100);
             } else {
-                // ← ADD THIS MISSING ERROR HANDLING:
-                console.error('Login failed with error:', result?.error);
                 setError('Invalid email or password');
             }
         } catch (error) {
@@ -96,6 +77,12 @@ export default function SignIn() {
                         {error && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                                 {error}
+                            </div>
+                        )}
+
+                        {redirecting && (
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                Login successful! Redirecting to dashboard...
                             </div>
                         )}
 
@@ -147,10 +134,10 @@ export default function SignIn() {
                         <div>
                             <TouchEnhancedButton
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || redirecting}
                                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                             >
-                                {loading ? 'Signing in...' : 'Sign in'}
+                                {loading ? 'Signing in...' : redirecting ? 'Redirecting...' : 'Sign in'}
                             </TouchEnhancedButton>
                         </div>
 
@@ -163,11 +150,6 @@ export default function SignIn() {
                             </Link>
                         </div>
                     </form>
-                    {redirecting && (
-                        <div className="text-center">
-                            <div className="text-lg text-indigo-600">Login successful! Redirecting...</div>
-                        </div>
-                    )}
                 </div>
             </div>
 
