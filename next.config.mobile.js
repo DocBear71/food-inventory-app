@@ -6,14 +6,10 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    output: 'export',
+    output: 'export',        // Only for mobile builds
     trailingSlash: true,
     images: {
         unoptimized: true
-    },
-    // Skip dynamic routes during static export
-    experimental: {
-        missingSuspenseWithCSRBailout: false,
     }
 }
 
