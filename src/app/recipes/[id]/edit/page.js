@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]-disabled/edit/page.js v3 - Fixed layout and labels
+// file: /src/app/recipes/[id]/edit/page.js v3 - Fixed layout and labels
 
 'use client';
 

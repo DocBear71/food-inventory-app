@@ -1,4 +1,4 @@
-// file: /src/app/recipes/[id]-disabled/page.js v9 - Fixed scaling bug and improved user tracking
+// file: /src/app/recipes/[id]/page.js v9 - Fixed scaling bug and improved user tracking
 
 'use client';
 
