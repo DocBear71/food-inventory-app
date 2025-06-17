@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'kitchen.docbearscomfort',
+  appId: 'kitchen.docbearscomfort.www',
   appName: "Doc Bear's Comfort Kitchen",
   webDir: 'out',
     server: {
