@@ -55,7 +55,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/meal-prep/generate', {
+            const response = await fetch(getApiUrl('/api/meal-prep/generate'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     userPreferences,
                     regenerate
                 }),
-            }));
+            });
 
             const result = await response.json();
 
@@ -85,7 +85,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     const handleTaskComplete = async (taskId) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-prep/${suggestions._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-prep/${suggestions._id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     action: 'markTaskComplete',
                     taskId
                 }),
-            }));
+            });
 
             if (response.ok) {
                 const updatedCompletedTasks = new Set(completedTasks);

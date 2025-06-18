@@ -129,7 +129,7 @@ export default function RecipeCookingIntegration({
 
     const handleCookingConsumption = async (consumptions) => {
         try {
-            const response = await fetch(getApiUrl('/api/inventory/consume', {
+            const response = await fetch(getApiUrl('/api/inventory/consume'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ export default function RecipeCookingIntegration({
                     consumptions: consumptions,
                     mode: 'recipe'
                 }),
-            }));
+            });
 
             const result = await response.json();
 

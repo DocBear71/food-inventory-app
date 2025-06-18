@@ -171,7 +171,7 @@ function PWAInstallBannerContent() {
                         ${sessionStatus === 'authenticated' && userId ? `
                         <button 
                             onclick="
-                                fetch(getApiUrl('/api/user/preferences', { 
+                                fetch(getApiUrl('/api/user/preferences'), { 
                                     method: 'PATCH', 
                                     headers: { 'Content-Type': 'application/json' }, 
                                     body: JSON.stringify({ disablePWABanner: true }) 
@@ -181,7 +181,7 @@ function PWAInstallBannerContent() {
                                 }).catch(err => {
                                     console.error('Failed to disable PWA banner:', err);
                                     this.closest('.fixed').remove();
-                                }));
+                                });
                             "
                             style="width: 100%; background: transparent; color: #6b7280; padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer; font-size: 14px;"
                         >

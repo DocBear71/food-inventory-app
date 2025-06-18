@@ -174,7 +174,7 @@ export function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
         setSubmitting(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews`, {
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -187,7 +187,7 @@ export function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
                     modifications: modifications.trim(),
                     wouldMakeAgain
                 })
-            }));
+            });
 
             const data = await response.json();
 

@@ -32,11 +32,11 @@ export default function ReviewDisplay({
         setIsVoting(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews/${review._id}/vote`, {
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews/${review._id}/vote`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ vote: voteType })
-            }));
+            });
 
             const data = await response.json();
 

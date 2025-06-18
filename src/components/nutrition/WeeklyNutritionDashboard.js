@@ -56,13 +56,13 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
 
     const generateAnalysis = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/analyze', {
+            const response = await fetch(getApiUrl('/api/nutrition/analyze'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ mealPlanId }),
-            }));
+            });
 
             const result = await response.json();
 
@@ -529,13 +529,13 @@ function GoalsEditor({ goals, onUpdate }) {
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/goals', {
+            const response = await fetch(getApiUrl('/api/nutrition/goals'), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
-            }));
+            });
 
             const result = await response.json();
 
@@ -562,12 +562,12 @@ function GoalsEditor({ goals, onUpdate }) {
     const resetToDefaults = async () => {
         setLoading(true);
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/goals', {
+            const response = await fetch(getApiUrl('/api/nutrition/goals'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 }
-            }));
+            });
 
             const result = await response.json();
 

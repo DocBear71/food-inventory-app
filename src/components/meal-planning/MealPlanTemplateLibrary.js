@@ -71,7 +71,7 @@ export default function MealPlanTemplateLibrary({
 
     const handleApplyTemplate = async (templateId, mergeMeals = false) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}/apply`, {
+            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}/apply`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ export default function MealPlanTemplateLibrary({
                     mealPlanId,
                     mergeMeals
                 }),
-            }));
+            });
 
             const result = await response.json();
 
@@ -104,9 +104,9 @@ export default function MealPlanTemplateLibrary({
         }
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}`), {
                 method: 'DELETE'
-            }));
+            });
 
             if (response.ok) {
                 setTemplates(prev => prev.filter(t => t._id !== templateId));
@@ -454,7 +454,7 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/meal-plan-templates', {
+            const response = await fetch(getApiUrl('/api/meal-plan-templates'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -463,7 +463,7 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                     mealPlanId,
                     ...formData
                 }),
-            }));
+            });
 
             const result = await response.json();
 

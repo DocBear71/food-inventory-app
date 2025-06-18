@@ -193,7 +193,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         try {
             const itemsToAdd = Array.from(validatedItems.values());
 
-            const response = await fetch(getApiUrl('/api/inventory/bulk-add', {
+            const response = await fetch(getApiUrl('/api/inventory/bulk-add'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -202,7 +202,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                     items: itemsToAdd,
                     source: 'Common Items Wizard'
                 }),
-            }));
+            });
 
             const data = await response.json();
 

@@ -64,7 +64,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/user/delete-account', {
+            const response = await fetch(getApiUrl('/api/user/delete-account'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                     password: formData.password,
                     confirmDeletion: formData.confirmDeletion
                 }),
-            }));
+            });
 
             const data = await response.json();
 

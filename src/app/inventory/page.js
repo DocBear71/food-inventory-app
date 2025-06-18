@@ -109,7 +109,7 @@ function InventoryContent() {
         try {
             console.log('Handling consumption:', { consumptionData, mode });
 
-            const response = await fetch(getApiUrl('/api/inventory/consume', {
+            const response = await fetch(getApiUrl('/api/inventory/consume'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ function InventoryContent() {
                     consumptions: consumptionData,
                     mode: mode
                 }),
-            }));
+            });
 
             const result = await response.json();
 
@@ -439,9 +439,9 @@ function InventoryContent() {
         if (!confirm('Are you sure you want to delete this item?')) return;
 
         try {
-            const response = await fetch(getApiUrl(`/api/inventory?itemId=${itemId}`, {
+            const response = await fetch(getApiUrl(`/api/inventory?itemId=${itemId}`), {
                 method: 'DELETE',
-            }));
+            });
 
             const data = await response.json();
 

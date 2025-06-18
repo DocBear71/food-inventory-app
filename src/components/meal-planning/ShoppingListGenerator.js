@@ -32,7 +32,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
             console.log('Meal Plan ID:', mealPlanId);
             console.log('User ID:', session?.user?.id);
 
-            const response = await fetch(getApiUrl('/api/shopping/generate', {
+            const response = await fetch(getApiUrl('/api/shopping/generate'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                 body: JSON.stringify({
                     mealPlanId: mealPlanId
                 }),
-            }));
+            });
 
             console.log('Response status:', response.status);
             const result = await response.json();

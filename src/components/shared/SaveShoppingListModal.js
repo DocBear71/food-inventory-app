@@ -85,13 +85,13 @@ export default function SaveShoppingListModal({
                 isTemplate: formData.isTemplate
             };
 
-            const response = await fetch(getApiUrl('/api/shopping/saved', {
+            const response = await fetch(getApiUrl('/api/shopping/saved'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(saveData),
-            }));
+            });
 
             const result = await response.json();
 

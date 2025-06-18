@@ -399,7 +399,7 @@ export default function ShoppingPage() {
         try {
             console.log('Generating shopping list for recipes:', selectedRecipes);
 
-            const response = await fetch(getApiUrl('/api/shopping/generate', {
+            const response = await fetch(getApiUrl('/api/shopping/generate'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -407,7 +407,7 @@ export default function ShoppingPage() {
                 body: JSON.stringify({
                     recipeIds: selectedRecipes
                 }),
-            }));
+            });
 
             const result = await response.json();
 

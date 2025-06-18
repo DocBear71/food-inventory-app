@@ -66,7 +66,7 @@ export default function MobileMealPlanningPage() {
         if (!activeMealPlan) {
             // Create new meal plan if none exists
             try {
-                const response = await fetch(getApiUrl('/api/meal-plans', {
+                const response = await fetch(getApiUrl('/api/meal-plans'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -79,7 +79,7 @@ export default function MobileMealPlanningPage() {
                             }]
                         }
                     })
-                }));
+                });
 
                 if (response.ok) {
                     await fetchMealPlans();
@@ -111,11 +111,11 @@ export default function MobileMealPlanningPage() {
                 mealType: targetMealType
             });
 
-            const response = await fetch(getApiUrl(`/api/meal-plans/${activeMealPlan._id}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${activeMealPlan._id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ meals: updatedMeals })
-            }));
+            });
 
             if (response.ok) {
                 await fetchMealPlans();

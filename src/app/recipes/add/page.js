@@ -70,11 +70,11 @@ export default function AddRecipePage() {
                 transformed: apiData.nutrition
             });
 
-            const response = await fetch(getApiUrl('/api/recipes', {
+            const response = await fetch(getApiUrl('/api/recipes'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(apiData)
-            }));
+            });
 
             const data = await response.json();
 

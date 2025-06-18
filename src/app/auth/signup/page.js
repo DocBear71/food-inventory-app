@@ -93,7 +93,7 @@ export default function SignUp() {
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/register', {
+            const response = await fetch(getApiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export default function SignUp() {
                     acceptedPrivacy: true,
                     acceptanceDate: new Date().toISOString(),
                 }),
-            }));
+            });
 
             const data = await response.json();
 

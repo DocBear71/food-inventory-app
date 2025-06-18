@@ -108,9 +108,9 @@ function RecipesContent() {
         }
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`, {
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`), {
                 method: 'DELETE'
-            }));
+            });
 
             if (response.ok) {
                 setRecipes(prev => prev.filter(recipe => recipe._id !== recipeId));

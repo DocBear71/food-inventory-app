@@ -69,7 +69,7 @@ export default function SavedShoppingListsPage() {
 
     const loadSavedList = async (listId, options = {}) => {
         try {
-            const response = await fetch(getApiUrl(`/api/shopping/saved/${listId}/load`, {
+            const response = await fetch(getApiUrl(`/api/shopping/saved/${listId}/load`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -78,7 +78,7 @@ export default function SavedShoppingListsPage() {
                     startShoppingSession: true,
                     ...options
                 })
-            }));
+            });
 
             const result = await response.json();
 
@@ -100,11 +100,11 @@ export default function SavedShoppingListsPage() {
 
     const deleteSavedLists = async (listIds, archive = false) => {
         try {
-            const response = await fetch(getApiUrl('/api/shopping/saved', {
+            const response = await fetch(getApiUrl('/api/shopping/saved'), {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ listIds, archive })
-            }));
+            });
 
             const result = await response.json();
 
@@ -123,11 +123,11 @@ export default function SavedShoppingListsPage() {
 
     const unarchiveSavedLists = async (listIds) => {
         try {
-            const response = await fetch(getApiUrl('/api/shopping/saved/unarchive', {
+            const response = await fetch(getApiUrl('/api/shopping/saved/unarchive'), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ listIds })
-            }));
+            });
 
             const result = await response.json();
 

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/edit/page.js v3 - Fixed layout and labels
+// file: /src/app/recipes/[id]/edit/page.js v4 - Fixed API call method parameter
 
 
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -177,11 +177,11 @@ export default function EditRecipePage() {
                 servings: formData.servings ? parseInt(formData.servings) : null
             };
 
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`, {
+            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(recipeData)
-            }));
+            });
 
             const data = await response.json();
 

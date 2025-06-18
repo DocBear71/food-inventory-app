@@ -83,11 +83,11 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/contacts', {
+            const response = await fetch(getApiUrl('/api/contacts'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newContact)
-            }));
+            });
 
             const data = await response.json();
             if (data.success) {
@@ -126,7 +126,7 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/email/send-shopping-list', {
+            const response = await fetch(getApiUrl('/api/email/send-shopping-list'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -136,7 +136,7 @@ export default function EmailShareModal({
                     context,
                     contextName
                 })
-            }));
+            });
 
             const data = await response.json();
 

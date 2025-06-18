@@ -61,7 +61,7 @@ export default function RecipeDetailPage() {
             if (data.success) {
                 setRecipe(data.recipe);
                 // Increment view count
-                await fetch(getApiUrl(`/api/recipes/${recipeId}/view`, { method: 'POST' }));
+                await fetch(getApiUrl(`/api/recipes/${recipeId}/view`), { method: 'POST' });
             } else {
                 setError(data.error || 'Recipe not found');
             }
@@ -107,7 +107,7 @@ export default function RecipeDetailPage() {
     // NEW: Add recipe to collection
     const addToCollection = async (collectionId) => {
         try {
-            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`, {
+            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export default function RecipeDetailPage() {
                 body: JSON.stringify({
                     recipeId: recipe._id
                 })
-            }));
+            });
 
             const data = await response.json();
             if (data.success) {
@@ -133,7 +133,7 @@ export default function RecipeDetailPage() {
     // NEW: Create new collection and add recipe
     const createCollectionAndAdd = async (name, description = '') => {
         try {
-            const response = await fetch(getApiUrl('/api/collections', {
+            const response = await fetch(getApiUrl('/api/collections'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ export default function RecipeDetailPage() {
                     description,
                     recipes: [{ recipeId: recipe._id }]
                 })
-            }));
+            });
 
             const data = await response.json();
             if (data.success) {
@@ -160,9 +160,9 @@ export default function RecipeDetailPage() {
 
     const addToMealPlan = async (mealPlanId, day, mealType) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`, {
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`), {
                 method: 'GET'
-            }));
+            });
 
             const data = await response.json();
             if (!data.success) {
@@ -187,7 +187,7 @@ export default function RecipeDetailPage() {
                 [day]: [...(mealPlan.meals[day] || []), newMeal]
             };
 
-            const updateResponse = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`, {
+            const updateResponse = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export default function RecipeDetailPage() {
                 body: JSON.stringify({
                     meals: updatedMeals
                 })
-            }));
+            });
 
             const updateData = await updateResponse.json();
             if (updateData.success) {
