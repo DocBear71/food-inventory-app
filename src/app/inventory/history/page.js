@@ -44,13 +44,19 @@ export default function ConsumptionHistoryPage() {
                 params.append('reason', filterReason);
             }
 
+            // Debug logging
+            console.log('getApiUrl function:', typeof getApiUrl);
+            console.log('About to call getApiUrl with:', `/api/inventory/consume?${params}`);
+
             // Try to use getApiUrl, but fallback to direct path if it fails
             let apiUrl;
             try {
                 apiUrl = getApiUrl(`/api/inventory/consume?${params}`);
+                console.log('getApiUrl result:', apiUrl);
             } catch (e) {
-                console.warn('getApiUrl failed, using direct path:', e);
+                console.error('getApiUrl failed:', e);
                 apiUrl = `/api/inventory/consume?${params}`;
+                console.log('Using fallback URL:', apiUrl);
             }
 
             const response = await fetch(apiUrl);
