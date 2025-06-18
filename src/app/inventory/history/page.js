@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import {getApiUrl} from '@/lib/api-config';
 
 export default function ConsumptionHistoryPage() {
     const { data: session, status } = useSafeSession();
