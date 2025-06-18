@@ -1149,7 +1149,6 @@ const UserInventorySchema = new mongoose.Schema({
     },
     items: [InventoryItemSchema],
 
-    // ADD THIS FIELD - This was missing!
     consumptionHistory: [ConsumptionHistorySchema],
 
     lastUpdated: {type: Date, default: Date.now}
