@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { StarRating } from './RecipeRating';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl} from "@/lib/api-config";
 
 export default function ReviewDisplay({
                                           review,

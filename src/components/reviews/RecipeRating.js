@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl} from "@/lib/api-config";
 
 // Star Rating Display Component
 export function StarRating({ rating, size = 'medium', showNumber = true, interactive = false, onRatingChange }) {

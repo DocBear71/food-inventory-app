@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl} from "@/lib/api-config";
 
 // Simple Star Rating Component
 function StarRating({ rating, maxRating = 5, onRatingChange, interactive = false, size = 'medium' }) {

@@ -8,6 +8,7 @@ import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import {getApiUrl} from "@/lib/api-config";
 
 export default function EditRecipePage() {
     let session = null;

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl} from "@/lib/api-config";
 
 export default function NutritionSearch({
                                             onFoodSelected,
