@@ -36,11 +36,17 @@ export default function ConsumptionHistoryPage() {
 
         try {
             const params = new URLSearchParams({
-                limit: '100',
-                reason: filterReason
+                limit: '100'
             });
 
+            // Add reason filter if not 'all'
+            if (filterReason !== 'all') {
+                params.append('reason', filterReason);
+            }
+
+            // Use the existing consume endpoint which has a GET method for fetching history
             const response = await fetch(getApiUrl(`/api/inventory/consume?${params}`));
+
             const result = await response.json();
 
             if (result.success) {
