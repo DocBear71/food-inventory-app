@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl} from "@/lib/api-config";
 
 export default function ConsumptionHistory({ onClose }) {
     const { data: session } = useSafeSession();
