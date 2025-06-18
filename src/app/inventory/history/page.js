@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
+import { getApiUrl } from '../../../lib/api-config';
 
 export default function ConsumptionHistoryPage() {
     const { data: session, status } = useSafeSession();
@@ -44,8 +44,16 @@ export default function ConsumptionHistoryPage() {
                 params.append('reason', filterReason);
             }
 
-            // Use the existing consume endpoint which has a GET method for fetching history
-            const response = await fetch(`/api/inventory/consume?${params}`);
+            // Try to use getApiUrl, but fallback to direct path if it fails
+            let apiUrl;
+            try {
+                apiUrl = getApiUrl(`/api/inventory/consume?${params}`);
+            } catch (e) {
+                console.warn('getApiUrl failed, using direct path:', e);
+                apiUrl = `/api/inventory/consume?${params}`;
+            }
+
+            const response = await fetch(apiUrl);
 
             const result = await response.json();
 
