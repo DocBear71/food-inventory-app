@@ -1331,6 +1331,281 @@ The Doc Bear's Comfort Kitchen Team
 
         return { html, text };
     }
+
+    static getEmailVerificationTemplate(verificationUrl, userEmail, userName) {
+        const currentYear = new Date().getFullYear();
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #c6f6d5;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .welcome-badge {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .welcome-badge h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .verify-button {
+            display: block;
+            width: fit-content;
+            margin: 30px auto;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .verify-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+        
+        .info-box {
+            background-color: #e6fffa;
+            border: 1px solid #38b2ac;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #234e52;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .info-box ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+            color: #285e61;
+        }
+        
+        .info-box li {
+            margin: 5px 0;
+        }
+        
+        .link-backup {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            word-break: break-all;
+        }
+        
+        .link-backup p {
+            margin: 0 0 10px 0;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .link-backup a {
+            color: #48bb78;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .content,
+            .header,
+            .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .verify-button {
+                width: calc(100% - 40px) !important;
+                margin: 25px 20px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Your culinary companion</p>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-badge">
+                <h2>🎉 Welcome to Doc Bear's Comfort Kitchen!</h2>
+            </div>
+            
+            <p>Hello ${userName},</p>
+            
+            <p>Thank you for creating your account with Doc Bear's Comfort Kitchen! We're excited to help you manage your food inventory and discover amazing recipes.</p>
+            
+            <p>To get started and access all features, please verify your email address by clicking the button below:</p>
+            
+            <a href="${verificationUrl}" class="verify-button">Verify My Email Address</a>
+            
+            <div class="link-backup">
+                <p>Having trouble with the button? Copy and paste this link:</p>
+                <a href="${verificationUrl}">${verificationUrl}</a>
+            </div>
+            
+            <div class="info-box">
+                <h4>🔒 Important Information</h4>
+                <ul>
+                    <li>This verification link will expire in <strong>24 hours</strong></li>
+                    <li>You must verify your email to access app features</li>
+                    <li>This link can only be used once</li>
+                    <li>If you didn't create this account, please ignore this email</li>
+                </ul>
+            </div>
+            
+            <div class="info-box">
+                <h4>🍳 What's Next?</h4>
+                <ul>
+                    <li>Start building your food inventory</li>
+                    <li>Explore hundreds of comfort food recipes</li>
+                    <li>Plan your meals for the week</li>
+                    <li>Generate smart shopping lists</li>
+                    <li>Never waste food again!</li>
+                </ul>
+            </div>
+            
+            <p>If you have any questions or need assistance, our support team is here to help!</p>
+            
+            <p style="margin-top: 30px;">
+                Welcome to the family!<br>
+                <em>The Doc Bear's Comfort Kitchen Team</em>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This email was sent to verify your account creation</p>
+            <p>If you didn't create an account, please ignore this email</p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const text = `
+Welcome to Doc Bear's Comfort Kitchen!
+
+Hello ${userName},
+
+Thank you for creating your account with Doc Bear's Comfort Kitchen! We're excited to help you manage your food inventory and discover amazing recipes.
+
+To get started and access all features, please verify your email address by clicking this link:
+
+${verificationUrl}
+
+IMPORTANT INFORMATION:
+- This verification link will expire in 24 hours
+- You must verify your email to access app features
+- This link can only be used once
+- If you didn't create this account, please ignore this email
+
+WHAT'S NEXT?
+- Start building your food inventory
+- Explore hundreds of comfort food recipes
+- Plan your meals for the week
+- Generate smart shopping lists
+- Never waste food again!
+
+If you have any questions or need assistance, our support team is here to help!
+
+Welcome to the family!
+The Doc Bear's Comfort Kitchen Team
+
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+    `;
+
+        return { html, text };
+    }
+}
+
+// Add this helper function to your existing email.js file:
+export async function sendEmailVerificationEmail(email, verificationToken, userName) {
+    const verificationUrl = `${emailService.baseUrl}/auth/verify-email?token=${verificationToken}`;
+    const template = EmailTemplates.getEmailVerificationTemplate(verificationUrl, email, userName);
+
+    return await emailService.sendEmail(
+        email,
+        'Verify Your Email Address - Doc Bear\'s Comfort Kitchen',
+        template.html,
+        template.text
+    );
 }
 
 // Create singleton instance
@@ -1378,4 +1653,5 @@ export async function sendAccountDeletionConfirmationEmail(email, userName) {
         template.text
     );
 }
+
 

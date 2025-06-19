@@ -1,9 +1,8 @@
 'use client';
-// file: /src/app/auth/signup/page.js v4 - WITH PASSWORD REQUIREMENTS DISPLAY
+// file: /src/app/auth/signup/page.js v5 - Added pricing tier selection and email verification
 
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import PrivacyPolicy from '@/components/legal/PrivacyPolicy';
@@ -11,13 +10,29 @@ import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
-export default function SignUp() {
+// Separate component for search params to wrap in Suspense
+function SignUpContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Get URL parameters from pricing page
+    const urlTier = searchParams.get('tier') || 'free';
+    const urlBilling = searchParams.get('billing') || 'annual';
+    const urlTrial = searchParams.get('trial') === 'true';
+    const urlSource = searchParams.get('source');
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         confirmPassword: '',
     });
+
+    // Pricing selection state
+    const [selectedTier, setSelectedTier] = useState(urlTier);
+    const [billingCycle, setBillingCycle] = useState(urlBilling);
+    const [showPricingModal, setShowPricingModal] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -26,35 +41,77 @@ export default function SignUp() {
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
-    const router = useRouter();
+
+    const tiers = [
+        {
+            id: 'free',
+            name: 'Free',
+            price: { monthly: 0, annual: 0 },
+            description: 'Perfect for getting started with basic inventory management',
+            features: [
+                'Up to 50 inventory items',
+                '100 starter recipes',
+                'Basic "What Can I Make?" matching',
+                'Simple shopping lists',
+                'UPC scanning (10/month)',
+                'Receipt scanning (2/month)'
+            ],
+            bgColor: 'bg-gray-50',
+            borderColor: 'border-gray-200',
+            textColor: 'text-gray-900'
+        },
+        {
+            id: 'gold',
+            name: 'Gold',
+            price: { monthly: 4.99, annual: 49.99 },
+            description: 'Essential tools for active home cooks',
+            features: [
+                'Up to 250 inventory items',
+                'Access to 500 recipes',
+                'Advanced "What Can I Make?"',
+                'Full meal planning (2 weeks)',
+                'Unlimited UPC scanning',
+                'Receipt scanning (20/month)',
+                'Email notifications & alerts',
+                'Plus more'
+            ],
+            bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+            borderColor: 'border-blue-300',
+            textColor: 'text-blue-900',
+            trialAvailable: true
+        },
+        {
+            id: 'platinum',
+            name: 'Platinum',
+            price: { monthly: 9.99, annual: 99.99 },
+            description: 'Complete kitchen management',
+            features: [
+                'Unlimited inventory items',
+                'All Gold features',
+                'Unlimited meal planning',
+                'Advanced meal prep tools',
+                'Nutrition goal tracking',
+                'Dietary restriction & Ingredients to avoid control',
+                'Priority support & early access',
+                'Plus much more'
+            ],
+            bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50',
+            borderColor: 'border-purple-300',
+            textColor: 'text-purple-900',
+            trialAvailable: true
+        }
+    ];
 
     const validatePassword = (password) => {
         const errors = [];
-
-        if (password.length < 8) {
-            errors.push('at least 8 characters');
-        }
-
-        if (!/[A-Z]/.test(password)) {
-            errors.push('one uppercase letter');
-        }
-
-        if (!/[a-z]/.test(password)) {
-            errors.push('one lowercase letter');
-        }
-
-        if (!/[0-9]/.test(password)) {
-            errors.push('one number');
-        }
-
-        if (!/[!@#$%^&*]/.test(password)) {
-            errors.push('one special character (!@#$%^&*)');
-        }
-
+        if (password.length < 8) errors.push('at least 8 characters');
+        if (!/[A-Z]/.test(password)) errors.push('one uppercase letter');
+        if (!/[a-z]/.test(password)) errors.push('one lowercase letter');
+        if (!/[0-9]/.test(password)) errors.push('one number');
+        if (!/[!@#$%^&*]/.test(password)) errors.push('one special character (!@#$%^&*)');
         return errors;
     };
 
-    // Check individual password requirements
     const getPasswordRequirements = (password) => {
         return {
             length: password.length >= 8,
@@ -63,6 +120,17 @@ export default function SignUp() {
             number: /[0-9]/.test(password),
             special: /[!@#$%^&*]/.test(password)
         };
+    };
+
+    const getSavingsPercentage = (tier) => {
+        if (tier.price.monthly === 0) return null;
+        const monthlyCost = tier.price.monthly * 12;
+        const savings = ((monthlyCost - tier.price.annual) / monthlyCost) * 100;
+        return Math.round(savings);
+    };
+
+    const getSelectedTierData = () => {
+        return tiers.find(tier => tier.id === selectedTier);
     };
 
     const handleSubmit = async (e) => {
@@ -78,7 +146,6 @@ export default function SignUp() {
             return;
         }
 
-        // Validate password strength
         const passwordErrors = validatePassword(formData.password);
         if (passwordErrors.length > 0) {
             setError(`Password must contain ${passwordErrors.join(', ')}`);
@@ -105,16 +172,19 @@ export default function SignUp() {
                     acceptedTerms: true,
                     acceptedPrivacy: true,
                     acceptanceDate: new Date().toISOString(),
+                    // Subscription details
+                    selectedTier,
+                    billingCycle: selectedTier === 'free' ? null : billingCycle,
+                    startTrial: selectedTier !== 'free',
+                    source: urlSource
                 }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                setSuccess('Account created successfully! You can now sign in.');
-                setTimeout(() => {
-                    router.push('/auth/signin');
-                }, 2000);
+                setSuccess('Account created successfully! Please check your email to verify your account before signing in.');
+                // Don't redirect automatically - let them verify email first
             } else {
                 setError(data.error || 'An error occurred');
             }
@@ -147,11 +217,17 @@ export default function SignUp() {
     const closeModal = () => {
         setShowPrivacyModal(false);
         setShowTermsModal(false);
+        setShowPricingModal(false);
         document.body.style.overflow = 'unset';
     };
 
-    const Modal = ({ isOpen, onClose, children, title }) => {
+    const Modal = ({ isOpen, onClose, children, title, size = 'default' }) => {
         if (!isOpen) return null;
+
+        const sizeClasses = {
+            default: 'max-w-4xl',
+            large: 'max-w-6xl'
+        };
 
         return (
             <div
@@ -159,7 +235,7 @@ export default function SignUp() {
                 onClick={onClose}
             >
                 <div
-                    className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-auto relative shadow-xl"
+                    className={`bg-white rounded-lg ${sizeClasses[size]} max-h-[90vh] overflow-auto relative shadow-xl`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center z-10">
@@ -180,10 +256,10 @@ export default function SignUp() {
         );
     };
 
-    // Get current password requirements status
     const passwordReqs = getPasswordRequirements(formData.password);
     const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
     const passwordsDontMatch = formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword;
+    const selectedTierData = getSelectedTierData();
 
     return (
         <>
@@ -196,6 +272,120 @@ export default function SignUp() {
                         <p className="mt-2 text-sm text-gray-600">
                             Join thousands managing their food inventory smartly
                         </p>
+                    </div>
+
+                    {/* Pricing Tier Selection */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-medium text-gray-900">Choose Your Plan</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowPricingModal(true)}
+                                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                            >
+                                Compare Plans
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Billing Cycle Toggle (only show if not free) */}
+                        {selectedTier !== 'free' && (
+                            <div className="flex items-center justify-center mb-4">
+                                <div className="bg-gray-100 p-1 rounded-lg">
+                                    <TouchEnhancedButton
+                                        onClick={() => setBillingCycle('monthly')}
+                                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                                            billingCycle === 'monthly'
+                                                ? 'bg-white text-gray-900 shadow-sm'
+                                                : 'text-gray-600'
+                                        }`}
+                                    >
+                                        Monthly
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => setBillingCycle('annual')}
+                                        className={`px-3 py-1 rounded text-sm font-medium transition-all relative ${
+                                            billingCycle === 'annual'
+                                                ? 'bg-white text-gray-900 shadow-sm'
+                                                : 'text-gray-600'
+                                        }`}
+                                    >
+                                        Annual
+                                        {billingCycle === 'annual' && selectedTier !== 'free' && (
+                                            <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1 rounded-full">
+                                                Save {getSavingsPercentage(selectedTierData)}%
+                                            </span>
+                                        )}
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tier Selection */}
+                        <div className="space-y-2">
+                            {tiers.map((tier) => (
+                                <div
+                                    key={tier.id}
+                                    className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                                        selectedTier === tier.id
+                                            ? `${tier.borderColor} ${tier.bgColor}`
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                    onClick={() => setSelectedTier(tier.id)}
+                                >
+                                    <div className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="tier"
+                                            value={tier.id}
+                                            checked={selectedTier === tier.id}
+                                            onChange={() => setSelectedTier(tier.id)}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                        />
+                                        <div className="ml-3 flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className={`font-semibold ${tier.textColor}`}>
+                                                        {tier.name}
+                                                        {tier.trialAvailable && (
+                                                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                                                7-Day Free Trial
+                                                            </span>
+                                                        )}
+                                                    </h4>
+                                                    <p className="text-sm text-gray-600">{tier.description}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    {tier.price.monthly === 0 ? (
+                                                        <span className="text-2xl font-bold text-gray-900">Free</span>
+                                                    ) : (
+                                                        <div>
+                                                            <span className="text-2xl font-bold text-gray-900">
+                                                                ${billingCycle === 'annual' ? tier.price.annual : tier.price.monthly}
+                                                            </span>
+                                                            <span className="text-gray-600 text-sm">
+                                                                /{billingCycle === 'annual' ? 'year' : 'month'}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Trial Info */}
+                        {selectedTier !== 'free' && (
+                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center">
+                                    <span className="text-green-600 text-sm">🎉</span>
+                                    <p className="ml-2 text-sm text-green-800">
+                                        <strong>7-Day Free Trial</strong> - Get full Platinum access! No payment required now.
+                                        You'll be able to choose your subscription after the trial ends.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <form className="space-y-6" onSubmit={handleSubmit}>
@@ -267,46 +457,22 @@ export default function SignUp() {
                                 <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
                                     <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
                                     <div className="space-y-1">
-                                        <div className="flex items-center text-xs">
-                                            <span className={`mr-2 ${passwordReqs.length ? 'text-green-600' : 'text-red-600'}`}>
-                                                {passwordReqs.length ? '✓' : '✗'}
-                                            </span>
-                                            <span className={passwordReqs.length ? 'text-green-700' : 'text-gray-600'}>
-                                                At least 8 characters
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center text-xs">
-                                            <span className={`mr-2 ${passwordReqs.uppercase ? 'text-green-600' : 'text-red-600'}`}>
-                                                {passwordReqs.uppercase ? '✓' : '✗'}
-                                            </span>
-                                            <span className={passwordReqs.uppercase ? 'text-green-700' : 'text-gray-600'}>
-                                                One uppercase letter (A-Z)
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center text-xs">
-                                            <span className={`mr-2 ${passwordReqs.lowercase ? 'text-green-600' : 'text-red-600'}`}>
-                                                {passwordReqs.lowercase ? '✓' : '✗'}
-                                            </span>
-                                            <span className={passwordReqs.lowercase ? 'text-green-700' : 'text-gray-600'}>
-                                                One lowercase letter (a-z)
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center text-xs">
-                                            <span className={`mr-2 ${passwordReqs.number ? 'text-green-600' : 'text-red-600'}`}>
-                                                {passwordReqs.number ? '✓' : '✗'}
-                                            </span>
-                                            <span className={passwordReqs.number ? 'text-green-700' : 'text-gray-600'}>
-                                                One number (0-9)
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center text-xs">
-                                            <span className={`mr-2 ${passwordReqs.special ? 'text-green-600' : 'text-red-600'}`}>
-                                                {passwordReqs.special ? '✓' : '✗'}
-                                            </span>
-                                            <span className={passwordReqs.special ? 'text-green-700' : 'text-gray-600'}>
-                                                One special character (!@#$%^&*)
-                                            </span>
-                                        </div>
+                                        {[
+                                            { key: 'length', label: 'At least 8 characters' },
+                                            { key: 'uppercase', label: 'One uppercase letter (A-Z)' },
+                                            { key: 'lowercase', label: 'One lowercase letter (a-z)' },
+                                            { key: 'number', label: 'One number (0-9)' },
+                                            { key: 'special', label: 'One special character (!@#$%^&*)' }
+                                        ].map(req => (
+                                            <div key={req.key} className="flex items-center text-xs">
+                                                <span className={`mr-2 ${passwordReqs[req.key] ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {passwordReqs[req.key] ? '✓' : '✗'}
+                                                </span>
+                                                <span className={passwordReqs[req.key] ? 'text-green-700' : 'text-gray-600'}>
+                                                    {req.label}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -428,6 +594,105 @@ export default function SignUp() {
 
             <Footer />
 
+            {/* Pricing Comparison Modal */}
+            <Modal
+                isOpen={showPricingModal}
+                onClose={closeModal}
+                title="Compare Plans"
+                size="large"
+            >
+                <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {tiers.map((tier) => {
+                            const savings = getSavingsPercentage(tier);
+                            return (
+                                <div
+                                    key={tier.id}
+                                    className={`border-2 rounded-lg p-6 ${
+                                        selectedTier === tier.id ? `${tier.borderColor} ${tier.bgColor}` : 'border-gray-200'
+                                    }`}
+                                >
+                                    <div className="text-center mb-4">
+                                        <h3 className={`text-xl font-bold ${tier.textColor} mb-2`}>
+                                            {tier.name}
+                                            {tier.trialAvailable && (
+                                                <span className="block text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full mt-1">
+                                                    7-Day Free Trial
+                                                </span>
+                                            )}
+                                        </h3>
+                                        <p className="text-gray-600 text-sm mb-4">{tier.description}</p>
+
+                                        <div className="mb-4">
+                                            {tier.price.monthly === 0 ? (
+                                                <div>
+                                                    <span className="text-3xl font-bold text-gray-900">Free</span>
+                                                    <div className="text-xs text-gray-500 mt-1">Forever</div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <div className="flex items-center justify-center">
+                                                        <span className="text-3xl font-bold text-gray-900">
+                                                            ${billingCycle === 'annual' ? tier.price.annual : tier.price.monthly}
+                                                        </span>
+                                                        <span className="text-gray-600 ml-1 text-sm">
+                                                            /{billingCycle === 'annual' ? 'year' : 'month'}
+                                                        </span>
+                                                    </div>
+                                                    {billingCycle === 'annual' && savings && (
+                                                        <div className="text-xs text-green-600 font-semibold mt-1">
+                                                            Save {savings}% vs monthly
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                setSelectedTier(tier.id);
+                                                closeModal();
+                                            }}
+                                            className={`w-full py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
+                                                selectedTier === tier.id
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {selectedTier === tier.id ? 'Selected' : 'Select Plan'}
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 text-sm">What's Included:</h4>
+                                        <ul className="space-y-1">
+                                            {tier.features.map((feature, index) => (
+                                                <li key={index} className="flex items-start space-x-2">
+                                                    <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span className="text-sm text-gray-700">{feature}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">🎉 Free Trial Details</h4>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                            <li>• 7-day trial includes full <strong>Platinum</strong> access regardless of selected tier</li>
+                            <li>• No payment required during signup</li>
+                            <li>• After trial: choose to subscribe or continue with Free plan</li>
+                            <li>• Cancel anytime during trial with no charges</li>
+                        </ul>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal
                 isOpen={showPrivacyModal}
                 onClose={closeModal}
@@ -444,5 +709,18 @@ export default function SignUp() {
                 <TermsOfUse />
             </Modal>
         </>
+    );
+}
+
+// Main component wrapped with Suspense
+export default function SignUp() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-lg">Loading...</div>
+            </div>
+        }>
+            <SignUpContent />
+        </Suspense>
     );
 }

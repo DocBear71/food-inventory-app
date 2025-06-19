@@ -374,7 +374,77 @@ const UserSchema = new mongoose.Schema({
     },
     lastNotificationSent: Date,
     createdAt: {type: Date, default: Date.now},
-    updatedAt: {type: Date, default: Date.now}
+    updatedAt: {type: Date, default: Date.now},
+
+    // Email verification fields
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String,
+        select: false // Don't include in queries by default
+    },
+    emailVerificationExpires: {
+        type: Date,
+        select: false
+    },
+    emailVerificationRequestedAt: {
+        type: Date,
+        select: false
+    },
+
+// Subscription and billing fields
+    subscription: {
+        tier: {
+            type: String,
+            enum: ['free', 'gold', 'platinum'],
+            default: 'free'
+        },
+        status: {
+            type: String,
+            enum: ['trial', 'active', 'cancelled', 'expired', 'free'],
+            default: 'free'
+        },
+        billingCycle: {
+            type: String,
+            enum: ['monthly', 'annual'],
+            default: null
+        },
+        startDate: {
+            type: Date,
+            default: null
+        },
+        endDate: {
+            type: Date,
+            default: null
+        },
+        trialStartDate: {
+            type: Date,
+            default: null
+        },
+        trialEndDate: {
+            type: Date,
+            default: null
+        },
+        // For future payment integration
+        paymentMethod: {
+            type: String,
+            default: null
+        },
+        stripeCustomerId: {
+            type: String,
+            default: null
+        },
+        lastPaymentDate: {
+            type: Date,
+            default: null
+        },
+        nextBillingDate: {
+            type: Date,
+            default: null
+        }
+    },
 });
 
 // UPDATED: MealPlanEntrySchema with new meal types

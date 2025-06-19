@@ -253,6 +253,8 @@ span[role="img"],
 .mb-2 { margin-bottom: 0.5rem !important; }
 .mb-3 { margin-bottom: 0.75rem !important; }
 .mb-4 { margin-bottom: 1rem !important; }
+.mb-5 { margin-bottom: 3.5rem !important; }
+.mb-12 { margin-bottom: 4rem !important; }
 .ml-1 { margin-left: 0.25rem !important; }
 .ml-2 { margin-left: 0.5rem !important; }
 .mr-2 { margin-right: 0.5rem !important; }
@@ -325,7 +327,8 @@ span[role="img"],
 .bg-green-50 { background-color: #f0fdf4 !important; }
 .bg-green-100 { background-color: #dcfce7 !important; }
 .bg-green-200 { background-color: #bbf7d0 !important; }
-.bg-green-600 { background-color: #16a34a !important; }
+.bg-green-400 { background-color: #dbeaf7 !important; }
+.bg-green-500 { background-color: #159239 !important; }
 .bg-yellow-50 { background-color: #fefce8 !important; }
 .bg-yellow-200 { background-color: #fef08a !important; }
 .bg-orange-50 { background-color: #fff7ed !important; }
@@ -576,18 +579,6 @@ body {
     .lg\:grid-cols-4 {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
-}
-
-.gap-2 {
-    gap: 0.5rem !important;
-}
-
-.gap-4 {
-    gap: 1rem !important;
-}
-
-.gap-6 {
-    gap: 1.5rem !important;
 }
 
 /* Padding and margin fixes */
@@ -1289,7 +1280,6 @@ textarea {
 /* MISSING GREEN COLORS */
 .text-green-900 { color: #14532d !important; }
 .border-green-400 { border-color: #4ade80 !important; }
-.hover\:bg-green-600:hover { background-color: #16a34a !important; }
 
 /* MISSING INDIGO COLORS */
 .text-indigo-500 { color: #6366f1 !important; }
@@ -2046,11 +2036,9 @@ textarea {
 .border-yellow-700 { border-color: #a16207 !important; }
 
 /* GREEN BACKGROUND COLORS (for un-archive button) */
-.bg-green-600 { background-color: #16a34a !important; }
 .bg-green-700 { background-color: #15803d !important; }
 
 /* GREEN HOVER EFFECTS */
-.hover\:bg-green-600:hover { background-color: #16a34a !important; }
 .hover\:bg-green-700:hover { background-color: #15803d !important; }
 
 /* MISSING CYAN COLORS (for freezer button) */
@@ -2616,6 +2604,14 @@ div[style*="background-color: #f1f5f9"] {
 
 .gap-6 {
     gap: 1.5rem !important;
+}
+
+.gap-8 {
+    gap: 2.0rem !important;
+}
+
+.gap-9 {
+    gap: 3.5rem !important;
 }
 
 /* ENSURE PROPER LAYERING */

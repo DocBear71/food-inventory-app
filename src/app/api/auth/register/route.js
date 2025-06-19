@@ -1,9 +1,11 @@
-// file: /src/app/api/auth/register/route.js v3
+// file: /src/app/api/auth/register/route.js v4 - Added subscription handling and email verification
 
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
+import { sendEmailVerificationEmail } from '@/lib/email';
 
 // Strong password validation function
 const validatePassword = (password) => {
@@ -44,7 +46,12 @@ export async function POST(request) {
             password,
             acceptedTerms,
             acceptedPrivacy,
-            acceptanceDate
+            acceptanceDate,
+            // New subscription fields
+            selectedTier = 'free',
+            billingCycle = null,
+            startTrial = false,
+            source = null
         } = await request.json();
 
         // Basic validation
@@ -95,6 +102,23 @@ export async function POST(request) {
             );
         }
 
+        // Validate subscription tier
+        const validTiers = ['free', 'gold', 'platinum'];
+        if (!validTiers.includes(selectedTier)) {
+            return NextResponse.json(
+                { error: 'Invalid subscription tier' },
+                { status: 400 }
+            );
+        }
+
+        // Validate billing cycle for paid tiers
+        if (selectedTier !== 'free' && startTrial && !['monthly', 'annual'].includes(billingCycle)) {
+            return NextResponse.json(
+                { error: 'Billing cycle is required for paid plans' },
+                { status: 400 }
+            );
+        }
+
         await connectDB();
 
         // Check if user already exists
@@ -109,11 +133,50 @@ export async function POST(request) {
         // Hash password with higher cost for better security
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user with legal acceptance tracking
+        // Generate email verification token
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const hashedVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+        // Prepare subscription data
+        let subscriptionData = {
+            tier: 'free',
+            status: 'free',
+            billingCycle: null,
+            startDate: null,
+            endDate: null,
+            trialStartDate: null,
+            trialEndDate: null
+        };
+
+        // Set up trial if requested
+        if (startTrial && selectedTier !== 'free') {
+            const now = new Date();
+            const trialEnd = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
+
+            subscriptionData = {
+                tier: selectedTier, // Store selected tier for later billing
+                status: 'trial',
+                billingCycle: billingCycle,
+                startDate: now,
+                trialStartDate: now,
+                trialEndDate: trialEnd,
+                endDate: null // Will be set when they subscribe after trial
+            };
+        }
+
+        // Create user with all the data
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
             password: hashedPassword,
+
+            // Email verification
+            emailVerified: false,
+            emailVerificationToken: hashedVerificationToken,
+            emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            emailVerificationRequestedAt: new Date(),
+
+            // Legal acceptance
             legalAcceptance: {
                 termsAccepted: acceptedTerms,
                 privacyAccepted: acceptedPrivacy,
@@ -122,30 +185,52 @@ export async function POST(request) {
                     request.headers.get('x-real-ip') ||
                     'unknown',
                 userAgent: request.headers.get('user-agent') || 'unknown'
-            }
+            },
+
+            // Subscription data
+            subscription: subscriptionData
         });
 
         await user.save();
 
-        // Log legal acceptance for audit trail
-        console.log(`Legal acceptance recorded for user ${email}:`, {
+        // Send email verification
+        try {
+            await sendEmailVerificationEmail(email, verificationToken, name);
+            console.log(`Email verification sent to ${email}`);
+        } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+            // Don't fail the registration, but log the error
+            // The user can request a new verification email later
+        }
+
+        // Log successful registration
+        console.log(`User registered successfully:`, {
             userId: user._id,
-            termsAccepted: acceptedTerms,
-            privacyAccepted: acceptedPrivacy,
-            acceptanceDate: acceptanceDate,
+            email: email,
+            tier: subscriptionData.tier,
+            status: subscriptionData.status,
+            trial: startTrial,
+            source: source,
             timestamp: new Date().toISOString()
         });
 
-        // Return success (don't send password back)
+        // Return success response
         return NextResponse.json({
             success: true,
-            message: 'Account created successfully with legal acceptance recorded',
+            message: 'Account created successfully! Please check your email to verify your account.',
             user: {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                emailVerified: user.emailVerified,
+                subscription: {
+                    tier: user.subscription.tier,
+                    status: user.subscription.status,
+                    trialEndDate: user.subscription.trialEndDate
+                },
                 legalAcceptanceDate: user.legalAcceptance.acceptanceDate
             },
+            requiresEmailVerification: true
         });
 
     } catch (error) {

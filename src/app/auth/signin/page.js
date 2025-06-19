@@ -1,29 +1,79 @@
 'use client';
+// file: /src/app/auth/signin/page.js v3 - Added email verification handling and resend functionality
 
-// file: /src/app/auth/signin/page.js v2 - FIXED VERSION
-
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
-import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
+import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import { getApiUrl } from '@/lib/api-config';
 
-export default function SignIn() {
+function SignInContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
     const [redirecting, setRedirecting] = useState(false);
-    const router = useRouter();
+    const [showResendVerification, setShowResendVerification] = useState(false);
+
+    useEffect(() => {
+        // Handle URL parameters for messages and errors
+        const urlError = searchParams.get('error');
+        const urlMessage = searchParams.get('message');
+
+        if (urlError) {
+            switch (urlError) {
+                case 'missing-token':
+                    setError('No verification token provided. Please check your email for the verification link.');
+                    break;
+                case 'invalid-token':
+                    setError('Invalid or expired verification token. Please request a new verification email.');
+                    setShowResendVerification(true);
+                    break;
+                case 'verification-failed':
+                    setError('Email verification failed. Please try again or request a new verification email.');
+                    setShowResendVerification(true);
+                    break;
+                case 'email-not-verified':
+                    setError('Please verify your email address before signing in.');
+                    setShowResendVerification(true);
+                    break;
+                case 'CredentialsSignin':
+                    setError('Invalid email or password. Please try again.');
+                    break;
+                default:
+                    setError('An error occurred. Please try again.');
+            }
+        }
+
+        if (urlMessage) {
+            switch (urlMessage) {
+                case 'email-verified':
+                    setMessage('Email verified successfully! You can now sign in to your account.');
+                    break;
+                case 'already-verified':
+                    setMessage('Your email is already verified. You can sign in below.');
+                    break;
+                default:
+                    setMessage(urlMessage);
+            }
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setMessage('');
+        setShowResendVerification(false);
 
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
@@ -37,7 +87,17 @@ export default function SignIn() {
 
             console.log('SignIn result:', result);
 
-            if (result?.ok) {
+            if (result?.error) {
+                // Handle specific authentication errors
+                if (result.error === 'email-not-verified') {
+                    setError('Please verify your email address before signing in.');
+                    setShowResendVerification(true);
+                } else if (result.error === 'CredentialsSignin') {
+                    setError('Invalid email or password. Please try again.');
+                } else {
+                    setError('Sign in failed. Please try again.');
+                }
+            } else if (result?.ok) {
                 console.log('Login appears successful, redirecting immediately...');
                 setRedirecting(true);
 
@@ -45,12 +105,45 @@ export default function SignIn() {
                 setTimeout(() => {
                     window.location.href = '/dashboard';
                 }, 100);
-            } else {
-                setError('Invalid email or password');
             }
         } catch (error) {
             console.error('Login exception:', error);
-            setError('An error occurred. Please try again.');
+            setError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!formData.email) {
+            setError('Please enter your email address first.');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        setMessage('');
+
+        try {
+            const response = await fetch(getApiUrl('/api/auth/resend-verification'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: formData.email }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setMessage(data.message);
+                setShowResendVerification(false);
+            } else {
+                setError(data.error || 'Failed to resend verification email');
+            }
+        } catch (error) {
+            console.error('Resend verification error:', error);
+            setError('Network error. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -77,6 +170,24 @@ export default function SignIn() {
                         {error && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                                 {error}
+                                {showResendVerification && (
+                                    <div className="mt-3">
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleResendVerification}
+                                            disabled={loading}
+                                            className="text-sm text-red-800 underline hover:text-red-900"
+                                        >
+                                            {loading ? 'Sending...' : 'Resend verification email'}
+                                        </TouchEnhancedButton>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                {message}
                             </div>
                         )}
 
@@ -129,6 +240,15 @@ export default function SignIn() {
                                     Forgot your password?
                                 </Link>
                             </div>
+
+                            <div className="text-sm">
+                                <Link
+                                    href="/auth/verify-email"
+                                    className="font-medium text-indigo-600 hover:text-indigo-500"
+                                >
+                                    Resend verification
+                                </Link>
+                            </div>
                         </div>
 
                         <div>
@@ -150,6 +270,29 @@ export default function SignIn() {
                             </Link>
                         </div>
                     </form>
+
+                    {/* Email Verification Help Section */}
+                    {showResendVerification && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h3 className="text-sm font-medium text-blue-900 mb-2">
+                                📧 Email Verification Required
+                            </h3>
+                            <p className="text-sm text-blue-800 mb-3">
+                                You need to verify your email address before signing in. Check your inbox for a verification email.
+                            </p>
+                            <div className="space-y-2">
+                                <p className="text-xs text-blue-700">
+                                    • Check your spam/junk folder if you don't see the email
+                                </p>
+                                <p className="text-xs text-blue-700">
+                                    • Verification links expire after 24 hours
+                                </p>
+                                <p className="text-xs text-blue-700">
+                                    • Enter your email above and click "Resend verification email" if needed
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -157,3 +300,18 @@ export default function SignIn() {
         </MobileOptimizedLayout>
     );
 }
+
+export default function SignIn() {
+    return (
+        <Suspense fallback={
+            <MobileOptimizedLayout>
+                <div className="flex items-center justify-center" style={{ paddingTop: '3rem' }}>
+                    <div className="text-lg">Loading...</div>
+                </div>
+            </MobileOptimizedLayout>
+        }>
+            <SignInContent />
+        </Suspense>
+    );
+}
+
