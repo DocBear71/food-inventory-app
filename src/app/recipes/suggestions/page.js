@@ -11,7 +11,7 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
 // Loading Modal Component with more colorful design
-const LoadingModal = ({ isOpen, progress, currentTask }) => {
+const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes = [] }) => {
     if (!isOpen) return null;
 
     return (
@@ -90,6 +90,9 @@ export default function RecipeSuggestions() {
     const [showLoadingModal, setShowLoadingModal] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [currentLoadingTask, setCurrentLoadingTask] = useState('');
+
+    // State to prevent auto-refresh on tab switches
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     // Existing meal templates (keeping for fallback)
     const mealTemplates = [
@@ -765,6 +768,8 @@ export default function RecipeSuggestions() {
                 isOpen={showLoadingModal}
                 progress={loadingProgress}
                 currentTask={currentLoadingTask}
+                inventory={inventory}
+                recipes={recipes}
             />
 
             <div className="space-y-6">
