@@ -51,7 +51,7 @@ const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes =
 
                 {/* Title */}
                 <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                    🔮 AI Kitchen Magic
+                    🔮 Doc Bear's Kitchen Magic
                 </h3>
 
                 {/* Current Task */}
@@ -59,7 +59,7 @@ const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes =
                     <p className="text-gray-700 font-medium text-lg mb-2">{currentTask}</p>
                     <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                         <span>✨</span>
-                        <span>Powered by culinary intelligence</span>
+                        <span>Powered by Doc Bear's culinary intelligence</span>
                         <span>✨</span>
                     </div>
                 </div>
