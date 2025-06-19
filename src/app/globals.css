@@ -2241,3 +2241,398 @@ div[style*="background-color: #f1f5f9"] {
         justify-self: center !important;
     }
 }
+
+/* ADD THESE MISSING STYLES TO YOUR globals.css FILE */
+
+/* MISSING BACKDROP UTILITIES */
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* MISSING BLACK OPACITY UTILITIES */
+.bg-black\/60 {
+    background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+.bg-black\/50 {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* MISSING ROUNDED UTILITIES */
+.rounded-2xl {
+    border-radius: 1rem !important;
+}
+
+/* MISSING MAX-WIDTH UTILITIES */
+.max-w-md {
+    max-width: 28rem !important;
+}
+
+/* MISSING SHADOW UTILITIES */
+.shadow-2xl {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* MISSING SPACING UTILITIES */
+.mx-4 {
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+}
+
+.mb-6 {
+    margin-bottom: 1.5rem !important;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem !important;
+}
+
+/* MISSING GRADIENT UTILITIES */
+.bg-gradient-to-br {
+    background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)) !important;
+}
+
+.from-indigo-500 {
+    --tw-gradient-from: #6366f1 !important;
+    --tw-gradient-to: rgba(99, 102, 241, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-purple-600 {
+    --tw-gradient-to: #9333ea !important;
+}
+
+.from-blue-500 {
+    --tw-gradient-from: #3b82f6 !important;
+    --tw-gradient-to: rgba(59, 130, 246, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.bg-gradient-to-r {
+    background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important;
+}
+
+/* MISSING ANIMATION DURATIONS */
+.duration-700 {
+    transition-duration: 700ms !important;
+}
+
+.ease-out {
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1) !important;
+}
+
+/* MISSING Z-INDEX UTILITIES */
+.z-50 {
+    z-index: 50 !important;
+}
+
+/* MISSING WIDTH/HEIGHT UTILITIES */
+.w-20 {
+    width: 5rem !important;
+}
+
+.h-20 {
+    height: 5rem !important;
+}
+
+.w-3 {
+    width: 0.75rem !important;
+}
+
+.h-3 {
+    height: 0.75rem !important;
+}
+
+.w-12 {
+    width: 3rem !important;
+}
+
+.h-12 {
+    height: 3rem !important;
+}
+
+/* MISSING BORDER UTILITIES */
+.border-4 {
+    border-width: 4px !important;
+}
+
+.border-t-blue-500 {
+    border-top-color: #3b82f6 !important;
+}
+
+/* MISSING SPECIFIC COLOR COMBINATIONS */
+.text-gray-900 {
+    color: #111827 !important;
+}
+
+.text-gray-600 {
+    color: #4b5563 !important;
+}
+
+.text-indigo-600 {
+    color: #4f46e5 !important;
+}
+
+.text-purple-600 {
+    color: #9333ea !important;
+}
+
+/* IMPROVED MODAL POSITIONING AND BEHAVIOR */
+.loading-modal-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999 !important;
+    padding: 1rem !important;
+}
+
+.loading-modal-content {
+    background-color: white !important;
+    border-radius: 1rem !important;
+    padding: 2rem !important;
+    max-width: 28rem !important;
+    width: 100% !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid #f3f4f6 !important;
+    position: relative !important;
+    z-index: 10000 !important;
+}
+
+/* LOADING SPINNER IMPROVEMENTS */
+.loading-spinner-container {
+    display: flex !important;
+    justify-content: center !important;
+    margin-bottom: 1.5rem !important;
+    position: relative !important;
+}
+
+.loading-spinner-outer {
+    width: 5rem !important;
+    height: 5rem !important;
+    border: 4px solid #e5e7eb !important;
+    border-top-color: #3b82f6 !important;
+    border-radius: 50% !important;
+    animation: spin 1s linear infinite !important;
+}
+
+.loading-spinner-center {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.loading-spinner-emoji-bg {
+    width: 3rem !important;
+    height: 3rem !important;
+    background: linear-gradient(to bottom right, #6366f1, #9333ea) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.loading-spinner-emoji {
+    color: white !important;
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+}
+
+/* PROGRESS BAR IMPROVEMENTS */
+.progress-bar-container {
+    width: 100% !important;
+    background-color: #e5e7eb !important;
+    border-radius: 9999px !important;
+    height: 0.75rem !important;
+    margin-bottom: 1rem !important;
+    overflow: hidden !important;
+}
+
+.progress-bar-fill {
+    height: 100% !important;
+    background: linear-gradient(to right, #3b82f6, #9333ea) !important;
+    border-radius: 9999px !important;
+    transition: width 700ms cubic-bezier(0, 0, 0.2, 1) !important;
+}
+
+/* STATS GRID IMPROVEMENTS */
+.stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+    padding: 1rem !important;
+    background-color: #f9fafb !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid #e5e7eb !important;
+    margin-bottom: 1rem !important;
+}
+
+.stats-item {
+    text-align: center !important;
+}
+
+.stats-number {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.stats-label {
+    font-size: 0.75rem !important;
+    color: #4b5563 !important;
+    font-weight: 500 !important;
+}
+
+/* MODAL TITLE IMPROVEMENTS */
+.modal-title {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    color: #111827 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* MODAL SUBTITLE IMPROVEMENTS */
+.modal-subtitle {
+    text-align: center !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.modal-task-text {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 1.125rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.modal-subtitle-decoration {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.875rem !important;
+    color: #6b7280 !important;
+}
+
+/* PROGRESS PERCENTAGE DISPLAY */
+.progress-percentage-container {
+    text-align: center !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.progress-percentage-number {
+    font-size: 1.875rem !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.progress-percentage-label {
+    font-size: 0.875rem !important;
+    color: #4b5563 !important;
+    font-weight: 500 !important;
+}
+
+/* PROGRESS MESSAGE */
+.progress-message {
+    text-align: center !important;
+    font-size: 0.875rem !important;
+    color: #4b5563 !important;
+    font-weight: 500 !important;
+}
+
+/* ENSURE MODAL WORKS ON MOBILE */
+@media (max-width: 640px) {
+    .loading-modal-content {
+        margin: 1rem !important;
+        padding: 1.5rem !important;
+        max-width: calc(100vw - 2rem) !important;
+    }
+
+    .loading-spinner-outer {
+        width: 4rem !important;
+        height: 4rem !important;
+    }
+
+    .loading-spinner-emoji-bg {
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+    }
+
+    .loading-spinner-emoji {
+        font-size: 1rem !important;
+    }
+
+    .modal-title {
+        font-size: 1.25rem !important;
+    }
+
+    .modal-task-text {
+        font-size: 1rem !important;
+    }
+
+    .progress-percentage-number {
+        font-size: 1.5rem !important;
+    }
+}
+
+/* ADDITIONAL UTILITY CLASSES YOU MAY NEED */
+.inset-0 {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+}
+
+.gap-1 {
+    gap: 0.25rem !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+.gap-3 {
+    gap: 0.75rem !important;
+}
+
+.gap-4 {
+    gap: 1rem !important;
+}
+
+.gap-6 {
+    gap: 1.5rem !important;
+}
+
+/* ENSURE PROPER LAYERING */
+body.modal-open {
+    overflow: hidden !important;
+}
+
+.modal-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    z-index: 9998 !important;
+}
+
+.modal-content {
+    position: relative !important;
+    z-index: 9999 !important;
+}
