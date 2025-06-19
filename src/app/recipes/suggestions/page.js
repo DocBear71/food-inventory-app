@@ -192,10 +192,10 @@ export default function RecipeSuggestions() {
     useEffect(() => {
         // Only regenerate suggestions if we have data and user changes filters
         // This prevents auto-refresh on tab switches
-        if (dataLoaded && inventory.length > 0 && recipes.length > 0 && curatedMeals.length >= 0) {
+        if (dataLoaded && inventory.length > 0 && recipes.length > 0) {
             generateAllSuggestions();
         }
-    }, [matchThreshold, selectedCategory]); // Removed inventory, recipes, curatedMeals from dependencies
+    }, [dataLoaded, matchThreshold, selectedCategory]);
 
     // Enhanced data loading with progress tracking
     const loadAllData = async () => {
