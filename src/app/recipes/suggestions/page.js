@@ -668,7 +668,209 @@ export default function RecipeSuggestions() {
         } : null;
     };
 
-    // Keep existing recipe analysis function
+    // ENHANCED: Better ingredient name normalization with strict vegan/plant-based exclusions
+    const normalizeIngredientName = (name) => {
+        return name
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
+            .replace(/\s+/g, ' ')      // Normalize multiple spaces
+            .trim();
+    };
+
+// NEW: Check if ingredient is vegan/plant-based
+    const isVeganOrPlantBased = (name) => {
+        const normalizedName = normalizeIngredientName(name);
+        const veganKeywords = [
+            'vegan', 'plant-based', 'plant based', 'vegetarian', 'dairy-free',
+            'dairy free', 'non-dairy', 'non dairy', 'almond', 'soy', 'oat',
+            'coconut', 'cashew', 'rice milk', 'hemp', 'pea protein'
+        ];
+
+        return veganKeywords.some(keyword => normalizedName.includes(keyword));
+    };
+
+// NEW: Check if ingredient is animal product
+    const isAnimalProduct = (name) => {
+        const normalizedName = normalizeIngredientName(name);
+        const animalKeywords = [
+            'butter', 'milk', 'cheese', 'cream', 'yogurt', 'sour cream',
+            'buttermilk', 'heavy cream', 'half and half', 'dairy',
+            'beef', 'pork', 'chicken', 'turkey', 'fish', 'salmon',
+            'bacon', 'sausage', 'ham', 'ground beef', 'ground turkey',
+            'eggs', 'egg', 'honey', 'gelatin', 'lard'
+        ];
+
+        // Don't mark as animal product if it's explicitly vegan
+        if (isVeganOrPlantBased(normalizedName)) {
+            return false;
+        }
+
+        return animalKeywords.some(keyword => normalizedName.includes(keyword));
+    };
+
+// ENHANCED: Strict ingredient matching that prevents vegan/animal crossover
+    const findIngredientInInventory = (recipeIngredient, inventory) => {
+        const recipeName = normalizeIngredientName(recipeIngredient.name);
+        const recipeIsVegan = isVeganOrPlantBased(recipeIngredient.name);
+        const recipeIsAnimal = isAnimalProduct(recipeIngredient.name);
+
+        console.log(`\n--- Looking for recipe ingredient: "${recipeIngredient.name}" ---`);
+        console.log(`Normalized: "${recipeName}"`);
+        console.log(`Is vegan: ${recipeIsVegan}, Is animal: ${recipeIsAnimal}`);
+
+        for (const item of inventory) {
+            const itemName = normalizeIngredientName(item.name);
+            const itemIsVegan = isVeganOrPlantBased(item.name);
+            const itemIsAnimal = isAnimalProduct(item.name);
+
+            // STRICT RULE: Vegan ingredients can NEVER match animal products
+            if (recipeIsVegan && itemIsAnimal) {
+                console.log(`❌ BLOCKED: Vegan recipe ingredient "${recipeIngredient.name}" cannot match animal product "${item.name}"`);
+                continue;
+            }
+
+            // STRICT RULE: Animal ingredients can NEVER match vegan products
+            if (recipeIsAnimal && itemIsVegan) {
+                console.log(`❌ BLOCKED: Animal recipe ingredient "${recipeIngredient.name}" cannot match vegan product "${item.name}"`);
+                continue;
+            }
+
+            // 1. EXACT MATCH
+            if (itemName === recipeName) {
+                console.log(`✅ EXACT MATCH: "${item.name}" matches "${recipeIngredient.name}"`);
+                return { found: true, inventoryItem: item, matchType: 'exact' };
+            }
+
+            // 2. CONTAINS MATCH (with additional safety checks)
+            if (itemName.includes(recipeName) || recipeName.includes(itemName)) {
+                // Additional validation for common problematic cases
+                if (isValidIngredientMatch(recipeIngredient.name, item.name)) {
+                    console.log(`✅ CONTAINS MATCH: "${item.name}" matches "${recipeIngredient.name}"`);
+                    return { found: true, inventoryItem: item, matchType: 'partial' };
+                } else {
+                    console.log(`❌ REJECTED: "${item.name}" contains "${recipeIngredient.name}" but failed validation`);
+                }
+            }
+
+            // 3. SMART SUBSTITUTION MATCHING
+            const substitutionMatch = findSmartSubstitution(recipeIngredient.name, item.name);
+            if (substitutionMatch) {
+                console.log(`✅ SUBSTITUTION MATCH: "${item.name}" can substitute for "${recipeIngredient.name}"`);
+                return { found: true, inventoryItem: item, matchType: 'substitution' };
+            }
+        }
+
+        console.log(`❌ NO MATCH found for: "${recipeIngredient.name}"`);
+        return { found: false, inventoryItem: null, matchType: null };
+    };
+
+// NEW: Additional validation for ingredient matching
+    const isValidIngredientMatch = (recipeIngredient, inventoryItem) => {
+        const recipeName = normalizeIngredientName(recipeIngredient);
+        const itemName = normalizeIngredientName(inventoryItem);
+
+        // Specific problematic cases to avoid
+        const problematicPairs = [
+            // Butter variations
+            { recipe: 'vegan butter', inventory: 'butter' },
+            { recipe: 'plant butter', inventory: 'butter' },
+            { recipe: 'dairy free butter', inventory: 'butter' },
+
+            // Milk variations
+            { recipe: 'vegan milk', inventory: 'milk' },
+            { recipe: 'almond milk', inventory: 'milk' },
+            { recipe: 'soy milk', inventory: 'milk' },
+            { recipe: 'oat milk', inventory: 'milk' },
+            { recipe: 'plant milk', inventory: 'milk' },
+
+            // Buttermilk (very specific)
+            { recipe: 'vegan buttermilk', inventory: 'butter' },
+            { recipe: 'vegan buttermilk', inventory: 'milk' },
+            { recipe: 'buttermilk', inventory: 'butter' },
+            { recipe: 'buttermilk', inventory: 'milk' },
+
+            // Meat variations
+            { recipe: 'vegan sausage', inventory: 'sausage' },
+            { recipe: 'plant sausage', inventory: 'sausage' },
+            { recipe: 'vegan ground beef', inventory: 'ground beef' },
+            { recipe: 'plant ground', inventory: 'ground beef' },
+
+            // Cheese variations
+            { recipe: 'vegan cheese', inventory: 'cheese' },
+            { recipe: 'dairy free cheese', inventory: 'cheese' },
+            { recipe: 'plant cheese', inventory: 'cheese' }
+        ];
+
+        // Check if this is a problematic pair
+        for (const pair of problematicPairs) {
+            if ((recipeName.includes(pair.recipe) && itemName.includes(pair.inventory)) ||
+                (recipeName.includes(pair.inventory) && itemName.includes(pair.recipe))) {
+                return false;
+            }
+        }
+
+        // Additional check: if recipe asks for a compound ingredient (like buttermilk)
+        // don't match with its components (butter + milk)
+        const compoundIngredients = ['buttermilk', 'sour cream', 'heavy cream', 'half and half'];
+        for (const compound of compoundIngredients) {
+            if (recipeName.includes(compound) && !itemName.includes(compound)) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+// NEW: Smart substitution matching for valid alternatives
+    const findSmartSubstitution = (recipeIngredient, inventoryItem) => {
+        const recipeName = normalizeIngredientName(recipeIngredient);
+        const itemName = normalizeIngredientName(inventoryItem);
+
+        // Define valid substitutions (only non-vegan to non-vegan, vegan to vegan)
+        const substitutions = {
+            // Cooking oils (generally interchangeable)
+            'vegetable oil': ['canola oil', 'sunflower oil', 'safflower oil'],
+            'canola oil': ['vegetable oil', 'sunflower oil'],
+            'olive oil': ['avocado oil'],
+
+            // Vinegars
+            'white vinegar': ['apple cider vinegar', 'rice vinegar'],
+            'apple cider vinegar': ['white vinegar', 'rice vinegar'],
+
+            // Sugars
+            'white sugar': ['granulated sugar', 'cane sugar'],
+            'brown sugar': ['coconut sugar', 'raw sugar'],
+
+            // Flours (basic)
+            'all purpose flour': ['plain flour', 'white flour'],
+            'plain flour': ['all purpose flour'],
+
+            // Spices and seasonings
+            'garlic powder': ['granulated garlic'],
+            'onion powder': ['granulated onion'],
+
+            // Only safe dairy substitutions (within same category)
+            'whole milk': ['2% milk', 'skim milk'],
+            '2% milk': ['whole milk', 'skim milk'],
+            'skim milk': ['2% milk', 'whole milk']
+        };
+
+        // Check if recipe ingredient has valid substitutions
+        for (const [ingredient, alternatives] of Object.entries(substitutions)) {
+            if (recipeName.includes(ingredient)) {
+                for (const alt of alternatives) {
+                    if (itemName.includes(alt)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    };
+
+// UPDATED: Replace the existing analyzeRecipe function with this enhanced version
     const analyzeRecipe = (recipe, inventory) => {
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
             return {
@@ -682,15 +884,17 @@ export default function RecipeSuggestions() {
         const availableIngredients = [];
         const missingIngredients = [];
 
-        recipe.ingredients.forEach(recipeIngredient => {
-            // Simplified ingredient matching
-            const found = inventory.some(item =>
-                item.name.toLowerCase().includes(recipeIngredient.name.toLowerCase()) ||
-                recipeIngredient.name.toLowerCase().includes(item.name.toLowerCase())
-            );
+        console.log(`\n=== ANALYZING RECIPE: ${recipe.title} ===`);
 
-            if (found) {
-                availableIngredients.push(recipeIngredient);
+        recipe.ingredients.forEach(recipeIngredient => {
+            const matchResult = findIngredientInInventory(recipeIngredient, inventory);
+
+            if (matchResult.found) {
+                availableIngredients.push({
+                    ...recipeIngredient,
+                    inventoryItem: matchResult.inventoryItem,
+                    matchType: matchResult.matchType
+                });
             } else {
                 missingIngredients.push(recipeIngredient);
             }
@@ -699,6 +903,8 @@ export default function RecipeSuggestions() {
         const matchPercentage = recipe.ingredients.length > 0 ?
             (availableIngredients.length / recipe.ingredients.length) : 0;
         const canMake = availableIngredients.length >= Math.ceil(recipe.ingredients.length * 0.8);
+
+        console.log(`Recipe Analysis Complete: ${availableIngredients.length}/${recipe.ingredients.length} ingredients (${Math.round(matchPercentage * 100)}%)`);
 
         return {
             matchPercentage,
@@ -1309,10 +1515,13 @@ export default function RecipeSuggestions() {
                                                                 </span>
                                                             </div>
                                                             {recipe.prepTime && (
-                                                                <div>Prep: {recipe.prepTime} minutes</div>
+                                                                <div>Prep: {formatCookTime(recipe.prepTime)}</div>
                                                             )}
                                                             {recipe.cookTime && (
-                                                                <div>Cook: {recipe.cookTime} minutes</div>
+                                                                <div>Cook: {formatCookTime(recipe.cookTime)}</div>
+                                                            )}
+                                                            {recipe.prepTime && recipe.cookTime && (
+                                                                <div>Total: {formatCookTime(recipe.prepTime + recipe.cookTime)}</div>
                                                             )}
                                                             {recipe.servings && (
                                                                 <div>Serves: {recipe.servings}</div>
