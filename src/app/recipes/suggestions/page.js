@@ -748,6 +748,39 @@ export default function RecipeSuggestions() {
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     };
 
+    // Pagination helper functions
+    const getPaginatedData = (data, currentPage, itemsPerPage) => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return data.slice(startIndex, endIndex);
+    };
+
+    const getTotalPages = (totalItems, itemsPerPage) => {
+        return Math.ceil(totalItems / itemsPerPage);
+    };
+
+    const handlePageChange = (newPage, type = 'recipes') => {
+        if (type === 'curated') {
+            setCuratedCurrentPage(newPage);
+            // Scroll to top of curated results
+            document.getElementById('curated-results')?.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setCurrentPage(newPage);
+            // Scroll to top of recipe results
+            document.getElementById('recipes-results')?.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage, type = 'recipes') => {
+        if (type === 'curated') {
+            setCuratedItemsPerPage(newItemsPerPage);
+            setCuratedCurrentPage(1); // Reset to first page
+        } else {
+            setItemsPerPage(newItemsPerPage);
+            setCurrentPage(1); // Reset to first page
+        }
+    };
+
     // Loading and auth checks
     if (status === 'loading') {
         return (
