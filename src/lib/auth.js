@@ -50,6 +50,7 @@ export const authOptions = {
     ],
     session: {
         strategy: 'jwt',
+        maxAge: 24 * 60 * 60, // 24 hours
     },
     pages: {
         signIn: '/auth/signin',
@@ -69,23 +70,69 @@ export const authOptions = {
             return session;
         },
         async redirect({ url, baseUrl }) {
-            // Handle redirects for mobile app
-            if (url.startsWith('/')) return url
-            if (url.startsWith(baseUrl)) return url
-            return baseUrl || '/'
+            console.log('Auth redirect:', url, '→', baseUrl);
+
+            // For mobile apps, always redirect to dashboard after login
+            if (url === '/dashboard' || url.endsWith('/dashboard')) {
+                return '/dashboard';
+            }
+
+            // Handle relative URLs
+            if (url.startsWith('/')) {
+                return url;
+            }
+
+            // Handle absolute URLs that match our domain
+            if (url.startsWith(baseUrl)) {
+                return url;
+            }
+
+            // Default redirect
+            return '/dashboard';
+        },
+        async signIn({ user, account, profile }) {
+            console.log('SignIn callback - User:', user);
+            console.log('SignIn callback - Account:', account);
+            return true;
         },
     },
-    // Add this for mobile compatibility
+    // Enhanced mobile compatibility
     trustHost: true,
-    // Allow mobile app origins
+    useSecureCookies: process.env.NODE_ENV === 'production',
     cookies: {
         sessionToken: {
-            name: `next-auth.session-token`,
+            name: process.env.NODE_ENV === 'production'
+                ? '__Secure-next-auth.session-token'
+                : 'next-auth.session-token',
             options: {
                 httpOnly: true,
-                sameSite: 'none',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
                 path: '/',
-                secure: true,
+                secure: process.env.NODE_ENV === 'production',
+                domain: process.env.NODE_ENV === 'production'
+                    ? '.docbearscomfort.kitchen'
+                    : undefined
+            },
+        },
+        callbackUrl: {
+            name: process.env.NODE_ENV === 'production'
+                ? '__Secure-next-auth.callback-url'
+                : 'next-auth.callback-url',
+            options: {
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production',
+            },
+        },
+        csrfToken: {
+            name: process.env.NODE_ENV === 'production'
+                ? '__Host-next-auth.csrf-token'
+                : 'next-auth.csrf-token',
+            options: {
+                httpOnly: true,
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production',
             },
         },
     },

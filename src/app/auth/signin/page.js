@@ -77,6 +77,7 @@ function SignInContent() {
 
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
+        console.log('Is native platform:', Capacitor.isNativePlatform());
 
         try {
             const result = await signIn('credentials', {
@@ -85,9 +86,15 @@ function SignInContent() {
                 redirect: false,
             });
 
+            // More detailed logging
             console.log('SignIn result:', result);
+            console.log('SignIn result.ok:', result?.ok);
+            console.log('SignIn result.error:', result?.error);
+            console.log('SignIn result.status:', result?.status);
+            console.log('SignIn result.url:', result?.url);
 
             if (result?.error) {
+                console.log('Login failed with error:', result.error);
                 // Handle specific authentication errors
                 if (result.error === 'email-not-verified') {
                     setError('Please verify your email address before signing in.');
@@ -98,13 +105,32 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful, redirecting immediately...');
-                setRedirecting(true);
+                console.log('Login appears successful, checking session...');
 
-                // Use setTimeout to ensure state updates before redirect
-                setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 100);
+                // Check if session was actually created
+                const { getSession } = await import('next-auth/react');
+                const session = await getSession();
+                console.log('Session after login:', session);
+
+                if (session) {
+                    console.log('Session confirmed, redirecting...');
+                    setRedirecting(true);
+
+                    // Try different redirect methods
+                    if (Capacitor.isNativePlatform()) {
+                        console.log('Using native platform redirect');
+                        // Force a complete page reload for native
+                        setTimeout(() => {
+                            window.location.href = '/dashboard';
+                        }, 1000);
+                    } else {
+                        console.log('Using web platform redirect');
+                        router.push('/dashboard');
+                    }
+                } else {
+                    console.log('No session found after successful login - this is the problem!');
+                    setError('Login succeeded but session was not created. Please try again.');
+                }
             }
         } catch (error) {
             console.error('Login exception:', error);

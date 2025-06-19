@@ -4,6 +4,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { Capacitor } from '@capacitor/core';
+import { Camera } from '@capacitor/camera';
 
 export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive }) {
     const scannerRef = useRef(null);
@@ -19,6 +21,50 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const scanCountRef = useRef(0);
     const lastValidCodeRef = useRef(null);
     const detectionHistoryRef = useRef([]);
+
+    // Add this function before your existing useEffect in BarcodeScanner.js
+    const requestCameraPermission = async () => {
+        console.log('🔐 Requesting camera permission...');
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                // For native platforms, use Capacitor's camera permission system
+                const permission = await Camera.requestPermissions({ permissions: ['camera'] });
+                console.log('📋 Camera permission result:', permission);
+
+                if (permission.camera === 'granted') {
+                    console.log('✅ Camera permission granted via Capacitor');
+                    return true;
+                } else if (permission.camera === 'denied') {
+                    console.log('❌ Camera permission denied via Capacitor');
+                    throw new Error('Camera permission denied. Please enable camera access in your device settings.');
+                } else if (permission.camera === 'prompt') {
+                    console.log('❓ Camera permission prompt will be shown');
+                    // Permission dialog will be shown by the system
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ Capacitor camera permission error:', error);
+                throw new Error(`Camera permission failed: ${error.message}`);
+            }
+        } else {
+            // For web platforms, use the existing getUserMedia approach
+            try {
+                console.log('🌐 Web platform: testing getUserMedia...');
+                const testStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" }
+                });
+                console.log('✅ Web camera access granted');
+                testStream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (error) {
+                console.error('❌ Web camera access denied:', error);
+                throw error;
+            }
+        }
+
+        return false;
+    };
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -289,21 +335,24 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 }
 
                 // Test camera access before initializing Quagga
-                console.log('🔍 Testing camera access...');
-                try {
-                    const testStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
-                    console.log('✅ Camera access test successful');
+                // Enhanced camera availability check with Capacitor support
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not supported on this device or browser');
+                }
 
-                    // Stop test stream immediately
-                    testStream.getTracks().forEach(track => track.stop());
+                // Request camera permission first (especially important for Android)
+                console.log('🔍 Requesting camera permission...');
+                try {
+                    await requestCameraPermission();
+                    console.log('✅ Camera permission granted, proceeding with initialization');
                 } catch (permissionError) {
-                    console.error('❌ Camera permission test failed:', permissionError);
+                    console.error('❌ Camera permission failed:', permissionError);
 
                     let errorMessage = 'Camera access denied';
-                    if (permissionError.name === 'NotAllowedError') {
-                        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+                    if (permissionError.message) {
+                        errorMessage = permissionError.message;
+                    } else if (permissionError.name === 'NotAllowedError') {
+                        errorMessage = 'Camera permission denied. Please allow camera access in your device settings and try again.';
                     } else if (permissionError.name === 'NotFoundError') {
                         errorMessage = 'No camera found. Please ensure your device has a camera.';
                     } else if (permissionError.name === 'NotSupportedError') {
