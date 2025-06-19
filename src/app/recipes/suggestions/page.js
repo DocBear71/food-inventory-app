@@ -10,45 +10,134 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 
-// Loading Modal Component with more colorful design
+// Enhanced Flashy Loading Modal Component
 const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes = [] }) => {
     if (!isOpen) return null;
 
+    const getLoadingEmoji = () => {
+        if (progress < 25) return "📋";
+        if (progress < 50) return "🍽️";
+        if (progress < 75) return "📖";
+        return "🎉";
+    };
+
+    const getBackgroundGlow = () => {
+        if (progress < 25) return "from-blue-400/20 to-purple-400/20";
+        if (progress < 50) return "from-purple-400/20 to-pink-400/20";
+        if (progress < 75) return "from-green-400/20 to-blue-400/20";
+        return "from-yellow-400/20 to-green-400/20";
+    };
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
-                <div className="text-center">
-                    {/* Multi-colored spinning icon */}
-                    <div className="relative mx-auto mb-4 w-16 h-16">
-                        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gradient-to-r from-purple-400 via-pink-400 to-red-400 border-t-transparent"></div>
-                        <div className="absolute top-2 left-2 animate-pulse">
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xl">🍳</span>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            {/* Animated background particles */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-400/10 rounded-full animate-pulse"></div>
+                <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-purple-400/10 rounded-full animate-pulse delay-1000"></div>
+                <div className="absolute bottom-1/4 left-1/3 w-16 h-16 bg-pink-400/10 rounded-full animate-pulse delay-500"></div>
+            </div>
+
+            <div className={`bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-gray-100 relative overflow-hidden`}>
+                {/* Animated background glow */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${getBackgroundGlow()} opacity-50`}></div>
+
+                <div className="relative z-10">
+                    {/* Enhanced spinning animation with multiple layers */}
+                    <div className="relative mx-auto mb-6 w-24 h-24">
+                        {/* Outer ring */}
+                        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 p-1">
+                            <div className="h-full w-full rounded-full bg-white"></div>
+                        </div>
+
+                        {/* Middle ring */}
+                        <div className="absolute inset-2 animate-spin rounded-full border-3 border-transparent bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 p-1" style={{animationDirection: 'reverse', animationDuration: '3s'}}>
+                            <div className="h-full w-full rounded-full bg-white"></div>
+                        </div>
+
+                        {/* Center content */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                                <span className="text-white text-2xl">{getLoadingEmoji()}</span>
                             </div>
+                        </div>
+
+                        {/* Floating sparkles */}
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
+                        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-400 rounded-full animate-ping" style={{animationDelay: '300ms'}}></div>
+                        <div className="absolute top-1/2 -right-2 w-2 h-2 bg-purple-400 rounded-full animate-ping" style={{animationDelay: '700ms'}}></div>
+                    </div>
+
+                    {/* Dynamic title with gradient */}
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3 text-center">
+                        🔮 AI Kitchen Magic
+                    </h3>
+
+                    {/* Enhanced task description */}
+                    <div className="text-center mb-6">
+                        <p className="text-gray-700 font-semibold text-lg mb-2">{currentTask}</p>
+                        <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                            <span className="animate-pulse">✨</span>
+                            <span>Powered by culinary intelligence</span>
+                            <span className="animate-pulse">✨</span>
                         </div>
                     </div>
 
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                        Analyzing Your Kitchen
-                    </h3>
-                    <p className="text-gray-700 mb-4 font-medium">{currentTask}</p>
-
-                    {/* Colorful Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+                    {/* Enhanced progress bar with glow effect */}
+                    <div className="relative w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden shadow-inner">
                         <div
-                            className="h-3 rounded-full transition-all duration-500 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600"
-                            style={{ width: `${progress}%` }}
+                            className="h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-green-400 via-blue-500 via-purple-500 to-pink-500 shadow-lg"
+                            style={{
+                                width: `${progress}%`,
+                                boxShadow: `0 0 10px rgba(59, 130, 246, 0.5)`
+                            }}
+                        >
+                            {/* Progress bar shimmer effect */}
+                            <div className="h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                        </div>
+
+                        {/* Progress indicator dot */}
+                        <div
+                            className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg border-2 border-blue-500 transition-all duration-700"
+                            style={{ left: `calc(${progress}% - 6px)` }}
                         ></div>
                     </div>
 
-                    <div className="text-lg font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                        {Math.round(progress)}% Complete
+                    {/* Enhanced percentage display */}
+                    <div className="text-center mb-6">
+                        <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-1">
+                            {Math.round(progress)}%
+                        </div>
+                        <div className="text-sm text-gray-500 font-medium">
+                            {progress === 100 ? "🎊 Analysis Complete!" : "Processing..."}
+                        </div>
                     </div>
 
-                    <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                        <div className="text-sm text-gray-600 flex items-center justify-center space-x-2">
-                            <span className="animate-bounce">🔍</span>
-                            <span>Checking your {inventory.length} items against {recipes.length} recipes...</span>
+                    {/* Enhanced stats section */}
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-xl border border-blue-100">
+                        <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-1">
+                                <span className="animate-bounce">🥘</span>
+                                <span className="text-2xl font-bold text-indigo-600">{inventory.length}</span>
+                            </div>
+                            <div className="text-xs text-gray-600 font-medium">Ingredients</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-1">
+                                <span className="animate-bounce" style={{animationDelay: '200ms'}}>📚</span>
+                                <span className="text-2xl font-bold text-purple-600">{recipes.length}</span>
+                            </div>
+                            <div className="text-xs text-gray-600 font-medium">Recipes</div>
+                        </div>
+                    </div>
+
+                    {/* Fun loading messages based on progress */}
+                    <div className="mt-4 text-center">
+                        <div className="text-xs text-gray-500 font-medium">
+                            {progress < 25 && "🔍 Scanning your pantry..."}
+                            {progress >= 25 && progress < 50 && "🍽️ Finding delicious possibilities..."}
+                            {progress >= 50 && progress < 75 && "📖 Matching recipes to ingredients..."}
+                            {progress >= 75 && progress < 100 && "🎯 Calculating perfect matches..."}
+                            {progress === 100 && "🎉 Ready to cook amazing meals!"}
                         </div>
                     </div>
                 </div>
