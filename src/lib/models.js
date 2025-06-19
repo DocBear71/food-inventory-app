@@ -61,6 +61,138 @@ const NutritionSchema = new mongoose.Schema({
     }
 }, {_id: false});
 
+// Curated Meal Component Schema
+const CuratedMealComponentSchema = new mongoose.Schema({
+    itemName: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    category: {
+        type: String,
+        enum: ['protein', 'starch', 'vegetable', 'sauce', 'dairy', 'fruit', 'condiment'],
+        required: true
+    },
+    required: {
+        type: Boolean,
+        default: true
+    },
+    alternatives: [String], // Alternative ingredient names
+    notes: {
+        type: String,
+        maxlength: 100
+    }
+}, {_id: false});
+
+// Curated Meal Schema - Manual meal database for suggestions
+const CuratedMealSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    description: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 300
+    },
+
+    // Meal components (ingredients/items needed)
+    components: [CuratedMealComponentSchema],
+
+    // Meal metadata
+    tags: [String], // e.g., ["comfort-food", "dinner", "family-friendly"]
+    estimatedTime: {
+        type: Number,
+        required: true,
+        min: 5,
+        max: 300 // 5 hours max
+    },
+    difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard'],
+        default: 'easy'
+    },
+    servings: {
+        type: Number,
+        default: 4,
+        min: 1,
+        max: 20
+    },
+
+    // Meal type/category
+    mealType: {
+        type: String,
+        enum: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'any'],
+        default: 'dinner'
+    },
+    season: {
+        type: String,
+        enum: ['spring', 'summer', 'fall', 'winter', 'any'],
+        default: 'any'
+    },
+
+    // User and approval system
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User' // Different from createdBy for user submissions
+    },
+
+    // Approval workflow
+    isApproved: {
+        type: Boolean,
+        default: false
+    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    approvedAt: Date,
+
+    // Admin vs user submission
+    submissionType: {
+        type: String,
+        enum: ['admin', 'user'],
+        default: 'admin'
+    },
+
+    // Status for user submissions
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    rejectionReason: String,
+
+    // Usage statistics
+    usageStats: {
+        timesSuggested: {type: Number, default: 0},
+        timesUsed: {type: Number, default: 0},
+        lastSuggested: Date,
+        userRating: {type: Number, default: 0, min: 0, max: 5},
+        ratingCount: {type: Number, default: 0}
+    },
+
+    // Quick cooking tips
+    cookingTips: [String],
+
+    // Nutritional category (optional)
+    nutritionTags: [String], // ["high-protein", "low-carb", "heart-healthy"]
+
+    // Original source (if from cookbook, etc.)
+    source: String,
+
+    createdAt: {type: Date, default: Date.now},
+    updatedAt: {type: Date, default: Date.now}
+});
+
 // MOVED: Define UserMealPlanningPreferencesSchema BEFORE UserSchema
 const UserMealPlanningPreferencesSchema = new mongoose.Schema({
     weekStartDay: {
@@ -1501,6 +1633,61 @@ MealPlanEntrySchema.methods.getIngredients = function () {
     }
 };
 
+
+// Methods for meal suggestions
+CuratedMealSchema.methods.recordSuggestion = function() {
+    this.usageStats.timesSuggested += 1;
+    this.usageStats.lastSuggested = new Date();
+    return this.save();
+};
+
+CuratedMealSchema.methods.recordUsage = function() {
+    this.usageStats.timesUsed += 1;
+    return this.save();
+};
+
+CuratedMealSchema.methods.addRating = function(rating) {
+    const currentRating = this.usageStats.userRating || 0;
+    const currentCount = this.usageStats.ratingCount || 0;
+
+    this.usageStats.userRating = ((currentRating * currentCount) + rating) / (currentCount + 1);
+    this.usageStats.ratingCount = currentCount + 1;
+
+    return this.save();
+};
+
+// Static methods for admin approval
+CuratedMealSchema.statics.approve = function(mealId, adminUserId) {
+    return this.findByIdAndUpdate(mealId, {
+        isApproved: true,
+        status: 'approved',
+        approvedBy: adminUserId,
+        approvedAt: new Date()
+    }, {new: true});
+};
+
+CuratedMealSchema.statics.reject = function(mealId, reason) {
+    return this.findByIdAndUpdate(mealId, {
+        status: 'rejected',
+        rejectionReason: reason
+    }, {new: true});
+};
+
+// Pre-save middleware
+CuratedMealSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+
+    // Auto-approve admin submissions
+    if (this.submissionType === 'admin' && this.isNew) {
+        this.isApproved = true;
+        this.status = 'approved';
+        this.approvedBy = this.createdBy;
+        this.approvedAt = new Date();
+    }
+
+    next();
+});
+
 // Password reset indexes for security and performance
 UserSchema.index({passwordResetToken: 1});
 UserSchema.index({passwordResetExpires: 1});
@@ -1569,9 +1756,20 @@ MealPrepTemplateSchema.index({'usage.averageRating': -1});
 MealPrepKnowledgeSchema.index({ingredient: 1});
 MealPrepKnowledgeSchema.index({category: 1});
 
+// Indexes for performance
+CuratedMealSchema.index({isApproved: 1, status: 1});
+CuratedMealSchema.index({createdBy: 1});
+CuratedMealSchema.index({submittedBy: 1});
+CuratedMealSchema.index({mealType: 1, isApproved: 1});
+CuratedMealSchema.index({tags: 1});
+CuratedMealSchema.index({'components.category': 1});
+CuratedMealSchema.index({'usageStats.timesSuggested': -1});
+CuratedMealSchema.index({estimatedTime: 1});
+CuratedMealSchema.index({difficulty: 1});
+
 // Declare variables first
 let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
-    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge;
+    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal;
 
 try {
     // Export models (prevent re-compilation in development)
@@ -1588,6 +1786,7 @@ try {
     MealPrepSuggestion = mongoose.models.MealPrepSuggestion || mongoose.model('MealPrepSuggestion', MealPrepSuggestionSchema);
     MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
     MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
+    CuratedMeal = mongoose.models.CuratedMeal || mongoose.model('CuratedMeal', CuratedMealSchema);
 } catch (error) {
     console.error('Error creating models:', error);
     // Initialize as empty objects to prevent import errors
@@ -1605,6 +1804,7 @@ try {
     MealPrepSuggestion = MealPrepSuggestion || emptyModel;
     MealPrepTemplate = MealPrepTemplate || emptyModel;
     MealPrepKnowledge = MealPrepKnowledge || emptyModel;
+    CuratedMeal = CuratedMeal || emptyModel;
 }
 
 export {
@@ -1620,5 +1820,6 @@ export {
     ShoppingListTemplate,
     MealPrepSuggestion,
     MealPrepTemplate,
-    MealPrepKnowledge
+    MealPrepKnowledge,
+    CuratedMeal
 };
