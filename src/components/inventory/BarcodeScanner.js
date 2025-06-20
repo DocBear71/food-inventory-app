@@ -1,16 +1,16 @@
-// file: /src/components/inventory/BarcodeScanner.js v8 - Enhanced with subscription-based UPC scan limits
-
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { Capacitor } from '@capacitor/core';
-import { Camera } from '@capacitor/camera';
-import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
-import FeatureGate, { UsageLimitDisplay } from '@/components/subscription/FeatureGate';
-import { FEATURE_GATES } from '@/lib/subscription-config';
+// file: /src/components/inventory/BarcodeScanner.js v9 - FIXED: Removed undefined trackUPCScan reference
 
-export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive }) {
+import {useEffect, useRef, useState, useCallback} from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import {Capacitor} from '@capacitor/core';
+import {Camera} from '@capacitor/camera';
+import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
+import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
+import {FEATURE_GATES} from '@/lib/subscription-config';
+
+export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const scannerRef = useRef(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
@@ -29,7 +29,6 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
     const subscription = useSubscription();
     const upcScanGate = useFeatureGate(FEATURE_GATES.UPC_SCAN, subscription.usage?.monthlyUPCScans);
 
-
     // Add this function before your existing useEffect in BarcodeScanner.js
     const requestCameraPermission = async () => {
         console.log('🔐 Requesting camera permission...');
@@ -37,7 +36,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         if (Capacitor.isNativePlatform()) {
             try {
                 // For native platforms, use Capacitor's camera permission system
-                const permission = await Camera.requestPermissions({ permissions: ['camera'] });
+                const permission = await Camera.requestPermissions({permissions: ['camera']});
                 console.log('📋 Camera permission result:', permission);
 
                 if (permission.camera === 'granted') {
@@ -60,7 +59,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             try {
                 console.log('🌐 Web platform: testing getUserMedia...');
                 const testStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" }
+                    video: {facingMode: "environment"}
                 });
                 console.log('✅ Web camera access granted');
                 testStream.getTracks().forEach(track => track.stop());
@@ -111,18 +110,18 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         const validLengths = [8, 12, 13, 14]; // UPC-E, UPC-A, EAN-13, ITF-14
         if (!validLengths.includes(cleanCode.length)) {
             console.log(`❌ Invalid length: ${cleanCode.length}, expected one of ${validLengths.join(', ')}`);
-            return { valid: false, reason: 'invalid_length' };
+            return {valid: false, reason: 'invalid_length'};
         }
 
         // Check for obviously invalid patterns
         if (cleanCode.match(/^0+$/)) {
             console.log('❌ All zeros detected');
-            return { valid: false, reason: 'all_zeros' };
+            return {valid: false, reason: 'all_zeros'};
         }
 
         if (/^(.)\1+$/.test(cleanCode)) {
             console.log('❌ All same digit detected');
-            return { valid: false, reason: 'all_same' };
+            return {valid: false, reason: 'all_same'};
         }
 
         // Check for minimum digit variation (at least 3 different digits for codes 10+ digits)
@@ -130,7 +129,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
             const uniqueDigits = new Set(cleanCode).size;
             if (uniqueDigits < 3) {
                 console.log(`❌ Insufficient digit variation: only ${uniqueDigits} unique digits`);
-                return { valid: false, reason: 'insufficient_variation' };
+                return {valid: false, reason: 'insufficient_variation'};
             }
         }
 
@@ -146,7 +145,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         for (const pattern of invalidPatterns) {
             if (pattern.test(cleanCode)) {
                 console.log(`❌ Invalid pattern detected: ${pattern}`);
-                return { valid: false, reason: 'invalid_pattern' };
+                return {valid: false, reason: 'invalid_pattern'};
             }
         }
 
@@ -164,7 +163,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
             if (checkDigit !== calculatedCheck) {
                 console.log(`❌ UPC-A checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
-                return { valid: false, reason: 'checksum_failed' };
+                return {valid: false, reason: 'checksum_failed'};
             }
         }
 
@@ -182,12 +181,12 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
 
             if (checkDigit !== calculatedCheck) {
                 console.log(`❌ EAN-13 checksum failed: expected ${calculatedCheck}, got ${checkDigit}`);
-                return { valid: false, reason: 'checksum_failed' };
+                return {valid: false, reason: 'checksum_failed'};
             }
         }
 
         console.log(`✅ UPC validation passed: "${cleanCode}"`);
-        return { valid: true, cleanCode };
+        return {valid: true, cleanCode};
     }, []);
 
     // Enhanced cleanup function
@@ -231,7 +230,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         console.log('✅ Scanner cleanup completed');
     }, []);
 
-    // Enhanced barcode detection handler with subscription tracking
+    // FIXED: Enhanced barcode detection handler - REMOVED trackUPCScan dependency
     const handleBarcodeDetection = useCallback(async (result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -277,7 +276,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         }
 
         // Add to detection history
-        detectionHistoryRef.current.push({ code: cleanCode, timestamp: now });
+        detectionHistoryRef.current.push({code: cleanCode, timestamp: now});
 
         // Check if this is the same as the last valid code (additional safety)
         if (lastValidCodeRef.current === cleanCode) {
@@ -315,7 +314,11 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 onBarcodeDetected(cleanCode);
             }
         }, 800); // Increased delay
-    }, [isScanning, validateUPC, onBarcodeDetected, trackUPCScan]);
+
+        // NOTE: UPC scan tracking is handled in the backend API (/api/upc/lookup)
+        // when the actual lookup request is made, not in the frontend scanner component
+
+    }, [isScanning, validateUPC, onBarcodeDetected]); // REMOVED trackUPCScan from dependencies
 
     // Your existing scanner initialization useEffect goes here...
     // (keeping all the existing logic unchanged, just adding the subscription wrapper at the end)
@@ -371,8 +374,122 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                     return;
                 }
 
-                // ... rest of your existing scanner initialization logic ...
-                // (I'm omitting the full scanner logic to keep this manageable, but it stays the same)
+                // Enhanced Quagga scanner configuration for mobile
+                console.log('📱 Configuring Quagga for mobile scanning...');
+
+                // Dynamic import for Quagga to reduce bundle size
+                Quagga = (await import('quagga')).default;
+                quaggaRef.current = Quagga;
+
+                // Enhanced mobile scanner configuration
+                const config = {
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: scannerRef.current,
+                        constraints: {
+                            width: isMobile ? Math.min(window.innerWidth, 800) : 640,
+                            height: isMobile ? Math.min(window.innerHeight * 0.6, 480) : 480,
+                            facingMode: "environment",
+                            aspectRatio: isMobile ? 16 / 9 : 4 / 3,
+                            frameRate: {ideal: 15, max: 30}
+                        },
+                        area: {
+                            top: "20%",
+                            right: "10%",
+                            left: "10%",
+                            bottom: "20%"
+                        },
+                        singleChannel: false
+                    },
+                    decoder: {
+                        readers: [
+                            "ean_reader",
+                            "ean_8_reader",
+                            "code_128_reader",
+                            "code_39_reader",
+                            "code_39_vin_reader",
+                            "codabar_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "i2of5_reader"
+                        ],
+                        debug: {
+                            showCanvas: false,
+                            showPatches: false,
+                            showFoundPatches: false,
+                            showSkeleton: false,
+                            showLabels: false,
+                            showPatchLabels: false,
+                            showRemainingPatchLabels: false,
+                            boxFromPatches: {
+                                showTransformed: false,
+                                showTransformedBox: false,
+                                showBB: false
+                            }
+                        },
+                        multiple: false
+                    },
+                    locate: true,
+                    frequency: 15,
+                    locator: {
+                        patchSize: isMobile ? "large" : "medium",
+                        halfSample: isMobile ? false : true,
+                        showCanvas: false,
+                        showPatches: false,
+                        showFoundPatches: false,
+                        showSkeleton: false,
+                        showLabels: false,
+                        showPatchLabels: false,
+                        showRemainingPatchLabels: false,
+                        boxFromPatches: {
+                            showTransformed: false,
+                            showTransformedBox: false,
+                            showBB: false
+                        }
+                    },
+                    numOfWorkers: navigator.hardwareConcurrency ? Math.min(navigator.hardwareConcurrency, 4) : 2,
+                    halfsample: false
+                };
+
+                console.log('🎯 Quagga config:', {
+                    mobile: isMobile,
+                    constraints: config.inputStream.constraints,
+                    readers: config.decoder.readers.length
+                });
+
+                // Initialize Quagga with error handling
+                console.log('🚀 Initializing Quagga scanner...');
+
+                await new Promise((resolve, reject) => {
+                    Quagga.init(config, (err) => {
+                        if (err) {
+                            console.error('❌ Quagga initialization failed:', err);
+                            reject(new Error(`Scanner initialization failed: ${err.message || err}`));
+                            return;
+                        }
+
+                        console.log('✅ Quagga initialized successfully');
+
+                        // Set up detection handler
+                        detectionHandlerRef.current = handleBarcodeDetection;
+                        Quagga.onDetected(detectionHandlerRef.current);
+
+                        // Start scanning
+                        Quagga.start();
+                        console.log('📡 Quagga scanner started');
+
+                        if (mountedRef.current) {
+                            setIsInitialized(true);
+                            setIsLoading(false);
+                            setError(null);
+                        }
+
+                        resolve();
+                    });
+                });
+
+                console.log('🎉 Scanner fully operational');
 
             } catch (error) {
                 console.error('❌ Scanner setup error:', error);
@@ -386,7 +503,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         // Wait for the camera container to be rendered before initializing
         if (isActive && mountedRef.current) {
             console.log('🕐 Scheduling scanner initialization...');
-            console.log('🔍 Debug state:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
+            console.log('🔍 Debug state:', {isActive, mounted: !!mountedRef.current, isLoading, isInitialized});
 
             initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
@@ -400,7 +517,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                 }
             }, 500);
         } else {
-            console.log('🚫 Not scheduling init:', { isActive, mounted: !!mountedRef.current, isLoading, isInitialized });
+            console.log('🚫 Not scheduling init:', {isActive, mounted: !!mountedRef.current, isLoading, isInitialized});
         }
 
         return () => {
@@ -484,57 +601,58 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
         >
             {/* Your existing scanner UI with usage indicator */}
             {isMobile ? (
-                <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                    {/* Mobile Header with subscription info */}
-                    <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
-                        <div>
-                            <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
-                            <UsageLimitDisplay
-                                feature={FEATURE_GATES.UPC_SCAN}
-                                label="Scans remaining this month"
-                                className="text-gray-300"
-                            />
+                    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+                        {/* Mobile Header with subscription info */}
+                        <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
+                                <UsageLimitDisplay
+                                    feature={FEATURE_GATES.UPC_SCAN}
+                                    label="Scans remaining this month"
+                                    className="text-gray-300"
+                                />
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    cleanupScanner();
+                                    onClose();
+                                }}
+                                className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                            >
+                                ×
+                            </TouchEnhancedButton>
                         </div>
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                cleanupScanner();
-                                onClose();
-                            }}
-                            className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
-                        >
-                            ×
-                        </TouchEnhancedButton>
-                    </div>
 
-                    {/* Rest of your existing mobile scanner UI */}
-                    {error ? (
-                        <div className="flex-1 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                                <div className="text-red-600 mb-4">❌ {error}</div>
-                                <div className="text-sm text-gray-500 mb-4">
-                                    Please ensure camera permissions are enabled.
-                                </div>
+                        {/* Rest of your existing mobile scanner UI */}
+                        {error ? (
+                            <div className="flex-1 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
+                                    <div className="text-red-600 mb-4">❌ {error}</div>
+                                    <div className="text-sm text-gray-500 mb-4">
+                                        Please ensure camera permissions are enabled.
+                                    </div>
 
-                                <div className="space-y-3">
-                                    <TouchEnhancedButton
-                                        onClick={() => {
-                                            cleanupScanner();
-                                            onClose();
-                                        }}
-                                        className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
-                                    >
-                                        Close Scanner
-                                    </TouchEnhancedButton>
+                                    <div className="space-y-3">
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                cleanupScanner();
+                                                onClose();
+                                            }}
+                                            className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
+                                        >
+                                            Close Scanner
+                                        </TouchEnhancedButton>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <>
+                        ) : (
+                            <>
                             {/* Loading State */}
                             {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                     <div className="text-center text-white">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                         <div className="text-lg">Starting camera...</div>
                                         <div className="text-sm mt-2 opacity-75">
                                             Enhanced validation active
@@ -559,32 +677,70 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                                     }}
                                 />
 
-                                {/* Your existing reticle overlay */}
+                                {/* Scanner reticle overlay */}
                                 {!isLoading && (
                                     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-                                        {/* All your existing overlay UI */}
+                                        {/* Scanning reticle with corners */}
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="relative w-64 h-64 border-2 border-transparent">
+                                                {/* Corner indicators */}
+                                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-red-500"></div>
+                                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-red-500"></div>
+                                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-red-500"></div>
+                                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-red-500"></div>
+
+                                                {/* Scanning line animation */}
+                                                {isScanning && (
+                                                    <div
+                                                        className="absolute inset-x-4 h-1 bg-red-500 opacity-80"
+                                                        style={{
+                                                            animation: 'scanline 2s ease-in-out infinite',
+                                                            top: '50%',
+                                                            transform: 'translateY(-50%)'
+                                                        }}
+                                                    ></div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Instruction overlay */}
+                                        <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
+                                            <div className="text-center">
+                                                {isScanning ? (
+                                                    <>
+                                                        <div className="text-sm font-medium mb-1">📱 Position barcode within the frame</div>
+                                                        <div className="text-xs opacity-75">Enhanced validation active • Hold steady</div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="text-sm font-medium mb-1">✅ Valid barcode detected!</div>
+                                                        <div className="text-xs opacity-75">Processing...</div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Mobile Footer */}
-                            <div className="flex-shrink-0 bg-black px-4 py-3">
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        cleanupScanner();
-                                        onClose();
-                                    }}
-                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
-                                    disabled={!isScanning}
-                                >
-                                    {isScanning ? 'Cancel Scan' : 'Processing...'}
-                                </TouchEnhancedButton>
-                            </div>
-                        </>
-                    )}
+                                {/* Mobile Footer */}
+                                <div className="flex-shrink-0 bg-black px-4 py-3">
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            cleanupScanner();
+                                            onClose();
+                                        }}
+                                        className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
+                                        disabled={!isScanning}
+                                    >
+                                        {isScanning ? 'Cancel Scan' : 'Processing...'}
+                                    </TouchEnhancedButton>
+                                </div>
+                            </>
+                        )}
 
-                    {/* Enhanced CSS animations */}
-                    <style jsx>{`
+                        {/* Enhanced CSS animations */}
+                        <style jsx>{`
                         @keyframes scanline {
                             0% {
                                 top: 0;
@@ -600,7 +756,7 @@ export default function BarcodeScanner({ onBarcodeDetected, onClose, isActive })
                             }
                         }
                     `}</style>
-                </div>
+                    </div>
             ) : (
                 // Desktop version - keeping your existing desktop UI
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
