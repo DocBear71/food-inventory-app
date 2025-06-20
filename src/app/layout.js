@@ -1,5 +1,4 @@
-// file: /src/app/layout.js v2 - Updated with iOS Safari PWA support
-
+// file: /src/app/layout.js v3 - Updated with SubscriptionProvider for subscription management
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -7,12 +6,11 @@ import SessionProvider from '@/components/SessionProvider';
 import PWAWrapper from '@/components/PWAWrapper';
 import CapacitorAuthProvider from '@/components/CapacitorAuthProvider';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
+import {SubscriptionProvider} from '@/hooks/useSubscription';
 import {getServerSession} from 'next-auth/next';
 import {authOptions} from '@/lib/auth';
 
-
 const inter = Inter({subsets: ['latin']});
-
 
 export const metadata = {
     title: 'Doc Bear\'s Comfort Kitchen',
@@ -73,10 +71,12 @@ export default async function RootLayout({children}) {
                 // Mobile build - no SessionProvider but keep CapacitorAuthProvider
                 children
             ) : (
-                // Web build - with SessionProvider
+                // Web build - with SessionProvider and SubscriptionProvider
                 <SessionProvider>
-                    <PWAInstallBanner />
-                    {children}
+                    <SubscriptionProvider>
+                        <PWAInstallBanner />
+                        {children}
+                    </SubscriptionProvider>
                 </SessionProvider>
             )}
         </CapacitorAuthProvider>

@@ -1,10 +1,12 @@
 'use client';
-// file: /src/components/nutrition/NutritionSearch.js v1
-
+// file: /src/components/nutrition/NutritionSearch.js v2 - Added subscription gate for Gold+ users
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl} from "@/lib/api-config";
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function NutritionSearch({
                                             onFoodSelected,
@@ -19,8 +21,12 @@ export default function NutritionSearch({
     const [showResults, setShowResults] = useState(false);
     const [selectedFood, setSelectedFood] = useState(null);
 
+    // Subscription hooks
+    const subscription = useSubscription();
+    const nutritionGate = useFeatureGate(FEATURE_GATES.NUTRITION_ACCESS);
+
     useEffect(() => {
-        if (query.length >= 3) {
+        if (query.length >= 3 && nutritionGate.hasAccess) {
             const timeoutId = setTimeout(() => {
                 searchFoods();
             }, 300); // Debounce search
@@ -30,7 +36,7 @@ export default function NutritionSearch({
             setFoods([]);
             setShowResults(false);
         }
-    }, [query]);
+    }, [query, nutritionGate.hasAccess]);
 
     const searchFoods = async () => {
         if (!query.trim()) return;
@@ -103,6 +109,99 @@ export default function NutritionSearch({
         }
     };
 
+    return (
+        <FeatureGate
+            feature={FEATURE_GATES.NUTRITION_ACCESS}
+            fallback={
+                <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
+                    {/* Disabled search input */}
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value=""
+                            disabled
+                            placeholder="🔒 Gold feature - Search nutrition database"
+                            className={`w-full border-2 border-yellow-300 bg-yellow-50 text-yellow-700 rounded-md shadow-sm cursor-not-allowed ${
+                                compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'
+                            }`}
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <div className="text-yellow-600">🔒</div>
+                        </div>
+                    </div>
+
+                    {/* Upgrade prompt */}
+                    <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="text-center">
+                            <div className="text-2xl mb-2">🥗</div>
+                            <h3 className="font-semibold text-yellow-800 mb-2">
+                                Nutrition Database Access
+                            </h3>
+                            <p className="text-yellow-700 text-sm mb-3">
+                                Search thousands of foods and get detailed nutrition information with a Gold subscription.
+                            </p>
+
+                            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-3">
+                                <div className="text-yellow-800 text-xs">
+                                    <div className="font-medium mb-1">✨ What you get:</div>
+                                    <ul className="text-left space-y-1">
+                                        <li>• Search 350,000+ foods</li>
+                                        <li>• USDA nutrition database</li>
+                                        <li>• Detailed nutrient breakdowns</li>
+                                        <li>• Recipe nutrition calculation</li>
+                                        <li>• Meal plan nutrition analysis</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <TouchEnhancedButton
+                                onClick={() => window.location.href = '/pricing?source=nutrition-search'}
+                                className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-700 text-sm"
+                            >
+                                Upgrade to Gold - $4.99/month
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+            }
+        >
+            <NutritionSearchContent
+                query={query}
+                setQuery={setQuery}
+                foods={foods}
+                loading={loading}
+                error={error}
+                showResults={showResults}
+                selectedFood={selectedFood}
+                setSelectedFood={setSelectedFood}
+                handleFoodSelect={handleFoodSelect}
+                formatNutrientValue={formatNutrientValue}
+                getDataTypeColor={getDataTypeColor}
+                placeholder={placeholder}
+                compact={compact}
+                onFoodSelected={onFoodSelected}
+            />
+        </FeatureGate>
+    );
+}
+
+// Extracted component content for cleaner code
+function NutritionSearchContent({
+                                    query,
+                                    setQuery,
+                                    foods,
+                                    loading,
+                                    error,
+                                    showResults,
+                                    selectedFood,
+                                    setSelectedFood,
+                                    handleFoodSelect,
+                                    formatNutrientValue,
+                                    getDataTypeColor,
+                                    placeholder,
+                                    compact,
+                                    onFoodSelected
+                                }) {
     return (
         <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
             {/* Search Input */}

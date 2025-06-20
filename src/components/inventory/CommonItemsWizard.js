@@ -1,16 +1,23 @@
 'use client';
-// file: /src/components/inventory/CommonItemsWizard.js - v5 (Fixed dual unit validation and smart defaults)
 
+// file: /src/components/inventory/CommonItemsWizard.js v6 - Added subscription gate for Gold+ users only
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { COMMON_ITEMS } from '@/lib/commonItems';
 import { getApiUrl } from '@/lib/api-config';
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [selectedItems, setSelectedItems] = useState(new Map());
     const [currentStep, setCurrentStep] = useState('welcome'); // 'welcome', 'categories', 'review', 'adding'
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Subscription hooks
+    const subscription = useSubscription();
+    const commonItemsGate = useFeatureGate(FEATURE_GATES.COMMON_ITEMS_WIZARD);
 
     // Handle item selection toggle - UPDATED: Better dual unit support with smart defaults
     const toggleItem = (categoryKey, itemIndex, item) => {
@@ -31,6 +38,9 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
         setSelectedItems(newSelectedItems);
     };
+
+    // Rest of your existing methods (updateQuantity, handleQuantityBlur, etc.)
+    // ... keeping all the existing logic the same ...
 
     // FIXED: Handle quantity change with flexible validation - allows 0 in either field
     const updateQuantity = (itemId, value, isSecondary = false) => {
@@ -235,406 +245,387 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
     if (!isOpen) return null;
 
+    // Wrap the entire wizard with subscription gate
     return (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black bg-opacity-50"
-                onClick={onClose}
-            />
+        <FeatureGate
+            feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
+            fallback={
+                <div className="fixed inset-0 z-50 overflow-hidden">
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
 
-            {/* Modal */}
-            <div className="relative flex items-center justify-center min-h-screen p-4">
-                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-
-                    {/* Header */}
-                    <div className="bg-indigo-600 text-white p-4 sm:p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-xl font-bold">🏠 Common Items Wizard</h2>
-                                <p className="text-indigo-100 text-sm mt-1">
-                                    {currentStep === 'welcome' && 'Quickly populate your inventory with household staples'}
-                                    {currentStep === 'categories' && `Select items to add • ${selectedItems.size} selected`}
-                                    {currentStep === 'review' && `Review your selections • ${selectedItems.size} items`}
-                                    {currentStep === 'adding' && 'Adding items to your inventory...'}
-                                </p>
+                    {/* Upgrade Modal */}
+                    <div className="relative flex items-center justify-center min-h-screen p-4">
+                        <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-6 rounded-t-lg">
+                                <div className="text-center">
+                                    <div className="text-4xl mb-2">🏠✨</div>
+                                    <h2 className="text-xl font-bold">Common Items Wizard</h2>
+                                    <p className="text-yellow-100 text-sm mt-1">Premium Feature</p>
+                                </div>
                             </div>
-                            <TouchEnhancedButton
-                                onClick={onClose}
-                                className="text-white hover:text-indigo-200 p-2 rounded-lg"
-                                disabled={isSubmitting}
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </TouchEnhancedButton>
-                        </div>
-                    </div>
 
-                    {/* Content */}
-                    <div className="p-4 sm:p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
-
-                        {/* Welcome Step */}
-                        {currentStep === 'welcome' && (
-                            <div className="text-center space-y-6">
-                                <div className="text-6xl">🏠</div>
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                                        Welcome to the Common Items Wizard!
+                            <div className="p-6">
+                                <div className="text-center mb-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                                        Upgrade to Gold for Quick Setup
                                     </h3>
-                                    <p className="text-gray-600 max-w-2xl mx-auto mb-6">
-                                        This wizard will help you quickly populate your inventory with common household items.
-                                        You can select items by category and adjust quantities as needed. After the items are entered into inventory, you can edit them to change information, add brand names, expiration dates, and more.
+                                    <p className="text-gray-600 mb-4">
+                                        The Common Items Wizard helps you quickly populate your inventory with household staples. This feature is available with Gold and Platinum subscriptions.
                                     </p>
 
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                                        <div className="text-blue-800">
-                                            <div className="font-medium mb-2">✨ What you'll get:</div>
-                                            <ul className="text-sm space-y-1 text-left">
-                                                <li>• Pre-organized categories of common items</li>
-                                                <li>• Flexible quantity tracking (by weight, count, or both)</li>
-                                                <li>• Proper storage locations (pantry, fridge, freezer)</li>
-                                                <li>• Instant inventory population</li>
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                        <div className="text-yellow-800 text-sm">
+                                            <div className="font-medium mb-2">✨ What you get with Gold:</div>
+                                            <ul className="text-left space-y-1">
+                                                <li>• Common Items Wizard</li>
+                                                <li>• Up to 250 inventory items</li>
+                                                <li>• Unlimited UPC scanning</li>
+                                                <li>• Meal planning tools</li>
+                                                <li>• Email notifications</li>
                                             </ul>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex justify-center gap-4">
+                                <div className="space-y-3">
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                        className="w-full bg-yellow-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-700"
+                                    >
+                                        Upgrade to Gold - $4.99/month
+                                    </TouchEnhancedButton>
                                     <TouchEnhancedButton
                                         onClick={onClose}
-                                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                        className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-lg"
                                     >
                                         Maybe Later
                                     </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        >
+            {/* Main Wizard Content - Only shown if user has access */}
+            <div className="fixed inset-0 z-50 overflow-hidden">
+                {/* Backdrop */}
+                <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+
+                {/* Main Modal */}
+                <div className="relative flex items-center justify-center min-h-screen p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                        {currentStep === 'welcome' && (
+                            <div className="p-8 text-center">
+                                <div className="text-6xl mb-4">🏠</div>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Common Items Wizard</h2>
+                                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                                    Quickly add common household items to your inventory. Select from organized categories
+                                    of pantry staples, kitchen essentials, and everyday items.
+                                </p>
+                                <div className="space-y-3">
                                     <TouchEnhancedButton
                                         onClick={() => setCurrentStep('categories')}
-                                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700"
                                     >
-                                        Get Started
+                                        Start Adding Items
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={onClose}
+                                        className="w-full bg-gray-300 text-gray-700 py-2 px-6 rounded-lg"
+                                    >
+                                        Cancel
                                     </TouchEnhancedButton>
                                 </div>
                             </div>
                         )}
 
-                        {/* Categories Step */}
                         {currentStep === 'categories' && (
-                            <div className="space-y-6">
-                                {/* Helpful reminder at the top of categories step */}
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <div className="flex items-start space-x-3">
-                                        <div className="text-blue-600 text-lg">💡</div>
-                                        <div className="text-blue-800 text-sm">
-                                            <div className="font-medium mb-1">Quick Setup Tip:</div>
-                                            <div>Don't worry about getting everything perfect - you can edit items later to add brands, expiration dates, and adjust quantities once they're in your inventory.</div>
+                            <div className="flex flex-col h-full max-h-[90vh]">
+                                {/* Header */}
+                                <div className="p-6 border-b bg-gray-50">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-xl font-bold text-gray-900">Select Common Items</h2>
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-sm text-gray-600">
+                                                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+                                            </span>
+                                            <TouchEnhancedButton
+                                                onClick={() => setCurrentStep('review')}
+                                                disabled={selectedItems.size === 0}
+                                                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400"
+                                            >
+                                                Review & Add
+                                            </TouchEnhancedButton>
                                         </div>
                                     </div>
                                 </div>
-                                {Object.entries(COMMON_ITEMS).map(([categoryKey, category]) => {
-                                    const selectedCount = getSelectedCountInCategory(categoryKey);
-                                    const totalCount = category.items.length;
-                                    const allSelected = isAllSelectedInCategory(categoryKey);
 
-                                    return (
-                                        <div key={categoryKey} className="border border-gray-200 rounded-lg overflow-hidden">
-                                            {/* Category Header */}
-                                            <div className="bg-gray-50 p-4 border-b border-gray-200">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center space-x-3">
-                                                        <span className="text-2xl">{category.icon}</span>
-                                                        <div>
-                                                            <h4 className="font-semibold text-gray-900">{category.name}</h4>
-                                                            <p className="text-sm text-gray-600">
-                                                                {selectedCount} of {totalCount} selected
-                                                            </p>
+                                {/* Categories Content */}
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="space-y-6">
+                                        {Object.entries(COMMON_ITEMS).map(([categoryKey, category]) => {
+                                            const selectedCount = getSelectedCountInCategory(categoryKey);
+                                            const totalItems = category.items.length;
+                                            const allSelected = isAllSelectedInCategory(categoryKey);
+
+                                            return (
+                                                <div key={categoryKey} className="bg-white border rounded-lg">
+                                                    <div className="p-4 border-b bg-gray-50">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center space-x-3">
+                                                                <span className="text-2xl">{category.icon}</span>
+                                                                <div>
+                                                                    <h3 className="font-semibold text-gray-900">{category.name}</h3>
+                                                                    <p className="text-sm text-gray-600">{category.description}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-sm text-gray-600">
+                                                                    {selectedCount}/{totalItems} selected
+                                                                </span>
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => allSelected ? deselectAllInCategory(categoryKey) : selectAllInCategory(categoryKey)}
+                                                                    className={`px-3 py-1 rounded text-sm font-medium ${
+                                                                        allSelected
+                                                                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                                    }`}
+                                                                >
+                                                                    {allSelected ? 'Deselect All' : 'Select All'}
+                                                                </TouchEnhancedButton>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <TouchEnhancedButton
-                                                        onClick={() => allSelected ? deselectAllInCategory(categoryKey) : selectAllInCategory(categoryKey)}
-                                                        className={`px-4 py-2 text-sm rounded-lg ${
-                                                            allSelected
-                                                                ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                                        }`}
-                                                    >
-                                                        {allSelected ? 'Deselect All' : 'Select All'}
-                                                    </TouchEnhancedButton>
-                                                </div>
-                                            </div>
 
-                                            {/* Category Items */}
-                                            <div className="p-4">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                    {category.items.map((item, index) => {
-                                                        const itemId = `${categoryKey}-${index}`;
-                                                        const isSelected = selectedItems.has(itemId);
-                                                        const currentItem = selectedItems.get(itemId);
-                                                        const hasDualUnits = !!(item.secondaryUnit && item.defaultSecondaryQuantity);
+                                                    <div className="p-4">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                            {category.items.map((item, index) => {
+                                                                const itemId = `${categoryKey}-${index}`;
+                                                                const isSelected = selectedItems.has(itemId);
+                                                                const selectedItem = selectedItems.get(itemId);
 
-                                                        return (
-                                                            <div
-                                                                key={itemId}
-                                                                className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                                                                    isSelected
-                                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                                        : 'border-gray-200 hover:border-gray-300'
-                                                                }`}
-                                                                onClick={() => toggleItem(categoryKey, index, item)}
-                                                            >
-                                                                <div className="flex items-start justify-between">
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={isSelected}
-                                                                                onChange={() => toggleItem(categoryKey, index, item)}
-                                                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                                                                onClick={(e) => e.stopPropagation()}
-                                                                            />
-                                                                            <span className="text-sm font-medium text-gray-900 truncate">
-                                                                                {item.name}
-                                                                            </span>
+                                                                return (
+                                                                    <div
+                                                                        key={index}
+                                                                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                                                                            isSelected
+                                                                                ? 'border-blue-500 bg-blue-50'
+                                                                                : 'border-gray-200 hover:border-gray-300'
+                                                                        }`}
+                                                                        onClick={() => toggleItem(categoryKey, index, item)}
+                                                                    >
+                                                                        <div className="flex items-center justify-between mb-2">
+                                                                            <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                                                                isSelected
+                                                                                    ? 'border-blue-500 bg-blue-500'
+                                                                                    : 'border-gray-300'
+                                                                            }`}>
+                                                                                {isSelected && (
+                                                                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                                    </svg>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="mt-1 text-xs text-gray-500">
-                                                                            {item.category} • {item.location}
-                                                                            {hasDualUnits && (
-                                                                                <span className="ml-1 text-blue-600">• flexible units</span>
+
+                                                                        <div className="text-sm text-gray-600">
+                                                                            Default: {item.defaultQuantity} {item.unit}
+                                                                            {item.secondaryUnit && (
+                                                                                <span className="text-gray-400"> • {item.secondaryUnit} option</span>
                                                                             )}
                                                                         </div>
 
-                                                                        {/* FIXED: Improved dual unit input display */}
                                                                         {isSelected && (
-                                                                            <div className="mt-2 space-y-2">
-                                                                                {/* Primary quantity input */}
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <span className="text-xs text-gray-600 w-12">Primary:</span>
-                                                                                    <input
-                                                                                        type="number"
-                                                                                        min="0"
-                                                                                        step="0.01"
-                                                                                        value={currentItem?.quantity || ''}
-                                                                                        onChange={(e) => updateQuantity(itemId, e.target.value, false)}
-                                                                                        onBlur={() => handleQuantityBlur(itemId, false)}
-                                                                                        onFocus={handleQuantityFocus}
-                                                                                        onClick={(e) => e.stopPropagation()}
-                                                                                        className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
-                                                                                        placeholder="0"
-                                                                                    />
-                                                                                    <span className="text-xs text-gray-500 flex-1">{item.unit}</span>
-                                                                                </div>
-
-                                                                                {/* FIXED: Secondary quantity input - always available */}
-                                                                                {item.secondaryUnit && (
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <span className="text-xs text-gray-600 w-12">Secondary:</span>
+                                                                            <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                                                                <div className="space-y-2">
+                                                                                    <div>
+                                                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                                                            Quantity ({item.unit})
+                                                                                        </label>
                                                                                         <input
                                                                                             type="number"
                                                                                             min="0"
                                                                                             step="0.01"
-                                                                                            value={currentItem?.secondaryQuantity || ''}
-                                                                                            onChange={(e) => updateQuantity(itemId, e.target.value, true)}
-                                                                                            onBlur={() => handleQuantityBlur(itemId, true)}
+                                                                                            value={selectedItem?.quantity || ''}
+                                                                                            onChange={(e) => updateQuantity(itemId, e.target.value)}
+                                                                                            onBlur={() => handleQuantityBlur(itemId)}
                                                                                             onFocus={handleQuantityFocus}
-                                                                                            onClick={(e) => e.stopPropagation()}
-                                                                                            className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
+                                                                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                                                                                             placeholder="0"
                                                                                         />
-                                                                                        <span className="text-xs text-gray-500 flex-1">{item.secondaryUnit || 'unit'}</span>
                                                                                     </div>
-                                                                                )}
 
-                                                                                {/* FIXED: Helper text - only show for dual unit items */}
-                                                                                {item.secondaryUnit && (
-                                                                                    <div className="text-xs text-gray-500 mt-1">
-                                                                                        At least one quantity must be &gt; 0
-                                                                                    </div>
-                                                                                )}
+                                                                                    {item.secondaryUnit && (
+                                                                                        <div>
+                                                                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                                                                {item.secondaryUnit} (optional)
+                                                                                            </label>
+                                                                                            <input
+                                                                                                type="number"
+                                                                                                min="0"
+                                                                                                step="1"
+                                                                                                value={selectedItem?.secondaryQuantity || ''}
+                                                                                                onChange={(e) => updateQuantity(itemId, e.target.value, true)}
+                                                                                                onBlur={() => handleQuantityBlur(itemId, true)}
+                                                                                                onFocus={handleQuantityFocus}
+                                                                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                                                                placeholder="0"
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-
-                                {/* Categories Step Actions */}
-                                <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                                    <TouchEnhancedButton
-                                        onClick={() => setCurrentStep('welcome')}
-                                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                    >
-                                        ← Back
-                                    </TouchEnhancedButton>
-
-                                    <div className="text-sm text-gray-600">
-                                        {selectedItems.size} items selected
-                                    </div>
-
-                                    <TouchEnhancedButton
-                                        onClick={() => setCurrentStep('review')}
-                                        disabled={selectedItems.size === 0}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
-                                    >
-                                        Review → ({selectedItems.size})
-                                    </TouchEnhancedButton>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Review Step */}
-                        {currentStep === 'review' && (
-                            <div className="space-y-6">
-                                <div className="text-center">
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                        Review Your Selections
-                                    </h3>
-                                    <p className="text-gray-600">
-                                        You've selected {selectedItems.size} items to add to your inventory.
-                                    </p>
-                                </div>
-
-                                {/* Summary by Category */}
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <h4 className="font-medium text-gray-900 mb-3">Summary by Category</h4>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                        {Object.entries(COMMON_ITEMS).map(([categoryKey, category]) => {
-                                            const selectedCount = getSelectedCountInCategory(categoryKey);
-                                            if (selectedCount === 0) return null;
-
-                                            return (
-                                                <div key={categoryKey} className="text-center">
-                                                    <div className="text-2xl mb-1">{category.icon}</div>
-                                                    <div className="text-sm font-medium text-gray-900">{selectedCount}</div>
-                                                    <div className="text-xs text-gray-600">{category.name.replace(/🔸|🥫|🥛|🥕|🧊|🌶️|🍯|🥤/g, '').trim()}</div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Selected Items List */}
-                                <div className="space-y-4">
-                                    <h4 className="font-medium text-gray-900">Selected Items</h4>
-                                    <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                                        {Array.from(selectedItems.entries()).map(([itemId, item]) => {
-                                            const primaryQty = parseFloat(item.quantity) || 0;
-                                            const secondaryQty = parseFloat(item.secondaryQuantity) || 0;
-
-                                            return (
-                                                <div key={itemId} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">
-                                                    <div className="flex-1">
-                                                        <div className="font-medium text-gray-900">{item.name}</div>
-                                                        <div className="text-sm text-gray-600">
-                                                            {item.category} • {item.location}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
-                                                    <div className="text-sm font-medium text-gray-900">
-                                                        {/* FIXED: Smart display of quantities */}
-                                                        {primaryQty > 0 && (
-                                                            <div>{primaryQty} {item.unit}</div>
-                                                        )}
-                                                        {secondaryQty > 0 && (
-                                                            <div className="text-xs text-gray-600">
-                                                                ({secondaryQty} {item.secondaryUnit})
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <TouchEnhancedButton
-                                                        onClick={() => {
-                                                            const newSelectedItems = new Map(selectedItems);
-                                                            newSelectedItems.delete(itemId);
-                                                            setSelectedItems(newSelectedItems);
-                                                        }}
-                                                        className="ml-3 text-red-600 hover:text-red-800"
-                                                    >
-                                                        ✕
-                                                    </TouchEnhancedButton>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 </div>
 
-                                {/* Review Actions */}
-                                <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                                    <TouchEnhancedButton
-                                        onClick={() => setCurrentStep('categories')}
-                                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                    >
-                                        ← Back to Edit
-                                    </TouchEnhancedButton>
-
-                                    <div className="flex space-x-3">
+                                {/* Footer */}
+                                <div className="p-6 border-t bg-gray-50">
+                                    <div className="flex justify-between items-center">
                                         <TouchEnhancedButton
-                                            onClick={resetWizard}
-                                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                            onClick={onClose}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
                                         >
-                                            Start Over
+                                            Cancel
                                         </TouchEnhancedButton>
                                         <TouchEnhancedButton
-                                            onClick={handleSubmit}
+                                            onClick={() => setCurrentStep('review')}
                                             disabled={selectedItems.size === 0}
-                                            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                            className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400"
                                         >
-                                            Add {selectedItems.size} Items to Inventory
+                                            Review {selectedItems.size} Item{selectedItems.size !== 1 ? 's' : ''}
                                         </TouchEnhancedButton>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Adding Step */}
-                        {currentStep === 'adding' && (
-                            <div className="text-center space-y-6 py-12">
-                                <div className="text-6xl">📦</div>
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                                        Adding Items to Your Inventory
-                                    </h3>
-                                    <p className="text-gray-600 mb-6">
-                                        Please wait while we add {selectedItems.size} items to your inventory...
-                                    </p>
-
-                                    <div className="flex items-center justify-center">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                        <span className="ml-3 text-indigo-600">Processing...</span>
+                        {currentStep === 'review' && (
+                            <div className="flex flex-col h-full max-h-[90vh]">
+                                {/* Header */}
+                                <div className="p-6 border-b bg-gray-50">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-xl font-bold text-gray-900">Review Your Selection</h2>
+                                        <div className="flex items-center space-x-3">
+                                            <TouchEnhancedButton
+                                                onClick={() => setCurrentStep('categories')}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                                            >
+                                                Back to Selection
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
+                                                onClick={handleSubmit}
+                                                disabled={selectedItems.size === 0}
+                                                className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400"
+                                            >
+                                                Add to Inventory
+                                            </TouchEnhancedButton>
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Review Content */}
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    {selectedItems.size === 0 ? (
+                                        <div className="text-center py-12">
+                                            <div className="text-gray-400 text-6xl mb-4">📝</div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No items selected</h3>
+                                            <p className="text-gray-600 mb-4">Go back and select some items to add to your inventory.</p>
+                                            <TouchEnhancedButton
+                                                onClick={() => setCurrentStep('categories')}
+                                                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
+                                            >
+                                                Select Items
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="text-sm text-gray-600 mb-4">
+                                                Review the {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} you've selected before adding them to your inventory.
+                                            </div>
+
+                                            {Array.from(selectedItems.values()).map((item, index) => {
+                                                const itemId = `${item.categoryKey}-${index}`;
+                                                const category = COMMON_ITEMS[item.categoryKey];
+
+                                                return (
+                                                    <div key={itemId} className="bg-white border rounded-lg p-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center space-x-3">
+                                                                <span className="text-xl">{category?.icon}</span>
+                                                                <div>
+                                                                    <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                                                    <p className="text-sm text-gray-600">{category?.name}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="font-medium text-gray-900">
+                                                                    {parseFloat(item.quantity) || 0} {item.unit}
+                                                                </div>
+                                                                {item.secondaryQuantity > 0 && (
+                                                                    <div className="text-sm text-gray-600">
+                                                                        + {item.secondaryQuantity} {item.secondaryUnit}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                <div className="p-6 border-t bg-gray-50">
+                                    <div className="flex justify-between items-center">
+                                        <TouchEnhancedButton
+                                            onClick={onClose}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                                        >
+                                            Cancel
+                                        </TouchEnhancedButton>
+                                        <div className="flex space-x-3">
+                                            <TouchEnhancedButton
+                                                onClick={() => setCurrentStep('categories')}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                                            >
+                                                Back to Selection
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
+                                                onClick={handleSubmit}
+                                                disabled={selectedItems.size === 0}
+                                                className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400"
+                                            >
+                                                Add {selectedItems.size} Item{selectedItems.size !== 1 ? 's' : ''} to Inventory
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentStep === 'adding' && (
+                            <div className="p-12 text-center">
+                                <div className="animate-spin w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Adding Items to Inventory</h3>
+                                <p className="text-gray-600">Please wait while we add your selected items...</p>
                             </div>
                         )}
                     </div>
-
-                    {/* Footer - Progress Indicator */}
-                    {currentStep !== 'adding' && (
-                        <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <div className="flex space-x-2">
-                                    {['welcome', 'categories', 'review'].map((step, index) => (
-                                        <div
-                                            key={step}
-                                            className={`w-3 h-3 rounded-full ${
-                                                step === currentStep
-                                                    ? 'bg-indigo-600'
-                                                    : index < ['welcome', 'categories', 'review'].indexOf(currentStep)
-                                                        ? 'bg-green-500'
-                                                        : 'bg-gray-300'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                    Step {['welcome', 'categories', 'review'].indexOf(currentStep) + 1} of 3
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
-        </div>
+        </FeatureGate>
     );
 }

@@ -1,4 +1,4 @@
-// file: /src/lib/email.js v1
+// file: /src/lib/email.js v3 - Added expiration notification template and subscription gates
 
 import { Resend } from 'resend';
 
@@ -264,6 +264,493 @@ const getShoppingListEmailTemplate = ({
     return { htmlContent, textContent };
 };
 
+// NEW: Get expiration notification email template
+const getExpirationNotificationTemplate = ({
+                                               userName,
+                                               expiringItems,
+                                               totalCount,
+                                               appUrl
+                                           }) => {
+    const currentYear = new Date().getFullYear();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    // Organize items by expiration status
+    const expiredItems = expiringItems.filter(item => item.status === 'expired');
+    const expiringToday = expiringItems.filter(item => item.status === 'expires-today');
+    const expiringSoon = expiringItems.filter(item => item.status === 'expires-soon');
+    const expiringThisWeek = expiringItems.filter(item => item.status === 'expires-week');
+
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'expired': return '🚨';
+            case 'expires-today': return '⚠️';
+            case 'expires-soon': return '⏰';
+            case 'expires-week': return '📅';
+            default: return '📦';
+        }
+    };
+
+    const getStatusLabel = (status, daysUntil) => {
+        switch (status) {
+            case 'expired': return `Expired ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`;
+            case 'expires-today': return 'Expires today';
+            case 'expires-soon': return `Expires in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+            case 'expires-week': return `Expires in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+            default: return 'Check expiration';
+        }
+    };
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Expiration Alert - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #fef3c7;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .alert-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .alert-badge h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .stat-card.expired { border-color: #dc2626; background: #fef2f2; }
+        .stat-card.today { border-color: #ea580c; background: #fff7ed; }
+        .stat-card.soon { border-color: #d97706; background: #fffbeb; }
+        .stat-card.week { border-color: #ca8a04; background: #fefce8; }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card.expired .stat-number { color: #dc2626; }
+        .stat-card.today .stat-number { color: #ea580c; }
+        .stat-card.soon .stat-number { color: #d97706; }
+        .stat-card.week .stat-number { color: #ca8a04; }
+        
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .items-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-header {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .item.expired { background: #fef2f2; border-left: 4px solid #dc2626; }
+        .item.expires-today { background: #fff7ed; border-left: 4px solid #ea580c; }
+        .item.expires-soon { background: #fffbeb; border-left: 4px solid #d97706; }
+        .item.expires-week { background: #fefce8; border-left: 4px solid #ca8a04; }
+        
+        .item-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+        
+        .item-details {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .item-info {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .item-status {
+            font-size: 12px;
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .action-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .action-section h4 {
+            margin: 0 0 10px 0;
+            color: #0c4a6e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .action-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 10px 5px;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+        }
+        
+        .tips-section {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .tips-section h4 {
+            margin: 0 0 10px 0;
+            color: #166534;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .tips-section ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+            color: #15803d;
+        }
+        
+        .tips-section li {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .summary-stats {
+                grid-template-columns: 1fr 1fr !important;
+            }
+            
+            .stat-card {
+                padding: 12px !important;
+            }
+            
+            .stat-number {
+                font-size: 20px !important;
+            }
+            
+            .action-button {
+                width: calc(100% - 20px) !important;
+                margin: 10px 10px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Food Expiration Alert</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert-badge">
+                <h2>⏰ ${totalCount} Item${totalCount !== 1 ? 's' : ''} Need${totalCount === 1 ? 's' : ''} Your Attention!</h2>
+            </div>
+            
+            <p>Hello ${userName},</p>
+            
+            <p>We're helping you reduce food waste by alerting you about items in your inventory that are expiring soon or have already expired.</p>
+            
+            <div class="summary-stats">
+                ${expiredItems.length > 0 ? `
+                <div class="stat-card expired">
+                    <div class="stat-number">${expiredItems.length}</div>
+                    <div class="stat-label">Expired</div>
+                </div>
+                ` : ''}
+                ${expiringToday.length > 0 ? `
+                <div class="stat-card today">
+                    <div class="stat-number">${expiringToday.length}</div>
+                    <div class="stat-label">Today</div>
+                </div>
+                ` : ''}
+                ${expiringSoon.length > 0 ? `
+                <div class="stat-card soon">
+                    <div class="stat-number">${expiringSoon.length}</div>
+                    <div class="stat-label">1-3 Days</div>
+                </div>
+                ` : ''}
+                ${expiringThisWeek.length > 0 ? `
+                <div class="stat-card week">
+                    <div class="stat-number">${expiringThisWeek.length}</div>
+                    <div class="stat-label">This Week</div>
+                </div>
+                ` : ''}
+            </div>
+
+            ${expiredItems.length > 0 ? `
+            <div class="items-section">
+                <div class="section-header" style="color: #dc2626;">🚨 Already Expired</div>
+                ${expiredItems.map(item => `
+                <div class="item expired">
+                    <div class="item-icon">${getStatusIcon(item.status)}</div>
+                    <div class="item-details">
+                        <div class="item-name">${item.name}${item.brand ? ` (${item.brand})` : ''}</div>
+                        <div class="item-info">${item.quantity} ${item.unit} • ${item.location} • Exp: ${new Date(item.expirationDate).toLocaleDateString()}</div>
+                    </div>
+                    <div class="item-status" style="color: #dc2626;">
+                        ${getStatusLabel(item.status, item.daysUntil)}
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            ${expiringToday.length > 0 ? `
+            <div class="items-section">
+                <div class="section-header" style="color: #ea580c;">⚠️ Expires Today</div>
+                ${expiringToday.map(item => `
+                <div class="item expires-today">
+                    <div class="item-icon">${getStatusIcon(item.status)}</div>
+                    <div class="item-details">
+                        <div class="item-name">${item.name}${item.brand ? ` (${item.brand})` : ''}</div>
+                        <div class="item-info">${item.quantity} ${item.unit} • ${item.location} • Exp: ${new Date(item.expirationDate).toLocaleDateString()}</div>
+                    </div>
+                    <div class="item-status" style="color: #ea580c;">
+                        ${getStatusLabel(item.status, item.daysUntil)}
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            ${expiringSoon.length > 0 ? `
+            <div class="items-section">
+                <div class="section-header" style="color: #d97706;">⏰ Expires Soon (1-3 Days)</div>
+                ${expiringSoon.map(item => `
+                <div class="item expires-soon">
+                    <div class="item-icon">${getStatusIcon(item.status)}</div>
+                    <div class="item-details">
+                        <div class="item-name">${item.name}${item.brand ? ` (${item.brand})` : ''}</div>
+                        <div class="item-info">${item.quantity} ${item.unit} • ${item.location} • Exp: ${new Date(item.expirationDate).toLocaleDateString()}</div>
+                    </div>
+                    <div class="item-status" style="color: #d97706;">
+                        ${getStatusLabel(item.status, item.daysUntil)}
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            ${expiringThisWeek.length > 0 ? `
+            <div class="items-section">
+                <div class="section-header" style="color: #ca8a04;">📅 Expires This Week</div>
+                ${expiringThisWeek.map(item => `
+                <div class="item expires-week">
+                    <div class="item-icon">${getStatusIcon(item.status)}</div>
+                    <div class="item-details">
+                        <div class="item-name">${item.name}${item.brand ? ` (${item.brand})` : ''}</div>
+                        <div class="item-info">${item.quantity} ${item.unit} • ${item.location} • Exp: ${new Date(item.expirationDate).toLocaleDateString()}</div>
+                    </div>
+                    <div class="item-status" style="color: #ca8a04;">
+                        ${getStatusLabel(item.status, item.daysUntil)}
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            <div class="action-section">
+                <h4>🍳 Take Action Now</h4>
+                <p style="margin: 0 0 15px 0; color: #0c4a6e;">Don't let good food go to waste! Here's what you can do:</p>
+                <a href="${appUrl}/inventory" class="action-button">View My Inventory</a>
+                <a href="${appUrl}/recipes?search=use-expiring" class="action-button">Find Quick Recipes</a>
+            </div>
+            
+            <div class="tips-section">
+                <h4>💡 Food Waste Prevention Tips</h4>
+                <ul>
+                    <li><strong>Use the "First In, First Out" rule:</strong> Use older items before newer ones</li>
+                    <li><strong>Cook in batches:</strong> Prepare meals using expiring ingredients and freeze portions</li>
+                    <li><strong>Get creative:</strong> Overripe fruits are perfect for smoothies or baking</li>
+                    <li><strong>Store properly:</strong> Keep items in optimal conditions to extend freshness</li>
+                    <li><strong>Share with neighbors:</strong> If you can't use something, consider sharing</li>
+                </ul>
+            </div>
+            
+            <p>Remember, these dates are often "best by" rather than "unsafe after" dates. Use your senses - smell, look, and taste (when safe) to determine if food is still good.</p>
+            
+            <p style="margin-top: 30px;">
+                Happy cooking and reducing waste!<br>
+                <em>The Doc Bear's Comfort Kitchen Team</em>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This expiration alert was sent from Doc Bear's Comfort Kitchen</p>
+            <p>You can adjust your notification preferences in your <a href="${appUrl}/profile" style="color: #4f46e5;">profile settings</a></p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+    const text = `
+Food Expiration Alert - Doc Bear's Comfort Kitchen
+
+Hello ${userName},
+
+We're helping you reduce food waste by alerting you about ${totalCount} item${totalCount !== 1 ? 's' : ''} in your inventory that need${totalCount === 1 ? 's' : ''} your attention.
+
+SUMMARY:
+${expiredItems.length > 0 ? `- ${expiredItems.length} item${expiredItems.length !== 1 ? 's' : ''} already expired` : ''}
+${expiringToday.length > 0 ? `- ${expiringToday.length} item${expiringToday.length !== 1 ? 's' : ''} expire${expiringToday.length === 1 ? 's' : ''} today` : ''}
+${expiringSoon.length > 0 ? `- ${expiringSoon.length} item${expiringSoon.length !== 1 ? 's' : ''} expire${expiringSoon.length === 1 ? 's' : ''} in 1-3 days` : ''}
+${expiringThisWeek.length > 0 ? `- ${expiringThisWeek.length} item${expiringThisWeek.length !== 1 ? 's' : ''} expire${expiringThisWeek.length === 1 ? 's' : ''} this week` : ''}
+
+ITEM DETAILS:
+${expiringItems.map(item => `
+${getStatusIcon(item.status)} ${item.name}${item.brand ? ` (${item.brand})` : ''}
+   ${item.quantity} ${item.unit} • ${item.location}
+   Expires: ${new Date(item.expirationDate).toLocaleDateString()}
+   Status: ${getStatusLabel(item.status, item.daysUntil)}
+`).join('')}
+
+TAKE ACTION:
+• View your inventory: ${appUrl}/inventory
+• Find recipes to use expiring items: ${appUrl}/recipes
+
+FOOD WASTE PREVENTION TIPS:
+• Use the "First In, First Out" rule - use older items first
+• Cook in batches and freeze portions
+• Get creative - overripe fruits are perfect for smoothies
+• Store items properly to extend freshness
+• Share with neighbors if you can't use something
+
+Remember, these dates are often "best by" rather than "unsafe after" dates. Use your senses to determine if food is still good.
+
+Happy cooking and reducing waste!
+The Doc Bear's Comfort Kitchen Team
+
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+    `;
+
+    return { html, text };
+};
+
 // Normalize different shopping list formats
 const normalizeShoppingListForEmail = (shoppingList) => {
     let items = [];
@@ -396,7 +883,7 @@ const getCategoryDisplayName = (category) => {
     return names[category.toLowerCase()] || `📦 ${category}`;
 };
 
-// Main email sending function
+// UPDATED: Main email sending function with subscription validation
 export const sendShoppingListEmail = async ({
                                                 toEmails,
                                                 senderName,
@@ -404,9 +891,53 @@ export const sendShoppingListEmail = async ({
                                                 shoppingList,
                                                 personalMessage = '',
                                                 context = 'recipes', // 'recipe', 'recipes', 'meal-plan'
-                                                contextName = 'Selected Recipes'
+                                                contextName = 'Selected Recipes',
+                                                userSubscription = null,
+                                                userId = null
                                             }) => {
     try {
+        // SUBSCRIPTION VALIDATION - Check if user has email sharing access
+        if (userSubscription) {
+            const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
+
+            // Check feature access
+            if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
+                throw new Error('Email sharing is a Gold feature. Please upgrade your subscription to share shopping lists via email.');
+            }
+
+            // Check usage limits for Gold users (50 emails/month)
+            if (userId) {
+                const { User } = require('./models');
+                const user = await User.findById(userId).select('usageTracking');
+
+                if (user && user.usageTracking) {
+                    const currentMonth = new Date().getMonth();
+                    const currentYear = new Date().getFullYear();
+
+                    // Reset monthly counter if new month
+                    if (user.usageTracking.currentMonth !== currentMonth ||
+                        user.usageTracking.currentYear !== currentYear) {
+                        user.usageTracking.currentMonth = currentMonth;
+                        user.usageTracking.currentYear = currentYear;
+                        user.usageTracking.monthlyEmailShares = 0;
+                    }
+
+                    const currentUsage = user.usageTracking.monthlyEmailShares || 0;
+
+                    if (!checkUsageLimit(userSubscription, 'emailSharesPerMonth', currentUsage)) {
+                        const { getUsageLimit } = require('./subscription-config');
+                        const limit = getUsageLimit(userSubscription, 'emailSharesPerMonth');
+                        throw new Error(`You've reached your monthly email sharing limit (${limit} emails). Upgrade to Platinum for unlimited email sharing.`);
+                    }
+
+                    // Track this usage
+                    user.usageTracking.monthlyEmailShares = currentUsage + 1;
+                    user.usageTracking.lastUpdated = new Date();
+                    await user.save();
+                }
+            }
+        }
+
         // Validate inputs
         if (!toEmails || toEmails.length === 0) {
             throw new Error('At least one recipient email is required');
@@ -452,6 +983,104 @@ export const sendShoppingListEmail = async ({
     }
 };
 
+// NEW: Send expiration notification email with subscription validation
+export const sendExpirationNotificationEmail = async ({
+                                                          toEmail,
+                                                          userName,
+                                                          expiringItems,
+                                                          userSubscription = null,
+                                                          userId = null
+                                                      }) => {
+    try {
+        // SUBSCRIPTION VALIDATION - Check if user has email notifications access
+        if (userSubscription) {
+            const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
+
+            // Check feature access
+            if (!checkFeatureAccess(userSubscription, 'EMAIL_NOTIFICATIONS')) {
+                console.log('User does not have email notifications access, skipping expiration email');
+                return {
+                    success: false,
+                    reason: 'Email notifications require a Gold+ subscription'
+                };
+            }
+
+            // Check usage limits for Gold users (100 emails/month)
+            if (userId) {
+                const { User } = require('./models');
+                const user = await User.findById(userId).select('usageTracking');
+
+                if (user && user.usageTracking) {
+                    const currentMonth = new Date().getMonth();
+                    const currentYear = new Date().getFullYear();
+
+                    // Reset monthly counter if new month
+                    if (user.usageTracking.currentMonth !== currentMonth ||
+                        user.usageTracking.currentYear !== currentYear) {
+                        user.usageTracking.currentMonth = currentMonth;
+                        user.usageTracking.currentYear = currentYear;
+                        user.usageTracking.monthlyEmailNotifications = 0;
+                    }
+
+                    const currentUsage = user.usageTracking.monthlyEmailNotifications || 0;
+
+                    if (!checkUsageLimit(userSubscription, 'emailNotificationsPerMonth', currentUsage)) {
+                        console.log('User has reached email notification limit');
+                        return {
+                            success: false,
+                            reason: 'Monthly email notification limit reached'
+                        };
+                    }
+
+                    // Track this usage
+                    user.usageTracking.monthlyEmailNotifications = currentUsage + 1;
+                    user.usageTracking.lastUpdated = new Date();
+                    await user.save();
+                }
+            }
+        }
+
+        // Validate inputs
+        if (!toEmail) {
+            throw new Error('Recipient email is required');
+        }
+
+        if (!expiringItems || expiringItems.length === 0) {
+            throw new Error('No expiring items provided');
+        }
+
+        // Generate email content
+        const { html, text } = getExpirationNotificationTemplate({
+            userName,
+            expiringItems,
+            totalCount: expiringItems.length,
+            appUrl: process.env.APP_URL || 'http://localhost:3000'
+        });
+
+        // Prepare email data
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfortkitchen.com',
+            to: [toEmail],
+            subject: `⏰ Food Expiration Alert - ${expiringItems.length} Item${expiringItems.length !== 1 ? 's' : ''} Need Your Attention`,
+            html,
+            text
+        };
+
+        // Send email
+        const result = await resend.emails.send(emailData);
+
+        return {
+            success: true,
+            messageId: result.id,
+            itemCount: expiringItems.length
+        };
+
+    } catch (error) {
+        console.error('Expiration notification email error:', error);
+        throw new Error(`Failed to send expiration notification: ${error.message}`);
+    }
+};
+
 // Validate email addresses
 export const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -474,8 +1103,18 @@ class EmailService {
         return `${this.fromName} <${this.fromEmail}>`;
     }
 
-    async sendEmail(to, subject, htmlContent, textContent = null) {
+    // UPDATED: Email sending with subscription validation
+    async sendEmail(to, subject, htmlContent, textContent = null, userSubscription = null, userId = null) {
         try {
+            // SUBSCRIPTION VALIDATION for general email sending
+            if (userSubscription) {
+                const { checkFeatureAccess } = require('./subscription-config');
+
+                if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
+                    throw new Error('Email features require a Gold subscription.');
+                }
+            }
+
             // Validate configuration
             if (!process.env.RESEND_API_KEY) {
                 throw new Error('RESEND_API_KEY is not configured');
@@ -549,30 +1188,7 @@ export class EmailTemplates {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Password Reset - Doc Bear's Comfort Kitchen</title>
-    <!--[if mso]>
-    <noscript>
-        <xml>
-            <o:OfficeDocumentSettings>
-                <o:PixelsPerInch>96</o:PixelsPerInch>
-            </o:OfficeDocumentSettings>
-        </xml>
-    </noscript>
-    <![endif]-->
     <style>
-        /* Reset styles */
-        body, table, td, p, a, li, blockquote {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-        }
-        table, td {
-            mso-table-lspace: 0;
-            mso-table-rspace: 0;
-        }
-        img {
-            -ms-interpolation-mode: bicubic;
-        }
-
-        /* Base styles */
         body {
             margin: 0;
             padding: 0;
@@ -646,77 +1262,6 @@ export class EmailTemplates {
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         
-        .security-info {
-            background-color: #fef5e7;
-            border: 1px solid #f6ad55;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .security-info h4 {
-            margin: 0 0 10px 0;
-            color: #c05621;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .security-info ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #9c4221;
-        }
-        
-        .security-info li {
-            margin: 5px 0;
-        }
-        
-        .link-backup {
-            background-color: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-            word-break: break-all;
-        }
-        
-        .link-backup p {
-            margin: 0 0 10px 0;
-            font-weight: 600;
-            color: #2d3748;
-        }
-        
-        .link-backup a {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 14px;
-        }
-        
-        .tips {
-            background-color: #e6fffa;
-            border: 1px solid #38b2ac;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .tips h4 {
-            margin: 0 0 10px 0;
-            color: #234e52;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .tips ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #285e61;
-        }
-        
-        .tips li {
-            margin: 5px 0;
-        }
-        
         .footer {
             background-color: #f7fafc;
             padding: 30px;
@@ -735,24 +1280,6 @@ export class EmailTemplates {
             color: #a0aec0;
             margin-top: 20px;
         }
-        
-        /* Mobile responsive */
-        @media only screen and (max-width: 600px) {
-            .content,
-            .header,
-            .footer {
-                padding: 25px 20px !important;
-            }
-            
-            .title {
-                font-size: 20px !important;
-            }
-            
-            .reset-button {
-                width: calc(100% - 40px) !important;
-                margin: 25px 20px !important;
-            }
-        }
     </style>
 </head>
 <body>
@@ -767,49 +1294,20 @@ export class EmailTemplates {
             
             <div class="message">
                 <p>Hello,</p>
-                
                 <p>We received a request to reset the password for your account associated with <strong>${userEmail}</strong>.</p>
-                
                 <p>If you requested this password reset, click the button below to create a new password:</p>
             </div>
             
             <a href="${resetUrl}" class="reset-button">Reset My Password</a>
             
-            <div class="link-backup">
-                <p>Having trouble with the button? Copy and paste this link:</p>
-                <a href="${resetUrl}">${resetUrl}</a>
-            </div>
-            
-            <div class="security-info">
-                <h4>⚠️ Important Security Information</h4>
-                <ul>
-                    <li>This link will expire in <strong>${expiryMinutes} minutes</strong></li>
-                    <li>This link can only be used once</li>
-                    <li>If you didn't request this reset, please ignore this email</li>
-                    <li>Your password won't change unless you click the link above</li>
-                </ul>
-            </div>
-            
-            <div class="tips">
-                <h4>🔒 Password Security Tips</h4>
-                <ul>
-                    <li>Use at least 8 characters with letters, numbers, and symbols</li>
-                    <li>Don't reuse passwords from other accounts</li>
-                    <li>Consider using a password manager</li>
-                    <li>Never share your password with anyone</li>
-                </ul>
-            </div>
-            
             <div class="message">
-                <p>If you didn't request a password reset, you can safely ignore this email. Your account remains secure.</p>
-                
-                <p>Need help? Contact our support team - we're here to help!</p>
+                <p>This link will expire in <strong>${expiryMinutes} minutes</strong> and can only be used once.</p>
+                <p>If you didn't request a password reset, you can safely ignore this email.</p>
             </div>
         </div>
         
         <div class="footer">
             <p>This email was sent from Doc Bear's Comfort Kitchen</p>
-            <p>If you have questions, please contact our support team</p>
             <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
         </div>
     </div>
@@ -827,21 +1325,9 @@ If you requested this password reset, click the link below to create a new passw
 
 ${resetUrl}
 
-IMPORTANT SECURITY INFORMATION:
-- This link will expire in ${expiryMinutes} minutes
-- This link can only be used once
-- If you didn't request this reset, please ignore this email
-- Your password won't change unless you click the link above
+This link will expire in ${expiryMinutes} minutes and can only be used once.
 
-PASSWORD SECURITY TIPS:
-- Use at least 8 characters with letters, numbers, and symbols
-- Don't reuse passwords from other accounts
-- Consider using a password manager
-- Never share your password with anyone
-
-If you didn't request a password reset, you can safely ignore this email. Your account remains secure.
-
-Need help? Contact our support team - we're here to help!
+If you didn't request a password reset, you can safely ignore this email.
 
 © ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
         `;
@@ -907,66 +1393,6 @@ Need help? Contact our support team - we're here to help!
             padding: 40px 30px;
         }
         
-        .success-badge {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .success-badge h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-        
-        .info-box {
-            background-color: #e6fffa;
-            border: 1px solid #38b2ac;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .info-box h4 {
-            margin: 0 0 10px 0;
-            color: #234e52;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .info-box ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #285e61;
-        }
-        
-        .info-box li {
-            margin: 5px 0;
-        }
-        
-        .warning-box {
-            background-color: #fed7d7;
-            border: 1px solid #fc8181;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .warning-box h4 {
-            margin: 0 0 10px 0;
-            color: #c53030;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .warning-box p {
-            margin: 0;
-            color: #c53030;
-        }
-        
         .footer {
             background-color: #f7fafc;
             padding: 30px;
@@ -985,15 +1411,6 @@ Need help? Contact our support team - we're here to help!
             color: #a0aec0;
             margin-top: 20px;
         }
-        
-        /* Mobile responsive */
-        @media only screen and (max-width: 600px) {
-            .content,
-            .header,
-            .footer {
-                padding: 25px 20px !important;
-            }
-        }
     </style>
 </head>
 <body>
@@ -1004,47 +1421,19 @@ Need help? Contact our support team - we're here to help!
         </div>
         
         <div class="content">
-            <div class="success-badge">
-                <h2>✅ Password Successfully Changed!</h2>
-            </div>
+            <h2>✅ Password Successfully Changed!</h2>
             
             <p>Hello,</p>
             
-            <p>This email confirms that the password for your account <strong>${userEmail}</strong> was successfully changed on:</p>
+            <p>This email confirms that the password for your account <strong>${userEmail}</strong> was successfully changed on ${changeTime}.</p>
             
-            <p style="text-align: center; font-size: 18px; font-weight: 600; color: #2d3748; background-color: #f7fafc; padding: 15px; border-radius: 8px;">
-                ${changeTime}
-            </p>
-
-            <div class="info-box">
-                <h4>🔒 What this means:</h4>
-                <ul>
-                    <li>Your account is now secured with your new password</li>
-                    <li>You'll need to use your new password for future sign-ins</li>
-                    <li>Any active sessions on other devices will remain logged in</li>
-                    <li>This change was logged for security purposes</li>
-                </ul>
-            </div>
-            
-            <div class="warning-box">
-                <h4>🚨 Didn't make this change?</h4>
-                <p>If you didn't change your password, someone else may have access to your account. Please contact our support team immediately and consider changing your password again.</p>
-            </div>
-            
-            <p><strong>For your security, we recommend:</strong></p>
-            <ul>
-                <li>Using a unique password that you don't use elsewhere</li>
-                <li>Regularly reviewing your account activity</li>
-                <li>Keeping your contact information up to date</li>
-                <li>Never sharing your password with anyone</li>
-            </ul>
+            <p>If you didn't make this change, please contact our support team immediately.</p>
             
             <p>Thank you for keeping your Doc Bear's Comfort Kitchen account secure!</p>
         </div>
         
         <div class="footer">
             <p>This email was sent from Doc Bear's Comfort Kitchen</p>
-            <p>If you have questions or concerns, please contact our support team</p>
             <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
         </div>
     </div>
@@ -1058,276 +1447,12 @@ Hello,
 
 This email confirms that the password for your account ${userEmail} was successfully changed on ${changeTime}.
 
-WHAT THIS MEANS:
-- Your account is now secured with your new password
-- You'll need to use your new password for future sign-ins
-- Any active sessions on other devices will remain logged in
-- This change was logged for security purposes
-
-DIDN'T MAKE THIS CHANGE?
-If you didn't change your password, someone else may have access to your account. Please contact our support team immediately and consider changing your password again.
-
-For your security, we recommend:
-- Using a unique password that you don't use elsewhere
-- Regularly reviewing your account activity
-- Keeping your contact information up to date
-- Never sharing your password with anyone
+If you didn't make this change, please contact our support team immediately.
 
 Thank you for keeping your Doc Bear's Comfort Kitchen account secure!
 
 © ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
         `;
-
-        return { html, text };
-    }
-
-    static getAccountDeletionConfirmationTemplate(userEmail, userName) {
-        const currentYear = new Date().getFullYear();
-        const deletionTime = new Date().toLocaleString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short'
-        });
-
-        const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account Deleted - Doc Bear's Comfort Kitchen</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f8fafc;
-        }
-        
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-            padding: 40px 30px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 28px;
-            font-weight: bold;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-        
-        .header-subtitle {
-            color: #d1d5db;
-            font-size: 16px;
-            margin: 0;
-        }
-        
-        .content {
-            padding: 40px 30px;
-        }
-        
-        .deletion-badge {
-            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .deletion-badge h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-        
-        .info-box {
-            background-color: #f3f4f6;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .info-box h4 {
-            margin: 0 0 10px 0;
-            color: #374151;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .info-box ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #4b5563;
-        }
-        
-        .info-box li {
-            margin: 5px 0;
-        }
-        
-        .comeback-box {
-            background-color: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-            text-align: center;
-        }
-        
-        .comeback-box h4 {
-            margin: 0 0 10px 0;
-            color: #92400e;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .comeback-box p {
-            margin: 10px 0 0 0;
-            color: #92400e;
-        }
-        
-        .footer {
-            background-color: #f7fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer p {
-            margin: 0 0 10px 0;
-            color: #718096;
-            font-size: 14px;
-        }
-        
-        .footer .copyright {
-            font-size: 12px;
-            color: #a0aec0;
-            margin-top: 20px;
-        }
-        
-        /* Mobile responsive */
-        @media only screen and (max-width: 600px) {
-            .content,
-            .header,
-            .footer {
-                padding: 25px 20px !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        <div class="header">
-            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
-            <p class="header-subtitle">Your culinary companion</p>
-        </div>
-        
-        <div class="content">
-            <div class="deletion-badge">
-                <h2>🗑️ Account Successfully Deleted</h2>
-            </div>
-            
-            <p>Hello ${userName || 'there'},</p>
-            
-            <p>This email confirms that your Doc Bear's Comfort Kitchen account (<strong>${userEmail}</strong>) and all associated data were permanently deleted on:</p>
-            
-            <p style="text-align: center; font-size: 18px; font-weight: 600; color: #2d3748; background-color: #f7fafc; padding: 15px; border-radius: 8px;">
-                ${deletionTime}
-            </p>
-
-            <div class="info-box">
-                <h4>🔒 What was deleted:</h4>
-                <ul>
-                    <li>Your personal profile and account information</li>
-                    <li>All saved recipes and meal plans</li>
-                    <li>Food inventory and shopping lists</li>
-                    <li>Nutrition logs and preferences</li>
-                    <li>Contacts and email sharing history</li>
-                    <li>All app settings and preferences</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h4>📋 Important notes:</h4>
-                <ul>
-                    <li>This deletion is <strong>permanent and cannot be undone</strong></li>
-                    <li>Any shared recipes that were public have been anonymized</li>
-                    <li>You have been removed from any shared shopping lists</li>
-                    <li>All email notifications have been stopped</li>
-                    <li>This email address can be used to create a new account in the future</li>
-                </ul>
-            </div>
-            
-            <div class="comeback-box">
-                <h4>👋 We'll miss you!</h4>
-                <p>Thank you for being part of the Doc Bear's Comfort Kitchen community. If you ever decide to return, you're always welcome to create a new account with the same email address.</p>
-            </div>
-            
-            <p>If you have any questions about this deletion or need assistance, please contact our support team.</p>
-            
-            <p>Best wishes in all your culinary adventures!</p>
-            
-            <p style="margin-top: 30px; font-style: italic; color: #6b7280;">
-                The Doc Bear's Comfort Kitchen Team
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p>This email was sent to confirm your account deletion</p>
-            <p>If you didn't request this deletion, please contact our support team immediately</p>
-            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>`;
-
-        const text = `
-Account Successfully Deleted - Doc Bear's Comfort Kitchen
-
-Hello ${userName || 'there'},
-
-This email confirms that your Doc Bear's Comfort Kitchen account (${userEmail}) and all associated data were permanently deleted on ${deletionTime}.
-
-WHAT WAS DELETED:
-- Your personal profile and account information
-- All saved recipes and meal plans
-- Food inventory and shopping lists
-- Nutrition logs and preferences
-- Contacts and email sharing history
-- All app settings and preferences
-
-IMPORTANT NOTES:
-- This deletion is permanent and cannot be undone
-- Any shared recipes that were public have been anonymized
-- You have been removed from any shared shopping lists
-- All email notifications have been stopped
-- This email address can be used to create a new account in the future
-
-WE'LL MISS YOU!
-Thank you for being part of the Doc Bear's Comfort Kitchen community. If you ever decide to return, you're always welcome to create a new account with the same email address.
-
-If you have any questions about this deletion or need assistance, please contact our support team.
-
-Best wishes in all your culinary adventures!
-
-The Doc Bear's Comfort Kitchen Team
-
-© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
-    `;
 
         return { html, text };
     }
@@ -1381,21 +1506,6 @@ The Doc Bear's Comfort Kitchen Team
             padding: 40px 30px;
         }
         
-        .welcome-badge {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .welcome-badge h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-        
         .verify-button {
             display: block;
             width: fit-content;
@@ -1408,58 +1518,6 @@ The Doc Bear's Comfort Kitchen Team
             font-weight: 600;
             font-size: 16px;
             text-align: center;
-            transition: all 0.2s;
-        }
-        
-        .verify-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
-        }
-        
-        .info-box {
-            background-color: #e6fffa;
-            border: 1px solid #38b2ac;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        
-        .info-box h4 {
-            margin: 0 0 10px 0;
-            color: #234e52;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .info-box ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #285e61;
-        }
-        
-        .info-box li {
-            margin: 5px 0;
-        }
-        
-        .link-backup {
-            background-color: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-            word-break: break-all;
-        }
-        
-        .link-backup p {
-            margin: 0 0 10px 0;
-            font-weight: 600;
-            color: #2d3748;
-        }
-        
-        .link-backup a {
-            color: #48bb78;
-            text-decoration: none;
-            font-size: 14px;
         }
         
         .footer {
@@ -1480,20 +1538,6 @@ The Doc Bear's Comfort Kitchen Team
             color: #a0aec0;
             margin-top: 20px;
         }
-        
-        /* Mobile responsive */
-        @media only screen and (max-width: 600px) {
-            .content,
-            .header,
-            .footer {
-                padding: 25px 20px !important;
-            }
-            
-            .verify-button {
-                width: calc(100% - 40px) !important;
-                margin: 25px 20px !important;
-            }
-        }
     </style>
 </head>
 <body>
@@ -1504,55 +1548,21 @@ The Doc Bear's Comfort Kitchen Team
         </div>
         
         <div class="content">
-            <div class="welcome-badge">
-                <h2>🎉 Welcome to Doc Bear's Comfort Kitchen!</h2>
-            </div>
+            <h2>🎉 Welcome to Doc Bear's Comfort Kitchen!</h2>
             
             <p>Hello ${userName},</p>
             
-            <p>Thank you for creating your account with Doc Bear's Comfort Kitchen! We're excited to help you manage your food inventory and discover amazing recipes.</p>
-            
-            <p>To get started and access all features, please verify your email address by clicking the button below:</p>
+            <p>Thank you for creating your account! To get started, please verify your email address:</p>
             
             <a href="${verificationUrl}" class="verify-button">Verify My Email Address</a>
             
-            <div class="link-backup">
-                <p>Having trouble with the button? Copy and paste this link:</p>
-                <a href="${verificationUrl}">${verificationUrl}</a>
-            </div>
+            <p>This verification link will expire in 24 hours.</p>
             
-            <div class="info-box">
-                <h4>🔒 Important Information</h4>
-                <ul>
-                    <li>This verification link will expire in <strong>24 hours</strong></li>
-                    <li>You must verify your email to access app features</li>
-                    <li>This link can only be used once</li>
-                    <li>If you didn't create this account, please ignore this email</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h4>🍳 What's Next?</h4>
-                <ul>
-                    <li>Start building your food inventory</li>
-                    <li>Explore hundreds of comfort food recipes</li>
-                    <li>Plan your meals for the week</li>
-                    <li>Generate smart shopping lists</li>
-                    <li>Never waste food again!</li>
-                </ul>
-            </div>
-            
-            <p>If you have any questions or need assistance, our support team is here to help!</p>
-            
-            <p style="margin-top: 30px;">
-                Welcome to the family!<br>
-                <em>The Doc Bear's Comfort Kitchen Team</em>
-            </p>
+            <p>Welcome to the family!</p>
         </div>
         
         <div class="footer">
             <p>This email was sent to verify your account creation</p>
-            <p>If you didn't create an account, please ignore this email</p>
             <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
         </div>
     </div>
@@ -1564,48 +1574,19 @@ Welcome to Doc Bear's Comfort Kitchen!
 
 Hello ${userName},
 
-Thank you for creating your account with Doc Bear's Comfort Kitchen! We're excited to help you manage your food inventory and discover amazing recipes.
-
-To get started and access all features, please verify your email address by clicking this link:
+Thank you for creating your account! To get started, please verify your email address by clicking this link:
 
 ${verificationUrl}
 
-IMPORTANT INFORMATION:
-- This verification link will expire in 24 hours
-- You must verify your email to access app features
-- This link can only be used once
-- If you didn't create this account, please ignore this email
-
-WHAT'S NEXT?
-- Start building your food inventory
-- Explore hundreds of comfort food recipes
-- Plan your meals for the week
-- Generate smart shopping lists
-- Never waste food again!
-
-If you have any questions or need assistance, our support team is here to help!
+This verification link will expire in 24 hours.
 
 Welcome to the family!
-The Doc Bear's Comfort Kitchen Team
 
 © ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
     `;
 
         return { html, text };
     }
-}
-
-// Add this helper function to your existing email.js file:
-export async function sendEmailVerificationEmail(email, verificationToken, userName) {
-    const verificationUrl = `${emailService.baseUrl}/auth/verify-email?token=${verificationToken}`;
-    const template = EmailTemplates.getEmailVerificationTemplate(verificationUrl, email, userName);
-
-    return await emailService.sendEmail(
-        email,
-        'Verify Your Email Address - Doc Bear\'s Comfort Kitchen',
-        template.html,
-        template.text
-    );
 }
 
 // Create singleton instance
@@ -1637,21 +1618,18 @@ export async function sendPasswordChangeConfirmationEmail(email) {
     );
 }
 
-export async function testEmailConfiguration() {
-    return await emailService.testConnection();
-}
-
-// Add this helper function to the bottom of your /src/lib/email.js file:
-
-export async function sendAccountDeletionConfirmationEmail(email, userName) {
-    const template = EmailTemplates.getAccountDeletionConfirmationTemplate(email, userName);
+export async function sendEmailVerificationEmail(email, verificationToken, userName) {
+    const verificationUrl = `${emailService.baseUrl}/auth/verify-email?token=${verificationToken}`;
+    const template = EmailTemplates.getEmailVerificationTemplate(verificationUrl, email, userName);
 
     return await emailService.sendEmail(
         email,
-        'Account Deleted - Doc Bear\'s Comfort Kitchen',
+        'Verify Your Email Address - Doc Bear\'s Comfort Kitchen',
         template.html,
         template.text
     );
 }
 
-
+export async function testEmailConfiguration() {
+    return await emailService.testConnection();
+}

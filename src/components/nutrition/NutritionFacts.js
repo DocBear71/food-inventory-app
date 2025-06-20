@@ -1,10 +1,12 @@
 'use client';
-// file: /src/components/nutrition/NutritionFacts.js v1
-
+// file: /src/components/nutrition/NutritionFacts.js v2 - Added subscription gate for Gold+ users
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl} from "@/lib/api-config";
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function NutritionFacts({
                                            recipeId,
@@ -20,11 +22,15 @@ export default function NutritionFacts({
     const [currentServings, setCurrentServings] = useState(servings);
     const [calculationInfo, setCalculationInfo] = useState(null);
 
+    // Subscription hooks
+    const subscription = useSubscription();
+    const nutritionGate = useFeatureGate(FEATURE_GATES.NUTRITION_ACCESS);
+
     useEffect(() => {
-        if (recipeId && !nutrition) {
+        if (recipeId && !nutrition && nutritionGate.hasAccess) {
             fetchNutrition();
         }
-    }, [recipeId, nutrition]);
+    }, [recipeId, nutrition, nutritionGate.hasAccess]);
 
     const fetchNutrition = async () => {
         if (!recipeId) return;
@@ -59,6 +65,72 @@ export default function NutritionFacts({
         }
     };
 
+    // Gate the entire component
+    return (
+        <FeatureGate
+            feature={FEATURE_GATES.NUTRITION_ACCESS}
+            fallback={
+                <div className={`bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-lg p-6 text-center ${compact ? 'max-w-sm' : 'max-w-md'}`}>
+                    <div className="text-4xl mb-3">🔒</div>
+                    <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+                        Nutrition Facts - Gold Feature
+                    </h3>
+                    <p className="text-yellow-700 text-sm mb-4">
+                        Get detailed nutrition information for all recipes with a Gold subscription.
+                    </p>
+
+                    <div className="bg-yellow-200 border border-yellow-400 rounded-lg p-3 mb-4">
+                        <div className="text-yellow-800 text-xs">
+                            <div className="font-medium mb-1">✨ What you get with Gold:</div>
+                            <ul className="text-left space-y-1">
+                                <li>• Complete nutrition facts panels</li>
+                                <li>• Calorie and macro breakdowns</li>
+                                <li>• Daily value percentages</li>
+                                <li>• Vitamin and mineral content</li>
+                                <li>• Meal planning nutrition analysis</li>
+                                <li>• Custom nutrition goals tracking</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <TouchEnhancedButton
+                        onClick={() => window.location.href = '/pricing?source=nutrition-facts'}
+                        className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-700 text-sm"
+                    >
+                        Upgrade to Gold - $4.99/month
+                    </TouchEnhancedButton>
+                </div>
+            }
+        >
+            <NutritionFactsContent
+                nutritionData={nutritionData}
+                loading={loading}
+                error={error}
+                currentServings={currentServings}
+                setCurrentServings={setCurrentServings}
+                calculationInfo={calculationInfo}
+                fetchNutrition={fetchNutrition}
+                servings={servings}
+                showPerServing={showPerServing}
+                compact={compact}
+            />
+        </FeatureGate>
+    );
+}
+
+// Extracted component content for cleaner code
+function NutritionFactsContent({
+                                   nutritionData,
+                                   loading,
+                                   error,
+                                   currentServings,
+                                   setCurrentServings,
+                                   calculationInfo,
+                                   fetchNutrition,
+                                   servings,
+                                   showPerServing,
+                                   compact
+                               }) {
     const getScaledValue = (nutrient) => {
         if (!nutrient || !nutrient.value) return 0;
         const baseValue = nutrient.value;
@@ -133,14 +205,12 @@ export default function NutritionFacts({
                 <div className="text-red-800 text-sm">
                     <div className="font-medium mb-1">Nutrition data unavailable</div>
                     <div>{error}</div>
-                    {recipeId && (
-                        <TouchEnhancedButton
-                            onClick={fetchNutrition}
-                            className="text-red-600 hover:text-red-800 underline mt-2"
-                        >
-                            Try again
-                        </TouchEnhancedButton>
-                    )}
+                    <TouchEnhancedButton
+                        onClick={fetchNutrition}
+                        className="text-red-600 hover:text-red-800 underline mt-2"
+                    >
+                        Try again
+                    </TouchEnhancedButton>
                 </div>
             </div>
         );

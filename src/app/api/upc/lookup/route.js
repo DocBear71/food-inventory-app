@@ -1,12 +1,71 @@
-// file: /src/app/api/upc/lookup/route.js
+// file: /src/app/api/upc/lookup/route.js v2 - Added subscription-based UPC scan limits
 
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/mongodb';
+import { User } from '@/lib/models';
+import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
 // Open Food Facts API v2 endpoint
 const OPEN_FOOD_FACTS_API = 'https://world.openfoodfacts.org/api/v2/product';
 
 export async function GET(request) {
     try {
+        // First check authentication and subscription limits
+        const session = await getServerSession(authOptions);
+
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        await connectDB();
+
+        // Get user and check subscription limits
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        // Get current subscription info
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        // Reset monthly counter if needed
+        const now = new Date();
+        if (!user.usageTracking ||
+            user.usageTracking.currentMonth !== now.getMonth() ||
+            user.usageTracking.currentYear !== now.getFullYear()) {
+            user.usageTracking = user.usageTracking || {};
+            user.usageTracking.currentMonth = now.getMonth();
+            user.usageTracking.currentYear = now.getFullYear();
+            user.usageTracking.monthlyUPCScans = 0;
+        }
+
+        const currentScans = user.usageTracking.monthlyUPCScans || 0;
+
+        // Check if user can perform UPC scan
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCAN, currentScans);
+
+        if (!hasCapacity) {
+            const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCAN);
+            return NextResponse.json({
+                error: getUpgradeMessage(FEATURE_GATES.UPC_SCAN, requiredTier),
+                code: 'USAGE_LIMIT_EXCEEDED',
+                feature: FEATURE_GATES.UPC_SCAN,
+                currentCount: currentScans,
+                currentTier: userSubscription.tier,
+                requiredTier: requiredTier,
+                upgradeUrl: `/pricing?source=upc-limit&feature=${FEATURE_GATES.UPC_SCAN}&required=${requiredTier}`
+            }, { status: 403 });
+        }
+
+        // Now proceed with the UPC lookup
         const { searchParams } = new URL(request.url);
         const upc = searchParams.get('upc');
 
@@ -47,13 +106,18 @@ export async function GET(request) {
         const data = await response.json();
         console.log(`Product data status: ${data.status}`);
 
+        // Track the successful scan BEFORE processing the result
+        await user.trackUPCScan();
+
         // Check if product was found
         if (data.status === 0 || data.status_verbose === 'product not found') {
             return NextResponse.json(
                 {
                     found: false,
                     message: 'Product not found in Open Food Facts database',
-                    upc: cleanUpc
+                    upc: cleanUpc,
+                    remainingScans: userSubscription.tier === 'free' ?
+                        Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
                 },
                 { status: 404 }
             );
@@ -99,6 +163,8 @@ export async function GET(request) {
         return NextResponse.json({
             success: true,
             product: productInfo,
+            remainingScans: userSubscription.tier === 'free' ?
+                Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
         });
 
     } catch (error) {

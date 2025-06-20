@@ -1,10 +1,11 @@
-// file: /src/app/api/inventory/route.js - v3 (Complete with all methods)
+// file: /src/app/api/inventory/route.js v4 - Added subscription-based inventory limits
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { UserInventory } from '@/lib/models';
+import { UserInventory, User } from '@/lib/models';
+import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
 // GET - Fetch user's inventory
 export async function GET(request) {
@@ -45,7 +46,7 @@ export async function GET(request) {
     }
 }
 
-// POST - Add item to inventory
+// POST - Add item to inventory (with subscription limits)
 export async function POST(request) {
     try {
         const session = await getServerSession(authOptions);
@@ -75,13 +76,42 @@ export async function POST(request) {
 
         await connectDB();
 
-        let inventory = await UserInventory.findOne({ userId: session.user.id });
+        // Get user and check subscription limits
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
 
+        // Get current inventory count
+        let inventory = await UserInventory.findOne({ userId: session.user.id });
         if (!inventory) {
             inventory = new UserInventory({
                 userId: session.user.id,
                 items: []
             });
+        }
+
+        const currentItemCount = inventory.items.length;
+
+        // Check subscription limits
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.ADD_INVENTORY_ITEM, currentItemCount);
+
+        if (!hasCapacity) {
+            const requiredTier = getRequiredTier(FEATURE_GATES.ADD_INVENTORY_ITEM);
+            return NextResponse.json({
+                error: getUpgradeMessage(FEATURE_GATES.ADD_INVENTORY_ITEM, requiredTier),
+                code: 'USAGE_LIMIT_EXCEEDED',
+                feature: FEATURE_GATES.ADD_INVENTORY_ITEM,
+                currentCount: currentItemCount,
+                currentTier: userSubscription.tier,
+                requiredTier: requiredTier,
+                upgradeUrl: `/pricing?source=inventory-limit&feature=${FEATURE_GATES.ADD_INVENTORY_ITEM}&required=${requiredTier}`
+            }, { status: 403 });
         }
 
         const newItem = {
@@ -110,12 +140,24 @@ export async function POST(request) {
 
         await inventory.save();
 
+        // Update user's usage tracking
+        if (!user.usageTracking) {
+            user.usageTracking = {};
+        }
+        user.usageTracking.totalInventoryItems = inventory.items.length;
+        user.usageTracking.lastUpdated = new Date();
+        await user.save();
+
         console.log('Item added successfully:', newItem);
 
         return NextResponse.json({
             success: true,
             item: newItem,
-            message: 'Item added successfully'
+            message: 'Item added successfully',
+            remainingItems: userSubscription.tier === 'free' ?
+                Math.max(0, 50 - inventory.items.length) :
+                userSubscription.tier === 'gold' ?
+                    Math.max(0, 250 - inventory.items.length) : 'Unlimited'
         });
 
     } catch (error) {
@@ -258,6 +300,17 @@ export async function DELETE(request) {
 
         inventory.lastUpdated = new Date();
         await inventory.save();
+
+        // Update user's usage tracking
+        const user = await User.findById(session.user.id);
+        if (user) {
+            if (!user.usageTracking) {
+                user.usageTracking = {};
+            }
+            user.usageTracking.totalInventoryItems = inventory.items.length;
+            user.usageTracking.lastUpdated = new Date();
+            await user.save();
+        }
 
         console.log('DELETE: Item removed successfully');
 

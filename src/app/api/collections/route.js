@@ -1,12 +1,14 @@
-// file: /src/app/api/collections/route.js
+// file: /src/app/api/collections/route.js v2 - Added subscription gates for collection limits
 // GET /api/collections - Fetch user's collections
-// POST /api/collections - Create new collection
+// POST /api/collections - Create new collection (with subscription limits)
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import RecipeCollection from '@/models/RecipeCollection';
+import { User } from '@/lib/models';
+import { FEATURE_GATES, checkFeatureAccess, checkUsageLimit } from '@/lib/subscription-config';
 
 export async function GET(request) {
     try {
@@ -84,6 +86,56 @@ export async function POST(request) {
 
         await connectDB();
 
+        // SUBSCRIPTION CHECK: Get user with subscription data
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
+            );
+        }
+
+        // Check if user has feature access for recipe collections
+        const hasAccess = checkFeatureAccess(user.subscription, FEATURE_GATES.RECIPE_COLLECTIONS);
+        if (!hasAccess) {
+            return NextResponse.json({
+                error: 'Recipe collections are not available on your current plan',
+                upgradeRequired: true,
+                requiredTier: 'gold',
+                feature: 'recipe_collections'
+            }, { status: 403 });
+        }
+
+        // Count current collections for usage limit check
+        const currentCollectionCount = await RecipeCollection.countDocuments({
+            userId: session.user.id
+        });
+
+        // Check usage limits
+        const hasCapacity = checkUsageLimit(
+            user.subscription,
+            'recipeCollections',
+            currentCollectionCount
+        );
+
+        if (!hasCapacity) {
+            const tier = user.subscription?.tier || 'free';
+            const limits = {
+                free: 2,
+                gold: 10,
+                platinum: 'unlimited'
+            };
+
+            return NextResponse.json({
+                error: `Collection limit reached. ${tier === 'free' ? 'Free users' : 'Gold users'} can create up to ${limits[tier]} collections.`,
+                upgradeRequired: tier === 'free',
+                requiredTier: tier === 'free' ? 'gold' : 'platinum',
+                currentCount: currentCollectionCount,
+                limit: limits[tier],
+                feature: 'recipe_collections'
+            }, { status: 403 });
+        }
+
         // Check if user already has a collection with this name
         const existingCollection = await RecipeCollection.findOne({
             userId: session.user.id,
@@ -116,6 +168,9 @@ export async function POST(request) {
 
         await newCollection.save();
 
+        // Update user's collection count in usage tracking
+        await user.updateRecipeCollectionCount(currentCollectionCount + 1);
+
         // Populate the created collection for response
         await newCollection.populate({
             path: 'recipes.recipeId',
@@ -137,4 +192,3 @@ export async function POST(request) {
         );
     }
 }
-

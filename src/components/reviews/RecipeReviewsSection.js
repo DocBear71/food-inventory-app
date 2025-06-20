@@ -1,11 +1,14 @@
 'use client';
-// file: /src/components/reviews/RecipeReviewsSection.js v2 - COMPLETE WORKING VERSION
 
+// file: /src/components/reviews/RecipeReviewsSection.js v3 - Added subscription gate for writing reviews
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl} from "@/lib/api-config";
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 // Simple Star Rating Component
 function StarRating({ rating, maxRating = 5, onRatingChange, interactive = false, size = 'medium' }) {
@@ -307,7 +310,7 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
     );
 }
 
-// Main Reviews Section Component
+// Main Reviews Section Component with Subscription Gate
 export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
     const { data: session } = useSafeSession();
     const [reviews, setReviews] = useState([]);
@@ -315,6 +318,10 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
     const [userCanReview, setUserCanReview] = useState(false);
+
+    // Subscription hooks
+    const subscription = useSubscription();
+    const reviewGate = useFeatureGate(FEATURE_GATES.WRITE_REVIEW);
 
     useEffect(() => {
         fetchReviews();
@@ -365,13 +372,28 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
                 <h2 className="text-2xl font-bold text-gray-900">
                     Reviews & Ratings
                 </h2>
-                {userCanReview && (
-                    <TouchEnhancedButton
-                        onClick={() => setShowAddForm(true)}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                {userCanReview && session && (
+                    <FeatureGate
+                        feature={FEATURE_GATES.WRITE_REVIEW}
+                        fallback={
+                            <div className="text-center">
+                                <TouchEnhancedButton
+                                    onClick={() => window.location.href = '/pricing?source=recipe-reviews'}
+                                    className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors text-sm"
+                                >
+                                    Upgrade to Write Reviews
+                                </TouchEnhancedButton>
+                                <div className="text-xs text-gray-500 mt-1">Gold feature</div>
+                            </div>
+                        }
                     >
-                        Write a Review
-                    </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setShowAddForm(true)}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                        >
+                            Write a Review
+                        </TouchEnhancedButton>
+                    </FeatureGate>
                 )}
             </div>
 
@@ -379,7 +401,7 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
             <RatingStats ratingStats={ratingStats} />
 
             {/* Add Review Form */}
-            {showAddForm && (
+            {showAddForm && reviewGate.hasAccess && (
                 <AddReviewForm
                     recipeId={recipeId}
                     onReviewAdded={handleReviewAdded}
@@ -407,13 +429,31 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
                     <p className="text-gray-500 mb-4">Be the first to share your thoughts about this recipe!</p>
-                    {userCanReview && (
-                        <TouchEnhancedButton
-                            onClick={() => setShowAddForm(true)}
-                            className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+
+                    {session && userCanReview && (
+                        <FeatureGate
+                            feature={FEATURE_GATES.WRITE_REVIEW}
+                            fallback={
+                                <div className="space-y-2">
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=recipe-reviews'}
+                                        className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 transition-colors"
+                                    >
+                                        Upgrade to Write the First Review
+                                    </TouchEnhancedButton>
+                                    <div className="text-xs text-gray-500">
+                                        Writing reviews requires a Gold subscription
+                                    </div>
+                                </div>
+                            }
                         >
-                            Write the First Review
-                        </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setShowAddForm(true)}
+                                className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                                Write the First Review
+                            </TouchEnhancedButton>
+                        </FeatureGate>
                     )}
                 </div>
             )}
@@ -432,6 +472,25 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
                                 <a href="/auth/signin" className="font-medium underline hover:text-blue-600">
                                     Sign in
                                 </a> to write a review and help other cooks discover great recipes!
+                                <span className="block text-xs mt-1">Note: Writing reviews requires a Gold subscription</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Subscription Info for Free Users */}
+            {session && !reviewGate.hasAccess && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-yellow-700">
+                                <span className="font-medium">Recipe reviews are a Gold feature.</span> Upgrade to share your cooking experiences and help other home cooks discover great recipes!
                             </p>
                         </div>
                     </div>

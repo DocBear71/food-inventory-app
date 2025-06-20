@@ -1,14 +1,96 @@
 'use client';
-// file: /src/components/nutrition/WeeklyNutritionDashboard.js v2 - Mobile optimized
-
+// file: /src/components/nutrition/WeeklyNutritionDashboard.js v3 - Added subscription gate for Gold+ users
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSafeSession();
+
+    // Subscription hooks
+    const subscription = useSubscription();
+    const nutritionAnalysisGate = useFeatureGate(FEATURE_GATES.NUTRITION_ANALYSIS);
+    const nutritionGoalsGate = useFeatureGate(FEATURE_GATES.NUTRITION_GOALS);
+
+    // Gate the entire dashboard
+    return (
+        <FeatureGate
+            feature={FEATURE_GATES.NUTRITION_ANALYSIS}
+            fallback={
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-6">
+                            <div className="text-center">
+                                <div className="text-4xl mb-2">📊🔒</div>
+                                <h2 className="text-xl font-bold">Nutrition Analysis</h2>
+                                <p className="text-yellow-100 text-sm mt-1">Premium Feature</p>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            <div className="text-center mb-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                                    Upgrade to Gold for Advanced Nutrition
+                                </h3>
+                                <p className="text-gray-600 mb-4">
+                                    Get comprehensive nutrition analysis for your meal plans, including goal tracking, daily breakdowns, and personalized insights.
+                                </p>
+
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                    <div className="text-yellow-800 text-sm">
+                                        <div className="font-medium mb-2">🎯 What you get with Nutrition Analysis:</div>
+                                        <ul className="text-left space-y-1">
+                                            <li>• Weekly nutrition overview & scoring</li>
+                                            <li>• Daily nutrition breakdowns</li>
+                                            <li>• Goal comparison & progress tracking</li>
+                                            <li>• Personalized nutrition insights</li>
+                                            <li>• Improvement recommendations</li>
+                                            <li>• Macro & micronutrient analysis</li>
+                                            <li>• Custom nutrition goal setting</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <TouchEnhancedButton
+                                    onClick={() => window.location.href = '/pricing?source=nutrition-analysis'}
+                                    className="w-full bg-yellow-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-700"
+                                >
+                                    Upgrade to Gold - $4.99/month
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={onClose}
+                                    className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-lg"
+                                >
+                                    Maybe Later
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        >
+            <WeeklyNutritionDashboardContent
+                mealPlanId={mealPlanId}
+                mealPlanName={mealPlanName}
+                onClose={onClose}
+                session={session}
+                nutritionGoalsGate={nutritionGoalsGate}
+            />
+        </FeatureGate>
+    );
+}
+
+// Main dashboard content component
+function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, session, nutritionGoalsGate }) {
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -28,17 +110,29 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
 
         try {
             // Fetch goals and analysis in parallel
-            const [goalsResponse, analysisResponse] = await Promise.all([
-                fetch(getApiUrl('/api/nutrition/goals')),
+            const promises = [
                 fetch(getApiUrl(`/api/nutrition/analyze?mealPlanId=${mealPlanId}`))
-            ]);
+            ];
 
-            const goalsData = await goalsResponse.json();
-            const analysisData = await analysisResponse.json();
-
-            if (goalsData.success) {
-                setGoals(goalsData.goals);
+            // Only fetch goals if user has access
+            if (nutritionGoalsGate.hasAccess) {
+                promises.unshift(fetch(getApiUrl('/api/nutrition/goals')));
             }
+
+            const responses = await Promise.all(promises);
+
+            let goalsData = null;
+            let analysisResponse = responses[nutritionGoalsGate.hasAccess ? 1 : 0];
+
+            if (nutritionGoalsGate.hasAccess) {
+                const goalsResponse = responses[0];
+                goalsData = await goalsResponse.json();
+                if (goalsData.success) {
+                    setGoals(goalsData.goals);
+                }
+            }
+
+            const analysisData = await analysisResponse.json();
 
             if (analysisData.success && analysisData.analysis) {
                 setAnalysis(analysisData.analysis);
@@ -233,7 +327,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                             { id: 'overview', label: 'Overview', icon: '📊' },
                             { id: 'daily', label: 'Daily', icon: '📅' },
                             { id: 'insights', label: 'Insights', icon: '💡' },
-                            { id: 'goals', label: 'Goals', icon: '🎯' }
+                            ...(nutritionGoalsGate.hasAccess ? [{ id: 'goals', label: 'Goals', icon: '🎯' }] : [])
                         ].map(tab => (
                             <TouchEnhancedButton
                                 key={tab.id}
@@ -285,13 +379,13 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                                             {renderProgressBar(comp.percentage, comp.status)}
 
                                             <div className="mt-2 flex justify-between items-center text-sm">
-                                                <span className={`font-medium ${getStatusColor(comp.status)}`}>
-                                                    {comp.percentage}% of goal
-                                                </span>
+                                                    <span className={`font-medium ${getStatusColor(comp.status)}`}>
+                                                        {comp.percentage}% of goal
+                                                    </span>
                                                 {comp.difference !== 0 && (
                                                     <span className="text-gray-600">
-                                                        ({comp.difference > 0 ? '+' : ''}{formatNutrientValue(comp.difference)}{comp.unit})
-                                                    </span>
+                                                            ({comp.difference > 0 ? '+' : ''}{formatNutrientValue(comp.difference)}{comp.unit})
+                                                        </span>
                                                 )}
                                             </div>
                                         </div>
@@ -405,9 +499,9 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                                                         </p>
                                                         {concern.priority === 'high' && (
                                                             <div className="mt-2">
-                                                                <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium">
-                                                                    High Priority
-                                                                </span>
+                                                                    <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium">
+                                                                        High Priority
+                                                                    </span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -435,8 +529,8 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                                                         rec.difficulty === 'easy' ? 'bg-green-500' :
                                                             rec.difficulty === 'moderate' ? 'bg-yellow-500' : 'bg-red-500'
                                                     }`}>
-                                                        {rec.difficulty}
-                                                    </span>
+                                                            {rec.difficulty}
+                                                        </span>
                                                 </div>
                                                 <p className="text-blue-800 text-sm mb-2">
                                                     {rec.suggestion}
@@ -452,7 +546,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
                         </div>
                     )}
 
-                    {activeTab === 'goals' && (
+                    {activeTab === 'goals' && nutritionGoalsGate.hasAccess && (
                         <div>
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold text-gray-900">
@@ -519,7 +613,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
     );
 }
 
-// Simple Goals Editor Component
+// Simple Goals Editor Component (only shown if user has access)
 function GoalsEditor({ goals, onUpdate }) {
     const [formData, setFormData] = useState(goals || {});
     const [loading, setLoading] = useState(false);
@@ -621,8 +715,8 @@ function GoalsEditor({ goals, onUpdate }) {
                                     placeholder="0"
                                 />
                                 <span className="text-xs text-gray-600 font-medium min-w-8">
-                                    {unit}
-                                </span>
+                                        {unit}
+                                    </span>
                             </div>
                             <p className="text-xs text-gray-600 leading-tight">
                                 {description}

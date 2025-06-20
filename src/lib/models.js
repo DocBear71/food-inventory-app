@@ -445,6 +445,19 @@ const UserSchema = new mongoose.Schema({
             default: null
         }
     },
+    // Usage tracking for subscription limits
+    usageTracking: {
+        currentMonth: {type: Number, default: () => new Date().getMonth()},
+        currentYear: {type: Number, default: () => new Date().getFullYear()},
+        monthlyUPCScans: {type: Number, default: 0},
+        monthlyReceiptScans: {type: Number, default: 0},
+        totalInventoryItems: {type: Number, default: 0},
+        totalPersonalRecipes: {type: Number, default: 0},
+        totalSavedRecipes: {type: Number, default: 0},
+        totalPublicRecipes: {type: Number, default: 0},
+        totalRecipeCollections: {type: Number, default: 0},
+        lastUpdated: {type: Date, default: Date.now}
+    },
 });
 
 // UPDATED: MealPlanEntrySchema with new meal types
@@ -1584,6 +1597,107 @@ UserSchema.methods.clearPasswordReset = function () {
     this.passwordResetExpires = undefined;
     this.passwordResetRequestedAt = undefined;
     this.passwordResetCount = 0;
+    return this.save();
+};
+
+UserSchema.methods.canPerformAction = function(feature, currentCount = null) {
+    const subscription = this.subscription || { tier: 'free', status: 'free' };
+
+    // Import the functions (you'll need to import these at the top of your models file)
+    const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
+
+    // First check if feature is available for their tier
+    if (!checkFeatureAccess(subscription, feature)) {
+        return { allowed: false, reason: 'feature_not_available' };
+    }
+
+    // Then check usage limits if a count is provided
+    if (currentCount !== null && !checkUsageLimit(subscription, feature, currentCount)) {
+        return { allowed: false, reason: 'limit_exceeded' };
+    }
+
+    return { allowed: true };
+};
+
+// Track UPC scan usage
+UserSchema.methods.trackUPCScan = function() {
+    // Reset monthly counter if new month
+    const now = new Date();
+    if (!this.usageTracking ||
+        this.usageTracking.currentMonth !== now.getMonth() ||
+        this.usageTracking.currentYear !== now.getFullYear()) {
+        this.usageTracking = this.usageTracking || {};
+        this.usageTracking.currentMonth = now.getMonth();
+        this.usageTracking.currentYear = now.getFullYear();
+        this.usageTracking.monthlyUPCScans = 0;
+    }
+
+    this.usageTracking.monthlyUPCScans += 1;
+    this.usageTracking.lastUpdated = now;
+    return this.save();
+};
+
+// Track receipt scan usage
+UserSchema.methods.trackReceiptScan = function() {
+    const now = new Date();
+    if (!this.usageTracking ||
+        this.usageTracking.currentMonth !== now.getMonth() ||
+        this.usageTracking.currentYear !== now.getFullYear()) {
+        this.usageTracking = this.usageTracking || {};
+        this.usageTracking.currentMonth = now.getMonth();
+        this.usageTracking.currentYear = now.getFullYear();
+        this.usageTracking.monthlyReceiptScans = 0;
+    }
+
+    this.usageTracking.monthlyReceiptScans += 1;
+    this.usageTracking.lastUpdated = new Date();
+    return this.save();
+};
+
+// Update inventory item count
+UserSchema.methods.updateInventoryCount = function(count) {
+    this.usageTracking = this.usageTracking || {};
+    this.usageTracking.totalInventoryItems = count;
+    this.usageTracking.lastUpdated = new Date();
+    return this.save();
+};
+
+// Update personal recipe count
+UserSchema.methods.updatePersonalRecipeCount = function(count) {
+    this.usageTracking = this.usageTracking || {};
+    this.usageTracking.totalPersonalRecipes = count;
+    this.usageTracking.lastUpdated = new Date();
+    return this.save();
+};
+
+// Check if subscription is active
+UserSchema.methods.hasActiveSubscription = function() {
+    if (!this.subscription) return false;
+
+    const status = this.subscription.status;
+    if (status === 'free') return true; // Free is always "active"
+    if (status === 'active') return true;
+    if (status === 'trial') {
+        return this.subscription.trialEndDate && new Date() < new Date(this.subscription.trialEndDate);
+    }
+
+    return false;
+};
+
+// Get effective tier (falls back to free if subscription expired)
+UserSchema.methods.getEffectiveTier = function() {
+    if (!this.hasActiveSubscription()) {
+        return 'free';
+    }
+
+    return this.subscription?.tier || 'free';
+};
+
+// Update recipe collection count
+UserSchema.methods.updateRecipeCollectionCount = function(count) {
+    this.usageTracking = this.usageTracking || {};
+    this.usageTracking.totalRecipeCollections = count;
+    this.usageTracking.lastUpdated = new Date();
     return this.save();
 };
 
