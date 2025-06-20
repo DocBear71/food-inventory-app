@@ -2632,3 +2632,337 @@ body.modal-open {
     position: relative !important;
     z-index: 9999 !important;
 }
+
+/* ADD THESE MISSING GRADIENT UTILITIES TO YOUR /src/app/globals.css FILE */
+
+/* GRADIENT DIRECTION UTILITIES */
+.bg-gradient-to-r {
+    background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-l {
+    background-image: linear-gradient(to left, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-t {
+    background-image: linear-gradient(to top, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-b {
+    background-image: linear-gradient(to bottom, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-tr {
+    background-image: linear-gradient(to top right, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-tl {
+    background-image: linear-gradient(to top left, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-br {
+    background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-bl {
+    background-image: linear-gradient(to bottom left, var(--tw-gradient-stops)) !important;
+}
+
+/* GRADIENT COLOR STOP UTILITIES - FROM COLORS */
+.from-yellow-400 {
+    --tw-gradient-from: #fbbf24 !important;
+    --tw-gradient-to: rgba(251, 191, 36, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-yellow-500 {
+    --tw-gradient-from: #f59e0b !important;
+    --tw-gradient-to: rgba(245, 158, 11, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-orange-400 {
+    --tw-gradient-from: #fb923c !important;
+    --tw-gradient-to: rgba(251, 146, 60, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-orange-500 {
+    --tw-gradient-from: #f97316 !important;
+    --tw-gradient-to: rgba(249, 115, 22, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-red-400 {
+    --tw-gradient-from: #f87171 !important;
+    --tw-gradient-to: rgba(248, 113, 113, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-red-500 {
+    --tw-gradient-from: #ef4444 !important;
+    --tw-gradient-to: rgba(239, 68, 68, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-blue-400 {
+    --tw-gradient-from: #60a5fa !important;
+    --tw-gradient-to: rgba(96, 165, 250, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-blue-500 {
+    --tw-gradient-from: #3b82f6 !important;
+    --tw-gradient-to: rgba(59, 130, 246, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-indigo-400 {
+    --tw-gradient-from: #818cf8 !important;
+    --tw-gradient-to: rgba(129, 140, 248, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-indigo-500 {
+    --tw-gradient-from: #6366f1 !important;
+    --tw-gradient-to: rgba(99, 102, 241, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-purple-400 {
+    --tw-gradient-from: #c084fc !important;
+    --tw-gradient-to: rgba(192, 132, 252, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-purple-500 {
+    --tw-gradient-from: #a855f7 !important;
+    --tw-gradient-to: rgba(168, 85, 247, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-green-400 {
+    --tw-gradient-from: #4ade80 !important;
+    --tw-gradient-to: rgba(74, 222, 128, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-green-500 {
+    --tw-gradient-from: #22c55e !important;
+    --tw-gradient-to: rgba(34, 197, 94, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+/* GRADIENT COLOR STOP UTILITIES - TO COLORS */
+.to-yellow-400 {
+    --tw-gradient-to: #fbbf24 !important;
+}
+
+.to-yellow-500 {
+    --tw-gradient-to: #f59e0b !important;
+}
+
+.to-yellow-600 {
+    --tw-gradient-to: #d97706 !important;
+}
+
+.to-orange-400 {
+    --tw-gradient-to: #fb923c !important;
+}
+
+.to-orange-500 {
+    --tw-gradient-to: #f97316 !important;
+}
+
+.to-orange-600 {
+    --tw-gradient-to: #ea580c !important;
+}
+
+.to-red-400 {
+    --tw-gradient-to: #f87171 !important;
+}
+
+.to-red-500 {
+    --tw-gradient-to: #ef4444 !important;
+}
+
+.to-red-600 {
+    --tw-gradient-to: #dc2626 !important;
+}
+
+.to-blue-400 {
+    --tw-gradient-to: #60a5fa !important;
+}
+
+.to-blue-500 {
+    --tw-gradient-to: #3b82f6 !important;
+}
+
+.to-blue-600 {
+    --tw-gradient-to: #2563eb !important;
+}
+
+.to-indigo-400 {
+    --tw-gradient-to: #818cf8 !important;
+}
+
+.to-indigo-500 {
+    --tw-gradient-to: #6366f1 !important;
+}
+
+.to-indigo-600 {
+    --tw-gradient-to: #4f46e5 !important;
+}
+
+.to-purple-400 {
+    --tw-gradient-to: #c084fc !important;
+}
+
+.to-purple-500 {
+    --tw-gradient-to: #a855f7 !important;
+}
+
+.to-purple-600 {
+    --tw-gradient-to: #9333ea !important;
+}
+
+.to-green-400 {
+    --tw-gradient-to: #4ade80 !important;
+}
+
+.to-green-500 {
+    --tw-gradient-to: #22c55e !important;
+}
+
+.to-green-600 {
+    --tw-gradient-to: #16a34a !important;
+}
+
+/* GRADIENT HOVER UTILITIES - FROM COLORS */
+.hover\:from-yellow-400:hover {
+    --tw-gradient-from: #fbbf24 !important;
+    --tw-gradient-to: rgba(251, 191, 36, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-yellow-500:hover {
+    --tw-gradient-from: #f59e0b !important;
+    --tw-gradient-to: rgba(245, 158, 11, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-orange-500:hover {
+    --tw-gradient-from: #f97316 !important;
+    --tw-gradient-to: rgba(249, 115, 22, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-blue-500:hover {
+    --tw-gradient-from: #3b82f6 !important;
+    --tw-gradient-to: rgba(59, 130, 246, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-indigo-500:hover {
+    --tw-gradient-from: #6366f1 !important;
+    --tw-gradient-to: rgba(99, 102, 241, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-purple-500:hover {
+    --tw-gradient-from: #a855f7 !important;
+    --tw-gradient-to: rgba(168, 85, 247, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+/* GRADIENT HOVER UTILITIES - TO COLORS */
+.hover\:to-yellow-500:hover {
+    --tw-gradient-to: #f59e0b !important;
+}
+
+.hover\:to-yellow-600:hover {
+    --tw-gradient-to: #d97706 !important;
+}
+
+.hover\:to-orange-500:hover {
+    --tw-gradient-to: #f97316 !important;
+}
+
+.hover\:to-orange-600:hover {
+    --tw-gradient-to: #ea580c !important;
+}
+
+.hover\:to-blue-600:hover {
+    --tw-gradient-to: #2563eb !important;
+}
+
+.hover\:to-indigo-600:hover {
+    --tw-gradient-to: #4f46e5 !important;
+}
+
+.hover\:to-purple-600:hover {
+    --tw-gradient-to: #9333ea !important;
+}
+
+/* GRADIENT VIA UTILITIES (for 3-color gradients) */
+.via-yellow-400 {
+    --tw-gradient-to: rgba(251, 191, 36, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #fbbf24, var(--tw-gradient-to) !important;
+}
+
+.via-orange-400 {
+    --tw-gradient-to: rgba(251, 146, 60, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #fb923c, var(--tw-gradient-to) !important;
+}
+
+.via-red-400 {
+    --tw-gradient-to: rgba(248, 113, 113, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #f87171, var(--tw-gradient-to) !important;
+}
+
+.via-blue-400 {
+    --tw-gradient-to: rgba(96, 165, 250, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #60a5fa, var(--tw-gradient-to) !important;
+}
+
+.via-indigo-400 {
+    --tw-gradient-to: rgba(129, 140, 248, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #818cf8, var(--tw-gradient-to) !important;
+}
+
+.via-purple-400 {
+    --tw-gradient-to: rgba(192, 132, 252, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #c084fc, var(--tw-gradient-to) !important;
+}
+
+/* ENSURE GRADIENTS WORK WITH TRANSITIONS */
+.transition-all {
+    transition-property: all !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-duration: 150ms !important;
+}
+
+.transition-colors {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-duration: 150ms !important;
+}
+
+/* FALLBACK FOR BROWSERS THAT DON'T SUPPORT CSS CUSTOM PROPERTIES */
+@supports not (background: color(display-p3 1 1 1)) {
+    .bg-gradient-to-r.from-yellow-400.to-orange-500 {
+        background: linear-gradient(to right, #fbbf24, #f97316) !important;
+    }
+
+    .bg-gradient-to-r.from-yellow-500.to-orange-600 {
+        background: linear-gradient(to right, #f59e0b, #ea580c) !important;
+    }
+
+    .bg-gradient-to-r.from-blue-500.to-purple-600 {
+        background: linear-gradient(to right, #3b82f6, #9333ea) !important;
+    }
+
+    .bg-gradient-to-r.from-indigo-500.to-purple-600 {
+        background: linear-gradient(to right, #6366f1, #9333ea) !important;
+    }
+}
