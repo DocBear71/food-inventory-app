@@ -368,8 +368,17 @@ export default function ReceiptScan() {
             const standardConstraints = {
                 video: {
                     facingMode: 'environment',
-                    width: {ideal: 1280, max: 1920},
-                    height: {ideal: 720, max: 1080}
+                    width: {ideal: 1920, min: 1280}, // Higher resolution
+                    height: {ideal: 1080, min: 720},
+                    aspectRatio: {ideal: 16 / 9},
+                    focusMode: 'continuous', // Continuous autofocus
+                    exposureMode: 'continuous', // Auto exposure
+                    whiteBalanceMode: 'continuous', // Auto white balance
+                    advanced: [
+                        {focusMode: 'continuous'},
+                        {exposureMode: 'continuous'},
+                        {whiteBalanceMode: 'continuous'}
+                    ]
                 }
             };
 
@@ -864,37 +873,124 @@ export default function ReceiptScan() {
             // ============ HY-VEE SPECIFIC PATTERNS ============
             /^(sub-total|subtotal|sub total)/i,
             /^(net amount|netamount|net)/i,
-            /^subtotal\s*\[\d+\]/i,
-            /btl\s+dep/i,
-            /btl\.\s+dep/i,
-            /bottle\s+deposit/i,
-            /deposit/i,
-            /^\.?\d+\s*fs?\s*btl\s*dep/i,
-            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^(total|amount)$/i,
+            /^subtotal\s*\[\d+\]/i, // "SUBTOTAL [18]"
 
-            // Additional Hy-Vee patterns
-            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
-            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^manual\s*weight/i,
-            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,
-            /^x\s+\d+\s+\d+\s+\d+$/i,
-            /^[tx]\s+\d+(\s+\d+)*$/i,
-            /^\d+\s+\d+\s+\d+\s+\d+$/i,
-            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
-            /^[\d\s]+\d{2}$/i,
-            /^[a-z]\s+[\d\s]+$/i,
-            /^@\s*\d+\.\d+%/i,
-            /^=\s*[\d\s]+$/i,
-            /^\d+\.\d+%\s*=?$/i,
-            /^sub\s*total\s*[\[\d\]]*$/i,
-            /^total\s*[\[\d\]]*$/i,
-            /employee\s*owned/i,
-            /storeman/i,
-            /group.*hy.*vee/i,
-            /^[\d\s]{3,}$/,
-            /^[a-z]{1,2}\s+[\d\s]+$/i,
+            // Bottle deposit lines - these are fees, not inventory items
+            /btl\s+dep/i,        // "BTL DEP"
+            /btl\.\s+dep/i,        // "BTL.DEP"
+            /bottle\s+deposit/i,  // "BOTTLE DEPOSIT"
+            /deposit/i,           // Generic deposit
+            /^\.?\d+\s*fs?\s*btl\s*dep/i, // ".30 FS BTL DEP"
+
+            // Bottle deposit with OCR periods/punctuation
+            /btl\.\s+dep/i,        // "BTL.DEP" - OCR adds periods
+            /btl\s*\.\s*dep/i,     // "BTL . DEP" - OCR with spaced periods
+            /bottle\.\s+deposit/i, // "BOTTLE.DEPOSIT"
+
+            // Tax calculation lines (based on actual OCR output)
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i, // "; X 23.93 @ 6.000% = 1.44"
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,        // "I 23.93 @ 1.000% = 0.24"
+
+            // Variations with punctuation and OCR artifacts
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
+
+            // Also add these additional OCR artifact patterns:
+            /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,                // Weight calculation line
+
+            // Tax reference fragments (OCR splitting)
+            /^x\s+\d+\s+\d+\s+\d+$/i,    // "X 6 1 44" - tax calculation fragments
+            /^[tx]\s+\d+(\s+\d+)*$/i,    // "T 23" or "X 6 1 44" patterns
+
+            // Subtotal/total fragments (OCR number splitting)
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,  // "1 1 0 24" - numbers split by OCR
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i, // Specific pattern for split totals
+
+            // Receipt formatting artifacts
+            /^[\d\s]+\d{2}$/i,           // Lines that are just spaced numbers ending in 2 digits
+            /^[a-z]\s+[\d\s]+$/i,        // Single letter followed by spaced numbers
+
+            // Mathematical operation fragments
+            /^@\s*\d+\.\d+%/i,           // "@ 6.000%" - calculation fragments
+            /^=\s*[\d\s]+$/i,            // "= 1 44" - result fragments
+            /^\d+\.\d+%\s*=?$/i,         // "6.000% =" - percentage fragments
+
+            // OCR misreads of common receipt elements
+            /^sub\s*total\s*[\[\d\]]*$/i, // "SUB TOTAL [18]" or variations
+            /^total\s*[\[\d\]]*$/i,       // "TOTAL [18]" or variations
+
+            // Additional Hy-Vee specific OCR issues
+            /employee\s*owned/i,          // Header text
+            /storeman/i,                  // "StoreManagement" fragments
+            /group.*hy.*vee/i,           // URL fragments
+
+            // Generic OCR line-splitting artifacts
+            /^[\d\s]{3,}$/,              // Lines of just numbers and spaces (3+ chars)
+            /^[a-z]{1,2}\s+[\d\s]+$/i,   // 1-2 letters followed by spaced numbers
+
+            // Tax calculation lines
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i, // "23.93 @ 6.000% = 1.44"
+            /^[tx]\s+\d+\.\d+\s*@/i, // "T 23.93 @"
+
+            // Standalone tax/percentage lines
+            /^\d+\.\d+%\s*=/i,    // "6.000% = 1.44"
+            /^=\s*\d+\.\d+$/i,    // "= 1.44"
+
+            // Weight and measurement lines
+            /^\d+\.?\d*\s*x\s*\$?\d+\.?\d*$/i,
+            /^\d+\.\d+\s*lb\s*@/i, // "10.258 LB @"
+            /manual\s*weight/i,    // "Manual Weight"
+            /^\d+\.\d+\s*usd\/lb/i, // "2.98 USD/LB"
+
+            // Discount/savings lines (negative amounts or percentage discounts)
+            /^\d+%?\s*(off|discount|save)/i,
+            /^\(\$\d+\.\d{2}\)$/,  // Negative amounts in parentheses
+            /^-\$?\d+\.\d{2}$/,    // Negative amounts with minus sign
+
+            // Product codes that aren't actual items
+            /^\d{10,}$/,
+
+            // Weight only lines
+            /^\d+\.?\d*x?$/i,
+
+            // Lines that are just numbers and measurement units
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
+
+            // Discount lines with product codes and percentages
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
+
+            // Fuel rewards and loyalty programs
+            /fuel\s*saver/i,
+            /fuel\s*reward/i,
+            /\d+\s+fuel\s+saver/i,
+            /hormel\s*loins/i,
+            /\d+\s+hormel\s*loins/i,
+
+            // Tax lines
+            /^(ia|iowa)\s+state/i,
+            /^linn\s+county/i,
+            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%/i,
+            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%/i,
+
+            // Cart and spending promotions
+            /bottom\s*of\s*cart/i,
+            /spend\s*\$?\d+/i,
+            /\d+x\s*\d+of\d+/i,
+
+            // Payment information section
+            /^payment\s*information/i,
+            /^total\s*paid/i,
+
+            // OCR parsing errors
+            /^[a-z]\s*—?\s*$/i,
+            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
+
+            // Deals and coupons section
+            /deals\s*&?\s*coupons/i,
+            /view\s*coupons/i,
 
             // ============ SAM'S CLUB SPECIFIC PATTERNS ============
             // Store info and headers
@@ -922,7 +1018,15 @@ export default function ReceiptScan() {
             /^v\s+inst\s+sv.*\d+\.\d{2}[-\s]*[nt]$/i,
             /inst\s+sv.*[-\s]*[nt]$/i,
             /instant\s+sav/i,
-            /^\d+\.\d{2}[-\s]*[nt]$/i,
+
+            // Sam's Club membership and payment lines
+            /^(member|membership)/i,
+            /^(plus|advantage)/i,
+
+            // Sam's Club specific discount patterns
+            /^\d+\.\d{2}[-\s]*[nt]$/i, // Prices ending with -N or -T (negative)
+
+            // Payment due and tender lines
             /tenbe\s*due/i,
             /tender\s*due/i,
             /change\s*due/i,
@@ -935,6 +1039,7 @@ export default function ReceiptScan() {
             /^es\s*\|?\s*~?tender/i,
             /^es\s*\|?\s*~?change/i,
             /transaction\s*complete/i,
+            /transaction\s*not\s*complete/i,
             /debit\s*tend/i,
             /cash\s*tend/i,
             /terminal\s*#/i,
@@ -943,20 +1048,29 @@ export default function ReceiptScan() {
             /\d+\.\d{2}[-\s]*t$/i,
 
             // ============ TARGET SPECIFIC PATTERNS ============
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^\d+\s*ea$/i,
-            /^ea$/i,
-            /^regular\s+price/i,
-            /^reg\s+price/i,
-            /^was\s+\$?\d+\.\d{2}/i,
-            /^t\s*=\s*ia\s+tax/i,
-            /^[t]\s*-\s*ia\s+tax/i,
-            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,
-            /^\*?\d{4}\s+debit\s+total/i,
-            /^aid[:;]\s*[a-z0-9]+/i,
-            /^auth\s+code[:;]/i,
-            /^us\s+debit/i,
+            // Quantity-only lines (these are part of the previous item)
+            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,        // "2 @ $3.89 ea"
+            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,             // "2 @ $3.89"
+            /^\d+\s*ea$/i,                            // "2 ea"
+            /^ea$/i,                                  // Just "ea"
+
+            // Regular price lines (discount information)
+            /^regular\s+price/i,                      // "Regular Price $5.59"
+            /^reg\s+price/i,                          // "Reg Price"
+            /^was\s+\$?\d+\.\d{2}/i,                 // "Was $5.59"
+
+            // Target tax calculation patterns
+            /^t\s*=\s*ia\s+tax/i,                    // "T = IA TAX 7.00000 on $15.96"
+            /^[t]\s*-\s*ia\s+tax/i,                  // Variations with dash
+            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,      // "7.00000 on $15.96"
+
+            // Payment method lines
+            /^\*?\d{4}\s+debit\s+total/i,            // "*8642 DEBIT TOTAL PAYMENT"
+            /^aid[:;]\s*[a-z0-9]+/i,                 // "AID: A000000098040"
+            /^auth\s+code[:;]/i,                     // "AUTH CODE: 395098"
+            /^us\s+debit/i,                          // "US DEBIT"
+
+            // Return policy text
             /when\s+you\s+return/i,
             /return\s+credit/i,
             /promotional\s+discount/i,
@@ -1068,14 +1182,82 @@ export default function ReceiptScan() {
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
-                console.log(`📋 Skipping pattern match: ${line}`);
+                console.log(`Skipping pattern match: ${line}`);
                 continue;
             }
 
-            // ============ SAM'S CLUB SPECIFIC LOGIC ============
-            // Skip instant savings continuation lines
-            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i) && prevLine) {
-                console.log(`📋 Sam's: Skipping quantity/discount continuation: ${line} (part of: ${prevLine})`);
+            // ============ ENHANCED HY-VEE FILTERING ============
+            // Skip bottle deposit lines specifically
+            if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
+                console.log(`Skipping bottle deposit: ${line}`);
+                continue;
+            }
+
+            // Skip tax calculation lines
+            if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
+                console.log(`Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // Skip weight information lines
+            if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
+                console.log(`Skipping weight info: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just mathematical calculations or references
+            if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
+                console.log(`Skipping calculation line: ${line}`);
+                continue;
+            }
+
+            // ============ ENHANCED SAM'S CLUB FILTERING ============
+            // Skip lines that are clearly instant savings (discounts)
+            if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`Skipping instant savings: ${line}`);
+                continue;
+            }
+
+            // Skip lines with negative amounts (discounts)
+            if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`Skipping negative amount: ${line}`);
+                continue;
+            }
+
+            // Skip zero-amount lines (like "Es |~TENBE DUE 0.00")
+            if (line.match(/\$?0\.00/i)) {
+                console.log(`Skipping zero amount: ${line}`);
+                continue;
+            }
+
+            // Skip payment/tender related lines
+            if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
+                console.log(`Skipping payment line: ${line}`);
+                continue;
+            }
+
+            // ============ TARGET-SPECIFIC PROCESSING ============
+            // Skip if this line is just a quantity/price continuation of previous item
+            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
+                console.log(`Skipping quantity line (part of previous item): ${line}`);
+                continue;
+            }
+
+            // Skip regular price lines
+            if (line.match(/^regular\s+price/i)) {
+                console.log(`Skipping regular price line: ${line}`);
+                continue;
+            }
+
+            // Skip tax calculation lines
+            if (line.match(/^t\s*=\s*ia\s+tax/i) || line.match(/^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i)) {
+                console.log(`Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just whitespace or tax codes
+            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
+                console.log(`Skipping tax code or whitespace: ${line}`);
                 continue;
             }
 
@@ -1085,7 +1267,39 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            // ============ ENHANCED PRICE DETECTION ============
+            // Skip lines that contain discount codes with percentages
+            if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
+                console.log(`Skipping discount code line: ${line}`);
+                continue;
+            }
+
+            // Skip measurement calculation lines
+            if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
+                console.log(`Skipping measurement line: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just weights/measurements
+            if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
+                console.log(`Skipping weight line: ${line}`);
+                continue;
+            }
+
+            // Skip specific total lines (case insensitive)
+            if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
+                console.log(`Skipping total line: ${line}`);
+                continue;
+            }
+
+            // ============ ENHANCED NEGATIVE AMOUNT DETECTION ============
+            // Check for negative amounts in various formats
+            const negativeAmountPatterns = [
+                /^.*-\$?\d+\.\d{2}$/i,        // Ends with negative amount
+                /^.*\s+-\$?\d+\.\d{2}$/i,     // Space before negative amount
+                /^.*\s+\$?-\d+\.\d{2}$/i,     // Dollar sign before negative
+            ];
+
+            // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
                 const price = parseFloat(priceMatch[1]);
@@ -1120,11 +1334,17 @@ export default function ReceiptScan() {
                     }
                 }
 
-                // Remove price and UPC from name
-                nameMatch = line.replace(pricePattern, '').trim();
-
-                // Remove UPC codes from the beginning
-                nameMatch = nameMatch.replace(/^\d{8,}\s+/, '');
+                // Check if current line contains embedded quantity information
+                const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
+                if (embeddedQtyMatch) {
+                    nameMatch = embeddedQtyMatch[1];
+                    quantity = parseInt(embeddedQtyMatch[2]);
+                    unitPrice = parseFloat(embeddedQtyMatch[3]);
+                    itemPrice = quantity * unitPrice;
+                } else {
+                    // Remove price from name
+                    nameMatch = line.replace(pricePattern, '').trim();
+                }
 
                 // Remove tax codes and other artifacts
                 nameMatch = nameMatch.replace(/\s+[TNF]\s*$/i, ''); // Remove tax codes
@@ -1132,6 +1352,15 @@ export default function ReceiptScan() {
 
                 // ============ ENHANCED NAME CLEANING ============
                 nameMatch = cleanItemName(nameMatch);
+
+                // Enhanced ground beef detection and cleaning
+                // Convert "80% 20% FT GRD BF" to "80/20 Ground Beef"
+                if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
+                    const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
+                    if (percentMatch) {
+                        nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
+                    }
+                }
 
                 // Check for UPC in current or nearby lines
                 const upcMatch = line.match(upcPattern) ||
@@ -1837,6 +2066,30 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('Error sending issue report:', error);
             alert('❌ Failed to send issue report. Please try again.');
+        }
+    }
+
+    function resetScan() {
+        // Stop camera first
+        stopCamera();
+
+        // Reset all state
+        setStep('upload');
+        setCapturedImage(prevImage => {
+            if (prevImage) {
+                URL.revokeObjectURL(prevImage);
+            }
+            return null;
+        });
+        setExtractedItems([]);
+        setIsProcessing(false);
+        setOcrProgress(0);
+        setProcessingStatus('');
+        setCameraError(null);
+
+        // Clear file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     }
 
