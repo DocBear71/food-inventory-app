@@ -1,17 +1,17 @@
 'use client';
-// file: /src/components/recipes/RecipeCollections.js v1 - Recipe collections management with subscription gates
+// file: /src/components/recipes/RecipeCollections.js v2 - Fixed imports and export
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { FeatureGate } from '@/components/subscription/FeatureGate';
+import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { getApiUrl } from '@/lib/api-config';
 
-export default function RecipeCollections({
-                                              selectedRecipeId = null,
-                                              onCollectionUpdate = null,
-                                              showAddToCollection = false
-                                          }) {
+const RecipeCollections = ({
+                               selectedRecipeId = null,
+                               onCollectionUpdate = null,
+                               showAddToCollection = false
+                           }) => {
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -456,4 +456,6 @@ export default function RecipeCollections({
             )}
         </div>
     );
-}
+};
+
+export default RecipeCollections;
