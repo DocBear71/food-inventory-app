@@ -1600,105 +1600,274 @@ UserSchema.methods.clearPasswordReset = function () {
     return this.save();
 };
 
-UserSchema.methods.canPerformAction = function(feature, currentCount = null) {
-    const subscription = this.subscription || { tier: 'free', status: 'free' };
-
-    // Import the functions (you'll need to import these at the top of your models file)
-    const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
-
-    // First check if feature is available for their tier
-    if (!checkFeatureAccess(subscription, feature)) {
-        return { allowed: false, reason: 'feature_not_available' };
-    }
-
-    // Then check usage limits if a count is provided
-    if (currentCount !== null && !checkUsageLimit(subscription, feature, currentCount)) {
-        return { allowed: false, reason: 'limit_exceeded' };
-    }
-
-    return { allowed: true };
-};
-
-// Track UPC scan usage
+// FIXED: Track UPC scan usage with better error handling
 UserSchema.methods.trackUPCScan = function() {
-    // Reset monthly counter if new month
-    const now = new Date();
-    if (!this.usageTracking ||
-        this.usageTracking.currentMonth !== now.getMonth() ||
-        this.usageTracking.currentYear !== now.getFullYear()) {
-        this.usageTracking = this.usageTracking || {};
-        this.usageTracking.currentMonth = now.getMonth();
-        this.usageTracking.currentYear = now.getFullYear();
-        this.usageTracking.monthlyUPCScans = 0;
-    }
+    try {
+        // Reset monthly counter if new month
+        const now = new Date();
 
-    this.usageTracking.monthlyUPCScans += 1;
-    this.usageTracking.lastUpdated = now;
-    return this.save();
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            this.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        // Check if we need to reset monthly counters
+        if (this.usageTracking.currentMonth !== now.getMonth() ||
+            this.usageTracking.currentYear !== now.getFullYear()) {
+
+            console.log(`📅 Resetting monthly UPC scan counter for user ${this.email}`);
+            this.usageTracking.currentMonth = now.getMonth();
+            this.usageTracking.currentYear = now.getFullYear();
+            this.usageTracking.monthlyUPCScans = 0;
+            this.usageTracking.monthlyReceiptScans = 0;
+        }
+
+        // Increment the scan count
+        this.usageTracking.monthlyUPCScans = (this.usageTracking.monthlyUPCScans || 0) + 1;
+        this.usageTracking.lastUpdated = now;
+
+        console.log(`📊 UPC scan tracked: User ${this.email} now has ${this.usageTracking.monthlyUPCScans} scans this month`);
+
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error in trackUPCScan:', error);
+        throw error;
+    }
 };
 
-// Track receipt scan usage
+// FIXED: Track receipt scan usage with better error handling
 UserSchema.methods.trackReceiptScan = function() {
-    const now = new Date();
-    if (!this.usageTracking ||
-        this.usageTracking.currentMonth !== now.getMonth() ||
-        this.usageTracking.currentYear !== now.getFullYear()) {
-        this.usageTracking = this.usageTracking || {};
-        this.usageTracking.currentMonth = now.getMonth();
-        this.usageTracking.currentYear = now.getFullYear();
-        this.usageTracking.monthlyReceiptScans = 0;
-    }
+    try {
+        const now = new Date();
 
-    this.usageTracking.monthlyReceiptScans += 1;
-    this.usageTracking.lastUpdated = new Date();
-    return this.save();
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            this.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        // Check if we need to reset monthly counters
+        if (this.usageTracking.currentMonth !== now.getMonth() ||
+            this.usageTracking.currentYear !== now.getFullYear()) {
+
+            console.log(`📅 Resetting monthly receipt scan counter for user ${this.email}`);
+            this.usageTracking.currentMonth = now.getMonth();
+            this.usageTracking.currentYear = now.getFullYear();
+            this.usageTracking.monthlyUPCScans = 0;
+            this.usageTracking.monthlyReceiptScans = 0;
+        }
+
+        // Increment the receipt scan count
+        this.usageTracking.monthlyReceiptScans = (this.usageTracking.monthlyReceiptScans || 0) + 1;
+        this.usageTracking.lastUpdated = now;
+
+        console.log(`📊 Receipt scan tracked: User ${this.email} now has ${this.usageTracking.monthlyReceiptScans} receipt scans this month`);
+
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error in trackReceiptScan:', error);
+        throw error;
+    }
 };
 
-// Update inventory item count
+// FIXED: Update inventory item count with better error handling
 UserSchema.methods.updateInventoryCount = function(count) {
-    this.usageTracking = this.usageTracking || {};
-    this.usageTracking.totalInventoryItems = count;
-    this.usageTracking.lastUpdated = new Date();
-    return this.save();
+    try {
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            const now = new Date();
+            this.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        this.usageTracking.totalInventoryItems = count;
+        this.usageTracking.lastUpdated = new Date();
+
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error in updateInventoryCount:', error);
+        throw error;
+    }
 };
 
-// Update personal recipe count
+// FIXED: Update personal recipe count with better error handling
 UserSchema.methods.updatePersonalRecipeCount = function(count) {
-    this.usageTracking = this.usageTracking || {};
-    this.usageTracking.totalPersonalRecipes = count;
-    this.usageTracking.lastUpdated = new Date();
-    return this.save();
+    try {
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            const now = new Date();
+            this.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        this.usageTracking.totalPersonalRecipes = count;
+        this.usageTracking.lastUpdated = new Date();
+
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error in updatePersonalRecipeCount:', error);
+        throw error;
+    }
 };
 
-// Check if subscription is active
+// FIXED: Check if subscription is active with better error handling
 UserSchema.methods.hasActiveSubscription = function() {
-    if (!this.subscription) return false;
+    try {
+        if (!this.subscription) return false;
 
-    const status = this.subscription.status;
-    if (status === 'free') return true; // Free is always "active"
-    if (status === 'active') return true;
-    if (status === 'trial') {
-        return this.subscription.trialEndDate && new Date() < new Date(this.subscription.trialEndDate);
+        const status = this.subscription.status;
+        if (status === 'free') return true; // Free is always "active"
+        if (status === 'active') return true;
+        if (status === 'trial') {
+            return this.subscription.trialEndDate && new Date() < new Date(this.subscription.trialEndDate);
+        }
+
+        return false;
+    } catch (error) {
+        console.error('❌ Error checking subscription status:', error);
+        return false; // Default to inactive if error
     }
-
-    return false;
 };
 
-// Get effective tier (falls back to free if subscription expired)
+// FIXED: Get effective tier with better error handling
 UserSchema.methods.getEffectiveTier = function() {
-    if (!this.hasActiveSubscription()) {
-        return 'free';
-    }
+    try {
+        if (!this.hasActiveSubscription()) {
+            return 'free';
+        }
 
-    return this.subscription?.tier || 'free';
+        return this.subscription?.tier || 'free';
+    } catch (error) {
+        console.error('❌ Error getting effective tier:', error);
+        return 'free'; // Default to free if error
+    }
 };
 
-// Update recipe collection count
+// FIXED: Update recipe collection count with better error handling
 UserSchema.methods.updateRecipeCollectionCount = function(count) {
-    this.usageTracking = this.usageTracking || {};
-    this.usageTracking.totalRecipeCollections = count;
-    this.usageTracking.lastUpdated = new Date();
-    return this.save();
+    try {
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            const now = new Date();
+            this.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        this.usageTracking.totalRecipeCollections = count;
+        this.usageTracking.lastUpdated = new Date();
+
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error in updateRecipeCollectionCount:', error);
+        throw error;
+    }
+};
+
+// FIXED: Enhanced canPerformAction method with better error handling
+UserSchema.methods.canPerformAction = function(feature, currentCount = null) {
+    try {
+        const subscription = this.subscription || { tier: 'free', status: 'free' };
+
+        // Import the functions (you'll need to import these at the top of your models file)
+        const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
+
+        // First check if feature is available for their tier
+        if (!checkFeatureAccess(subscription, feature)) {
+            return { allowed: false, reason: 'feature_not_available' };
+        }
+
+        // Then check usage limits if a count is provided
+        if (currentCount !== null && !checkUsageLimit(subscription, feature, currentCount)) {
+            return { allowed: false, reason: 'limit_exceeded' };
+        }
+
+        return { allowed: true };
+    } catch (error) {
+        console.error('❌ Error in canPerformAction:', error);
+        return { allowed: false, reason: 'error_checking_permissions' };
+    }
+};
+
+// FIXED: Get usage summary for debugging
+UserSchema.methods.getUsageSummary = function() {
+    try {
+        const now = new Date();
+        const usage = this.usageTracking || {};
+
+        return {
+            userId: this._id,
+            email: this.email,
+            tier: this.getEffectiveTier(),
+            currentMonth: now.getMonth(),
+            currentYear: now.getFullYear(),
+            trackedMonth: usage.currentMonth,
+            trackedYear: usage.currentYear,
+            monthlyUPCScans: usage.monthlyUPCScans || 0,
+            monthlyReceiptScans: usage.monthlyReceiptScans || 0,
+            totalInventoryItems: usage.totalInventoryItems || 0,
+            totalPersonalRecipes: usage.totalPersonalRecipes || 0,
+            totalRecipeCollections: usage.totalRecipeCollections || 0,
+            lastUpdated: usage.lastUpdated || null,
+            needsReset: !usage.currentMonth || usage.currentMonth !== now.getMonth() || usage.currentYear !== now.getFullYear()
+        };
+    } catch (error) {
+        console.error('❌ Error getting usage summary:', error);
+        return {
+            error: 'Failed to get usage summary',
+            userId: this._id
+        };
+    }
 };
 
 // Methods for meal prep suggestions

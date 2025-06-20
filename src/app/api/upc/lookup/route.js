@@ -1,4 +1,4 @@
-// file: /src/app/api/upc/lookup/route.js v2 - Added subscription-based UPC scan limits
+// file: /src/app/api/upc/lookup/route.js v3 - FIXED trackUPCScan error and improved error handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -36,18 +36,32 @@ export async function GET(request) {
             status: user.subscription?.status || 'free'
         };
 
-        // Reset monthly counter if needed
+        // Reset monthly counter if needed - FIXED: Better error handling
         const now = new Date();
-        if (!user.usageTracking ||
-            user.usageTracking.currentMonth !== now.getMonth() ||
-            user.usageTracking.currentYear !== now.getFullYear()) {
-            user.usageTracking = user.usageTracking || {};
-            user.usageTracking.currentMonth = now.getMonth();
-            user.usageTracking.currentYear = now.getFullYear();
-            user.usageTracking.monthlyUPCScans = 0;
+        try {
+            if (!user.usageTracking ||
+                user.usageTracking.currentMonth !== now.getMonth() ||
+                user.usageTracking.currentYear !== now.getFullYear()) {
+
+                // Initialize usage tracking if it doesn't exist
+                if (!user.usageTracking) {
+                    user.usageTracking = {};
+                }
+
+                user.usageTracking.currentMonth = now.getMonth();
+                user.usageTracking.currentYear = now.getFullYear();
+                user.usageTracking.monthlyUPCScans = 0;
+                user.usageTracking.lastUpdated = now;
+
+                // Save the usage tracking reset
+                await user.save();
+            }
+        } catch (trackingError) {
+            console.error('Error initializing usage tracking:', trackingError);
+            // Continue with the request even if tracking initialization fails
         }
 
-        const currentScans = user.usageTracking.monthlyUPCScans || 0;
+        const currentScans = user.usageTracking?.monthlyUPCScans || 0;
 
         // Check if user can perform UPC scan
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCAN, currentScans);
@@ -88,6 +102,30 @@ export async function GET(request) {
             );
         }
 
+        // FIXED: Track the successful scan BEFORE processing to avoid issues
+        try {
+            // Increment the scan count
+            if (!user.usageTracking) {
+                user.usageTracking = {
+                    currentMonth: now.getMonth(),
+                    currentYear: now.getFullYear(),
+                    monthlyUPCScans: 0,
+                    lastUpdated: now
+                };
+            }
+
+            user.usageTracking.monthlyUPCScans = (user.usageTracking.monthlyUPCScans || 0) + 1;
+            user.usageTracking.lastUpdated = now;
+
+            // Save the updated scan count
+            await user.save();
+
+            console.log(`✅ UPC scan tracked. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
+        } catch (trackingError) {
+            console.error('❌ Error tracking UPC scan:', trackingError);
+            // Continue with the request even if tracking fails
+        }
+
         // Query Open Food Facts API v2 (current version)
         console.log(`Fetching from Open Food Facts: ${cleanUpc}`);
         const response = await fetch(`${OPEN_FOOD_FACTS_API}/${cleanUpc}.json`, {
@@ -106,9 +144,6 @@ export async function GET(request) {
         const data = await response.json();
         console.log(`Product data status: ${data.status}`);
 
-        // Track the successful scan BEFORE processing the result
-        await user.trackUPCScan();
-
         // Check if product was found
         if (data.status === 0 || data.status_verbose === 'product not found') {
             return NextResponse.json(
@@ -117,7 +152,7 @@ export async function GET(request) {
                     message: 'Product not found in Open Food Facts database',
                     upc: cleanUpc,
                     remainingScans: userSubscription.tier === 'free' ?
-                        Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
+                        Math.max(0, 10 - (user.usageTracking?.monthlyUPCScans || 0)) : 'Unlimited'
                 },
                 { status: 404 }
             );
@@ -164,7 +199,7 @@ export async function GET(request) {
             success: true,
             product: productInfo,
             remainingScans: userSubscription.tier === 'free' ?
-                Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
+                Math.max(0, 10 - (user.usageTracking?.monthlyUPCScans || 0)) : 'Unlimited'
         });
 
     } catch (error) {
