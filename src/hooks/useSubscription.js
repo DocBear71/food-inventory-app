@@ -1,3 +1,5 @@
+'use client';
+
 // file: /src/hooks/useSubscription.js v1 - React hook for subscription management and feature gating
 
 import { useState, useEffect, useContext, createContext } from 'react';
