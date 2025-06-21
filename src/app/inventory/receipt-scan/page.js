@@ -1136,8 +1136,8 @@ export default function ReceiptScan() {
             /^t\s+[\d\s]+$/i,
             /^tax\s+[\d\s]+$/i,
             /^tex\s+[\d\s]+$/i,
-            /^*\s+tax\s+[\d\s]+$/i,
-            /^*\s+savings\s+[\d\s]+$/i,
+            /^.*\s+tax\s+[\d\s]+$/i,
+            /^.*\s+savings\s+[\d\s]+$/i,
             /^total\s+purchase\s+[\d\s]+$/i,
             /^subtotal\s+[\d\s]+$/i,
         ];
