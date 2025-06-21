@@ -638,59 +638,55 @@ export default function ProfilePage() {
                             </div>
                         )}
 
-                        {/* Tab Navigation - UPDATED with subscription-aware tabs */}
+                        {/* Tab Navigation - FIXED: Show all tabs, handle restrictions in tab content */}
                         <div className="bg-gray-50 border-b border-gray-200">
                             <div className="px-4 sm:px-6 py-4">
-                                <nav className="profile-tabs-grid grid gap-3">
-                                    {tabs.map((tab) => (
-                                        <FeatureGate
-                                            key={tab.id}
-                                            feature={tab.requiresSubscription ? FEATURE_GATES.NUTRITION_GOALS : null}
-                                            fallback={
-                                                tab.requiresSubscription ? (
-                                                    <div className="profile-tab-button group relative flex flex-col items-center justify-center p-4 rounded-xl border-2 border-gray-100 min-h-[80px] opacity-50">
-                                                        <div className="absolute top-1 right-1 text-xs bg-yellow-100 text-yellow-800 px-1 rounded-full">
-                                                            Gold
-                                                        </div>
-                                                        <div className="profile-tab-icon flex items-center justify-center w-8 h-8 rounded-full mb-2 bg-gray-100">
-                                                            <span className="text-lg">{tab.icon}</span>
-                                                        </div>
-                                                        <span className="profile-tab-text text-xs sm:text-sm font-medium text-center leading-tight text-gray-400">
-                                                            {tab.name}
-                                                        </span>
-                                                    </div>
-                                                ) : null
-                                            }
-                                        >
+                                <nav className="flex flex-wrap gap-2 sm:gap-3">
+                                    {tabs.map((tab) => {
+                                        const hasAccess = !tab.requiresSubscription || nutritionGoalsGate.canUse;
+
+                                        return (
                                             <TouchEnhancedButton
+                                                key={tab.id}
                                                 onClick={() => setActiveTab(tab.id)}
-                                                className={`profile-tab-button group relative flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 touch-friendly min-h-[80px] ${
+                                                className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl transition-all duration-200 touch-friendly min-h-[70px] sm:min-h-[80px] min-w-[80px] sm:min-w-[100px] ${
                                                     activeTab === tab.id
-                                                        ? 'bg-white text-indigo-700 shadow-lg border-2 border-indigo-200 transform scale-105 active'
-                                                        : 'bg-white text-gray-600 hover:text-gray-800 hover:shadow-md border-2 border-gray-100 hover:border-gray-200'
+                                                        ? 'bg-white text-indigo-700 shadow-lg border-2 border-indigo-200 transform scale-105'
+                                                        : hasAccess
+                                                            ? 'bg-white text-gray-600 hover:text-gray-800 hover:shadow-md border-2 border-gray-100 hover:border-gray-200'
+                                                            : 'bg-white text-gray-400 border-2 border-gray-100 cursor-pointer'
                                                 }`}
                                             >
+                                                {/* Active indicator */}
                                                 {activeTab === tab.id && (
-                                                    <div
-                                                        className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                                    <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full"></div>
                                                 )}
 
-                                                <div
-                                                    className={`profile-tab-icon flex items-center justify-center w-8 h-8 rounded-full mb-2 transition-all ${
-                                                        activeTab === tab.id
-                                                            ? 'bg-indigo-100'
-                                                            : 'bg-gray-100 group-hover:bg-gray-200'
-                                                    }`}>
-                                                    <span className="text-lg">{tab.icon}</span>
+                                                {/* Premium indicator for locked tabs */}
+                                                {!hasAccess && (
+                                                    <div className="absolute top-1 right-1 text-xs bg-yellow-100 text-yellow-800 px-1 rounded-full">
+                                                        Gold
+                                                    </div>
+                                                )}
+
+                                                {/* Icon */}
+                                                <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full mb-1 sm:mb-2 transition-all ${
+                                                    activeTab === tab.id
+                                                        ? 'bg-indigo-100'
+                                                        : hasAccess
+                                                            ? 'bg-gray-100 group-hover:bg-gray-200'
+                                                            : 'bg-gray-100'
+                                                }`}>
+                                                    <span className="text-sm sm:text-lg">{tab.icon}</span>
                                                 </div>
 
-                                                <span
-                                                    className="profile-tab-text text-xs sm:text-sm font-medium text-center leading-tight">
+                                                {/* Tab name */}
+                                                <span className="text-xs sm:text-sm font-medium text-center leading-tight px-1">
                                                     {tab.name}
                                                 </span>
                                             </TouchEnhancedButton>
-                                        </FeatureGate>
-                                    ))}
+                                        );
+                                    })}
                                 </nav>
                             </div>
                         </div>
