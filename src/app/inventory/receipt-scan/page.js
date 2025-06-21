@@ -1093,6 +1093,8 @@ export default function ReceiptScan() {
             /pay\s+from\s+primary/i,
             /purchase$/i,
             /tax$/i,
+            /Tax$/i,
+            /TAX$/i,
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
