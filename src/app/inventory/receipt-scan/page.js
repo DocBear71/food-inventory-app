@@ -1178,11 +1178,6 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            if (nameMatch.match(/^tax\s+\d+/i)) {
-                console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
-                continue;
-            }
-
             // Skip lines that are just discount amounts
             if (line.match(/\d+\.\d{2}-[nt]$/i)) {
                 console.log(`📋 Skipping discount line: ${line}`);
@@ -1288,6 +1283,11 @@ export default function ReceiptScan() {
                     if (percentMatch) {
                         nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
                     }
+                }
+
+                if (nameMatch.match(/^tax\s+\d+/i)) {
+                    console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
+                    continue;
                 }
 
                 // Handle Smith's specific abbreviations and OCR issues
