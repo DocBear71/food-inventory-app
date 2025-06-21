@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/inventory/receipt-scan/page.js - v6 Enhanced iOS PWA camera handling with proper fallbacks - FIXED React Error
+// file: /src/app/inventory/receipt-scan/page.js - v9 current working file
 
 
 import {useState, useRef, useEffect} from 'react';
@@ -203,11 +203,13 @@ export default function ReceiptScan() {
         setCameraError(null);
 
         try {
-            // Most basic camera request possible
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {width: 320, height: 240},
-                audio: false
-            });
+            // Use the optimized camera with minimal constraints
+            const minimalDeviceInfo = {
+                ...deviceInfo,
+                isMobile: true // Force mobile constraints for minimal mode
+            };
+
+            const stream = await initializeOptimizedCamera(minimalDeviceInfo);
 
             if (stream && stream.getVideoTracks().length > 0) {
                 console.log('✅ Minimal camera mode worked!');
@@ -215,12 +217,7 @@ export default function ReceiptScan() {
                 setShowCamera(true);
 
                 // Basic video setup
-                setTimeout(() => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                        videoRef.current.play().catch(console.log);
-                    }
-                }, 500);
+                await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
             } else {
                 throw new Error('No video tracks in minimal stream');
             }
@@ -239,408 +236,28 @@ export default function ReceiptScan() {
     async function startCamera() {
         setCameraError(null);
 
-        console.log('📱 Starting camera with device info:', deviceInfo);
-
         try {
-            // Check camera support
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera API not supported');
-            }
-
-            // Stop any existing stream
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
-
-            // iOS PWA SPECIFIC FIXES based on research
-            if (deviceInfo.isIOSPWA) {
-                console.log('🔧 Applying iOS PWA camera fixes based on research...');
-
-                // Fix 1: Ensure we're in a secure context (HTTPS)
-                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                    throw new Error('Camera requires HTTPS in iOS PWA mode');
-                }
-
-                // Fix 2: Request permissions in a user gesture context
-                // This creates a proper user gesture chain
-                const userGesturePromise = new Promise((resolve) => {
-                    const gestureHandler = () => {
-                        document.removeEventListener('touchstart', gestureHandler);
-                        document.removeEventListener('click', gestureHandler);
-                        resolve();
-                    };
-
-                    // Listen for any user interaction
-                    document.addEventListener('touchstart', gestureHandler, {once: true});
-                    document.addEventListener('click', gestureHandler, {once: true});
-
-                    // Trigger immediately if we're already in a gesture context
-                    setTimeout(resolve, 100);
-                });
-
-                await userGesturePromise;
-                console.log('✅ iOS PWA: User gesture context established');
-
-                // Fix 3: Force page focus and visibility
-                if (document.hidden) {
-                    console.log('⚠️ iOS PWA: Page is hidden, requesting focus...');
-                    window.focus();
-                    document.body.focus();
-
-                    // Wait for page to become visible
-                    await new Promise((resolve) => {
-                        if (!document.hidden) {
-                            resolve();
-                        } else {
-                            const visibilityHandler = () => {
-                                if (!document.hidden) {
-                                    document.removeEventListener('visibilitychange', visibilityHandler);
-                                    resolve();
-                                }
-                            };
-                            document.addEventListener('visibilitychange', visibilityHandler);
-
-                            // Timeout after 3 seconds
-                            setTimeout(resolve, 3000);
-                        }
-                    });
-                }
-
-                // Fix 4: Ensure DOM is fully ready and stable
-                if (document.readyState !== 'complete') {
-                    console.log('⚠️ iOS PWA: Waiting for DOM to be ready...');
-                    await new Promise(resolve => {
-                        if (document.readyState === 'complete') {
-                            resolve();
-                        } else {
-                            window.addEventListener('load', resolve, {once: true});
-                            // Timeout after 5 seconds
-                            setTimeout(resolve, 5000);
-                        }
-                    });
-                }
-
-                // Fix 5: Clear any existing media streams globally
-                if (typeof window.localStream !== 'undefined' && window.localStream) {
-                    window.localStream.getTracks().forEach(track => track.stop());
-                    window.localStream = null;
-                }
-            }
-
-            // iOS PWA-optimized constraints (based on research)
-            const iosPWAConstraints = {
-                video: {
-                    facingMode: {exact: "environment"},
-                    width: {ideal: 640},
-                    height: {ideal: 480}
-                },
-                audio: false
-            };
-
-            // iOS PWA fallback constraints
-            const iosPWAFallbackConstraints = [
-                // Attempt 1: Exact environment camera
-                {
-                    video: {facingMode: {exact: "environment"}},
-                    audio: false
-                },
-                // Attempt 2: Preferred environment camera
-                {
-                    video: {facingMode: {ideal: "environment"}},
-                    audio: false
-                },
-                // Attempt 3: Just environment
-                {
-                    video: {facingMode: "environment"},
-                    audio: false
-                },
-                // Attempt 4: Any video
-                {
-                    video: true,
-                    audio: false
-                },
-                // Attempt 5: Minimal constraints
-                {video: {}}
-            ];
-
-            // Standard constraints for other devices
-            const standardConstraints = {
-                video: {
-                    facingMode: 'environment',
-                    width: {ideal: 1920, min: 1280}, // Higher resolution
-                    height: {ideal: 1080, min: 720},
-                    aspectRatio: {ideal: 16 / 9},
-                    focusMode: 'continuous', // Continuous autofocus
-                    exposureMode: 'continuous', // Auto exposure
-                    whiteBalanceMode: 'continuous', // Auto white balance
-                    advanced: [
-                        {focusMode: 'continuous'},
-                        {exposureMode: 'continuous'},
-                        {whiteBalanceMode: 'continuous'}
-                    ]
-                }
-            };
-
-            let stream = null;
-            let lastError = null;
-
-            if (deviceInfo.isIOSPWA) {
-                console.log('📱 iOS PWA: Trying multiple constraint sets...');
-
-                // Try each constraint set for iOS PWA
-                for (let i = 0; i < iosPWAFallbackConstraints.length; i++) {
-                    const constraints = iosPWAFallbackConstraints[i];
-                    console.log(`📷 iOS PWA Attempt ${i + 1}/${iosPWAFallbackConstraints.length}:`, constraints);
-
-                    try {
-                        // Add timeout to each attempt
-                        const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
-                        const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error('Camera timeout')), 8000)
-                        );
-
-                        stream = await Promise.race([streamPromise, timeoutPromise]);
-
-                        if (stream && stream.getVideoTracks().length > 0) {
-                            console.log(`✅ iOS PWA: Camera stream obtained on attempt ${i + 1}`);
-                            console.log('📹 Stream details:', {
-                                videoTracks: stream.getVideoTracks().length,
-                                audioTracks: stream.getAudioTracks().length,
-                                active: stream.active
-                            });
-                            break;
-                        } else {
-                            console.log(`❌ iOS PWA: No video tracks in stream from attempt ${i + 1}`);
-                            if (stream) {
-                                stream.getTracks().forEach(track => track.stop());
-                            }
-                            stream = null;
-                        }
-                    } catch (error) {
-                        console.log(`❌ iOS PWA Attempt ${i + 1} failed:`, error.name, error.message);
-                        lastError = error;
-
-                        // Wait between attempts
-                        if (i < iosPWAFallbackConstraints.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
-                }
-            } else {
-                // Standard flow for non-iOS PWA
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(standardConstraints);
-                } catch (error) {
-                    console.log('Standard constraints failed, trying basic:', error);
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {facingMode: 'environment'}
-                    });
-                }
-            }
-
-            if (!stream) {
-                throw lastError || new Error('Failed to obtain camera stream');
-            }
-
-            // Store stream globally for iOS PWA
-            if (deviceInfo.isIOSPWA) {
-                window.localStream = stream;
-            }
-
+            // Use the optimized camera initialization
+            const stream = await initializeOptimizedCamera(deviceInfo);
             streamRef.current = stream;
+
+            // Use the optimized video setup
+            await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
+
             setShowCamera(true);
-
-            setTimeout(() => {
-                // Find the camera container and scroll to it smoothly
-                const cameraContainer = document.querySelector('[data-camera-container]');
-                if (cameraContainer) {
-                    cameraContainer.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                    console.log('📱 Auto-scrolled to camera view');
-                } else {
-                    // Fallback: scroll to the video element if camera container not found
-                    setTimeout(() => {
-                        if (videoRef.current) {
-                            videoRef.current.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                                inline: 'nearest'
-                            });
-                            console.log('📱 Auto-scrolled to video element');
-                        }
-                    }, 200);
-                }
-            }, 300); // Small delay to ensure rendering
-
-            // Enhanced video element setup for iOS PWA
-            console.log('🎥 Setting up video element...');
-
-            // Wait longer for video element on iOS PWA
-            const maxRetries = deviceInfo.isIOSPWA ? 30 : 10;
-            let retries = 0;
-
-            while (!videoRef.current && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                retries++;
-            }
-
-            if (!videoRef.current) {
-                throw new Error('Video element not found after waiting');
-            }
-
-            const video = videoRef.current;
-
-            // iOS PWA specific video setup
-            if (deviceInfo.isIOSPWA) {
-                console.log('🔧 iOS PWA: Configuring video element...');
-
-                // Set all iOS-specific attributes
-                video.playsInline = true;
-                video.muted = true;
-                video.autoplay = true;
-                video.controls = false;
-
-                // Set attributes directly on the element
-                video.setAttribute('playsinline', 'true');
-                video.setAttribute('webkit-playsinline', 'true');
-                video.setAttribute('muted', 'true');
-                video.setAttribute('autoplay', 'true');
-                video.setAttribute('controls', 'false');
-
-                // Force specific styles
-                video.style.width = '100%';
-                video.style.height = '100%';
-                video.style.objectFit = 'cover';
-                video.style.display = 'block';
-            }
-
-            // Set video source
-            video.srcObject = stream;
-            console.log('📹 Video source set to stream');
-
-            // Enhanced video loading for iOS PWA
-            await new Promise((resolve, reject) => {
-                let resolved = false;
-                const timeout = deviceInfo.isIOSPWA ? 15000 : 5000;
-
-                const onLoadedMetadata = () => {
-                    if (resolved) return;
-                    resolved = true;
-                    cleanup();
-                    console.log(`✅ Video loaded: ${video.videoWidth}x${video.videoHeight}`);
-                    resolve();
-                };
-
-                const onCanPlay = () => {
-                    if (resolved) return;
-                    resolved = true;
-                    cleanup();
-                    console.log(`✅ Video can play: ${video.videoWidth}x${video.videoHeight}`);
-                    resolve();
-                };
-
-                const onError = (e) => {
-                    if (resolved) return;
-                    resolved = true;
-                    cleanup();
-                    console.error('❌ Video error:', e);
-                    reject(new Error('Video load error'));
-                };
-
-                const onTimeout = () => {
-                    if (resolved) return;
-                    resolved = true;
-                    cleanup();
-
-                    // Check if video has dimensions even without events
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        console.log(`✅ Video loaded via timeout check: ${video.videoWidth}x${video.videoHeight}`);
-                        resolve();
-                    } else {
-                        console.error('❌ Video load timeout - no dimensions');
-                        reject(new Error('Video load timeout'));
-                    }
-                };
-
-                const cleanup = () => {
-                    video.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    video.removeEventListener('canplay', onCanPlay);
-                    video.removeEventListener('error', onError);
-                    clearTimeout(timeoutId);
-                };
-
-                video.addEventListener('loadedmetadata', onLoadedMetadata);
-                video.addEventListener('canplay', onCanPlay);
-                video.addEventListener('error', onError);
-
-                const timeoutId = setTimeout(onTimeout, timeout);
-
-                // Force play for iOS PWA with multiple attempts
-                if (deviceInfo.isIOSPWA) {
-                    const tryPlay = async (attempt = 1) => {
-                        try {
-                            console.log(`🎬 iOS PWA: Play attempt ${attempt}...`);
-                            await video.play();
-                            console.log(`✅ iOS PWA: Video play successful on attempt ${attempt}`);
-                        } catch (playError) {
-                            console.log(`❌ iOS PWA: Play attempt ${attempt} failed:`, playError);
-
-                            if (attempt < 3) {
-                                // Try again after a delay
-                                setTimeout(() => tryPlay(attempt + 1), 500 * attempt);
-                            }
-                        }
-                    };
-
-                    // Start playing immediately
-                    tryPlay();
-                } else {
-                    video.play().catch(e => console.log('Video autoplay prevented:', e));
-                }
-            });
-
-            console.log('🎉 Camera setup completed successfully!');
+            console.log('🎉 Optimized camera setup completed successfully!');
 
         } catch (error) {
-            console.error('❌ Camera setup failed:', error);
+            console.error('❌ Optimized camera setup failed:', error);
 
-            // Clean up any partial streams
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
-
-            if (window.localStream) {
-                window.localStream.getTracks().forEach(track => track.stop());
-                window.localStream = null;
-            }
-
-            // Show iOS PWA modal only as last resort
+            // Your existing error handling...
             if (deviceInfo.isIOSPWA) {
-                console.log('💔 All iOS PWA camera methods exhausted');
                 setCameraError('iOS PWA Camera Failed After All Attempts');
                 setShowIOSPWAModal(true);
                 return;
             }
 
-            // Handle other errors
-            let errorMessage = 'Failed to start camera: ' + error.message;
-
-            if (error.name === 'NotAllowedError') {
-                errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = 'No camera found on this device.';
-            } else if (error.name === 'NotReadableError') {
-                errorMessage = 'Camera is being used by another app.';
-            } else if (error.message.includes('HTTPS')) {
-                errorMessage = 'Camera requires HTTPS. Please access the app via HTTPS.';
-            }
-
-            setCameraError(errorMessage);
+            setCameraError(error.message);
         }
     }
 
@@ -666,63 +283,20 @@ export default function ReceiptScan() {
             return;
         }
 
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const context = canvas.getContext('2d');
-
-        // Use full video resolution for better OCR
-        const width = video.videoWidth;
-        const height = video.videoHeight;
-
-        console.log(`Capturing at resolution: ${width}x${height}`);
-
-        // Set canvas size to match video (high resolution)
-        canvas.width = width;
-        canvas.height = height;
-
-        // Enhanced canvas drawing with better quality settings
-        context.imageSmoothingEnabled = false; // Disable smoothing for sharper text
-        context.textRenderingOptimization = 'optimizeLegibility';
-
-        // Draw video frame to canvas
-        context.drawImage(video, 0, 0, width, height);
-
-        // Optional: Apply image enhancements for better OCR
-        const imageData = context.getImageData(0, 0, width, height);
-        const enhancedImageData = enhanceImageForOCR(imageData);
-        context.putImageData(enhancedImageData, 0, 0);
-
-        // Convert to blob with high quality settings
-        canvas.toBlob((blob) => {
-            if (blob) {
-                console.log(`Captured image size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
-
-                const imageUrl = URL.createObjectURL(blob);
-                setCapturedImage(imageUrl);
-                stopCamera();
-                processImage(blob);
-            }
-        }, 'image/jpeg', 0.95); // Higher quality (95% instead of 90%)
-    }
-
-    // Image enhancement function for better OCR
-    function enhanceImageForOCR(imageData) {
-        const data = imageData.data;
-        const length = data.length;
-
-        // Apply contrast and brightness enhancement
-        const contrast = 1.2; // Increase contrast
-        const brightness = 10; // Slight brightness increase
-
-        for (let i = 0; i < length; i += 4) {
-            // Apply contrast and brightness to RGB channels
-            data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));     // Red
-            data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness)); // Green
-            data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness)); // Blue
-            // Alpha channel (data[i + 3]) remains unchanged
+        try {
+            // Use the optimized image capture
+            captureOptimizedImage(videoRef.current, canvasRef.current).then(blob => {
+                if (blob) {
+                    const imageUrl = URL.createObjectURL(blob);
+                    setCapturedImage(imageUrl);
+                    stopCamera();
+                    processImage(blob);
+                }
+            });
+        } catch (error) {
+            console.error('❌ Optimized capture failed:', error);
+            alert('Failed to capture image. Please try again.');
         }
-
-        return imageData;
     }
 
     // Enhanced OCR processing with better settings
@@ -733,45 +307,21 @@ export default function ReceiptScan() {
         setProcessingStatus('Initializing OCR...');
 
         try {
-            // Dynamically import Tesseract.js
-            setProcessingStatus('Loading OCR engine...');
-            const Tesseract = (await import('tesseract.js')).default;
-
-            setProcessingStatus('Processing image...');
-
-            // Enhanced OCR options for better accuracy
-            const ocrOptions = {
-                logger: (m) => {
-                    if (m.status === 'recognizing text') {
-                        const progress = Math.round(m.progress * 100);
-                        setOcrProgress(progress);
-                        setProcessingStatus(`Extracting text... ${progress}%`);
-                    }
-                },
-                // Enhanced OCR parameters
-                tessedit_pageseg_mode: '6', // Uniform block of text
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
-                preserve_interword_spaces: '1',
-                user_defined_dpi: '300' // Higher DPI for better recognition
-            };
-
-            const {data: {text}} = await Tesseract.recognize(
+            // Use the optimized OCR processing
+            const text = await processImageWithOptimizedOCR(
                 imageFile,
-                'eng',
-                ocrOptions
+                deviceInfo,
+                (progress) => {
+                    setOcrProgress(progress);
+                    setProcessingStatus(`Extracting text... ${progress}%`);
+                }
             );
 
             setProcessingStatus('Analyzing receipt...');
 
-            // Parse extracted text into items
+            // Keep your existing parsing logic
             const items = parseReceiptText(text);
-
-            // Log results for debugging
-            console.log('OCR Text:', text);
-            console.log('Parsed Items:', items);
-
             setExtractedItems(items);
-
             setProcessingStatus('Complete!');
             setStep('review');
 
@@ -785,6 +335,448 @@ export default function ReceiptScan() {
         }
     }
 
+    // OPTIMIZED Camera Access and OCR Configuration for Receipt Scanner
+
+// ============ OPTIMIZED CAMERA CONSTRAINTS ============
+    function getOptimizedCameraConstraints(deviceInfo) {
+        // Standard high-quality constraints for receipt scanning
+        const standardConstraints = {
+            video: {
+                facingMode: { ideal: "environment" }, // Prefer rear camera
+                width: { ideal: 1920, min: 1280, max: 3840 },
+                height: { ideal: 1080, min: 720, max: 2160 },
+                aspectRatio: { ideal: 16/9 },
+                // Advanced camera features for better image quality
+                focusMode: { ideal: "continuous" },
+                exposureMode: { ideal: "continuous" },
+                whiteBalanceMode: { ideal: "continuous" },
+                torch: false // No flash for receipts
+            },
+            audio: false // Never need audio for receipt scanning
+        };
+
+        // iOS PWA optimized constraints
+        const iosPWAConstraints = [
+            // Best case: High quality with environment camera
+            {
+                video: {
+                    facingMode: { exact: "environment" },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 }
+                },
+                audio: false
+            },
+            // Fallback: Any environment camera
+            {
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            },
+            // Last resort: Any camera
+            {
+                video: {
+                    width: { ideal: 640, min: 480 },
+                    height: { ideal: 480, min: 360 }
+                },
+                audio: false
+            }
+        ];
+
+        // Mobile optimized constraints (Android/iOS browser)
+        const mobileConstraints = {
+            video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 1920, min: 1280 },
+                height: { ideal: 1080, min: 720 },
+                frameRate: { ideal: 30, max: 30 } // Limit framerate for performance
+            },
+            audio: false
+        };
+
+        if (deviceInfo.isIOSPWA) {
+            return iosPWAConstraints;
+        } else if (deviceInfo.isMobile) {
+            return [mobileConstraints];
+        } else {
+            return [standardConstraints];
+        }
+    }
+
+// ============ OPTIMIZED CAMERA INITIALIZATION ============
+    async function initializeOptimizedCamera(deviceInfo) {
+        console.log('🎥 Initializing optimized camera for receipt scanning...');
+
+        // Check for camera support
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Camera API not supported on this device');
+        }
+
+        // Get available devices first for better constraint selection
+        let devices = [];
+        try {
+            devices = await navigator.mediaDevices.enumerateDevices();
+            console.log('📷 Available cameras:', devices.filter(d => d.kind === 'videoinput').length);
+        } catch (e) {
+            console.log('Could not enumerate devices, proceeding with basic constraints');
+        }
+
+        const constraintSets = getOptimizedCameraConstraints(deviceInfo);
+        let stream = null;
+        let lastError = null;
+
+        // Try each constraint set
+        for (let i = 0; i < constraintSets.length; i++) {
+            const constraints = constraintSets[i];
+            console.log(`📷 Attempting camera with constraints ${i + 1}/${constraintSets.length}`);
+
+            try {
+                // Add timeout for mobile devices
+                const timeout = deviceInfo.isMobile ? 10000 : 5000;
+                const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Camera timeout')), timeout)
+                );
+
+                stream = await Promise.race([streamPromise, timeoutPromise]);
+
+                if (stream?.getVideoTracks().length > 0) {
+                    console.log('✅ Camera stream obtained successfully');
+
+                    // Log actual settings for debugging
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    console.log('📹 Camera settings:', {
+                        width: settings.width,
+                        height: settings.height,
+                        frameRate: settings.frameRate,
+                        facingMode: settings.facingMode
+                    });
+
+                    return stream;
+                }
+            } catch (error) {
+                console.log(`❌ Constraint set ${i + 1} failed:`, error.message);
+                lastError = error;
+
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            }
+        }
+
+        throw lastError || new Error('All camera initialization attempts failed');
+    }
+
+// ============ OPTIMIZED VIDEO ELEMENT SETUP ============
+    async function setupOptimizedVideo(videoElement, stream, deviceInfo) {
+        console.log('🎬 Setting up optimized video element...');
+
+        // iOS specific attributes
+        if (deviceInfo.isIOS) {
+            videoElement.setAttribute('playsinline', 'true');
+            videoElement.setAttribute('webkit-playsinline', 'true');
+            videoElement.muted = true;
+            videoElement.autoplay = true;
+            videoElement.controls = false;
+        }
+
+        // Optimize video element styles for receipt scanning
+        videoElement.style.objectFit = 'cover';
+        videoElement.style.width = '100%';
+        videoElement.style.height = '100%';
+
+        videoElement.srcObject = stream;
+
+        // Wait for video to be ready
+        return new Promise((resolve, reject) => {
+            const timeout = deviceInfo.isIOSPWA ? 15000 : 8000;
+            let resolved = false;
+
+            const cleanup = () => {
+                videoElement.removeEventListener('loadedmetadata', onReady);
+                videoElement.removeEventListener('canplay', onReady);
+                videoElement.removeEventListener('error', onError);
+                clearTimeout(timeoutId);
+            };
+
+            const onReady = () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                console.log(`✅ Video ready: ${videoElement.videoWidth}x${videoElement.videoHeight}`);
+                resolve();
+            };
+
+            const onError = (e) => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                reject(new Error(`Video setup error: ${e.message}`));
+            };
+
+            const timeoutId = setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+
+                // Check if video has dimensions despite timeout
+                if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                    console.log('✅ Video ready via timeout check');
+                    resolve();
+                } else {
+                    reject(new Error('Video setup timeout'));
+                }
+            }, timeout);
+
+            videoElement.addEventListener('loadedmetadata', onReady);
+            videoElement.addEventListener('canplay', onReady);
+            videoElement.addEventListener('error', onError);
+
+            // Force play for iOS
+            if (deviceInfo.isIOS) {
+                videoElement.play().catch(e => console.log('Video autoplay prevented:', e));
+            }
+        });
+    }
+
+// ============ OPTIMIZED IMAGE CAPTURE ============
+    function captureOptimizedImage(videoElement, canvasElement) {
+        console.log('📸 Capturing optimized image for OCR...');
+
+        const video = videoElement;
+        const canvas = canvasElement;
+        const ctx = canvas.getContext('2d');
+
+        // Use actual video dimensions for maximum quality
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+
+        if (width === 0 || height === 0) {
+            throw new Error('Video not ready for capture');
+        }
+
+        // Set canvas to video resolution
+        canvas.width = width;
+        canvas.height = height;
+
+        // Optimize canvas for OCR
+        ctx.imageSmoothingEnabled = false; // Preserve sharp edges
+        ctx.imageSmoothingQuality = 'high';
+
+        // Draw video frame
+        ctx.drawImage(video, 0, 0, width, height);
+
+        // Apply OCR-optimized image processing
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const processedImageData = optimizeImageForOCR(imageData);
+        ctx.putImageData(processedImageData, 0, 0);
+
+        // Return high-quality blob
+        return new Promise((resolve) => {
+            canvas.toBlob(resolve, 'image/jpeg', 0.98); // Very high quality
+        });
+    }
+
+// ============ OPTIMIZED IMAGE PROCESSING FOR OCR ============
+    function optimizeImageForOCR(imageData) {
+        console.log('🔧 Applying OCR-optimized image processing...');
+
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+
+        // Apply contrast enhancement and noise reduction
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            // Convert to grayscale for better OCR
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            // Apply contrast enhancement
+            const contrast = 1.3;
+            const brightness = 15;
+            const enhanced = Math.min(255, Math.max(0,
+                contrast * (gray - 128) + 128 + brightness
+            ));
+
+            // Apply sharpening filter
+            const sharp = applySharpening(data, i, width, height);
+
+            data[i] = enhanced + sharp;     // R
+            data[i + 1] = enhanced + sharp; // G
+            data[i + 2] = enhanced + sharp; // B
+            // Alpha unchanged
+        }
+
+        return imageData;
+    }
+
+    function applySharpening(data, index, width, height) {
+        // Simple sharpening kernel
+        const kernelSize = 3;
+        const kernel = [
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0
+        ];
+
+        // Apply kernel (simplified for performance)
+        return Math.min(15, Math.max(-15,
+            (data[index] * kernel[4]) -
+            (data[index - 4] || 0) -
+            (data[index + 4] || 0)
+        ));
+    }
+
+// ============ OPTIMIZED OCR CONFIGURATION ============
+    function getOptimizedOCRConfig(deviceInfo) {
+        console.log('⚙️ Configuring optimized OCR settings...');
+
+        // Base configuration optimized for receipts
+        const baseConfig = {
+            logger: (m) => {
+                if (m.status === 'recognizing text') {
+                    const progress = Math.round(m.progress * 100);
+                    console.log(`OCR Progress: ${progress}%`);
+                }
+            },
+            // Optimized for receipt text
+            tessedit_pageseg_mode: '6', // Single uniform block of text
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+            preserve_interword_spaces: '1',
+            tessedit_do_invert: '0', // Don't auto-invert
+            tessedit_create_hocr: '0', // Disable HOCR for performance
+            tessedit_create_pdf: '0', // Disable PDF for performance
+            tessedit_create_txt: '1', // Only create text output
+        };
+
+        // Mobile-specific optimizations
+        if (deviceInfo.isMobile) {
+            return {
+                ...baseConfig,
+                user_defined_dpi: '200', // Lower DPI for mobile performance
+                tessedit_parallelize: '0', // Disable parallelization on mobile
+            };
+        }
+
+        // Desktop optimizations
+        return {
+            ...baseConfig,
+            user_defined_dpi: '300', // Higher DPI for better accuracy
+            tessedit_parallelize: '1', // Enable parallelization
+        };
+    }
+
+// ============ OPTIMIZED OCR PROCESSING ============
+    async function processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback) {
+        console.log('🔍 Starting optimized OCR processing...');
+
+        try {
+            // Dynamic import for better loading performance
+            const Tesseract = (await import('tesseract.js')).default;
+
+            // Create worker with optimized settings
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: (m) => {
+                    if (progressCallback && m.status === 'recognizing text') {
+                        progressCallback(Math.round(m.progress * 100));
+                    }
+                }
+            });
+
+            // Configure OCR with optimized settings
+            const ocrConfig = getOptimizedOCRConfig(deviceInfo);
+
+            // Process the image
+            console.log('📄 Recognizing text...');
+            const { data: { text, confidence } } = await worker.recognize(imageBlob, ocrConfig);
+
+            console.log(`✅ OCR completed with ${confidence}% confidence`);
+            console.log(`📝 Extracted text length: ${text.length} characters`);
+
+            // Cleanup
+            await worker.terminate();
+
+            return text;
+
+        } catch (error) {
+            console.error('❌ OCR processing failed:', error);
+            throw error;
+        }
+    }
+
+// ============ OPTIMIZED USAGE EXAMPLE ============
+    async function startOptimizedReceiptScan(videoElement, canvasElement, deviceInfo) {
+        try {
+            // 1. Initialize optimized camera
+            const stream = await initializeOptimizedCamera(deviceInfo);
+
+            // 2. Setup optimized video
+            await setupOptimizedVideo(videoElement, stream, deviceInfo);
+
+            return stream;
+
+        } catch (error) {
+            console.error('❌ Optimized camera setup failed:', error);
+            throw error;
+        }
+    }
+
+    async function captureAndProcessReceipt(videoElement, canvasElement, deviceInfo, progressCallback) {
+        try {
+            // 1. Capture optimized image
+            const imageBlob = await captureOptimizedImage(videoElement, canvasElement);
+
+            // 2. Process with optimized OCR
+            const text = await processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback);
+
+            return { imageBlob, text };
+
+        } catch (error) {
+            console.error('❌ Optimized capture and OCR failed:', error);
+            throw error;
+        }
+    }
+
+// ============ PERFORMANCE MONITORING ============
+    class ReceiptScannerPerformanceMonitor {
+        constructor() {
+            this.metrics = {};
+        }
+
+        startTimer(operation) {
+            this.metrics[operation] = { start: performance.now() };
+        }
+
+        endTimer(operation) {
+            if (this.metrics[operation]) {
+                this.metrics[operation].duration = performance.now() - this.metrics[operation].start;
+                console.log(`⏱️ ${operation}: ${this.metrics[operation].duration.toFixed(2)}ms`);
+            }
+        }
+
+        getMetrics() {
+            return this.metrics;
+        }
+    }
+
+// Export for use in the main component
+    export {
+        initializeOptimizedCamera,
+        setupOptimizedVideo,
+        captureOptimizedImage,
+        processImageWithOptimizedOCR,
+        startOptimizedReceiptScan,
+        captureAndProcessReceipt,
+        ReceiptScannerPerformanceMonitor
+    };
+
     // Handle receipt file upload
     function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
@@ -797,7 +789,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // Enhanced parseReceiptText function with improved Sam's Club support - v7
+    // FIXED parseReceiptText function - restored proper Walmart/Sam's Club support
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
@@ -807,7 +799,7 @@ export default function ReceiptScan() {
         const upcPattern = /\b\d{12,14}\b/;
         const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
-        // COMPREHENSIVE skip patterns - enhanced with Sam's Club while preserving all existing store patterns
+        // FIXED: Restored comprehensive skip patterns from v5 - this was the issue
         const skipPatterns = [
             // ============ STORE NAMES AND HEADERS ============
             /^(walmart|target|kroger|publix|safeway|hy-vee|hyvee|sam's club|sams club|costco)/i,
@@ -824,6 +816,43 @@ export default function ReceiptScan() {
             /^(ref|reference|auth|authorization)/i,
             /^(visa|mastercard|amex|discover|american express)/i,
             /^(visa credit|visa debit|mastercard credit)/i,
+
+            // ============ WALMART SPECIFIC PATTERNS ============
+            /^walmart/i,
+            /^save money live better/i,
+            /^\d{13}\s+walmart/i, // Long numbers followed by Walmart
+            /^supercenter/i,
+            /^manager\s+/i,
+            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i, // Store number + date
+            /^st#\s*\d+/i, // Store number
+            /^op#\s*\d+/i, // Operator number
+            /^te#\s*\d+/i, // Terminal number
+            /^tr#\s*\d+/i, // Transaction number
+            /walmart\.com/i,
+            /^balance\s+\$/i,
+            /^change\s+\$/i,
+            /^total\s+tax/i,
+            /^account\s+#/i,
+            /^approval\s+#/i,
+
+            // ============ SAM'S CLUB SPECIFIC PATTERNS ============
+            /^sam's club/i,
+            /^membership/i,
+            /^advantage/i,
+            /^plus/i,
+            /^edward/i, // Location names
+            /^cedar\s+rapids/i,
+            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}/i, // Phone numbers
+            /^\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/i, // Date/time stamps
+            /^\d{4}\s+\d{5}\s+\d{3}\s+\d{4}/i, // Transaction numbers
+            /^[ev]?\s*inst\s+sv/i, // Instant savings
+            /instant\s+sav/i,
+            /^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i, // Quantity lines
+            /^\$?\d+\.\d{2}\s*-\s*[nt]$/i, // Discount amounts
+            /^s\s+inst\s+sv/i,
+            /member\s*(ship|#|savings)/i,
+            /you\s+saved/i,
+            /total\s+savings/i,
 
             // TRADER JOE'S SPECIFIC PAYMENT PATTERNS
             /^visa\s*$/i,
@@ -842,13 +871,6 @@ export default function ReceiptScan() {
             /^fresh\s+value\s+customer/i,
             /^\*+\s*balance/i,
             /^\d{3}-\d{3}-\d{4}/i, // Phone numbers
-
-            // SAM'S CLUB SPECIFIC PAYMENT PATTERNS
-            /voided\s+bankcard/i,
-            /transaction\s+(not\s+)?complete/i,
-            /terminal\s*#?\s*\d+/i,
-            /change\s+due/i,
-            /debit\s+tend/i,
 
             // ============ RECEIPT FOOTER INFORMATION ============
             /^(change due|amount due|balance)/i,
@@ -874,203 +896,51 @@ export default function ReceiptScan() {
             /^(sub-total|subtotal|sub total)/i,
             /^(net amount|netamount|net)/i,
             /^(total|amount)$/i,
-            /^subtotal\s*\[\d+\]/i, // "SUBTOTAL [18]"
-
-            // Bottle deposit lines - these are fees, not inventory items
-            /btl\s+dep/i,        // "BTL DEP"
-            /btl\.\s+dep/i,        // "BTL.DEP"
-            /bottle\s+deposit/i,  // "BOTTLE DEPOSIT"
-            /deposit/i,           // Generic deposit
-            /^\.?\d+\s*fs?\s*btl\s*dep/i, // ".30 FS BTL DEP"
-
-            // Bottle deposit with OCR periods/punctuation
-            /btl\.\s+dep/i,        // "BTL.DEP" - OCR adds periods
-            /btl\s*\.\s*dep/i,     // "BTL . DEP" - OCR with spaced periods
-            /bottle\.\s+deposit/i, // "BOTTLE.DEPOSIT"
-
-            // Tax calculation lines (based on actual OCR output)
-            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i, // "; X 23.93 @ 6.000% = 1.44"
-            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,        // "I 23.93 @ 1.000% = 0.24"
-
-            // Variations with punctuation and OCR artifacts
-            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,                             // Lines starting with punctuation + X/T/I + number @
-            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,                        // Tax calculation format
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,               // Direct calculation without prefix
-
-            // Also add these additional OCR artifact patterns:
-            /^manual\s*weight/i,                                          // "Manual Weight" (sometimes with OCR errors)
-            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,                // Weight calculation line
-
-            // Tax reference fragments (OCR splitting)
-            /^x\s+\d+\s+\d+\s+\d+$/i,    // "X 6 1 44" - tax calculation fragments
-            /^[tx]\s+\d+(\s+\d+)*$/i,    // "T 23" or "X 6 1 44" patterns
-
-            // Subtotal/total fragments (OCR number splitting)
-            /^\d+\s+\d+\s+\d+\s+\d+$/i,  // "1 1 0 24" - numbers split by OCR
-            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i, // Specific pattern for split totals
-
-            // Receipt formatting artifacts
-            /^[\d\s]+\d{2}$/i,           // Lines that are just spaced numbers ending in 2 digits
-            /^[a-z]\s+[\d\s]+$/i,        // Single letter followed by spaced numbers
-
-            // Mathematical operation fragments
-            /^@\s*\d+\.\d+%/i,           // "@ 6.000%" - calculation fragments
-            /^=\s*[\d\s]+$/i,            // "= 1 44" - result fragments
-            /^\d+\.\d+%\s*=?$/i,         // "6.000% =" - percentage fragments
-
-            // OCR misreads of common receipt elements
-            /^sub\s*total\s*[\[\d\]]*$/i, // "SUB TOTAL [18]" or variations
-            /^total\s*[\[\d\]]*$/i,       // "TOTAL [18]" or variations
-
-            // Additional Hy-Vee specific OCR issues
-            /employee\s*owned/i,          // Header text
-            /storeman/i,                  // "StoreManagement" fragments
-            /group.*hy.*vee/i,           // URL fragments
-
-            // Generic OCR line-splitting artifacts
-            /^[\d\s]{3,}$/,              // Lines of just numbers and spaces (3+ chars)
-            /^[a-z]{1,2}\s+[\d\s]+$/i,   // 1-2 letters followed by spaced numbers
-
-            // Tax calculation lines
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i, // "23.93 @ 6.000% = 1.44"
-            /^[tx]\s+\d+\.\d+\s*@/i, // "T 23.93 @"
-
-            // Standalone tax/percentage lines
-            /^\d+\.\d+%\s*=/i,    // "6.000% = 1.44"
-            /^=\s*\d+\.\d+$/i,    // "= 1.44"
-
-            // Weight and measurement lines
-            /^\d+\.?\d*\s*x\s*\$?\d+\.?\d*$/i,
-            /^\d+\.\d+\s*lb\s*@/i, // "10.258 LB @"
-            /manual\s*weight/i,    // "Manual Weight"
-            /^\d+\.\d+\s*usd\/lb/i, // "2.98 USD/LB"
-
-            // Discount/savings lines (negative amounts or percentage discounts)
-            /^\d+%?\s*(off|discount|save)/i,
-            /^\(\$\d+\.\d{2}\)$/,  // Negative amounts in parentheses
-            /^-\$?\d+\.\d{2}$/,    // Negative amounts with minus sign
-
-            // Product codes that aren't actual items
-            /^\d{10,}$/,
-
-            // Weight only lines
-            /^\d+\.?\d*x?$/i,
-
-            // Lines that are just numbers and measurement units
-            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
-
-            // Discount lines with product codes and percentages
-            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
-
-            // Fuel rewards and loyalty programs
-            /fuel\s*saver/i,
-            /fuel\s*reward/i,
-            /\d+\s+fuel\s+saver/i,
-            /hormel\s*loins/i,
-            /\d+\s+hormel\s*loins/i,
-
-            // Tax lines
-            /^(ia|iowa)\s+state/i,
-            /^linn\s+county/i,
-            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%/i,
-            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%/i,
-
-            // Cart and spending promotions
-            /bottom\s*of\s*cart/i,
-            /spend\s*\$?\d+/i,
-            /\d+x\s*\d+of\d+/i,
-
-            // Payment information section
-            /^payment\s*information/i,
-            /^total\s*paid/i,
-
-            // OCR parsing errors
-            /^[a-z]\s*—?\s*$/i,
-            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
-
-            // Deals and coupons section
-            /deals\s*&?\s*coupons/i,
-            /view\s*coupons/i,
-
-            // ============ SAM'S CLUB SPECIFIC PATTERNS ============
-            // Store info and headers
-            /^edward$/i,
-            /^cedar\s+rapids/i,
-            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}/i, // Phone numbers like (319) 393-7746
-            /^\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/i, // Date/time stamps
-            /^\d{4}\s+\d{5}\s+\d{3}\s+\d{4}/i, // Transaction numbers
-
-            // Sam's Club transaction codes and instant savings
-            /^[ev]?\s*inst\s+sv/i, // "V INST SV", "E V INST SV", "INST SV"
-            /instant\s+sav/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i, // Quantity lines like "2 @ 3.00-"
-            /^\$?\d+\.\d{2}\s*-\s*[nt]$/i, // Discount amounts like "3.50-N"
-
-            // Sam's Club member and savings info
-            /^s\s+inst\s+sv/i, // "S INST SV"
-            /member\s*(ship|#|savings)/i,
-            /you\s+saved/i,
-            /total\s+savings/i,
-
-            // ============ SAM'S CLUB SPECIFIC PATTERNS (CONTINUED) ============
-            /^v\s+inst\s+sv/i,
-            /^e\s+v\s+inst\s+sv/i,
-            /^v\s+inst\s+sv.*\d+\.\d{2}[-\s]*[nt]$/i,
-            /inst\s+sv.*[-\s]*[nt]$/i,
-            /instant\s+sav/i,
-
-            // Sam's Club membership and payment lines
-            /^(member|membership)/i,
-            /^(plus|advantage)/i,
-
-            // Sam's Club specific discount patterns
-            /^\d+\.\d{2}[-\s]*[nt]$/i, // Prices ending with -N or -T (negative)
-
-            // Payment due and tender lines
-            /tenbe\s*due/i,
-            /tender\s*due/i,
-            /change\s*due/i,
-            /amount\s*due/i,
-            /balance\s*due/i,
-            /voided\s*bankcard/i,
-            /bank\s*card/i,
-            /transaction\s*not\s*complete/i,
-            /^es\s*\|?\s*~?tenbe/i,
-            /^es\s*\|?\s*~?tender/i,
-            /^es\s*\|?\s*~?change/i,
-            /transaction\s*complete/i,
-            /transaction\s*not\s*complete/i,
-            /debit\s*tend/i,
-            /cash\s*tend/i,
-            /terminal\s*#/i,
-            /^[\d\s]{8,}$/,
-            /\d+\.\d{2}[-\s]*n$/i,
-            /\d+\.\d{2}[-\s]*t$/i,
+            /^subtotal\s*\[\d+\]/i,
+            /btl\s+dep/i,
+            /btl\.\s+dep/i,
+            /bottle\s+deposit/i,
+            /deposit/i,
+            /^\.?\d+\s*fs?\s*btl\s*dep/i,
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^manual\s*weight/i,
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb/i,
+            /^x\s+\d+\s+\d+\s+\d+$/i,
+            /^[tx]\s+\d+(\s+\d+)*$/i,
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
+            /^[\d\s]+\d{2}$/i,
+            /^[a-z]\s+[\d\s]+$/i,
+            /^@\s*\d+\.\d+%/i,
+            /^=\s*[\d\s]+$/i,
+            /^\d+\.\d+%\s*=?$/i,
+            /^sub\s*total\s*[\[\d\]]*$/i,
+            /^total\s*[\[\d\]]*$/i,
+            /employee\s*owned/i,
+            /storeman/i,
+            /group.*hy.*vee/i,
+            /^[\d\s]{3,}$/,
+            /^[a-z]{1,2}\s+[\d\s]+$/i,
 
             // ============ TARGET SPECIFIC PATTERNS ============
-            // Quantity-only lines (these are part of the previous item)
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,        // "2 @ $3.89 ea"
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,             // "2 @ $3.89"
-            /^\d+\s*ea$/i,                            // "2 ea"
-            /^ea$/i,                                  // Just "ea"
-
-            // Regular price lines (discount information)
-            /^regular\s+price/i,                      // "Regular Price $5.59"
-            /^reg\s+price/i,                          // "Reg Price"
-            /^was\s+\$?\d+\.\d{2}/i,                 // "Was $5.59"
-
-            // Target tax calculation patterns
-            /^t\s*=\s*ia\s+tax/i,                    // "T = IA TAX 7.00000 on $15.96"
-            /^[t]\s*-\s*ia\s+tax/i,                  // Variations with dash
-            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,      // "7.00000 on $15.96"
-
-            // Payment method lines
-            /^\*?\d{4}\s+debit\s+total/i,            // "*8642 DEBIT TOTAL PAYMENT"
-            /^aid[:;]\s*[a-z0-9]+/i,                 // "AID: A000000098040"
-            /^auth\s+code[:;]/i,                     // "AUTH CODE: 395098"
-            /^us\s+debit/i,                          // "US DEBIT"
-
-            // Return policy text
+            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,
+            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
+            /^\d+\s*ea$/i,
+            /^ea$/i,
+            /^regular\s+price/i,
+            /^reg\s+price/i,
+            /^was\s+\$?\d+\.\d{2}/i,
+            /^t\s*=\s*ia\s+tax/i,
+            /^[t]\s*-\s*ia\s+tax/i,
+            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i,
+            /^\*?\d{4}\s+debit\s+total/i,
+            /^aid[:;]\s*[a-z0-9]+/i,
+            /^auth\s+code[:;]/i,
+            /^us\s+debit/i,
             /when\s+you\s+return/i,
             /return\s+credit/i,
             /promotional\s+discount/i,
@@ -1101,10 +971,10 @@ export default function ReceiptScan() {
             /^trader\s+joe/i,
             /^neighborhood\s+grocery\s+store/i,
             /^your\s+neighborhood/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i, // "2 @ $8.49"
-            /^@\s*\$?\d+\.\d{2}$/i, // "@ $8.49"
-            /^items\s+in\s+transaction[:;]?\s*\d+/i, // "Items in Transaction:6"
-            /^balance\s+to\s+pay/i, // "Balance to pay"
+            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
+            /^@\s*\$?\d+\.\d{2}$/i,
+            /^items\s+in\s+transaction[:;]?\s*\d+/i,
+            /^balance\s+to\s+pay/i,
             /^customer\s+copy/i,
             /^merchant\s+copy/i,
             /^type[:;]\s*(contactless|chip|swipe)/i,
@@ -1123,27 +993,27 @@ export default function ReceiptScan() {
             /^smith's$/i,
             /^smiths$/i,
             /^kroger$/i,
-            /^\d+\s+s\.\s+maryland\s+pkwy/i, // Address patterns
-            /^\(\d{3}\)\s+\d{3}-\d{4}/i, // Phone number patterns
+            /^\d+\s+s\.\s+maryland\s+pkwy/i,
+            /^\(\d{3}\)\s+\d{3}-\d{4}/i,
             /^your\s+cashier\s+was/i,
-            /^chec\s+\d+/i, // "CHEC 500"
+            /^chec\s+\d+/i,
             /^fresh\s+value\s+customer/i,
             /^kroger\s+plus/i,
             /^fuel\s+points/i,
             /^you\s+earned/i,
             /^points\s+earned/i,
-            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb/i, // "0.12 lb @ $1.99 / lb"
-            /^wt\s+.*lb/i, // "WT" followed by weight info
-            /^\d+\.\d+\s*\/\s*lb/i, // "$1.99 / lb"
+            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb/i,
+            /^wt\s+.*lb/i,
+            /^\d+\.\d+\s*\/\s*lb/i,
             /^tax/i,
             /^\*+\s*balance/i,
             /^balance\s*\*+/i,
-            /^f$/i, // Tax code "F"
-            /^t$/i, // Tax code "T"
-            /^[f|t]\s*$/i, // Standalone tax codes
-            /^ro\s+lrg/i, // OCR misread of item codes
-            /^darnc[n|g]/i, // OCR misread of "DANNON"
-            /^spwd\s+gr/i, // OCR misread of item codes
+            /^f$/i,
+            /^t$/i,
+            /^[f|t]\s*$/i,
+            /^ro\s+lrg/i,
+            /^darnc[n|g]/i,
+            /^spwd\s+gr/i,
 
             // ============ GENERIC PATTERNS ============
             /^\d+\.\d+\s*x\s*\$?\d+\.\d{2}$/i,
@@ -1168,13 +1038,47 @@ export default function ReceiptScan() {
             /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
             /deals\s*&?\s*coupons/i,
             /view\s*coupons/i,
+
+            // ============ DISCOUNT AND NEGATIVE AMOUNT PATTERNS ============
+            /^\d+%?\s*(off|discount|save)/i,
+            /^\(\$\d+\.\d{2}\)$/i,
+            /^-\$?\d+\.\d{2}$/i,
+            /^\d+\.\d{2}[-\s]*[nt]$/i,
+            /\d+\.\d{2}[-\s]*n$/i,
+            /\d+\.\d{2}[-\s]*t$/i,
+            /^.*-\$?\d+\.\d{2}$/i,
+            /^.*\s+-\$?\d+\.\d{2}$/i,
+            /^.*\s+\$?-\d+\.\d{2}$/i,
+
+            // ============ ADDITIONAL COMMON PATTERNS ============
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i,
+            /^[tx]\s+\d+\.\d+\s*@/i,
+            /^\d+\.\d+%\s*=/i,
+            /^=\s*\d+\.\d+$/i,
+            /^\d+\.\d+\s*lb\s*@/i,
+            /manual\s*weight/i,
+            /^\d+\.\d+\s*usd\/lb/i,
+            /^\d{10,}$/,
+            /voided\s*bankcard/i,
+            /bank\s*card/i,
+            /transaction\s*not\s*complete/i,
+            /transaction\s*complete/i,
+            /tenbe\s*due/i,
+            /tender\s*due/i,
+            /change\s*due/i,
+            /amount\s*due/i,
+            /balance\s*due/i,
+            /debit\s*tend/i,
+            /cash\s*tend/i,
+            /terminal\s*#/i,
+            /^[\d\s]{8,}$/,
             /pay\s+from\s+primary/i,
             /purchase$/i,
         ];
 
-        console.log(`📄 Processing ${lines.length} lines from Sam's Club receipt...`);
+        console.log(`📄 Processing ${lines.length} lines from receipt...`);
 
-        // Process lines with enhanced context awareness
+        // Process lines with context awareness
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
@@ -1182,129 +1086,112 @@ export default function ReceiptScan() {
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
-                console.log(`Skipping pattern match: ${line}`);
+                console.log(`📋 Skipping pattern match: ${line}`);
                 continue;
             }
 
-            // ============ ENHANCED HY-VEE FILTERING ============
             // Skip bottle deposit lines specifically
             if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
-                console.log(`Skipping bottle deposit: ${line}`);
+                console.log(`📋 Skipping bottle deposit: ${line}`);
                 continue;
             }
 
             // Skip tax calculation lines
             if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
-                console.log(`Skipping tax calculation: ${line}`);
+                console.log(`📋 Skipping tax calculation: ${line}`);
                 continue;
             }
 
             // Skip weight information lines
             if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
-                console.log(`Skipping weight info: ${line}`);
+                console.log(`📋 Skipping weight info: ${line}`);
                 continue;
             }
 
             // Skip lines that are just mathematical calculations or references
             if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
-                console.log(`Skipping calculation line: ${line}`);
+                console.log(`📋 Skipping calculation line: ${line}`);
                 continue;
             }
 
-            // ============ ENHANCED SAM'S CLUB FILTERING ============
             // Skip lines that are clearly instant savings (discounts)
             if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
-                console.log(`Skipping instant savings: ${line}`);
+                console.log(`📋 Skipping instant savings: ${line}`);
                 continue;
             }
 
             // Skip lines with negative amounts (discounts)
             if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
-                console.log(`Skipping negative amount: ${line}`);
+                console.log(`📋 Skipping negative amount: ${line}`);
                 continue;
             }
 
-            // Skip zero-amount lines (like "Es |~TENBE DUE 0.00")
+            // Skip zero-amount lines
             if (line.match(/\$?0\.00/i)) {
-                console.log(`Skipping zero amount: ${line}`);
+                console.log(`📋 Skipping zero amount: ${line}`);
                 continue;
             }
 
             // Skip payment/tender related lines
             if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
-                console.log(`Skipping payment line: ${line}`);
+                console.log(`📋 Skipping payment line: ${line}`);
                 continue;
             }
 
-            // ============ TARGET-SPECIFIC PROCESSING ============
             // Skip if this line is just a quantity/price continuation of previous item
             if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
-                console.log(`Skipping quantity line (part of previous item): ${line}`);
+                console.log(`📋 Skipping quantity line (part of previous item): ${line}`);
                 continue;
             }
 
             // Skip regular price lines
             if (line.match(/^regular\s+price/i)) {
-                console.log(`Skipping regular price line: ${line}`);
-                continue;
-            }
-
-            // Skip tax calculation lines
-            if (line.match(/^t\s*=\s*ia\s+tax/i) || line.match(/^\d+\.\d+\s*on\s*\$?\d+\.\d{2}/i)) {
-                console.log(`Skipping tax calculation: ${line}`);
+                console.log(`📋 Skipping regular price line: ${line}`);
                 continue;
             }
 
             // Skip lines that are just whitespace or tax codes
             if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
-                console.log(`Skipping tax code or whitespace: ${line}`);
+                console.log(`📋 Skipping tax code or whitespace: ${line}`);
                 continue;
             }
 
             // Skip lines that are just discount amounts
             if (line.match(/^\$?\d+\.\d{2}\s*-\s*[nt]$/i)) {
-                console.log(`📋 Sam's: Skipping discount amount: ${line}`);
+                console.log(`📋 Skipping discount amount: ${line}`);
                 continue;
             }
 
             // Skip lines that contain discount codes with percentages
             if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
-                console.log(`Skipping discount code line: ${line}`);
+                console.log(`📋 Skipping discount code line: ${line}`);
                 continue;
             }
 
             // Skip measurement calculation lines
             if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
-                console.log(`Skipping measurement line: ${line}`);
+                console.log(`📋 Skipping measurement line: ${line}`);
                 continue;
             }
 
             // Skip lines that are just weights/measurements
             if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
-                console.log(`Skipping weight line: ${line}`);
+                console.log(`📋 Skipping weight line: ${line}`);
                 continue;
             }
 
             // Skip specific total lines (case insensitive)
             if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
-                console.log(`Skipping total line: ${line}`);
+                console.log(`📋 Skipping total line: ${line}`);
                 continue;
             }
-
-            // ============ ENHANCED NEGATIVE AMOUNT DETECTION ============
-            // Check for negative amounts in various formats
-            const negativeAmountPatterns = [
-                /^.*-\$?\d+\.\d{2}$/i,        // Ends with negative amount
-                /^.*\s+-\$?\d+\.\d{2}$/i,     // Space before negative amount
-                /^.*\s+\$?-\d+\.\d{2}$/i,     // Dollar sign before negative
-            ];
 
             // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
                 const price = parseFloat(priceMatch[1]);
 
-                // Skip very high prices that are likely totals (over $100 for Sam's Club)
+                // Skip very high prices that are likely totals (over $100)
                 if (price > 100) {
                     console.log(`📋 Skipping high price line (likely total): ${line}`);
                     continue;
@@ -1321,16 +1208,35 @@ export default function ReceiptScan() {
                 let quantity = 1;
                 let unitPrice = price;
 
-                // ============ SAM'S CLUB QUANTITY HANDLING ============
-                // Check if next line contains Sam's Club instant savings quantity info
+                // Check if next line contains quantity information
                 if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
                     const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
                         unitPrice = parseFloat(qtyMatch[2]);
-                        // For Sam's Club, the line price is often the total after instant savings
                         itemPrice = price; // Keep the line price as the actual paid amount
-                        console.log(`📋 Sam's: Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
+                        console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
+                    }
+                }
+
+                // Check for Trader Joe's quantity continuation pattern
+                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        itemPrice = quantity * unitPrice;
+                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
+
+                        // Verify the math matches the price on the main line
+                        if (Math.abs(itemPrice - price) < 0.01) {
+                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
+                        } else {
+                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
+                            itemPrice = price;
+                            quantity = 1;
+                            unitPrice = price;
+                        }
                     }
                 }
 
@@ -1346,20 +1252,90 @@ export default function ReceiptScan() {
                     nameMatch = line.replace(pricePattern, '').trim();
                 }
 
-                // Remove tax codes and other artifacts
-                nameMatch = nameMatch.replace(/\s+[TNF]\s*$/i, ''); // Remove tax codes
-                nameMatch = nameMatch.replace(/^[EV]\s+/i, ''); // Remove E or V prefixes
-
-                // ============ ENHANCED NAME CLEANING ============
+                // Clean up the item name
                 nameMatch = cleanItemName(nameMatch);
 
                 // Enhanced ground beef detection and cleaning
-                // Convert "80% 20% FT GRD BF" to "80/20 Ground Beef"
                 if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
                     const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
                     if (percentMatch) {
                         nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
                     }
+                }
+
+                // Handle Smith's specific abbreviations and OCR issues
+                if (nameMatch.match(/^ro\s+lrg\s+white\s+bak/i)) {
+                    nameMatch = "King's Hawaiian White Bread";
+                } else if (nameMatch.match(/^darn?c?n?\s+l[ef]\s+yogu?rt/i)) {
+                    nameMatch = "Dannon Light & Fit Yogurt";
+                } else if (nameMatch.match(/^spwd\s+gr\s+mwc/i)) {
+                    nameMatch = "Ground Turkey";
+                } else if (nameMatch.match(/^silk\s+alm?ond/i)) {
+                    nameMatch = "Silk Almond Milk";
+                } else if (nameMatch.match(/^sara\s+ml?tgrn\s+bread/i)) {
+                    nameMatch = "Sara Lee Multigrain Bread";
+                } else if (nameMatch.match(/^csdt\s+tomato/i)) {
+                    nameMatch = "Crushed Tomatoes";
+                } else if (nameMatch.match(/^org\s+hummus/i)) {
+                    nameMatch = "Organic Hummus";
+                } else if (nameMatch.match(/^veggiecraft\s+pasta/i)) {
+                    nameMatch = "Veggiecraft Pasta";
+                } else if (nameMatch.match(/^kroger\s+carrots/i)) {
+                    nameMatch = "Kroger Carrots";
+                } else if (nameMatch.match(/^onions?\s+shallots?/i)) {
+                    nameMatch = "Onions & Shallots";
+                } else if (nameMatch.match(/^sto\s+parsley/i)) {
+                    nameMatch = "Fresh Parsley";
+                }
+
+                // Handle common Trader Joe's item names and OCR issues
+                if (nameMatch.match(/^org\s+mini\s+peanut\s+butter/i)) {
+                    nameMatch = "Organic Mini Peanut Butter Cups";
+                } else if (nameMatch.match(/^peanut\s+crunchy\s+crispy/i)) {
+                    nameMatch = "Peanut Butter Crunchy & Crispy";
+                } else if (nameMatch.match(/^cold\s+brew\s+coffee\s+bags/i)) {
+                    nameMatch = "Cold Brew Coffee Bags";
+                } else if (nameMatch.match(/^popcorn\s+synergistically/i)) {
+                    nameMatch = "Synergistically Seasoned Popcorn";
+                } else if (nameMatch.match(/^crackers\s+sandwich\s+every/i)) {
+                    nameMatch = "Sandwich Crackers";
+                }
+
+                // Handle Sam's Club specific product name patterns
+                if (nameMatch.match(/bath\s+tissue/i)) {
+                    nameMatch = "Bath Tissue";
+                } else if (nameMatch.match(/klnx\s+12pk/i)) {
+                    nameMatch = "Kleenex 12-Pack";
+                } else if (nameMatch.match(/\$50gplay/i)) {
+                    nameMatch = "$50 Google Play Card";
+                } else if (nameMatch.match(/\$25gplay/i)) {
+                    nameMatch = "$25 Google Play Card";
+                } else if (nameMatch.match(/buffalosauce/i)) {
+                    nameMatch = "Buffalo Sauce";
+                } else if (nameMatch.match(/teriyaki/i)) {
+                    nameMatch = "Teriyaki Sauce";
+                } else if (nameMatch.match(/kndrhbsbbq/i)) {
+                    nameMatch = "BBQ Sauce";
+                } else if (nameMatch.match(/mm\s+minced\s+gf/i)) {
+                    nameMatch = "Minced Garlic";
+                } else if (nameMatch.match(/tones\s+italnf/i)) {
+                    nameMatch = "Italian Seasoning";
+                } else if (nameMatch.match(/mm\s+chives/i)) {
+                    nameMatch = "Chives";
+                } else if (nameMatch.match(/stckyhoney/i)) {
+                    nameMatch = "Sticky Honey";
+                } else if (nameMatch.match(/roasted\s+wine/i)) {
+                    nameMatch = "Roasted Wine";
+                } else if (nameMatch.match(/korbbqwingsf/i)) {
+                    nameMatch = "Korean BBQ Wings";
+                } else if (nameMatch.match(/mm\s+coq10/i)) {
+                    nameMatch = "CoQ10 Supplement";
+                } else if (nameMatch.match(/ns\s+shin\s+blaf/i)) {
+                    nameMatch = "Shin Black Noodles";
+                } else if (nameMatch.match(/picnic\s+packf/i)) {
+                    nameMatch = "Picnic Pack";
+                } else if (nameMatch.match(/fruit\s+tray/i)) {
+                    nameMatch = "Fruit Tray";
                 }
 
                 // Check for UPC in current or nearby lines
@@ -1372,9 +1348,9 @@ export default function ReceiptScan() {
                     !nameMatch.match(/^\d+\.?\d*$/) &&
                     !nameMatch.match(/^[tx]\s*\d/i) &&
                     !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i) &&
-                    !nameMatch.match(/^\d{8,}$/)) { // Skip long numbers
+                    !nameMatch.match(/^\d{8,}$/)) {
 
-                    console.log(`📋 Processing Sam's Club item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
+                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
 
                     const item = {
                         id: Date.now() + Math.random(),
@@ -1397,22 +1373,20 @@ export default function ReceiptScan() {
             }
         }
 
-        console.log(`📋 Extracted ${items.length} items from Sam's Club receipt`);
+        console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
     }
 
 
-    // Combine items with the same UPC code or identical names
+    // Combine duplicate items function
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
 
-        // First pass: Group by UPC code (most reliable)
+        // Group by UPC code first (most reliable)
         items.forEach(item => {
             if (item.upc && item.upc.length >= 11) {
-                // Clean UPC for consistent matching
                 const cleanUPC = item.upc.replace(/\D/g, '');
-
                 if (!upcGroups[cleanUPC]) {
                     upcGroups[cleanUPC] = [];
                 }
@@ -1420,7 +1394,6 @@ export default function ReceiptScan() {
             } else {
                 // Items without UPC codes - check for name matching
                 const cleanName = item.name.toLowerCase().trim();
-
                 if (!nameGroups[cleanName]) {
                     nameGroups[cleanName] = [];
                 }
@@ -1433,63 +1406,55 @@ export default function ReceiptScan() {
         // Process UPC groups
         Object.values(upcGroups).forEach(group => {
             if (group.length === 1) {
-                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
-                // Multiple items with same UPC - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+                const unitPrice = totalPrice / totalQuantity;
 
-                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (UPC): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random() // New ID for combined item
+                    id: Date.now() + Math.random()
                 };
 
                 combinedItems.push(combinedItem);
-
-                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name} (Total qty: ${totalQuantity})`);
+                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name}`);
             }
         });
 
         // Process name groups (items without UPC)
         Object.values(nameGroups).forEach(group => {
             if (group.length === 1) {
-                // Single item, no combining needed
                 combinedItems.push(group[0]);
             } else {
-                // Multiple items with same name - combine them
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = group.length > 1 ? (totalPrice / totalQuantity) : firstItem.unitPrice;
+                const unitPrice = totalPrice / totalQuantity;
 
-                // Create combined item
                 const combinedItem = {
                     ...firstItem,
                     quantity: totalQuantity,
                     price: totalPrice,
                     unitPrice: unitPrice,
                     rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random() // New ID for combined item
+                    id: Date.now() + Math.random()
                 };
 
                 combinedItems.push(combinedItem);
-
-                console.log(`Combined ${group.length} items by name: ${firstItem.name} (Total qty: ${totalQuantity})`);
+                console.log(`Combined ${group.length} items by name: ${firstItem.name}`);
             }
         });
 
         return combinedItems;
     }
 
-    // Enhanced cleanItemName function - now includes Sam's Club support while preserving ALL existing store logic
+    // Enhanced cleanItemName function with support for all stores
     function cleanItemName(name) {
         // Remove UPC codes at the beginning (Target and others put them first)
         name = name.replace(/^\d{8,}\s+/, '');
@@ -1497,7 +1462,6 @@ export default function ReceiptScan() {
         // Remove common store tax codes and artifacts
         name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
         name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
-        name = name.replace(/\s+F\s*$/i, '');  // Remove "F" tax code (Smith's)
         name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
 
         // Remove quantity patterns that might have been missed
@@ -1510,48 +1474,7 @@ export default function ReceiptScan() {
         name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
         name = name.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
 
-        // Remove Sam's Club prefixes and codes (NEW)
-        name = name.replace(/^[EV]\s+/i, ''); // Remove E or V prefixes
-        name = name.replace(/^\d{8,}\s+/i, ''); // Remove long product codes
-
-        // Handle Sam's Club specific product name patterns (NEW)
-        if (name.match(/bath\s+tissue/i)) {
-            return "Bath Tissue";
-        } else if (name.match(/klnx\s+12pk/i)) {
-            return "Kleenex 12-Pack";
-        } else if (name.match(/\$50gplay/i)) {
-            return "$50 Google Play Card";
-        } else if (name.match(/\$25gplay/i)) {
-            return "$25 Google Play Card";
-        } else if (name.match(/buffalosauce/i)) {
-            return "Buffalo Sauce";
-        } else if (name.match(/teriyaki/i)) {
-            return "Teriyaki Sauce";
-        } else if (name.match(/kndrhbsbbq/i)) {
-            return "BBQ Sauce";
-        } else if (name.match(/mm\s+minced\s+gf/i)) {
-            return "Minced Garlic";
-        } else if (name.match(/tones\s+italnf/i)) {
-            return "Italian Seasoning";
-        } else if (name.match(/mm\s+chives/i)) {
-            return "Chives";
-        } else if (name.match(/stckyhoney/i)) {
-            return "Sticky Honey";
-        } else if (name.match(/roasted\s+wine/i)) {
-            return "Roasted Wine";
-        } else if (name.match(/korbbqwingsf/i)) {
-            return "Korean BBQ Wings";
-        } else if (name.match(/mm\s+coq10/i)) {
-            return "CoQ10 Supplement";
-        } else if (name.match(/ns\s+shin\s+blaf/i)) {
-            return "Shin Black Noodles";
-        } else if (name.match(/picnic\s+packf/i)) {
-            return "Picnic Pack";
-        } else if (name.match(/fruit\s+tray/i)) {
-            return "Fruit Tray";
-        }
-
-        // Handle specific brand conversions for ALL stores (EXISTING)
+        // Handle specific brand conversions for Target
         if (name.match(/birds?\s*eye/i)) {
             name = "Birds Eye";
         } else if (name.match(/frosty\s*paws/i)) {
@@ -1560,22 +1483,22 @@ export default function ReceiptScan() {
             name = "Great Grains Vegetable";
         }
 
-        // Clean up common OCR artifacts (EXISTING)
+        // Clean up common OCR artifacts
         name = name.replace(/[^\w\s\-&']/g, ' '); // Remove special chars except common ones
         name = name.replace(/\s+/g, ' '); // Normalize whitespace
         name = name.trim();
 
-        // Capitalize properly (EXISTING)
+        // Capitalize properly
         return name.split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     }
 
-    // Enhanced guessCategory function - now includes Sam's Club support while preserving ALL existing store logic
+    // Enhanced guessCategory function with Sam's Club support while preserving ALL existing store logic
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
-        // Sam's Club specific categories (NEW)
+        // Sam's Club specific categories
         if (nameLower.includes('bath tissue') || (nameLower.includes('tissue') && !nameLower.includes('facial'))) {
             return 'Personal Care';
         }
@@ -1602,7 +1525,6 @@ export default function ReceiptScan() {
         }
 
         // EXISTING LOGIC - All original category detection preserved
-        // Dairy products
         if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('yoghurt')) {
             return 'Dairy';
         }
@@ -1706,6 +1628,7 @@ export default function ReceiptScan() {
         return 'Other';
     }
 
+
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
@@ -1730,31 +1653,6 @@ export default function ReceiptScan() {
         }
 
         return 'pantry';
-    }
-
-    function resetScan() {
-        // Stop camera first
-        stopCamera();
-
-        // Reset all state
-        setStep('upload');
-        setCapturedImage(prevImage => {
-            if (prevImage) {
-                URL.revokeObjectURL(prevImage);
-            }
-            return null;
-        });
-        setExtractedItems([]);
-        setIsProcessing(false);
-        setOcrProgress(0);
-        setProcessingStatus('');
-        setCameraError(null);
-        setShowIOSPWAModal(false);
-
-        // Clear file input
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
     }
 
     function updateItem(itemId, field, value) {
@@ -2086,6 +1984,7 @@ export default function ReceiptScan() {
         setOcrProgress(0);
         setProcessingStatus('');
         setCameraError(null);
+        setShowIOSPWAModal(false);
 
         // Clear file input
         if (fileInputRef.current) {
