@@ -1102,9 +1102,24 @@ export default function ReceiptScan() {
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
             const prevLine = i > 0 ? lines[i - 1] : '';
 
-            // Skip common header/footer patterns
-            if (skipPatterns.some(pattern => pattern.test(line))) {
-                console.log(`📋 Skipping pattern match: ${line}`);
+            // Skip common header/footer patterns - WITH DEBUGGING
+            let shouldSkip = false;
+            let matchingPatternIndex = -1;
+            let matchingPattern = null;
+
+            for (let patternIndex = 0; patternIndex < skipPatterns.length; patternIndex++) {
+                const pattern = skipPatterns[patternIndex];
+                if (pattern.test(line)) {
+                    shouldSkip = true;
+                    matchingPatternIndex = patternIndex;
+                    matchingPattern = pattern;
+                    break;
+                }
+            }
+
+            if (shouldSkip) {
+                console.log(`📋 Skipping pattern #${matchingPatternIndex}: ${line}`);
+                console.log(`📋 Pattern that matched: ${matchingPattern}`);
                 continue;
             }
 
