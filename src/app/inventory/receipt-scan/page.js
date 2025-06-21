@@ -1154,7 +1154,7 @@ export default function ReceiptScan() {
             }
 
             // Skip lines with negative amounts (discounts)
-            if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
+            if (line.match(/\d+\.\d{2}-[nt]$/i)) {
                 console.log(`📋 Skipping negative amount: ${line}`);
                 continue;
             }
