@@ -1096,6 +1096,8 @@ export default function ReceiptScan() {
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
 
+        let nameMatch = line;
+        nameMatch = cleanItemName(nameMatch);
         // Process lines with context awareness
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -1221,7 +1223,7 @@ export default function ReceiptScan() {
                     continue;
                 }
 
-                let nameMatch = line;
+
                 let itemPrice = price;
                 let quantity = 1;
                 let unitPrice = price;
@@ -1271,7 +1273,7 @@ export default function ReceiptScan() {
                 }
 
                 // Clean up the item name
-                nameMatch = cleanItemName(nameMatch);
+
 
                 // Enhanced ground beef detection and cleaning
                 if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
