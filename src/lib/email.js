@@ -1587,6 +1587,200 @@ Welcome to the family!
 
         return { html, text };
     }
+
+    static getAccountDeletionConfirmationTemplate(userEmail, userName) {
+        const currentYear = new Date().getFullYear();
+        const deletionTime = new Date().toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deleted - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #fecaca;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .deletion-confirmation {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .deletion-confirmation h3 {
+            color: #dc2626;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        .data-notice {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Account Deletion Confirmation</p>
+        </div>
+        
+        <div class="content">
+            <h1 class="title">Account Successfully Deleted</h1>
+            
+            <p>Hello ${userName},</p>
+            
+            <div class="deletion-confirmation">
+                <h3>✅ Your account has been permanently deleted</h3>
+                <p><strong>Account:</strong> ${userEmail}</p>
+                <p><strong>Deletion Date:</strong> ${deletionTime}</p>
+            </div>
+            
+            <p>We have successfully processed your account deletion request. All of your personal data, including:</p>
+            
+            <ul>
+                <li>Profile information and preferences</li>
+                <li>Inventory items and tracking data</li>
+                <li>Personal recipes and meal plans</li>
+                <li>Shopping lists and templates</li>
+                <li>Nutrition logs and goals</li>
+                <li>Account settings and preferences</li>
+            </ul>
+            
+            <p>...has been permanently removed from our systems.</p>
+            
+            <div class="data-notice">
+                <strong>Note about public recipes:</strong> Any recipes you previously made public have been anonymized but remain available to the community. This helps preserve valuable content while protecting your privacy.
+            </div>
+            
+            <p>Thank you for being part of the Doc Bear's Comfort Kitchen community. We're sorry to see you go, and we hope our paths cross again in the future.</p>
+            
+            <p>If you have any questions about this deletion or need assistance, please contact our support team.</p>
+            
+            <p>Best wishes,<br>
+            The Doc Bear's Comfort Kitchen Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is a confirmation email for account deletion</p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const text = `
+Account Successfully Deleted - Doc Bear's Comfort Kitchen
+
+Hello ${userName},
+
+Your account has been permanently deleted.
+
+Account: ${userEmail}
+Deletion Date: ${deletionTime}
+
+We have successfully processed your account deletion request. All of your personal data has been permanently removed from our systems, including:
+
+- Profile information and preferences
+- Inventory items and tracking data
+- Personal recipes and meal plans
+- Shopping lists and templates
+- Nutrition logs and goals
+- Account settings and preferences
+
+Note about public recipes: Any recipes you previously made public have been anonymized but remain available to the community. This helps preserve valuable content while protecting your privacy.
+
+Thank you for being part of the Doc Bear's Comfort Kitchen community. We're sorry to see you go, and we hope our paths cross again in the future.
+
+If you have any questions about this deletion or need assistance, please contact our support team.
+
+Best wishes,
+The Doc Bear's Comfort Kitchen Team
+
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+    `;
+
+        return { html, text };
+    }
 }
 
 // Create singleton instance
@@ -1625,6 +1819,17 @@ export async function sendEmailVerificationEmail(email, verificationToken, userN
     return await emailService.sendEmail(
         email,
         'Verify Your Email Address - Doc Bear\'s Comfort Kitchen',
+        template.html,
+        template.text
+    );
+}
+
+export async function sendAccountDeletionConfirmationEmail(email, userName) {
+    const template = EmailTemplates.getAccountDeletionConfirmationTemplate(email, userName);
+
+    return await emailService.sendEmail(
+        email,
+        'Account Deleted Successfully - Doc Bear\'s Comfort Kitchen',
         template.html,
         template.text
     );

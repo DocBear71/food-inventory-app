@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sendShoppingListEmail, validateEmails } from '@/lib/email';
 import { User, EmailLog } from '@/lib/models';
 import { checkFeatureAccess, checkUsageLimit, getUsageLimit } from '@/lib/subscription-config';

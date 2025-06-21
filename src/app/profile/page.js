@@ -564,7 +564,7 @@ export default function ProfilePage() {
         const baseTabs = [
             {id: 'general', name: 'General', icon: '👤'},
             {id: 'notifications', name: 'Notifications', icon: '🔔'},
-            {id: 'meal-planning', name: 'Meal Planning', icon: '📅'},
+            {id: 'meal-planning', name: 'Meal Planning', icon: '📅', requiresSubscription: true},
             {id: 'security', name: 'Security', icon: '🔒'}
         ];
 
