@@ -1095,6 +1095,7 @@ export default function ReceiptScan() {
             /tax$/i,
             /Tax$/i,
             /TAX$/i,
+            /^tax\s+[\d\s]+$/i,
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
@@ -1174,6 +1175,11 @@ export default function ReceiptScan() {
             // Skip lines that are just whitespace or tax codes
             if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
                 console.log(`📋 Skipping tax code or whitespace: ${line}`);
+                continue;
+            }
+
+            if (nameMatch.match(/^tax\s+\d+/i)) {
+                console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
                 continue;
             }
 
