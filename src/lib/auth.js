@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - Fixed cookie configuration
+// file: /src/lib/auth.js - v2 - Fixed cookie configuration to resolve sign-out issues
 console.log('Auth config loading...');
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
@@ -96,53 +96,6 @@ export const authOptions = {
             return true;
         },
     },
-    // Enhanced mobile compatibility - FIXED FOR docbearscomfort.kitchen
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
-    cookies: {
-        sessionToken: {
-            name: process.env.NODE_ENV === 'production'
-                ? '__Secure-next-auth.session-token'
-                : 'next-auth.session-token',
-            options: {
-                httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production',
-                // FIXED: Correct domain for your site (no leading dot needed)
-                domain: process.env.NODE_ENV === 'production'
-                    ? 'www.docbearscomfort.kitchen'
-                    : undefined
-            },
-        },
-        callbackUrl: {
-            name: process.env.NODE_ENV === 'production'
-                ? '__Secure-next-auth.callback-url'
-                : 'next-auth.callback-url',
-            options: {
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production',
-                // FIXED: Add domain for callback URL too
-                domain: process.env.NODE_ENV === 'production'
-                    ? 'www.docbearscomfort.kitchen'
-                    : undefined
-            },
-        },
-        csrfToken: {
-            name: process.env.NODE_ENV === 'production'
-                ? 'next-auth.csrf-token'
-                : 'next-auth.csrf-token',
-            options: {
-                httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production',
-                // FIXED: Add domain for CSRF token
-                domain: process.env.NODE_ENV === 'production'
-                    ? 'www.docbearscomfort.kitchen'
-                    : undefined
-            },
-        },
-    },
 };
