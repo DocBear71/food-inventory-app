@@ -818,584 +818,206 @@ export default function ReceiptScan() {
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
-        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
-        // FIXED: Restored comprehensive skip patterns from v5 - this was the issue
+        // Skip patterns - but we'll apply these to CLEANED names, not raw lines
         const skipPatterns = [
-            // ============ STORE NAMES AND HEADERS (More precise) ============
-            /^walmart$/i,  // Only "walmart" by itself, not lines containing walmart
-            /^target$/i,   // Only "target" by itself
-            /^kroger$/i,   // Only "kroger" by itself
-            /^publix$/i,   // Only "publix" by itself
-            /^safeway$/i,  // Only "safeway" by itself
-            /^hy-vee$/i,   // Only "hy-vee" by itself
-            /^hyvee$/i,    // Only "hyvee" by itself
-            /^sam's club$/i, // Only "sam's club" by itself, not lines with products
-            /^sams club$/i,  // Only "sams club" by itself
-            /^costco$/i,     // Only "costco" by itself
-            /^trader joe's$/i, // Only "trader joe's" by itself
-            /^trader joes$/i,  // Only "trader joes" by itself
-            /^smith's$/i,      // Only "smith's" by itself
-            /^smiths$/i,       // Only "smiths" by itself
-
-            // Store taglines and headers
-            /^save money live better$/i,
-            /^supercenter$/i,
-            /^neighborhood\s+grocery\s+store$/i,
-            /^your\s+neighborhood$/i,
-
-            // Receipt metadata
+            // ============ STORE NAMES AND HEADERS ============
+            /^(walmart|target|kroger|publix|safeway|hy-vee|hyvee|sam's club|sams club|costco)$/i,
+            /^(trader joe's|trader joes|smith's|smiths)$/i,
+            /^(total|subtotal|tax|change|card|cash)$/i,
             /^(thank you|receipt|store|phone|address)$/i,
-            /^\d{2}\/\d{2}\/\d{4}$/,
-            /^[\d\s\-\(\)]+$/,
 
             // ============ PAYMENT AND TRANSACTION LINES ============
             /^(debit|credit|card|cash|tend|tender)$/i,
-            /^(debit tend|credit tend|cash tend)$/i,
             /^(payment|transaction|approval)$/i,
-            /^(ref|reference|auth|authorization)$/i,
-            /^(visa|mastercard|amex|discover|american express)$/i,
-            /^(visa credit|visa debit|mastercard credit)$/i,
-
-            // ============ WALMART SPECIFIC PATTERNS ============
-            /^manager\s+/i,
-            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i, // Store number + date
-            /^st#\s*\d+/i, // Store number
-            /^op#\s*\d+/i, // Operator number
-            /^te#\s*\d+/i, // Terminal number
-            /^tr#\s*\d+/i, // Transaction number
-            /walmart\.com/i,
-            /^balance\s+\$/i,
-            /^change\s+\$/i,
-            /^total\s+tax/i,
-            /^account\s+#/i,
-            /^approval\s+#/i,
-
-            // ============ SAM'S CLUB SPECIFIC PATTERNS (More precise) ============
-            /^membership$/i,
-            /^advantage$/i,
-            /^plus$/i,
-            /^edward$/i, // Location names - but only by themselves
-            /^cedar\s+rapids$/i, // Only address lines, not product lines
-            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}$/i, // Phone numbers only
-            /^\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/i, // Date/time stamps
-            /^\d{4}\s+\d{5}\s+\d{3}\s+\d{4}$/i, // Transaction numbers only
-
-            // FIXED: More specific instant savings patterns
-            /^[ev]?\s*inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // Only discount lines ending with amount-N/T
-            /^s\s+inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // S instant savings with discount
-            /^[ev]\s+[ev]\s+inst\s+sv/i, // Multi-character instant savings
-
-            /member\s*(ship|#|savings)$/i, // Only membership lines at end
-            /you\s+saved$/i,               // Only "you saved" by itself
-            /total\s+savings$/i,           // Only "total savings" by itself
-
-            // TRADER JOE'S SPECIFIC PAYMENT PATTERNS
-            /^visa\s*$/i,
-            /^payment\s+card\s+purchase\s+transaction$/i,
-            /^customer\s+copy$/i,
-            /^type:\s+contactless$/i,
-            /^aid:\s*\*+\d+$/i,
-            /^tid:\s*\*+\d+$/i,
-            /^no\s+cardholder\s+verification$/i,
-            /^please\s+retain\s+for\s+your\s+records$/i,
-            /^total\s+purchase$/i,
-            /^\*+\d{4}$/i, // Card number fragments
-
-            // SMITH'S (KROGER) SPECIFIC PAYMENT PATTERNS
-            /^your\s+cashier\s+was/i,
-            /^fresh\s+value\s+customer$/i,
-            /^\*+\s*balance$/i,
-            /^\d{3}-\d{3}-\d{4}$/i, // Phone numbers
+            /^(visa|mastercard|amex|discover)$/i,
 
             // ============ RECEIPT FOOTER INFORMATION ============
             /^(change due|amount due|balance)$/i,
             /^(customer|member|rewards)$/i,
             /^(save|saved|you saved)$/i,
             /^(coupon|discount|promotion)$/i,
-            /^items\s+in\s+transaction$/i,
-            /^balance\s+to\s+pay$/i,
 
-            // ============ STORE OPERATION CODES AND IDS ============
-            /^(st#|store|op|operator|te|terminal)$/i,
-            /^(tc#|transaction|seq|sequence)$/i,
-            /^[\d\s]{10,}$/,
+            // ============ COMMON ABBREVIATIONS AND CODES ============
+            /^(nf|t|f|n)$/i,  // Tax codes only
+            /^(ea|each)$/i,   // Unit indicators only
 
-            // ============ ITEMS SOLD COUNTER ============
-            /^#?\s*items?\s+sold$/i,
-            /^\d+\s+items?\s+sold$/i,
+            // Keep other specific patterns but apply them to cleaned names
+        ];
 
-            // ============ BARCODE NUMBERS (STANDALONE) ============
-            /^[\d\s]{15,}$/,
-
-            // ============ HY-VEE SPECIFIC PATTERNS ============
-            /^(sub-total|subtotal|sub total)$/i,
-            /^(net amount|netamount|net)$/i,
-            /^(total|amount)$/i,
-            /^subtotal\s*\[\d+\]$/i,
-            /btl\s+dep/i,
-            /btl\.\s+dep/i,
-            /bottle\s+deposit/i,
-            /deposit/i,
-            /^\.?\d+\s*fs?\s*btl\s*dep/i,
-            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
-            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^manual\s*weight$/i,
-            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb$/i,
-            /^x\s+\d+\s+\d+\s+\d+$/i,
-            /^[tx]\s+\d+(\s+\d+)*$/i,
-            /^\d+\s+\d+\s+\d+\s+\d+$/i,
-            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
-            /^[\d\s]+\d{2}$/i,
-            /^[a-z]\s+[\d\s]+$/i,
-            /^@\s*\d+\.\d+%/i,
-            /^=\s*[\d\s]+$/i,
-            /^\d+\.\d+%\s*=?$/i,
-            /^sub\s*total\s*[\[\d\]]*$/i,
-            /^total\s*[\[\d\]]*$/i,
-            /employee\s*owned/i,
-            /storeman/i,
-            /group.*hy.*vee/i,
-            /^[\d\s]{3,}$/,
-            /^[a-z]{1,2}\s+[\d\s]+$/i,
-
-            // ============ TARGET SPECIFIC PATTERNS ============
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^\d+\s*ea$/i,
-            /^ea$/i,
-            /^regular\s+price$/i,
-            /^reg\s+price$/i,
-            /^was\s+\$?\d+\.\d{2}$/i,
-            /^t\s*=\s*ia\s+tax$/i,
-            /^[t]\s*-\s*ia\s+tax$/i,
-            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}$/i,
-            /^\*?\d{4}\s+debit\s+total$/i,
-            /^aid[:;]\s*[a-z0-9]+$/i,
-            /^auth\s+code[:;]$/i,
-            /^us\s+debit$/i,
-            /when\s+you\s+return/i,
-            /return\s+credit/i,
-            /promotional\s+discount/i,
-            /applied\s+to\s+the/i,
-            /saving\s+with\s+target/i,
-            /target\s+circle/i,
-            /got\s+easier/i,
-            /open\s+the\s+target/i,
-            /target\.com/i,
-            /see\s+your\s+savings/i,
-            /find\s+more\s+benefits/i,
-            /\bapp\b.*\bvisit\b/i,
-            /benefits/i,
-            /blairs\s+ferry/i,
-            /^nf$/i,
-            /^t$/i,
-            /^[a-z]$/i,
-            /^[nt]$/i,
-            /^grocery$/i,
-            /^home$/i,
-            /^electronics$/i,
-            /^clothing$/i,
-
-            // ============ TRADER JOE'S SPECIFIC PATTERNS ============
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^@\s*\$?\d+\.\d{2}$/i,
-            /^items\s+in\s+transaction[:;]?\s*\d+$/i,
-            /^balance\s+to\s+pay$/i,
-            /^merchant\s+copy$/i,
-            /^type[:;]\s*(contactless|chip|swipe)$/i,
-            /^aid[:;]\s*\*+$/i,
-            /^tid[:;]\s*\*+$/i,
-            /^nid[:;]\s*\*+$/i,
-            /^mid[:;]\s*\*+$/i,
-            /^auth\s+code[:;]$/i,
-            /^approval\s+code$/i,
-            /^please\s+retain$/i,
-            /^retain\s+for$/i,
-            /^for\s+your\s+records$/i,
-
-            // ============ SMITH'S (KROGER) SPECIFIC PATTERNS ============
-            /^\d+\s+s\.\s+maryland\s+pkwy$/i,
-            /^chec\s+\d+$/i,
-            /^kroger\s+plus$/i,
-            /^fuel\s+points$/i,
-            /^you\s+earned$/i,
-            /^points\s+earned$/i,
-            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb$/i,
-            /^wt\s+.*lb$/i,
-            /^\d+\.\d+\s*\/\s*lb$/i,
-            /^tax$/i,
-            /^\*+\s*balance$/i,
-            /^balance\s*\*+$/i,
-            /^f$/i,
-            /^[f|t]\s*$/i,
-            /^ro\s+lrg$/i,
-            /^darnc[n|g]$/i,
-            /^spwd\s+gr$/i,
-
-            // ============ GENERIC PATTERNS ============
-            /^\d+\.\d+\s*x\s*\$?\d+\.\d{2}$/i,
-            /^\d+\.?\d*x?$/i,
-            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
-            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
-            /fuel\s*saver/i,
-            /fuel\s*reward/i,
-            /\d+\s+fuel\s+saver/i,
-            /hormel\s*loins/i,
-            /\d+\s+hormel\s*loins/i,
-            /^(ia|iowa)\s+state$/i,
-            /^linn\s+county$/i,
-            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%$/i,
-            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%$/i,
-            /bottom\s*of\s*cart/i,
-            /spend\s*\$?\d+/i,
-            /\d+x\s*\d+of\d+/i,
-            /^payment\s*information$/i,
-            /^total\s*paid$/i,
-            /^[a-z]\s*—?\s*$/i,
-            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
-            /deals\s*&?\s*coupons/i,
-            /view\s*coupons/i,
-
-            // ============ DISCOUNT AND NEGATIVE AMOUNT PATTERNS ============
-            /^\d+%?\s*(off|discount|save)$/i,
-            /^\(\$\d+\.\d{2}\)$/i,
-            /^-\$?\d+\.\d{2}$/i,
-            /^\d+\.\d{2}[-\s]*[nt]$/i,
-            /\d+\.\d{2}[-\s]*n$/i,
-            /\d+\.\d{2}[-\s]*t$/i,
-            /^.*-\$?\d+\.\d{2}$/i,
-            /^.*\s+-\$?\d+\.\d{2}$/i,
-            /^.*\s+\$?-\d+\.\d{2}$/i,
-
-            // ============ ADDITIONAL COMMON PATTERNS ============
-            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=$/i,
-            /^[tx]\s+\d+\.\d+\s*@$/i,
-            /^\d+\.\d+%\s*=$/i,
-            /^=\s*\d+\.\d+$/i,
-            /^\d+\.\d+\s*lb\s*@$/i,
-            /^\d+\.\d+\s*usd\/lb$/i,
+        // Patterns to skip on RAW lines (before cleaning) - only obvious non-product lines
+        const rawLineSkipPatterns = [
+            /^\d{2}\/\d{2}\/\d{4}/,  // Dates
+            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}/,  // Phone numbers
+            /^[\d\s\-\(\)]+$/,  // Number-only lines
+            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/,  // Store + date
+            /^manager\s+/i,
+            /^st#\s*\d+/i,
+            /^op#\s*\d+/i,
+            /walmart\.com/i,
+            /^balance\s+\$/i,
+            /^change\s+\$/i,
+            /^approval\s+#/i,
+            /^auth\s+code/i,
             /voided\s*bankcard/i,
-            /bank\s*card/i,
-            /transaction\s*not\s*complete/i,
-            /transaction\s*complete/i,
-            /tenbe\s*due/i,
-            /tender\s*due/i,
-            /change\s*due/i,
-            /amount\s*due/i,
-            /balance\s*due/i,
-            /debit\s*tend/i,
-            /cash\s*tend/i,
-            /terminal\s*#/i,
-            /pay\s+from\s+primary/i,
-            /purchase$/i,
+            /transaction\s*(not\s*)?complete/i,
+            /^terminal\s*#/i,
+            /^[\d\s]{15,}$/,  // Very long number sequences only
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
 
-        let nameMatch = line;
-        nameMatch = cleanItemName(nameMatch);
-        // Process lines with context awareness
+        // Process lines with NEW logic: extract info first, then check skip patterns
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
             const prevLine = i > 0 ? lines[i - 1] : '';
 
-            // Skip common header/footer patterns
-            if (skipPatterns.some(pattern => pattern.test(line))) {
-                console.log(`📋 Skipping pattern match: ${line}`);
-                continue;
+            // STEP 1: Skip obvious non-product lines based on RAW line format
+            let shouldSkipRaw = false;
+            for (const pattern of rawLineSkipPatterns) {
+                if (pattern.test(line)) {
+                    console.log(`📋 Skipping raw line pattern: ${line}`);
+                    shouldSkipRaw = true;
+                    break;
+                }
             }
+            if (shouldSkipRaw) continue;
 
-            // Skip bottle deposit lines specifically
-            if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
-                console.log(`📋 Skipping bottle deposit: ${line}`);
-                continue;
-            }
-
-            // Skip tax calculation lines
-            if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
-                console.log(`📋 Skipping tax calculation: ${line}`);
-                continue;
-            }
-
-            // Skip weight information lines
-            if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
-                console.log(`📋 Skipping weight info: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just mathematical calculations or references
-            if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
-                console.log(`📋 Skipping calculation line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are clearly instant savings (discounts)
-            if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
-                console.log(`📋 Skipping instant savings: ${line}`);
-                continue;
-            }
-
-            // Skip lines with negative amounts (discounts)
-            if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
-                console.log(`📋 Skipping negative amount: ${line}`);
-                continue;
-            }
-
-            // Skip zero-amount lines
-            if (line.match(/\$?0\.00/i)) {
-                console.log(`📋 Skipping zero amount: ${line}`);
-                continue;
-            }
-
-            // Skip payment/tender related lines
-            if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
-                console.log(`📋 Skipping payment line: ${line}`);
-                continue;
-            }
-
-            // Skip if this line is just a quantity/price continuation of previous item
-            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
-                console.log(`📋 Skipping quantity line (part of previous item): ${line}`);
-                continue;
-            }
-
-            // Skip regular price lines
-            if (line.match(/^regular\s+price/i)) {
-                console.log(`📋 Skipping regular price line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just whitespace or tax codes
-            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
-                console.log(`📋 Skipping tax code or whitespace: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just discount amounts
-            if (line.match(/^\$?\d+\.\d{2}\s*-\s*[nt]$/i)) {
-                console.log(`📋 Skipping discount amount: ${line}`);
-                continue;
-            }
-
-            // Skip lines that contain discount codes with percentages
-            if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
-                console.log(`📋 Skipping discount code line: ${line}`);
-                continue;
-            }
-
-            // Skip measurement calculation lines
-            if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
-                console.log(`📋 Skipping measurement line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just weights/measurements
-            if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
-                console.log(`📋 Skipping weight line: ${line}`);
-                continue;
-            }
-
-            // Skip specific total lines (case insensitive)
-            if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
-                console.log(`📋 Skipping total line: ${line}`);
-                continue;
-            }
-
-            // Check if line contains a price
+            // STEP 2: Check if line contains a price (indicates it might be a product)
             const priceMatch = line.match(pricePattern);
-            if (priceMatch) {
-                const price = parseFloat(priceMatch[1]);
+            if (!priceMatch) {
+                console.log(`📋 Skipping line without price: ${line}`);
+                continue;
+            }
 
-                // Skip very high prices that are likely totals (over $100)
-                if (price > 100) {
-                    console.log(`📋 Skipping high price line (likely total): ${line}`);
-                    continue;
-                }
+            const price = parseFloat(priceMatch[1]);
 
-                // Skip very low prices that are likely tax or fees (under $0.10)
-                if (price < 0.10) {
-                    console.log(`📋 Skipping very low price (likely fee): ${line}`);
-                    continue;
-                }
+            // Skip extreme prices
+            if (price > 200) {
+                console.log(`📋 Skipping high price line (likely total): ${line}`);
+                continue;
+            }
 
+            // STEP 3: Extract and clean the product name FIRST
+            let nameMatch = line;
+            let itemPrice = price;
+            let quantity = 1;
+            let unitPrice = price;
 
-                let itemPrice = price;
-                let quantity = 1;
-                let unitPrice = price;
+            // Handle different store formats for name extraction
+            // Sam's Club format: [E] UPC PRODUCT_NAME PRICE TAX_CODE
+            const samsParts = line.match(/^([E]?\s*\d+)\s+(.+?)\s+(\d+\.\d{2})\s*([TNF]?)$/i);
+            if (samsParts) {
+                nameMatch = samsParts[2].trim();
+                itemPrice = parseFloat(samsParts[3]);
+                console.log(`📋 Sam's Club format: "${nameMatch}" - $${itemPrice}`);
+            } else {
+                // For other formats, remove price and UPC codes
+                nameMatch = line.replace(pricePattern, '').trim();
+                nameMatch = nameMatch.replace(/^\d{8,}\s+/, ''); // Remove leading UPC
+            }
 
-                // Check if next line contains quantity information
-                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = parseFloat(qtyMatch[2]);
-                        itemPrice = price; // Keep the line price as the actual paid amount
-                        console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
-                    }
-                }
+            // STEP 4: Clean the product name
+            nameMatch = cleanItemName(nameMatch);
+            nameMatch = cleanSamsClubItemName(nameMatch);
 
-                // Check for Trader Joe's quantity continuation pattern
-                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = parseFloat(qtyMatch[2]);
-                        itemPrice = quantity * unitPrice;
-                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
-
-                        // Verify the math matches the price on the main line
-                        if (Math.abs(itemPrice - price) < 0.01) {
-                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
-                        } else {
-                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
-                            itemPrice = price;
-                            quantity = 1;
-                            unitPrice = price;
-                        }
-                    }
-                }
-
-                // Check if current line contains embedded quantity information
-                const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
-                if (embeddedQtyMatch) {
-                    nameMatch = embeddedQtyMatch[1];
-                    quantity = parseInt(embeddedQtyMatch[2]);
-                    unitPrice = parseFloat(embeddedQtyMatch[3]);
-                    itemPrice = quantity * unitPrice;
-                } else {
-                    // Remove price from name
-                    nameMatch = line.replace(pricePattern, '').trim();
-                }
-
-                // Clean up the item name
-
-
-                // Enhanced ground beef detection and cleaning
-                if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
-                    const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
-                    if (percentMatch) {
-                        nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
-                    }
-                }
-
-                // Handle Smith's specific abbreviations and OCR issues
-                if (nameMatch.match(/^ro\s+lrg\s+white\s+bak/i)) {
-                    nameMatch = "King's Hawaiian White Bread";
-                } else if (nameMatch.match(/^darn?c?n?\s+l[ef]\s+yogu?rt/i)) {
-                    nameMatch = "Dannon Light & Fit Yogurt";
-                } else if (nameMatch.match(/^spwd\s+gr\s+mwc/i)) {
-                    nameMatch = "Ground Turkey";
-                } else if (nameMatch.match(/^silk\s+alm?ond/i)) {
-                    nameMatch = "Silk Almond Milk";
-                } else if (nameMatch.match(/^sara\s+ml?tgrn\s+bread/i)) {
-                    nameMatch = "Sara Lee Multigrain Bread";
-                } else if (nameMatch.match(/^csdt\s+tomato/i)) {
-                    nameMatch = "Crushed Tomatoes";
-                } else if (nameMatch.match(/^org\s+hummus/i)) {
-                    nameMatch = "Organic Hummus";
-                } else if (nameMatch.match(/^veggiecraft\s+pasta/i)) {
-                    nameMatch = "Veggiecraft Pasta";
-                } else if (nameMatch.match(/^kroger\s+carrots/i)) {
-                    nameMatch = "Kroger Carrots";
-                } else if (nameMatch.match(/^onions?\s+shallots?/i)) {
-                    nameMatch = "Onions & Shallots";
-                } else if (nameMatch.match(/^sto\s+parsley/i)) {
-                    nameMatch = "Fresh Parsley";
-                }
-
-                // Handle common Trader Joe's item names and OCR issues
-                if (nameMatch.match(/^org\s+mini\s+peanut\s+butter/i)) {
-                    nameMatch = "Organic Mini Peanut Butter Cups";
-                } else if (nameMatch.match(/^peanut\s+crunchy\s+crispy/i)) {
-                    nameMatch = "Peanut Butter Crunchy & Crispy";
-                } else if (nameMatch.match(/^cold\s+brew\s+coffee\s+bags/i)) {
-                    nameMatch = "Cold Brew Coffee Bags";
-                } else if (nameMatch.match(/^popcorn\s+synergistically/i)) {
-                    nameMatch = "Synergistically Seasoned Popcorn";
-                } else if (nameMatch.match(/^crackers\s+sandwich\s+every/i)) {
-                    nameMatch = "Sandwich Crackers";
-                }
-
-                // Handle Sam's Club specific product name patterns
-                if (nameMatch.match(/bath\s+tissue/i)) {
-                    nameMatch = "Bath Tissue";
-                } else if (nameMatch.match(/klnx\s+12pk/i)) {
-                    nameMatch = "Kleenex 12-Pack";
-                } else if (nameMatch.match(/\$50gplay/i)) {
-                    nameMatch = "$50 Google Play Card";
-                } else if (nameMatch.match(/\$25gplay/i)) {
-                    nameMatch = "$25 Google Play Card";
-                } else if (nameMatch.match(/buffalosauce/i)) {
-                    nameMatch = "Buffalo Sauce";
-                } else if (nameMatch.match(/teriyaki/i)) {
-                    nameMatch = "Teriyaki Sauce";
-                } else if (nameMatch.match(/kndrhbsbbq/i)) {
-                    nameMatch = "BBQ Sauce";
-                } else if (nameMatch.match(/mm\s+minced\s+gf/i)) {
-                    nameMatch = "Minced Garlic";
-                } else if (nameMatch.match(/tones\s+italnf/i)) {
-                    nameMatch = "Italian Seasoning";
-                } else if (nameMatch.match(/mm\s+chives/i)) {
-                    nameMatch = "Chives";
-                } else if (nameMatch.match(/stckyhoney/i)) {
-                    nameMatch = "Sticky Honey";
-                } else if (nameMatch.match(/roasted\s+wine/i)) {
-                    nameMatch = "Roasted Wine";
-                } else if (nameMatch.match(/korbbqwingsf/i)) {
-                    nameMatch = "Korean BBQ Wings";
-                } else if (nameMatch.match(/mm\s+coq10/i)) {
-                    nameMatch = "CoQ10 Supplement";
-                } else if (nameMatch.match(/ns\s+shin\s+blaf/i)) {
-                    nameMatch = "Shin Black Noodles";
-                } else if (nameMatch.match(/picnic\s+packf/i)) {
-                    nameMatch = "Picnic Pack";
-                } else if (nameMatch.match(/fruit\s+tray/i)) {
-                    nameMatch = "Fruit Tray";
-                }
-
-                // Check for UPC in current or nearby lines
-                const upcMatch = line.match(upcPattern) ||
-                    (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
-                    (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
-
-                // Only process if we have a meaningful item name
-                if (nameMatch && nameMatch.length > 2 &&
-                    !nameMatch.match(/^\d+\.?\d*$/) &&
-                    !nameMatch.match(/^[tx]\s*\d/i) &&
-                    !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i)) {
-
-                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
-
-                    const item = {
-                        id: Date.now() + Math.random(),
-                        name: nameMatch,
-                        price: itemPrice,
-                        quantity: quantity,
-                        unitPrice: unitPrice,
-                        upc: upcMatch ? upcMatch[0] : '',
-                        category: guessCategory(nameMatch),
-                        location: guessLocation(nameMatch),
-                        rawText: line + (nextLine && nextLine.match(/^\d+\s*@.*$/i) ? ` + ${nextLine}` : ''),
-                        selected: true,
-                        needsReview: false
-                    };
-
-                    items.push(item);
-                } else {
-                    console.log(`📋 Skipping line with insufficient name: "${nameMatch}" from "${line}"`);
+            // STEP 5: NOW check skip patterns on the CLEANED name
+            let shouldSkipName = false;
+            for (const pattern of skipPatterns) {
+                if (pattern.test(nameMatch)) {
+                    console.log(`📋 Skipping cleaned name pattern: "${nameMatch}" from "${line}"`);
+                    shouldSkipName = true;
+                    break;
                 }
             }
+            if (shouldSkipName) continue;
+
+            // STEP 6: Additional validation on cleaned name
+            if (!nameMatch || nameMatch.length < 2) {
+                console.log(`📋 Skipping short name: "${nameMatch}" from "${line}"`);
+                continue;
+            }
+
+            if (nameMatch.match(/^\d+\.?\d*$/)) {
+                console.log(`📋 Skipping number-only name: "${nameMatch}" from "${line}"`);
+                continue;
+            }
+
+            // Skip negative amounts (discounts)
+            if (line.match(/\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`📋 Skipping discount line: ${line}`);
+                continue;
+            }
+
+            // STEP 7: We have a valid product! Create the item
+            console.log(`📋 ✅ Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
+
+            // Extract UPC from original line
+            const upcMatch = line.match(upcPattern);
+
+            const item = {
+                id: Date.now() + Math.random(),
+                name: nameMatch,
+                price: itemPrice,
+                quantity: quantity,
+                unitPrice: unitPrice,
+                upc: upcMatch ? upcMatch[0] : '',
+                category: guessCategory(nameMatch),
+                location: guessLocation(nameMatch),
+                rawText: line,
+                selected: true,
+                needsReview: false
+            };
+
+            items.push(item);
         }
 
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
     }
 
+    // Enhanced name cleaning specifically for Sam's Club products
+    function cleanSamsClubItemName(name) {
+        // Handle Sam's Club specific product name patterns
+        if (name.match(/bath\s+tissue/i)) {
+            return "Bath Tissue";
+        } else if (name.match(/klnx\s+12pk/i)) {
+            return "Kleenex 12-Pack";
+        } else if (name.match(/\$50gplay/i)) {
+            return "$50 Google Play Card";
+        } else if (name.match(/\$25gplay/i)) {
+            return "$25 Google Play Card";
+        } else if (name.match(/buffalosauc/i)) {
+            return "Buffalo Sauce";
+        } else if (name.match(/teriyaki/i)) {
+            return "Teriyaki Sauce";
+        } else if (name.match(/kndrhbsbbq/i)) {
+            return "BBQ Sauce";
+        } else if (name.match(/mm\s+minced\s+gf/i)) {
+            return "Minced Garlic";
+        } else if (name.match(/tones\s+italnf/i)) {
+            return "Italian Seasoning";
+        } else if (name.match(/mm\s+chives/i)) {
+            return "Chives";
+        } else if (name.match(/stckyhoney/i)) {
+            return "Sticky Honey";
+        } else if (name.match(/roasted\s+winf/i)) {
+            return "Roasted Wine";
+        } else if (name.match(/korbbqwingsf/i)) {
+            return "Korean BBQ Wings";
+        } else if (name.match(/mm\s+coq10/i)) {
+            return "CoQ10 Supplement";
+        } else if (name.match(/ns\s+shin\s+blaf/i)) {
+            return "Shin Black Noodles";
+        } else if (name.match(/picnic\s+packf/i)) {
+            return "Picnic Pack";
+        } else if (name.match(/fruit\s+tray/i)) {
+            return "Fruit Tray";
+        }
+
+        return name;
+    }
 
     // Combine duplicate items function
     function combineDuplicateItems(items) {
@@ -1484,13 +1106,7 @@ export default function ReceiptScan() {
         name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
 
         // Remove long product codes and discount info
-        name = name.replace(/^\d{10,}/, '').trim();
-        name = name.replace(/^\d{9,}/, '').trim();
-        name = name.replace(/^\d{8,}/, '').trim();
-        name = name.replace(/^\d{7,}/, '').trim();
-        name = name.replace(/^\d{6,}/, '').trim();
-        name = name.replace(/^\d{5,}/, '').trim();
-
+        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
         name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
         name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
         name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
