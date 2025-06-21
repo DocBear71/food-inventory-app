@@ -111,7 +111,7 @@ export const authOptions = {
                 secure: process.env.NODE_ENV === 'production',
                 // FIXED: Correct domain for your site (no leading dot needed)
                 domain: process.env.NODE_ENV === 'production'
-                    ? 'docbearscomfort.kitchen'
+                    ? 'www.docbearscomfort.kitchen'
                     : undefined
             },
         },
@@ -125,7 +125,7 @@ export const authOptions = {
                 secure: process.env.NODE_ENV === 'production',
                 // FIXED: Add domain for callback URL too
                 domain: process.env.NODE_ENV === 'production'
-                    ? 'docbearscomfort.kitchen'
+                    ? 'www.docbearscomfort.kitchen'
                     : undefined
             },
         },
@@ -140,7 +140,7 @@ export const authOptions = {
                 secure: process.env.NODE_ENV === 'production',
                 // FIXED: Add domain for CSRF token
                 domain: process.env.NODE_ENV === 'production'
-                    ? 'docbearscomfort.kitchen'
+                    ? 'www.docbearscomfort.kitchen'
                     : undefined
             },
         },
