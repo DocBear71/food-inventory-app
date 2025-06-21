@@ -906,6 +906,14 @@ export default function ReceiptScan() {
             /^(total|amount)$/i,                  // EXISTING: Generic total
             /^subtotal\s*\[\d+\]$/i,             // EXISTING: Subtotal with numbers
 
+            // ============ PRICING AND COMPARISON LINES - ENHANCED ============
+            /^regular\s+price$/i,            // NEW: "Regular Price"
+            /^reg\s+price$/i,               // NEW: "Reg Price"
+            /^was\s+\$?\d+\.\d{2}$/i,       // NEW: "Was $X.XX"
+            /^sale\s+price$/i,              // NEW: "Sale Price"
+            /^compare\s+at$/i,              // NEW: "Compare At"
+            /^retail\s+price$/i,            // NEW: "Retail Price"
+
             // ============ TAX LINES - ENHANCED ============
             /^t\s+s\s+ia\s+tax\s+.*$/i,      // NEW: "T S IA TAX ..." pattern
             /^[a-z]\s+s\s+[a-z]{2}\s+tax\s+.*$/i, // NEW: Generic state tax pattern
@@ -1248,6 +1256,12 @@ export default function ReceiptScan() {
                 continue;
             }
 
+            // ENHANCED: Skip specific problematic lines that might have prices
+            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)$/i)) {
+                console.log(`📋 Skipping known problematic line: ${line}`);
+                continue;
+            }
+
             // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
@@ -1275,10 +1289,30 @@ export default function ReceiptScan() {
                     const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
-                        // The third number might be package count or similar, use unit price calculation
+                        // Calculate unit price: total price divided by quantity
                         unitPrice = price / quantity;
                         itemPrice = price; // Keep the line price as the actual paid amount
                         console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
+                    }
+                }
+                // ENHANCED: Check for "+ 4 @ $3.99 ea 3" pattern (Frosty Paws style)
+                else if (nextLine && nextLine.match(/^\+?\s*\d+\s+@\s+\$?\d+\.\d{2}\s+ea\s+\d+$/i)) {
+                    const qtyMatch = nextLine.match(/^\+?\s*(\d+)\s+@\s+\$?(\d+\.\d{2})\s+ea\s+(\d+)/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        // Verify the math: quantity * unitPrice should equal the line price
+                        const calculatedTotal = quantity * unitPrice;
+                        if (Math.abs(calculatedTotal - price) < 0.01) {
+                            itemPrice = price; // Use the actual line price
+                            console.log(`📋 Found Frosty Paws style quantity: ${quantity} @ ${unitPrice} = ${itemPrice} (verified)`);
+                        } else {
+                            // Fall back to individual calculation
+                            quantity = 1;
+                            unitPrice = price;
+                            itemPrice = price;
+                            console.log(`📋 Frosty Paws quantity math didn't match, using single item: ${price}`);
+                        }
                     }
                 }
                 // Check if next line contains quantity information (existing logic)
@@ -1458,7 +1492,6 @@ export default function ReceiptScan() {
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
     }
-
 
     // Combine duplicate items function
     function combineDuplicateItems(items) {
