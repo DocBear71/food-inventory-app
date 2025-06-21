@@ -48,7 +48,6 @@ export default function DashboardLayout({ children }) {
     const handleSignOut = async () => {
         try {
             MobileHaptics?.medium(); // Only call if available
-            setMobileMenuOpen?.(false); // Only call if available (mobile layout)
 
             // Try to sign out with error handling
             await signOut({
