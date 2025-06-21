@@ -1704,11 +1704,6 @@ export default function ReceiptScan() {
     }
 
     // Enhanced guessCategory function with Sam's Club support while preserving
-    ALL
-    existing
-    store
-    logic
-
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
