@@ -1184,6 +1184,18 @@ export default function ReceiptScan() {
                 continue;
             }
 
+            // ENHANCED: Skip specific problematic lines BEFORE price processing
+            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)$/i)) {
+                console.log(`📋 Skipping known problematic line: ${line}`);
+                continue;
+            }
+
+            // ENHANCED: Skip lines that contain these words even with additional text
+            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)\s+/i)) {
+                console.log(`📋 Skipping problematic line with additional text: ${line}`);
+                continue;
+            }
+
             // ENHANCED: Skip if next line looks like quantity continuation that should be combined
             if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
                 console.log(`📋 Detected quantity continuation in next line, will process with current line: ${line} + ${nextLine}`);
@@ -1253,12 +1265,6 @@ export default function ReceiptScan() {
             // Skip lines that are just whitespace or tax codes
             if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
                 console.log(`📋 Skipping tax code or whitespace: ${line}`);
-                continue;
-            }
-
-            // ENHANCED: Skip specific problematic lines that might have prices
-            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)$/i)) {
-                console.log(`📋 Skipping known problematic line: ${line}`);
                 continue;
             }
 
@@ -1492,6 +1498,10 @@ export default function ReceiptScan() {
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
     }
+
+
+
+
 
     // Combine duplicate items function
     function combineDuplicateItems(items) {
