@@ -1078,7 +1078,6 @@ export default function ReceiptScan() {
             /^=\s*\d+\.\d+$/i,
             /^\d+\.\d+\s*lb\s*@$/i,
             /^\d+\.\d+\s*usd\/lb$/i,
-            /^\d{10,}$/,
             /voided\s*bankcard/i,
             /bank\s*card/i,
             /transaction\s*not\s*complete/i,
@@ -1091,7 +1090,6 @@ export default function ReceiptScan() {
             /debit\s*tend/i,
             /cash\s*tend/i,
             /terminal\s*#/i,
-            /^[\d\s]{8,}$/,
             /pay\s+from\s+primary/i,
             /purchase$/i,
         ];
@@ -1367,8 +1365,7 @@ export default function ReceiptScan() {
                 if (nameMatch && nameMatch.length > 2 &&
                     !nameMatch.match(/^\d+\.?\d*$/) &&
                     !nameMatch.match(/^[tx]\s*\d/i) &&
-                    !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i) &&
-                    !nameMatch.match(/^\d{8,}$/)) {
+                    !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i)) {
 
                     console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
 
@@ -1476,9 +1473,6 @@ export default function ReceiptScan() {
 
     // Enhanced cleanItemName function with support for all stores
     function cleanItemName(name) {
-        // Remove UPC codes at the beginning (Target and others put them first)
-        name = name.replace(/^\d{8,}\s+/, '');
-
         // Remove common store tax codes and artifacts
         name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
         name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
