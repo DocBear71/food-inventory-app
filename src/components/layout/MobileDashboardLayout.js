@@ -1,6 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v5 - Added Receipt Scanner to header and hamburger menu
-
+// file: /src/components/layout/MobileDashboardLayout.js v6 - Fixed sign-out functionality with proper session clearing
 
 import {useState, useEffect} from 'react';
 import { signOut } from 'next-auth/react';
@@ -17,6 +16,7 @@ export default function MobileDashboardLayout({children}) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [showPWABanner, setShowPWABanner] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
     // Handle scroll state for header styling
     useEffect(() => {
@@ -91,32 +91,43 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // Add this improved sign out handler to both DashboardLayout and MobileDashboardLayout
-
+    // FIXED: Proper sign-out handler that actually works
     const handleSignOut = async () => {
+        if (isSigningOut) return; // Prevent double-clicks
+
         try {
+            setIsSigningOut(true);
             MobileHaptics?.medium(); // Only call if available
-            setMobileMenuOpen?.(false); // Only call if available (mobile layout)
+            setMobileMenuOpen(false); // Close mobile menu
 
-            // Try to sign out with error handling
-            await signOut({
-                callbackUrl: '/',
-                redirect: true
-            });
-        } catch (error) {
-            console.error('Sign out error:', error);
-
-            // Fallback: Clear local storage and redirect manually
+            // Clear any local storage first
             try {
-                // Clear any local storage
                 localStorage.clear();
                 sessionStorage.clear();
+            } catch (error) {
+                console.log('Storage clear failed:', error);
+            }
 
-                // Manually redirect to home page
+            // Use NextAuth signOut with redirect: false to prevent automatic redirect
+            const result = await signOut({
+                redirect: false,
+                callbackUrl: '/'
+            });
+
+            console.log('SignOut result:', result);
+
+            // Force navigation to home page
+            window.location.href = '/';
+
+        } catch (error) {
+            console.error('Sign out error:', error);
+            setIsSigningOut(false);
+
+            // Emergency fallback - force reload which should clear session
+            try {
                 window.location.href = '/';
             } catch (fallbackError) {
-                console.error('Fallback sign out failed:', fallbackError);
-                // Last resort: just reload the page
+                console.error('Fallback navigation failed:', fallbackError);
                 window.location.reload();
             }
         }
@@ -339,10 +350,15 @@ export default function MobileDashboardLayout({children}) {
 
                                 <TouchEnhancedButton
                                     onClick={handleSignOut}
-                                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-white bg-red-600 hover:bg-red-700 active:bg-red-800 transition-all touch-friendly"
+                                    disabled={isSigningOut}
+                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all touch-friendly ${
+                                        isSigningOut
+                                            ? 'text-white bg-gray-400 cursor-not-allowed'
+                                            : 'text-white bg-red-600 hover:bg-red-700 active:bg-red-800'
+                                    }`}
                                 >
-                                    <span className="text-xl">🚪</span>
-                                    <span className="font-medium">Sign Out</span>
+                                    <span className="text-xl">{isSigningOut ? '⏳' : '🚪'}</span>
+                                    <span className="font-medium">{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
                                 </TouchEnhancedButton>
                             </div>
                         </div>

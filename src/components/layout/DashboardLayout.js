@@ -1,11 +1,10 @@
 'use client';
-// file: /src/components/layout/DashboardLayout.js - v3
-
+// file: /src/components/layout/DashboardLayout.js - v4 - Fixed sign-out functionality with proper session clearing
 
 import { signOut } from 'next-auth/react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
@@ -14,7 +13,9 @@ export default function DashboardLayout({ children }) {
     const { data: session } = useSafeSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState({});
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
@@ -43,31 +44,42 @@ export default function DashboardLayout({ children }) {
         // { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 
-    // Add this improved sign out handler to both DashboardLayout and MobileDashboardLayout
-
+    // FIXED: Proper sign-out handler that actually works
     const handleSignOut = async () => {
+        if (isSigningOut) return; // Prevent double-clicks
+
         try {
+            setIsSigningOut(true);
             MobileHaptics?.medium(); // Only call if available
 
-            // Try to sign out with error handling
-            await signOut({
-                callbackUrl: '/',
-                redirect: true
-            });
-        } catch (error) {
-            console.error('Sign out error:', error);
-
-            // Fallback: Clear local storage and redirect manually
+            // Clear any local storage first
             try {
-                // Clear any local storage
                 localStorage.clear();
                 sessionStorage.clear();
+            } catch (error) {
+                console.log('Storage clear failed:', error);
+            }
 
-                // Manually redirect to home page
+            // Use NextAuth signOut with redirect: false to prevent automatic redirect
+            const result = await signOut({
+                redirect: false,
+                callbackUrl: '/'
+            });
+
+            console.log('SignOut result:', result);
+
+            // Force navigation to home page
+            window.location.href = '/';
+
+        } catch (error) {
+            console.error('Sign out error:', error);
+            setIsSigningOut(false);
+
+            // Emergency fallback - force reload which should clear session
+            try {
                 window.location.href = '/';
             } catch (fallbackError) {
-                console.error('Fallback sign out failed:', fallbackError);
-                // Last resort: just reload the page
+                console.error('Fallback navigation failed:', fallbackError);
                 window.location.reload();
             }
         }
@@ -198,10 +210,15 @@ export default function DashboardLayout({ children }) {
                             </div>
                             <TouchEnhancedButton
                                 onClick={handleSignOut}
-                                className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                                disabled={isSigningOut}
+                                className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                                    isSigningOut
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`}
                             >
-                                <span className="mr-2">🚪</span>
-                                Sign Out
+                                <span className="mr-2">{isSigningOut ? '⏳' : '🚪'}</span>
+                                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                             </TouchEnhancedButton>
                         </div>
                     )}
@@ -259,10 +276,15 @@ export default function DashboardLayout({ children }) {
                                     </div>
                                     <TouchEnhancedButton
                                         onClick={handleSignOut}
-                                        className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                                        disabled={isSigningOut}
+                                        className={`flex items-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                                            isSigningOut
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-red-600 hover:bg-red-700'
+                                        }`}
                                     >
-                                        <span className="mr-1">🚪</span>
-                                        Sign Out
+                                        <span className="mr-1">{isSigningOut ? '⏳' : '🚪'}</span>
+                                        {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                                     </TouchEnhancedButton>
                                 </>
                             )}
