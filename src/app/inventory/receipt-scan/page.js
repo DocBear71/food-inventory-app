@@ -1482,7 +1482,13 @@ export default function ReceiptScan() {
         name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
 
         // Remove long product codes and discount info
-        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
+        name = name.replace(/^\d{10,}/, '').trim();
+        name = name.replace(/^\d{9,}/, '').trim();
+        name = name.replace(/^\d{8,}/, '').trim();
+        name = name.replace(/^\d{7,}/, '').trim();
+        name = name.replace(/^\d{6,}/, '').trim();
+        name = name.replace(/^\d{5,}/, '').trim();
+
         name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
         name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
         name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
