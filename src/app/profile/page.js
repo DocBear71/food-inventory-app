@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/profile/page.js v8 - Added comprehensive subscription gates and manual refresh
+// file: /src/app/profile/page.js v9 - Fixed import issues causing React error #130
 
 import {useState, useEffect, useRef, useCallback} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -8,7 +8,7 @@ import AccountDeletionModal from '@/components/profile/AccountDeletionModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { FeatureGate } from '@/components/subscription/FeatureGate';
+import FeatureGate from '@/components/subscription/FeatureGate'; // FIXED: Changed to default import
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { useFeatureGate } from '@/hooks/useSubscription';
 import { getApiUrl } from '@/lib/api-config';

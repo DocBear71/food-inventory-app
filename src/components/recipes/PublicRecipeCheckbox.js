@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { FeatureGate } from '@/components/subscription/FeatureGate';
+import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { getApiUrl } from '@/lib/api-config';
 
