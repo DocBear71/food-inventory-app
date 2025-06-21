@@ -766,17 +766,6 @@ export default function ReceiptScan() {
         }
     }
 
-// Export for use in the main component
-    export {
-        initializeOptimizedCamera,
-        setupOptimizedVideo,
-        captureOptimizedImage,
-        processImageWithOptimizedOCR,
-        startOptimizedReceiptScan,
-        captureAndProcessReceipt,
-        ReceiptScannerPerformanceMonitor
-    };
-
     // Handle receipt file upload
     function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
