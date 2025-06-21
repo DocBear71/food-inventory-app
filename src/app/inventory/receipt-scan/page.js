@@ -1,6 +1,5 @@
 'use client';
-// file: /src/app/inventory/receipt-scan/page.js - v9 current working file
-
+// file: /src/app/inventory/receipt-scan/page.js - v10 Fixed mobile null reference errors
 
 import {useState, useRef, useEffect} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -216,8 +215,18 @@ export default function ReceiptScan() {
                 streamRef.current = stream;
                 setShowCamera(true);
 
-                // Basic video setup
-                await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
+                // Basic video setup with null check
+                if (videoRef.current) {
+                    await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
+                } else {
+                    console.warn('Video ref is null, waiting for component to render...');
+                    // Wait a bit and try again
+                    setTimeout(async () => {
+                        if (videoRef.current) {
+                            await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
+                        }
+                    }, 100);
+                }
             } else {
                 throw new Error('No video tracks in minimal stream');
             }
@@ -241,10 +250,25 @@ export default function ReceiptScan() {
             const stream = await initializeOptimizedCamera(deviceInfo);
             streamRef.current = stream;
 
-            // Use the optimized video setup
-            await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
+            // FIXED: Add null check before video setup
+            if (!videoRef.current) {
+                console.warn('Video ref is null, waiting for DOM to be ready...');
+                setShowCamera(true);
 
-            setShowCamera(true);
+                // Wait for the video element to be available
+                setTimeout(async () => {
+                    if (videoRef.current) {
+                        await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
+                    } else {
+                        throw new Error('Video element not available after timeout');
+                    }
+                }, 200);
+            } else {
+                // Use the optimized video setup
+                await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
+                setShowCamera(true);
+            }
+
             console.log('🎉 Optimized camera setup completed successfully!');
 
         } catch (error) {
@@ -475,6 +499,15 @@ export default function ReceiptScan() {
     async function setupOptimizedVideo(videoElement, stream, deviceInfo) {
         console.log('🎬 Setting up optimized video element...');
 
+        // FIXED: Add comprehensive null checks
+        if (!videoElement) {
+            throw new Error('Video element is null or undefined');
+        }
+
+        if (!stream) {
+            throw new Error('Stream is null or undefined');
+        }
+
         // iOS specific attributes
         if (deviceInfo.isIOS) {
             videoElement.setAttribute('playsinline', 'true');
@@ -484,10 +517,13 @@ export default function ReceiptScan() {
             videoElement.controls = false;
         }
 
-        // Optimize video element styles for receipt scanning
-        videoElement.style.objectFit = 'cover';
-        videoElement.style.width = '100%';
-        videoElement.style.height = '100%';
+        // FIXED: Add null check before accessing style property
+        if (videoElement.style) {
+            // Optimize video element styles for receipt scanning
+            videoElement.style.objectFit = 'cover';
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+        }
 
         videoElement.srcObject = stream;
 
@@ -547,9 +583,13 @@ export default function ReceiptScan() {
     function captureOptimizedImage(videoElement, canvasElement) {
         console.log('📸 Capturing optimized image for OCR...');
 
-        // Add null checks
-        if (!videoElement || !canvasElement) {
-            throw new Error('Video or canvas element is null');
+        // FIXED: Add comprehensive null checks
+        if (!videoElement) {
+            throw new Error('Video element is null');
+        }
+
+        if (!canvasElement) {
+            throw new Error('Canvas element is null');
         }
 
         const video = videoElement;
@@ -636,13 +676,11 @@ export default function ReceiptScan() {
             ));
 
             // Apply basic sharpening (simplified to avoid errors)
-            const sharp = Math.min(10, Math.max(-10, enhanced * 0.1));
+            const sharp = applySharpening(data, i, width, height);
 
-            const finalValue = Math.min(255, Math.max(0, enhanced + sharp));
-
-            data[i] = finalValue;     // R
-            data[i + 1] = finalValue; // G
-            data[i + 2] = finalValue; // B
+            data[i] = enhanced + sharp;     // R
+            data[i + 1] = enhanced + sharp; // G
+            data[i + 2] = enhanced + sharp; // B
             // Alpha unchanged
         }
 
@@ -1502,7 +1540,7 @@ export default function ReceiptScan() {
             name = "Birds Eye";
         } else if (name.match(/frosty\s*paws/i)) {
             name = "Frosty Paws";
-        } else if (name.match(/gg\s*vegetable/i)) {
+        } else if (name.match(/gg\s+vegetable/i)) {
             name = "Great Grains Vegetable";
         }
 
@@ -2426,23 +2464,19 @@ export default function ReceiptScan() {
                                                         </div>
                                                     </div>
 
-                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */
-                                                    }
-                                                    {
-                                                        item.upc && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => lookupByUPC(item)}
-                                                                className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                                                title={`Lookup product details for UPC: ${item.upc}`}
-                                                            >
-                                                                🔍 Lookup
-                                                            </TouchEnhancedButton>
-                                                        )
-                                                    }
+                                                    {/* UPC Lookup Button - Only show if UPC exists and API is available */}
+                                                    {item.upc && (
+                                                        <TouchEnhancedButton
+                                                            onClick={() => lookupByUPC(item)}
+                                                            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                                                            title={`Lookup product details for UPC: ${item.upc}`}
+                                                        >
+                                                            🔍 Lookup
+                                                        </TouchEnhancedButton>
+                                                    )}
                                                 </div>
 
-                                                {/* Additional Info */
-                                                }
+                                                {/* Additional Info */}
                                                 <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
                                                     {item.upc && <span>UPC: {item.upc}</span>}
@@ -2452,233 +2486,201 @@ export default function ReceiptScan() {
                                                 </div>
                                             </div>
                                         ))
-                                    )
-                                    }
+                                    )}
                                 </div>
                             </div>
-                        )
-                        }
+                        )}
 
-                        {/* Step 4: Adding to Inventory */
-                        }
-                        {
-                            step === 'adding' && (
-                                <div className="text-center space-y-6">
-                                    <div className="text-6xl mb-4">📦</div>
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Adding Items to Inventory
-                                    </h3>
-                                    <p className="text-gray-600 mb-6">
-                                        {processingStatus}
-                                    </p>
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                </div>
-                            )
-                        }
+                        {/* Step 4: Adding to Inventory */}
+                        {step === 'adding' && (
+                            <div className="text-center space-y-6">
+                                <div className="text-6xl mb-4">📦</div>
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Adding Items to Inventory
+                                </h3>
+                                <p className="text-gray-600 mb-6">
+                                    {processingStatus}
+                                </p>
+                                <div
+                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Hidden canvas for photo capture - Always rendered */
-                }
+                {/* Hidden canvas for photo capture - Always rendered */}
                 <canvas ref={canvasRef} className="hidden"/>
 
-                {/* iOS PWA Camera Modal */
-                }
+                {/* iOS PWA Camera Modal */}
                 <IOSPWACameraModal/>
 
-                {/* Report Issue Modal */
-                }
-                {
-                    showReportModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
-                                <div className="p-6">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                {/* Report Issue Modal */}
+                {showReportModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                    >
+                                        ×
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            What type of issue are you experiencing? *
+                                        </label>
+                                        <select
+                                            value={reportData.issue}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                issue: e.target.value
+                                            }))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         >
-                                            ×
-                                        </TouchEnhancedButton>
+                                            <option value="">Select an issue...</option>
+                                            <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
+                                            <option value="camera-not-working">Camera not working</option>
+                                            <option value="ocr-poor-accuracy">Poor text recognition</option>
+                                            <option value="wrong-items-detected">Wrong items detected</option>
+                                            <option value="missing-items">Items not detected</option>
+                                            <option value="categories-wrong">Wrong categories assigned</option>
+                                            <option value="upc-lookup-failed">UPC lookup not working</option>
+                                            <option value="app-crash">App crashed/froze</option>
+                                            <option value="other">Other issue</option>
+                                        </select>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                What type of issue are you experiencing? *
-                                            </label>
-                                            <select
-                                                value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    issue: e.target.value
-                                                }))}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                <option value="">Select an issue...</option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
-                                                </option>
-                                                <option value="camera-not-working">Camera not working
-                                                </option>
-                                                <option value="ocr-poor-accuracy">Poor text
-                                                    recognition
-                                                </option>
-                                                <option value="wrong-items-detected">Wrong items
-                                                    detected
-                                                </option>
-                                                <option value="missing-items">Items not detected
-                                                </option>
-                                                <option value="categories-wrong">Wrong categories
-                                                    assigned
-                                                </option>
-                                                <option value="upc-lookup-failed">UPC lookup not
-                                                    working
-                                                </option>
-                                                <option value="app-crash">App crashed/froze</option>
-                                                <option value="other">Other issue</option>
-                                            </select>
-                                        </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Please describe the issue in detail *
+                                        </label>
+                                        <textarea
+                                            value={reportData.description}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                description: e.target.value
+                                            }))}
+                                            placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            rows={4}
+                                        />
+                                    </div>
 
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Your email (for follow-up)
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={reportData.email}
+                                            onChange={(e) => setReportData(prev => ({
+                                                ...prev,
+                                                email: e.target.value
+                                            }))}
+                                            placeholder="your.email@example.com"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+
+                                    {capturedImage && (
                                         <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
-                                                Please describe the issue in detail *
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Receipt Image (will be included)
                                             </label>
-                                            <textarea
-                                                value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    description: e.target.value
-                                                }))}
-                                                placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                rows={4}
+                                            <img
+                                                src={capturedImage}
+                                                alt="Receipt to be sent"
+                                                className="max-w-full h-32 object-contain border rounded"
                                             />
                                         </div>
+                                    )}
 
-                                        <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
-                                                Your email (for follow-up)
-                                            </label>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Additional Screenshots/Images
+                                        </label>
+                                        <div className="space-y-3">
                                             <input
-                                                type="email"
-                                                value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    email: e.target.value
-                                                }))}
-                                                placeholder="your.email@example.com"
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleReportFileUpload}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
-                                        </div>
+                                            <p className="text-xs text-gray-500">
+                                                Upload screenshots showing the issue. Supports: JPG,
+                                                PNG, GIF, WebP (max 10MB each)
+                                            </p>
 
-                                        {capturedImage && (
-                                            <div>
-                                                <label
-                                                    className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Receipt Image (will be included)
-                                                </label>
-                                                <img
-                                                    src={capturedImage}
-                                                    alt="Receipt to be sent"
-                                                    className="max-w-full h-32 object-contain border rounded"
-                                                />
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-2">
-                                                Additional Screenshots/Images
-                                            </label>
-                                            <div className="space-y-3">
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    onChange={handleReportFileUpload}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                />
-                                                <p className="text-xs text-gray-500">
-                                                    Upload screenshots showing the issue. Supports: JPG,
-                                                    PNG, GIF, WebP (max 10MB each)
-                                                </p>
-
-                                                {reportData.additionalFiles.length > 0 && (
-                                                    <div className="space-y-2">
-                                                        <p className="text-sm font-medium text-gray-700">
-                                                            Files to be sent
-                                                            ({reportData.additionalFiles.length}):
-                                                        </p>
-                                                        {reportData.additionalFiles.map((file, index) => (
-                                                            <div key={index}
-                                                                 className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                                <div
-                                                                    className="flex items-center space-x-2">
-                                                                    <span className="text-sm">📸</span>
-                                                                    <span
-                                                                        className="text-sm text-gray-700 truncate">
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-gray-700">
+                                                        Files to be sent ({reportData.additionalFiles.length}):
+                                                    </p>
+                                                    {reportData.additionalFiles.map((file, index) => (
+                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-sm">📸</span>
+                                                                <span className="text-sm text-gray-700 truncate">
                                                                     {file.name}
                                                                 </span>
-                                                                    <span
-                                                                        className="text-xs text-gray-500">
+                                                                <span className="text-xs text-gray-500">
                                                                     ({(file.size / 1024 / 1024).toFixed(1)}MB)
                                                                 </span>
-                                                                </div>
-                                                                <TouchEnhancedButton
-                                                                    onClick={() => removeFile(index)}
-                                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                                                >
-                                                                    Remove
-                                                                </TouchEnhancedButton>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                            <p className="text-sm text-blue-800">
-                                                📝 <strong>Your report will include:</strong>
-                                            </p>
-                                            <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                                                <li>• Your issue description</li>
-                                                <li>• Device
-                                                    info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
-                                                {capturedImage && <li>• Receipt image</li>}
-                                                {reportData.additionalFiles.length > 0 && (
-                                                    <li>• {reportData.additionalFiles.length} additional
-                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
-                                                )}
-                                                <li>• Browser and device information</li>
-                                                <li>• No personal information from your account</li>
-                                            </ul>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => removeFile(index)}
+                                                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                            >
+                                                                Remove
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <div className="flex space-x-3 mt-6">
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                                        >
-                                            Cancel
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={submitIssueReport}
-                                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                                        >
-                                            📧 Send Report
-                                        </TouchEnhancedButton>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                        <p className="text-sm text-blue-800">
+                                            📝 <strong>Your report will include:</strong>
+                                        </p>
+                                        <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                                            <li>• Your issue description</li>
+                                            <li>• Device info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
+                                            {capturedImage && <li>• Receipt image</li>}
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                            )}
+                                            <li>• Browser and device information</li>
+                                            <li>• No personal information from your account</li>
+                                        </ul>
                                     </div>
+                                </div>
+
+                                <div className="flex space-x-3 mt-6">
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowReportModal(false)}
+                                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={submitIssueReport}
+                                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                    >
+                                        📧 Send Report
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+                )}
 
                 <Footer/>
             </div>
