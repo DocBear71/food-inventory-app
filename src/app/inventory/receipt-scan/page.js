@@ -8,7 +8,8 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {getApiUrl} from '@/lib/api-config';
-import {useFeatureGate, FEATURE_GATES} from '@/hooks/useSubscription';
+import {useFeatureGate} from '@/hooks/useSubscription';
+import {FEATURE_GATES} from "@/lib/subscription-config";
 
 export default function ReceiptScan() {
     // const {data: session, status} = useSafeSession();

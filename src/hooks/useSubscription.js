@@ -306,7 +306,6 @@ export function useSubscription() {
         canScanUPC: canScanUPC(),
         canScanReceipt: canScanReceipt(),
         canAddPersonalRecipe: canAddPersonalRecipe(),
-        canSavePublicRecipe: canSavePublicRecipe(),
         canWriteReviews: checkFeature(FEATURE_GATES.WRITE_REVIEW),
         canMakeRecipesPublic: checkFeature(FEATURE_GATES.MAKE_RECIPE_PUBLIC),
         hasNutritionAccess: checkFeature(FEATURE_GATES.NUTRITION_ACCESS),
