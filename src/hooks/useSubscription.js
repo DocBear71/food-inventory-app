@@ -224,8 +224,26 @@ export function useSubscription() {
                 return subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
                 return subscriptionData.usage.recipeCollections || 0;
+
+            // ADD THESE CASES for feature-access gates that don't have usage limits:
+            case FEATURE_GATES.COMMON_ITEMS_WIZARD:
+            case FEATURE_GATES.CREATE_MEAL_PLAN:
+            case FEATURE_GATES.EMAIL_SHARING:
+            case FEATURE_GATES.EMAIL_NOTIFICATIONS:
+            case FEATURE_GATES.WRITE_REVIEW:
+            case FEATURE_GATES.NUTRITION_ACCESS:
+            case FEATURE_GATES.NUTRITION_SEARCH:
+            case FEATURE_GATES.NUTRITION_ANALYSIS:
+            case FEATURE_GATES.NUTRITION_GOALS:
+            case FEATURE_GATES.PUBLIC_RECIPES:
+            case FEATURE_GATES.BULK_INVENTORY_ADD:
+                return 0; // These features don't have usage counts, they're just access-based
+
             default:
-                console.warn('Unknown feature gate for usage count:', feature);
+                // Remove the console.warn to reduce noise, or make it more specific
+                if (feature && !feature.startsWith('undefined')) {
+                    console.warn('Unknown feature gate for usage count:', feature);
+                }
                 return 0;
         }
     };
