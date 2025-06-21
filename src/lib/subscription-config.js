@@ -13,6 +13,7 @@ export const FEATURE_GATES = {
     INVENTORY_LIMIT: 'inventory_limit',
     UPC_SCANNING: 'upc_scanning',
     BULK_INVENTORY_ADD: 'bulk_inventory_add',
+    RECEIPT_SCAN: 'receipt_scan',
 
     // Recipe limits
     PERSONAL_RECIPES: 'personal_recipes',
@@ -41,6 +42,7 @@ export const USAGE_LIMITS = {
     [SUBSCRIPTION_TIERS.FREE]: {
         inventoryItems: 50,
         upcScansPerMonth: 10,
+        monthlyReceiptScans: 2,
         personalRecipes: 5,
         savedRecipes: 25,
         publicRecipes: 0, // FREE: Cannot make recipes public
@@ -52,6 +54,7 @@ export const USAGE_LIMITS = {
     [SUBSCRIPTION_TIERS.GOLD]: {
         inventoryItems: 250,
         upcScansPerMonth: -1, // unlimited
+        monthlyReceiptScans: 20,
         personalRecipes: 100,
         savedRecipes: 500,
         publicRecipes: 25, // GOLD: Up to 25 public recipes
@@ -63,6 +66,7 @@ export const USAGE_LIMITS = {
     [SUBSCRIPTION_TIERS.PLATINUM]: {
         inventoryItems: -1, // unlimited
         upcScansPerMonth: -1, // unlimited
+        monthlyReceiptScans: -1, // unlimited
         personalRecipes: -1, // unlimited
         savedRecipes: -1, // unlimited
         publicRecipes: -1, // PLATINUM: Unlimited public recipes
@@ -197,6 +201,7 @@ export function getUpgradeMessage(feature, requiredTier) {
 export const FEATURE_DESCRIPTIONS = {
     [FEATURE_GATES.INVENTORY_LIMIT]: 'Track your food inventory',
     [FEATURE_GATES.UPC_SCANNING]: 'Scan product barcodes',
+    [FEATURE_GATES.RECEIPT_SCAN]: 'Scan grocery receipts to quickly add items to inventory',
     [FEATURE_GATES.BULK_INVENTORY_ADD]: 'Add multiple items at once',
     [FEATURE_GATES.PERSONAL_RECIPES]: 'Create and save your own recipes',
     [FEATURE_GATES.WRITE_REVIEW]: 'Write and read recipe reviews',

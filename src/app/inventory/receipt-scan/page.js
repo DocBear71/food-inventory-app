@@ -2,12 +2,13 @@
 // file: /src/app/inventory/receipt-scan/page.js - v11 Fixed mobile null reference errors
 
 import {useState, useRef, useEffect} from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import {getApiUrl} from '@/lib/api-config';
+import {useFeatureGate, FEATURE_GATES} from '@/hooks/useSubscription';
 
 export default function ReceiptScan() {
     // const {data: session, status} = useSafeSession();
@@ -18,6 +19,8 @@ export default function ReceiptScan() {
     const streamRef = useRef(null);
 
     // State management - ALL HOOKS FIRST (Fixed order)
+    const {data: session, status} = useSafeSession();
+    const receiptScanGate = useFeatureGate(FEATURE_GATES.RECEIPT_SCAN);
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
     const [capturedImage, setCapturedImage] = useState(null);
@@ -46,18 +49,13 @@ export default function ReceiptScan() {
         standalone: false
     });
 
-    let session = null;
-    let status = 'loading';
-
-    try {
-        const sessionResult = useSafeSession();
-        session = sessionResult?.data || null;
-        status = sessionResult?.status || 'loading';
-    } catch (error) {
-        // Mobile build fallback
-        session = null;
-        status = 'unauthenticated';
-    }
+    useEffect(() => {
+        return () => {
+            if (capturedImage) {
+                URL.revokeObjectURL(capturedImage);
+            }
+        };
+    }, [capturedImage]);
 
     // Device detection effect
     useEffect(() => {
@@ -110,91 +108,179 @@ export default function ReceiptScan() {
         );
     }
 
-    // iOS PWA Camera Modal Component - Enhanced with better UX
+
+// iOS PWA Camera Modal Component - Enhanced with better UX
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
         const safariUrl = window.location.href;
 
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl max-w-md w-full p-6">
-                    <div className="text-center">
-                        <div className="text-4xl mb-4">📱</div>
-                        <h3 className="text-lg font-bold text-blue-600 mb-2">
-                            iOS PWA Camera Workaround
-                        </h3>
-                        <p className="text-gray-600 mb-4">
-                            iOS has strict camera limitations in PWA mode. Let's use the next best option!
-                        </p>
-                    </div>
-
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                        <h4 className="text-sm font-medium text-green-900 mb-2">
-                            📸 Recommended: Use Your Camera App
-                        </h4>
-                        <div className="text-sm text-green-800 space-y-2">
-                            <p><strong>Step 1:</strong> Take a photo of your receipt with your iPhone camera</p>
-                            <p><strong>Step 2:</strong> Come back here and tap "Upload Receipt Image"</p>
-                            <p><strong>Step 3:</strong> Select the photo you just took</p>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900">📄 Receipt Scanner</h1>
+                            <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
+                            {/* Debug info for development */}
+                            {process.env.NODE_ENV === 'development' && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                    {deviceInfo.isIOSPWA ? '📱 iOS PWA Mode' : deviceInfo.isIOS ? '📱 iOS Browser' : '📱 Standard'}
+                                </div>
+                            )}
                         </div>
-                    </div>
-
-                    <div className="space-y-3">
                         <TouchEnhancedButton
-                            onClick={() => {
-                                setShowIOSPWAModal(false);
-                                // Trigger file input immediately
-                                setTimeout(() => {
-                                    fileInputRef.current?.click();
-                                }, 100);
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-medium"
+                            onClick={() => router.push('/inventory')}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800"
                         >
-                            <span>📁</span>
-                            <span>Upload Receipt Image</span>
+                            ← Back to Inventory
                         </TouchEnhancedButton>
-
-                        <div className="text-center text-sm text-gray-500 my-2">or</div>
-
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                // Open current page in Safari
-                                window.open(safariUrl, '_blank');
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            <span>🌐</span>
-                            <span>Open in Safari Browser</span>
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                setShowIOSPWAModal(false);
-                                // Try camera again with minimal constraints
-                                startCameraMinimal();
-                            }}
-                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                        >
-                            🔄 Try Minimal Camera Mode
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={() => setShowIOSPWAModal(false)}
-                            className="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                        >
-                            Cancel
-                        </TouchEnhancedButton>
-                    </div>
-
-                    <div className="mt-4 text-center text-xs text-gray-500">
-                        iOS PWA Camera Limitations
-                        • {deviceInfo.userAgent.includes('iPhone') ? 'iPhone' : 'iOS'} {deviceInfo.userAgent.match(/OS (\d+_\d+)/)?.[1]?.replace('_', '.') || ''}
                     </div>
                 </div>
+
+                {/* Feature Gate Check */}
+                {!receiptScanGate.canUse ? (
+                    <div className="bg-white shadow rounded-lg">
+                        <div className="px-4 py-5 sm:p-6">
+                            <div className="text-center py-12">
+                                <div
+                                    className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                                    <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor"
+                                         viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Unlock Receipt
+                                    Scanning</h3>
+                                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                                    Receipt scanning is available with Gold and Platinum subscriptions. Quickly add
+                                    items to your inventory by scanning grocery receipts with advanced OCR
+                                    technology.
+                                </p>
+                                <div className="space-y-4">
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=receipt-scan&feature=receipt-scanning'}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                    >
+                                        Upgrade to Gold
+                                    </TouchEnhancedButton>
+
+                                    <div
+                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📱 What you'll
+                                            get:</h4>
+                                        <ul className="text-sm text-blue-800 space-y-1 text-left">
+                                            <li>• Scan grocery receipts with your camera</li>
+                                            <li>• Upload receipt images from your photo gallery</li>
+                                            <li>• Advanced OCR text recognition</li>
+                                            <li>• Automatic item categorization</li>
+                                            <li>• UPC code detection and lookup</li>
+                                            <li>• {receiptScanGate.tier === 'free' ? 'Gold: 20 scans/month, Platinum: Unlimited' : 'Based on your subscription tier'}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    // Show usage info if user has access but is approaching limits
+                    <>
+                        {receiptScanGate.remaining !== 'Unlimited' && receiptScanGate.remaining <= 5 && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0">
+                                        <svg className="w-5 h-5 text-yellow-400" fill="currentColor"
+                                             viewBox="0 0 20 20">
+                                            <path fillRule="evenodd"
+                                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                  clipRule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <p className="text-sm text-yellow-700">
+                                            <strong>Low on receipt scans:</strong> You
+                                            have {receiptScanGate.remaining} scans remaining this month.
+                                            {receiptScanGate.tier === 'gold' && (
+                                                <span> Upgrade to Platinum for unlimited scanning!</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Main Content - Your existing receipt scanner UI */}
+                        <div className="bg-white shadow rounded-lg">
+                            <div className="px-4 py-5 sm:p-6">
+                                {/* Step 1: Upload/Capture */}
+                                {step === 'upload' && (
+                                    <div className="space-y-6">
+                                        <div className="text-center">
+                                            <div className="text-6xl mb-4">📱</div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                                Capture Your Receipt
+                                            </h3>
+                                            <p className="text-gray-600 mb-6">
+                                                Take a photo or upload an image of your shopping receipt
+                                            </p>
+                                            {receiptScanGate.remaining !== 'Unlimited' && (
+                                                <p className="text-sm text-blue-600 mb-4">
+                                                    📊 {receiptScanGate.remaining} scans remaining this month
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Rest of your existing upload/capture UI... */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Camera Option */}
+                                            <TouchEnhancedButton
+                                                onClick={startCamera}
+                                                className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                                            >
+                                                <div className="text-4xl mb-2">📷</div>
+                                                <div className="text-lg font-medium text-indigo-700">
+                                                    Take Photo
+                                                </div>
+                                                <div className="text-sm text-gray-500">
+                                                    {deviceInfo.isIOSPWA ? 'iOS PWA - Will try aggressive fixes' : 'Use device camera'}
+                                                </div>
+                                            </TouchEnhancedButton>
+
+                                            {/* Upload Option */}
+                                            <TouchEnhancedButton
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
+                                            >
+                                                <div className="text-4xl mb-2">📁</div>
+                                                <div className="text-lg font-medium text-green-700">Upload Image
+                                                </div>
+                                                <div className="text-sm text-gray-500">Select from gallery</div>
+                                            </TouchEnhancedButton>
+                                        </div>
+
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleReceiptFileUpload}
+                                            className="hidden"
+                                        />
+
+                                        );
+                                    </div>
+                                )};
+                            </div>
+                        </div>
+                    </>
+                )}
+                <canvas ref={canvasRef} className="hidden"/>
+                <IOSPWACameraModal/>
             </div>
         );
     }
+
 
     // Minimal camera attempt function (last resort)
     async function startCameraMinimal() {
@@ -361,19 +447,19 @@ export default function ReceiptScan() {
 
     // OPTIMIZED Camera Access and OCR Configuration for Receipt Scanner
 
-// ============ OPTIMIZED CAMERA CONSTRAINTS ============
+    // ============ OPTIMIZED CAMERA CONSTRAINTS ============
     function getOptimizedCameraConstraints(deviceInfo) {
         // Standard high-quality constraints for receipt scanning
         const standardConstraints = {
             video: {
-                facingMode: { ideal: "environment" }, // Prefer rear camera
-                width: { ideal: 1920, min: 1280, max: 3840 },
-                height: { ideal: 1080, min: 720, max: 2160 },
-                aspectRatio: { ideal: 16/9 },
+                facingMode: {ideal: "environment"}, // Prefer rear camera
+                width: {ideal: 1920, min: 1280, max: 3840},
+                height: {ideal: 1080, min: 720, max: 2160},
+                aspectRatio: {ideal: 16 / 9},
                 // Advanced camera features for better image quality
-                focusMode: { ideal: "continuous" },
-                exposureMode: { ideal: "continuous" },
-                whiteBalanceMode: { ideal: "continuous" },
+                focusMode: {ideal: "continuous"},
+                exposureMode: {ideal: "continuous"},
+                whiteBalanceMode: {ideal: "continuous"},
                 torch: false // No flash for receipts
             },
             audio: false // Never need audio for receipt scanning
@@ -384,9 +470,9 @@ export default function ReceiptScan() {
             // Best case: High quality with environment camera
             {
                 video: {
-                    facingMode: { exact: "environment" },
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 }
+                    facingMode: {exact: "environment"},
+                    width: {ideal: 1280, max: 1920},
+                    height: {ideal: 720, max: 1080}
                 },
                 audio: false
             },
@@ -394,16 +480,16 @@ export default function ReceiptScan() {
             {
                 video: {
                     facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: {ideal: 1280},
+                    height: {ideal: 720}
                 },
                 audio: false
             },
             // Last resort: Any camera
             {
                 video: {
-                    width: { ideal: 640, min: 480 },
-                    height: { ideal: 480, min: 360 }
+                    width: {ideal: 640, min: 480},
+                    height: {ideal: 480, min: 360}
                 },
                 audio: false
             }
@@ -412,10 +498,10 @@ export default function ReceiptScan() {
         // Mobile optimized constraints (Android/iOS browser)
         const mobileConstraints = {
             video: {
-                facingMode: { ideal: "environment" },
-                width: { ideal: 1920, min: 1280 },
-                height: { ideal: 1080, min: 720 },
-                frameRate: { ideal: 30, max: 30 } // Limit framerate for performance
+                facingMode: {ideal: "environment"},
+                width: {ideal: 1920, min: 1280},
+                height: {ideal: 1080, min: 720},
+                frameRate: {ideal: 30, max: 30} // Limit framerate for performance
             },
             audio: false
         };
@@ -429,7 +515,7 @@ export default function ReceiptScan() {
         }
     }
 
-// ============ OPTIMIZED CAMERA INITIALIZATION ============
+    // ============ OPTIMIZED CAMERA INITIALIZATION ============
     async function initializeOptimizedCamera(deviceInfo) {
         console.log('🎥 Initializing optimized camera for receipt scanning...');
 
@@ -495,7 +581,7 @@ export default function ReceiptScan() {
         throw lastError || new Error('All camera initialization attempts failed');
     }
 
-// ============ OPTIMIZED VIDEO ELEMENT SETUP ============
+    // ============ OPTIMIZED VIDEO ELEMENT SETUP ============
     async function setupOptimizedVideo(videoElement, stream, deviceInfo) {
         console.log('🎬 Setting up optimized video element...');
 
@@ -579,7 +665,7 @@ export default function ReceiptScan() {
         });
     }
 
-// ============ OPTIMIZED IMAGE CAPTURE ============
+    // ============ OPTIMIZED IMAGE CAPTURE ============
     function captureOptimizedImage(videoElement, canvasElement) {
         console.log('📸 Capturing optimized image for OCR...');
 
@@ -643,7 +729,7 @@ export default function ReceiptScan() {
         });
     }
 
-// ============ OPTIMIZED IMAGE PROCESSING FOR OCR ============
+    // ============ OPTIMIZED IMAGE PROCESSING FOR OCR ============
     function optimizeImageForOCR(imageData) {
         console.log('🔧 Applying OCR-optimized image processing...');
 
@@ -704,7 +790,7 @@ export default function ReceiptScan() {
         ));
     }
 
-// ============ OPTIMIZED OCR CONFIGURATION ============
+    // ============ OPTIMIZED OCR CONFIGURATION ============
     // FIXED: Optimized OCR Configuration - Removed problematic logger
     function getOptimizedOCRConfig(deviceInfo) {
         console.log('⚙️ Configuring optimized OCR settings...');
@@ -740,9 +826,10 @@ export default function ReceiptScan() {
     }
 
 
-// ============ OPTIMIZED OCR PROCESSING ============
+    // ============ OPTIMIZED OCR PROCESSING ============
     // FIXED: Optimized OCR Processing - Separate logger handling
-    async function processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback) {
+    async function processImageWithOptimizedOCR(imageBlob, deviceInfo,
+                                                progressCallback) {
         console.log('🔍 Starting optimized OCR processing...');
 
         try {
@@ -765,7 +852,7 @@ export default function ReceiptScan() {
 
             // Process the image
             console.log('📄 Recognizing text...');
-            const { data: { text, confidence } } = await worker.recognize(imageBlob, ocrConfig);
+            const {data: {text, confidence}} = await worker.recognize(imageBlob, ocrConfig);
 
             console.log(`✅ OCR completed with ${confidence}% confidence`);
             console.log(`📝 Extracted text length: ${text.length} characters`);
@@ -781,8 +868,9 @@ export default function ReceiptScan() {
         }
     }
 
-// ============ OPTIMIZED USAGE EXAMPLE ============
-    async function startOptimizedReceiptScan(videoElement, canvasElement, deviceInfo) {
+    // ============ OPTIMIZED USAGE EXAMPLE ============
+    async function startOptimizedReceiptScan(videoElement, canvasElement,
+                                             deviceInfo) {
         try {
             // 1. Initialize optimized camera
             const stream = await initializeOptimizedCamera(deviceInfo);
@@ -798,7 +886,8 @@ export default function ReceiptScan() {
         }
     }
 
-    async function captureAndProcessReceipt(videoElement, canvasElement, deviceInfo, progressCallback) {
+    async function captureAndProcessReceipt(videoElement, canvasElement,
+                                            deviceInfo, progressCallback) {
         try {
             // 1. Capture optimized image
             const imageBlob = await captureOptimizedImage(videoElement, canvasElement);
@@ -806,7 +895,7 @@ export default function ReceiptScan() {
             // 2. Process with optimized OCR
             const text = await processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback);
 
-            return { imageBlob, text };
+            return {imageBlob, text};
 
         } catch (error) {
             console.error('❌ Optimized capture and OCR failed:', error);
@@ -814,14 +903,14 @@ export default function ReceiptScan() {
         }
     }
 
-// ============ PERFORMANCE MONITORING ============
+    // ============ PERFORMANCE MONITORING ============
     class ReceiptScannerPerformanceMonitor {
         constructor() {
             this.metrics = {};
         }
 
         startTimer(operation) {
-            this.metrics[operation] = { start: performance.now() };
+            this.metrics[operation] = {start: performance.now()};
         }
 
         endTimer(operation) {
@@ -848,7 +937,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // FIXED parseReceiptText function - Enhanced skip patterns and better quantity detection
+    // FIXED parseReceiptText function - Enhanced skip patterns and better
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
@@ -1500,9 +1589,6 @@ export default function ReceiptScan() {
     }
 
 
-
-
-
     // Combine duplicate items function
     function combineDuplicateItems(items) {
         const upcGroups = {};
@@ -1616,7 +1702,12 @@ export default function ReceiptScan() {
             .join(' ');
     }
 
-    // Enhanced guessCategory function with Sam's Club support while preserving ALL existing store logic
+    // Enhanced guessCategory function with Sam's Club support while preserving
+    ALL
+    existing
+    store
+    logic
+
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
@@ -2121,8 +2212,10 @@ export default function ReceiptScan() {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">📄 Receipt Scanner</h1>
-                            <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
+                            <h1 className="text-2xl font-bold text-gray-900">📄
+                                Receipt Scanner</h1>
+                            <p className="text-gray-600">Scan your receipt to
+                                quickly add items to inventory</p>
                             {/* Debug info for development */}
                             {process.env.NODE_ENV === 'development' && (
                                 <div className="text-xs text-gray-400 mt-1">
@@ -2151,18 +2244,21 @@ export default function ReceiptScan() {
                                         Capture Your Receipt
                                     </h3>
                                     <p className="text-gray-600 mb-6">
-                                        Take a photo or upload an image of your shopping receipt
+                                        Take a photo or upload an image of your
+                                        shopping receipt
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div
+                                    className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Camera Option - Always enabled, with iOS PWA detection info */}
                                     <TouchEnhancedButton
                                         onClick={startCamera}
                                         className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
                                     >
                                         <div className="text-4xl mb-2">📷</div>
-                                        <div className="text-lg font-medium text-indigo-700">
+                                        <div
+                                            className="text-lg font-medium text-indigo-700">
                                             Take Photo
                                         </div>
                                         <div className="text-sm text-gray-500">
@@ -2176,8 +2272,14 @@ export default function ReceiptScan() {
                                         className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                                     >
                                         <div className="text-4xl mb-2">📁</div>
-                                        <div className="text-lg font-medium text-green-700">Upload Image</div>
-                                        <div className="text-sm text-gray-500">Select from gallery</div>
+                                        <div
+                                            className="text-lg font-medium text-green-700">Upload
+                                            Image
+                                        </div>
+                                        <div
+                                            className="text-sm text-gray-500">Select
+                                            from gallery
+                                        </div>
                                     </TouchEnhancedButton>
                                 </div>
 
@@ -2191,50 +2293,68 @@ export default function ReceiptScan() {
 
                                 {/* iOS PWA specific guidance - Reframed positively */}
                                 {deviceInfo.isIOSPWA && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div
+                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                         <h4 className="text-sm font-medium text-blue-900 mb-2">
                                             📱 iOS PWA Camera Tips
                                         </h4>
                                         <p className="text-sm text-blue-800 mb-3">
-                                            <strong>Quick tip:</strong> If the camera doesn't work immediately, the
+                                            <strong>Quick tip:</strong> If the
+                                            camera doesn't work immediately, the
                                             "Upload Image" option
-                                            works perfectly! Just take a photo with your iPhone camera first, then
+                                            works perfectly! Just take a photo with
+                                            your iPhone camera first, then
                                             upload it here.
                                         </p>
                                         <div className="text-xs text-blue-700">
-                                            Both methods provide identical OCR processing and results.
+                                            Both methods provide identical OCR
+                                            processing and results.
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Error display */}
                                 {cameraError && !deviceInfo.isIOSPWA && (
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                        <div className="text-red-700">❌ {cameraError}</div>
+                                    <div
+                                        className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                        <div
+                                            className="text-red-700">❌ {cameraError}</div>
                                         <div className="text-sm text-red-600 mt-2">
-                                            Please try using the upload option instead, or check your camera
+                                            Please try using the upload option
+                                            instead, or check your camera
                                             permissions.
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Tips */}
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
+                                <div
+                                    className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h4 className="text-sm font-medium text-blue-900 mb-2">📝
+                                        Tips for Best Results:</h4>
                                     <ul className="text-sm text-blue-800 space-y-1">
-                                        <li>• Ensure receipt is flat and well-lit</li>
+                                        <li>• Ensure receipt is flat and well-lit
+                                        </li>
                                         <li>• Avoid shadows and glare</li>
-                                        <li>• Include the entire receipt in the frame</li>
-                                        <li>• Higher resolution images work better</li>
-                                        {deviceInfo.isIOS && <li>• iOS PWA may take longer to initialize camera</li>}
+                                        <li>• Include the entire receipt in the
+                                            frame
+                                        </li>
+                                        <li>• Higher resolution images work better
+                                        </li>
+                                        {deviceInfo.isIOS &&
+                                            <li>• iOS PWA may take longer to
+                                                initialize camera</li>}
                                     </ul>
                                 </div>
 
                                 {/* Report Issue Section */}
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                    <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
+                                <div
+                                    className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛
+                                        Having Issues?</h4>
                                     <p className="text-sm text-yellow-800 mb-3">
-                                        If the receipt scanner isn't working properly with your receipt, you can report
+                                        If the receipt scanner isn't working
+                                        properly with your receipt, you can report
                                         the issue to help us improve it.
                                     </p>
                                     <TouchEnhancedButton
@@ -2251,15 +2371,18 @@ export default function ReceiptScan() {
                         {showCamera && (
                             <div className="space-y-4">
                                 <div className="text-center">
-                                    <h3 className="text-lg font-medium mb-4">📷 Camera View</h3>
+                                    <h3 className="text-lg font-medium mb-4">📷
+                                        Camera View</h3>
                                     {deviceInfo.isIOS && (
                                         <p className="text-sm text-yellow-600 mb-2">
-                                            iOS device detected - using optimized camera settings
+                                            iOS device detected - using optimized
+                                            camera settings
                                         </p>
                                     )}
                                 </div>
 
-                                <div className="relative bg-black rounded-lg overflow-hidden">
+                                <div
+                                    className="relative bg-black rounded-lg overflow-hidden">
                                     {/* Clean video container for iOS PWA compatibility */}
                                     <video
                                         ref={videoRef}
@@ -2311,7 +2434,8 @@ export default function ReceiptScan() {
 
                                 {/* Debug info for camera */}
                                 {process.env.NODE_ENV === 'development' && (
-                                    <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
+                                    <div
+                                        className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                         Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
                                         {deviceInfo.isIOS ? ' (iOS optimized)' : ''}
                                     </div>
@@ -2331,7 +2455,8 @@ export default function ReceiptScan() {
                                 </p>
 
                                 {/* Progress Bar */}
-                                <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                                <div
+                                    className="w-full bg-gray-200 rounded-full h-2 mb-4">
                                     <div
                                         className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
                                         style={{width: `${ocrProgress}%`}}
@@ -2402,8 +2527,10 @@ export default function ReceiptScan() {
                                 {/* Items List */}
                                 <div className="space-y-4">
                                     {extractedItems.length === 0 ? (
-                                        <div className="text-center py-8 text-gray-500">
-                                            No items were extracted from the receipt. Please try again with a
+                                        <div
+                                            className="text-center py-8 text-gray-500">
+                                            No items were extracted from the
+                                            receipt. Please try again with a
                                             clearer image.
                                         </div>
                                     ) : (
@@ -2412,7 +2539,8 @@ export default function ReceiptScan() {
                                                 key={item.id}
                                                 className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
                                             >
-                                                <div className="flex items-start space-x-3">
+                                                <div
+                                                    className="flex items-start space-x-3">
                                                     {/* Selection Checkbox */}
                                                     <input
                                                         type="checkbox"
@@ -2422,7 +2550,8 @@ export default function ReceiptScan() {
                                                     />
 
                                                     {/* Item Details */}
-                                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div
+                                                        className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         {/* Name */}
                                                         <div>
                                                             <label
@@ -2448,50 +2577,154 @@ export default function ReceiptScan() {
                                                                 onChange={(e) => updateItem(item.id, 'category', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                             >
-                                                                <option value="">Select category</option>
-                                                                <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
-                                                                <option value="Beans">Beans</option>
-                                                                <option value="Beverages">Beverages</option>
-                                                                <option value="Bouillon">Bouillon</option>
-                                                                <option value="Boxed Meals">Boxed Meals</option>
-                                                                <option value="Breads">Breads</option>
-                                                                <option value="Canned Beans">Canned/Jarred Beans</option>
-                                                                <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                                                <option value="Canned Meals">Canned/Jarred Meals</option>
-                                                                <option value="Canned Meat">Canned/Jarred Meat</option>
-                                                                <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                                                <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                                                <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
-                                                                <option value="Cheese">Cheese</option>
-                                                                <option value="Condiments">Condiments</option>
-                                                                <option value="Dairy">Dairy</option>
-                                                                <option value="Eggs">Eggs</option>
-                                                                <option value="Fresh Fruits">Fresh Fruits</option>
-                                                                <option value="Fresh Spices">Fresh Spices</option>
-                                                                <option value="Fresh Vegetables">Fresh Vegetables</option>
-                                                                <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                                                <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
-                                                                <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                                                <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                                                <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                                                <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                                                <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                                                <option value="Frozen Fruit">Frozen Fruit</option>
-                                                                <option value="Frozen Vegetables">Frozen Vegetables</option>
-                                                                <option value="Grains">Grains</option>
-                                                                <option value="Other">Other</option>
-                                                                <option value="Pasta">Pasta</option>
-                                                                <option value="Seasonings">Seasonings</option>
-                                                                <option value="Snacks">Snacks</option>
-                                                                <option value="Soups & Soup Mixes">Soups & Soup Mixes</option>
-                                                                <option value="Spices">Spices</option>
-                                                                <option value="Stock/Broth">Stock/Broth</option>
-                                                                <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                                                <option
+                                                                    value="">Select
+                                                                    category
+                                                                </option>
+                                                                <option
+                                                                    value="Baking & Cooking Ingredients">Baking
+                                                                    & Cooking
+                                                                    Ingredients
+                                                                </option>
+                                                                <option
+                                                                    value="Beans">Beans
+                                                                </option>
+                                                                <option
+                                                                    value="Beverages">Beverages
+                                                                </option>
+                                                                <option
+                                                                    value="Bouillon">Bouillon
+                                                                </option>
+                                                                <option
+                                                                    value="Boxed Meals">Boxed
+                                                                    Meals
+                                                                </option>
+                                                                <option
+                                                                    value="Breads">Breads
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Beans">Canned/Jarred
+                                                                    Beans
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Fruit">Canned/Jarred
+                                                                    Fruit
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Meals">Canned/Jarred
+                                                                    Meals
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Meat">Canned/Jarred
+                                                                    Meat
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Sauces">Canned/Jarred
+                                                                    Sauces
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Tomatoes">Canned/Jarred
+                                                                    Tomatoes
+                                                                </option>
+                                                                <option
+                                                                    value="Canned Vegetables">Canned/Jarred
+                                                                    Vegetables
+                                                                </option>
+                                                                <option
+                                                                    value="Cheese">Cheese
+                                                                </option>
+                                                                <option
+                                                                    value="Condiments">Condiments
+                                                                </option>
+                                                                <option
+                                                                    value="Dairy">Dairy
+                                                                </option>
+                                                                <option
+                                                                    value="Eggs">Eggs
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh Fruits">Fresh
+                                                                    Fruits
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh Spices">Fresh
+                                                                    Spices
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh Vegetables">Fresh
+                                                                    Vegetables
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Beef">Fresh/Frozen
+                                                                    Beef
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                    Fish & Seafood
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Lamb">Fresh/Frozen
+                                                                    Lamb
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Pork">Fresh/Frozen
+                                                                    Pork
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Poultry">Fresh/Frozen
+                                                                    Poultry
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Rabbit">Fresh/Frozen
+                                                                    Rabbit
+                                                                </option>
+                                                                <option
+                                                                    value="Fresh/Frozen Venison">Fresh/Frozen
+                                                                    Venison
+                                                                </option>
+                                                                <option
+                                                                    value="Frozen Fruit">Frozen
+                                                                    Fruit
+                                                                </option>
+                                                                <option
+                                                                    value="Frozen Vegetables">Frozen
+                                                                    Vegetables
+                                                                </option>
+                                                                <option
+                                                                    value="Grains">Grains
+                                                                </option>
+                                                                <option
+                                                                    value="Other">Other
+                                                                </option>
+                                                                <option
+                                                                    value="Pasta">Pasta
+                                                                </option>
+                                                                <option
+                                                                    value="Seasonings">Seasonings
+                                                                </option>
+                                                                <option
+                                                                    value="Snacks">Snacks
+                                                                </option>
+                                                                <option
+                                                                    value="Soups & Soup Mixes">Soups
+                                                                    & Soup Mixes
+                                                                </option>
+                                                                <option
+                                                                    value="Spices">Spices
+                                                                </option>
+                                                                <option
+                                                                    value="Stock/Broth">Stock/Broth
+                                                                </option>
+                                                                <option
+                                                                    value="Stuffing & Sides">Stuffing
+                                                                    & Sides
+                                                                </option>
                                                             </select>
                                                         </div>
 
                                                         {/* Quantity & Location */}
-                                                        <div className="grid grid-cols-2 gap-2">
+                                                        <div
+                                                            className="grid grid-cols-2 gap-2">
                                                             <div>
                                                                 <label
                                                                     className="block text-sm font-medium text-gray-700 mb-1">
@@ -2515,11 +2748,22 @@ export default function ReceiptScan() {
                                                                     onChange={(e) => updateItem(item.id, 'location', e.target.value)}
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
-                                                                    <option value="pantry">Pantry</option>
-                                                                    <option value="kitchen">Kitchen Cabinets</option>
-                                                                    <option value="fridge">Fridge</option>
-                                                                    <option value="freezer">Freezer</option>
-                                                                    <option value="other">Other</option>
+                                                                    <option
+                                                                        value="pantry">Pantry
+                                                                    </option>
+                                                                    <option
+                                                                        value="kitchen">Kitchen
+                                                                        Cabinets
+                                                                    </option>
+                                                                    <option
+                                                                        value="fridge">Fridge
+                                                                    </option>
+                                                                    <option
+                                                                        value="freezer">Freezer
+                                                                    </option>
+                                                                    <option
+                                                                        value="other">Other
+                                                                    </option>
                                                                 </select>
                                                             </div>
                                                         </div>
@@ -2538,10 +2782,13 @@ export default function ReceiptScan() {
                                                 </div>
 
                                                 {/* Additional Info */}
-                                                <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
+                                                <div
+                                                    className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                     <span>Price: ${item.price.toFixed(2)}</span>
-                                                    {item.upc && <span>UPC: {item.upc}</span>}
-                                                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                                                    {item.upc &&
+                                                        <span>UPC: {item.upc}</span>}
+                                                    <span
+                                                        className="text-xs bg-gray-200 px-2 py-1 rounded">
                                                         {item.rawText}
                                                     </span>
                                                 </div>
@@ -2577,11 +2824,15 @@ export default function ReceiptScan() {
 
                 {/* Report Issue Modal */}
                 {showReportModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div
+                            className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
                             <div className="p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
+                                <div
+                                    className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-medium text-gray-900">📧
+                                        Report Receipt Issue</h3>
                                     <TouchEnhancedButton
                                         onClick={() => setShowReportModal(false)}
                                         className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -2592,8 +2843,10 @@ export default function ReceiptScan() {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            What type of issue are you experiencing? *
+                                        <label
+                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                            What type of issue are you experiencing?
+                                            *
                                         </label>
                                         <select
                                             value={reportData.issue}
@@ -2603,21 +2856,43 @@ export default function ReceiptScan() {
                                             }))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         >
-                                            <option value="">Select an issue...</option>
-                                            <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
-                                            <option value="camera-not-working">Camera not working</option>
-                                            <option value="ocr-poor-accuracy">Poor text recognition</option>
-                                            <option value="wrong-items-detected">Wrong items detected</option>
-                                            <option value="missing-items">Items not detected</option>
-                                            <option value="categories-wrong">Wrong categories assigned</option>
-                                            <option value="upc-lookup-failed">UPC lookup not working</option>
-                                            <option value="app-crash">App crashed/froze</option>
-                                            <option value="other">Other issue</option>
+                                            <option value="">Select an issue...
+                                            </option>
+                                            <option
+                                                value="ios-pwa-camera-not-working">iOS
+                                                PWA Camera Not Working
+                                            </option>
+                                            <option
+                                                value="camera-not-working">Camera
+                                                not working
+                                            </option>
+                                            <option value="ocr-poor-accuracy">Poor
+                                                text recognition
+                                            </option>
+                                            <option
+                                                value="wrong-items-detected">Wrong
+                                                items detected
+                                            </option>
+                                            <option value="missing-items">Items not
+                                                detected
+                                            </option>
+                                            <option value="categories-wrong">Wrong
+                                                categories assigned
+                                            </option>
+                                            <option value="upc-lookup-failed">UPC
+                                                lookup not working
+                                            </option>
+                                            <option value="app-crash">App
+                                                crashed/froze
+                                            </option>
+                                            <option value="other">Other issue
+                                            </option>
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            className="block text-sm font-medium text-gray-700 mb-1">
                                             Please describe the issue in detail *
                                         </label>
                                         <textarea
@@ -2633,7 +2908,8 @@ export default function ReceiptScan() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            className="block text-sm font-medium text-gray-700 mb-1">
                                             Your email (for follow-up)
                                         </label>
                                         <input
@@ -2650,7 +2926,8 @@ export default function ReceiptScan() {
 
                                     {capturedImage && (
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-2">
                                                 Receipt Image (will be included)
                                             </label>
                                             <img
@@ -2662,7 +2939,8 @@ export default function ReceiptScan() {
                                     )}
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label
+                                            className="block text-sm font-medium text-gray-700 mb-2">
                                             Additional Screenshots/Images
                                         </label>
                                         <div className="space-y-3">
@@ -2674,23 +2952,30 @@ export default function ReceiptScan() {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG,
+                                                Upload screenshots showing the
+                                                issue. Supports: JPG,
                                                 PNG, GIF, WebP (max 10MB each)
                                             </p>
 
                                             {reportData.additionalFiles.length > 0 && (
                                                 <div className="space-y-2">
                                                     <p className="text-sm font-medium text-gray-700">
-                                                        Files to be sent ({reportData.additionalFiles.length}):
+                                                        Files to be sent
+                                                        ({reportData.additionalFiles.length}):
                                                     </p>
                                                     {reportData.additionalFiles.map((file, index) => (
-                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="text-sm">📸</span>
-                                                                <span className="text-sm text-gray-700 truncate">
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div
+                                                                className="flex items-center space-x-2">
+                                                                                                    <span
+                                                                                                        className="text-sm">📸</span>
+                                                                <span
+                                                                    className="text-sm text-gray-700 truncate">
                                                                     {file.name}
                                                                 </span>
-                                                                <span className="text-xs text-gray-500">
+                                                                <span
+                                                                    className="text-xs text-gray-500">
                                                                     ({(file.size / 1024 / 1024).toFixed(1)}MB)
                                                                 </span>
                                                             </div>
@@ -2707,19 +2992,27 @@ export default function ReceiptScan() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <div
+                                        className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                         <p className="text-sm text-blue-800">
-                                            📝 <strong>Your report will include:</strong>
+                                            📝 <strong>Your report will
+                                            include:</strong>
                                         </p>
                                         <ul className="text-sm text-blue-700 mt-1 space-y-1">
                                             <li>• Your issue description</li>
-                                            <li>• Device info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
-                                            {capturedImage && <li>• Receipt image</li>}
+                                            <li>• Device
+                                                info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
+                                            {capturedImage &&
+                                                <li>• Receipt image</li>}
                                             {reportData.additionalFiles.length > 0 && (
-                                                <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                <li>• {reportData.additionalFiles.length} additional
+                                                    screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
                                             )}
-                                            <li>• Browser and device information</li>
-                                            <li>• No personal information from your account</li>
+                                            <li>• Browser and device information
+                                            </li>
+                                            <li>• No personal information from your
+                                                account
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>

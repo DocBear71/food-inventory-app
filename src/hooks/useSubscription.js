@@ -209,23 +209,21 @@ export function useSubscription() {
         if (!subscriptionData?.usage) return 0;
 
         switch (feature) {
-            // FIXED: Map to correct feature gate names from subscription-config.js
+            // FIXED: Use correct feature gate names
             case FEATURE_GATES.INVENTORY_LIMIT:
                 return subscriptionData.usage.inventoryItems || 0;
             case FEATURE_GATES.PERSONAL_RECIPES:
                 return subscriptionData.usage.personalRecipes || 0;
             case FEATURE_GATES.UPC_SCANNING:
                 return subscriptionData.usage.monthlyUPCScans || 0;
-            case 'RECEIPT_SCAN': // If you have this feature
+            case FEATURE_GATES.RECEIPT_SCAN:  // FIXED: Now using proper constant
                 return subscriptionData.usage.monthlyReceiptScans || 0;
-            case 'SAVE_PUBLIC_RECIPE': // If you have this feature
-                return subscriptionData.usage.savedRecipes || 0;
             case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
                 return subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
                 return subscriptionData.usage.recipeCollections || 0;
 
-            // ADD THESE CASES for feature-access gates that don't have usage limits:
+            // Feature-access gates that don't have usage counts:
             case FEATURE_GATES.COMMON_ITEMS_WIZARD:
             case FEATURE_GATES.CREATE_MEAL_PLAN:
             case FEATURE_GATES.EMAIL_SHARING:
@@ -237,13 +235,9 @@ export function useSubscription() {
             case FEATURE_GATES.NUTRITION_GOALS:
             case FEATURE_GATES.PUBLIC_RECIPES:
             case FEATURE_GATES.BULK_INVENTORY_ADD:
-                return 0; // These features don't have usage counts, they're just access-based
+                return 0; // These are access-based, not usage-limited
 
             default:
-                // Remove the console.warn to reduce noise, or make it more specific
-                if (feature && !feature.startsWith('undefined')) {
-                    console.warn('Unknown feature gate for usage count:', feature);
-                }
                 return 0;
         }
     };
@@ -271,17 +265,11 @@ export function useSubscription() {
     };
 
     const canScanReceipt = () => {
-        // Note: You may need to add this to your FEATURE_GATES if it doesn't exist
-        return checkLimit('RECEIPT_SCAN', getCurrentUsageCount('RECEIPT_SCAN'));
+        return checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN));
     };
 
     const canAddPersonalRecipe = () => {
         return checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES));
-    };
-
-    const canSavePublicRecipe = () => {
-        // Note: You may need to add this to your FEATURE_GATES if it doesn't exist
-        return checkLimit('SAVE_PUBLIC_RECIPE', getCurrentUsageCount('SAVE_PUBLIC_RECIPE'));
     };
 
     return {
