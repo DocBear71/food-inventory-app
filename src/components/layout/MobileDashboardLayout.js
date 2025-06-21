@@ -91,10 +91,35 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    const handleSignOut = () => {
-        MobileHaptics.medium();
-        setMobileMenuOpen(false);
-        signOut({ callbackUrl: '/' });
+    // Add this improved sign out handler to both DashboardLayout and MobileDashboardLayout
+
+    const handleSignOut = async () => {
+        try {
+            MobileHaptics?.medium(); // Only call if available
+            setMobileMenuOpen?.(false); // Only call if available (mobile layout)
+
+            // Try to sign out with error handling
+            await signOut({
+                callbackUrl: '/',
+                redirect: true
+            });
+        } catch (error) {
+            console.error('Sign out error:', error);
+
+            // Fallback: Clear local storage and redirect manually
+            try {
+                // Clear any local storage
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Manually redirect to home page
+                window.location.href = '/';
+            } catch (fallbackError) {
+                console.error('Fallback sign out failed:', fallbackError);
+                // Last resort: just reload the page
+                window.location.reload();
+            }
+        }
     };
 
     // Calculate bottom padding based on whether PWA banner is shown
