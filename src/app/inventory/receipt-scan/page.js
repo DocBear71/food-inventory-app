@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/inventory/receipt-scan/page.js - v10 Fixed mobile null reference errors
+// file: /src/app/inventory/receipt-scan/page.js - v11 Fixed mobile null reference errors
 
 import {useState, useRef, useEffect} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -848,7 +848,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // FIXED parseReceiptText function - restored proper Walmart/Sam's Club support
+    // FIXED parseReceiptText function - Enhanced skip patterns and better quantity detection
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
@@ -858,7 +858,7 @@ export default function ReceiptScan() {
         const upcPattern = /\b\d{12,14}\b/;
         const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
-        // FIXED: Restored comprehensive skip patterns from v5 - this was the issue
+        // ENHANCED: Updated skip patterns with new problematic patterns
         const skipPatterns = [
             // ============ STORE NAMES AND HEADERS (More precise) ============
             /^walmart$/i,  // Only "walmart" by itself, not lines containing walmart
@@ -894,6 +894,46 @@ export default function ReceiptScan() {
             /^(ref|reference|auth|authorization)$/i,
             /^(visa|mastercard|amex|discover|american express)$/i,
             /^(visa credit|visa debit|mastercard credit)$/i,
+
+            // ============ TOTALS AND SUMMARIES - ENHANCED ============
+            /^total\s+purchase$/i,           // NEW: "Total Purchase"
+            /^total\s+amount$/i,             // NEW: "Total Amount"
+            /^grand\s+total$/i,              // NEW: "Grand Total"
+            /^final\s+total$/i,              // NEW: "Final Total"
+            /^order\s+total$/i,              // NEW: "Order Total"
+            /^(sub-total|subtotal|sub total)$/i,  // EXISTING: Subtotal variations
+            /^(net amount|netamount|net)$/i,      // EXISTING: Net amount
+            /^(total|amount)$/i,                  // EXISTING: Generic total
+            /^subtotal\s*\[\d+\]$/i,             // EXISTING: Subtotal with numbers
+
+            // ============ TAX LINES - ENHANCED ============
+            /^t\s+s\s+ia\s+tax\s+.*$/i,      // NEW: "T S IA TAX ..." pattern
+            /^[a-z]\s+s\s+[a-z]{2}\s+tax\s+.*$/i, // NEW: Generic state tax pattern
+            /^tax\s+[\d\s]+$/i,              // EXISTING: Tax with numbers
+            /^tex\s+[\d\s]+$/i,              // EXISTING: Tax misspelling
+            /^t\s+[\d\s]+$/i,                // EXISTING: Short tax
+            /^\d+\.\d+\s+on\s+\$?\d+\.\d{2}$/i, // NEW: Tax calculation format
+
+            // ============ TAX CALCULATION PATTERNS - NEW ============
+            /^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i, // "E X 23.93 @ 6.0008 144"
+            /^[a-z]\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,      // "E 23.93 @ 6.000% = 1.44"
+            /^t\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,          // "T 23.93 @ 6.000% = 1.44"
+            /^\d+\.\d+\s+@\s+\d+\.\d+%\s*=\s*\d+\.\d+$/i,                 // "23.93 @ 6.000% = 1.44"
+            /^[a-z]\s+x\s+\d+\.\d+\s+@\s+\d+\s+\d+\s+\d+$/i,             // OCR garbled tax line
+
+            // ============ PRODUCT CODES AND UPC PATTERNS - ENHANCED ============
+            /^[a-z]\s+x\s+\d+\s+\d+\s+\d+\s+\d+$/i,  // NEW: "E X 6 0008 144" pattern
+            /^[a-z]\s+[a-z]\s+\d+\s+\d+\s+\d+$/i,    // NEW: Similar product code patterns
+            /^[\d\s]{15,}$/,                          // EXISTING: Long number strings
+            /^\d{10,}$/,                             // NEW: Long product codes
+
+            // ============ QUANTITY CONTINUATION LINES - ENHANCED ============
+            /^\d+\s+ea\s+\d+$/i,             // NEW: "4 Ea 3" pattern
+            /^\d+\s+each\s+\d+$/i,           // NEW: "4 Each 3" pattern
+            /^\d+\s+@\s+\$?\d+\.\d{2}\s+ea$/i,  // EXISTING: Quantity @ price ea
+            /^\d+\s+@\s+\$?\d+\.\d{2}$/i,       // EXISTING: Quantity @ price
+            /^\d+\s+ea$/i,                      // EXISTING: Just quantity ea
+            /^ea$/i,                            // EXISTING: Just "ea"
 
             // ============ WALMART SPECIFIC PATTERNS ============
             /^manager\s+/i,
@@ -967,10 +1007,6 @@ export default function ReceiptScan() {
             /^[\d\s]{15,}$/,
 
             // ============ HY-VEE SPECIFIC PATTERNS ============
-            /^(sub-total|subtotal|sub total)$/i,
-            /^(net amount|netamount|net)$/i,
-            /^(total|amount)$/i,
-            /^subtotal\s*\[\d+\]$/i,
             /btl\s+dep/i,
             /btl\.\s+dep/i,
             /bottle\s+deposit/i,
@@ -992,8 +1028,6 @@ export default function ReceiptScan() {
             /^@\s*\d+\.\d+%/i,
             /^=\s*[\d\s]+$/i,
             /^\d+\.\d+%\s*=?$/i,
-            /^sub\s*total\s*[\[\d\]]*$/i,
-            /^total\s*[\[\d\]]*$/i,
             /employee\s*owned/i,
             /storeman/i,
             /group.*hy.*vee/i,
@@ -1001,16 +1035,11 @@ export default function ReceiptScan() {
             /^[a-z]{1,2}\s+[\d\s]+$/i,
 
             // ============ TARGET SPECIFIC PATTERNS ============
-            /^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i,
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^\d+\s*ea$/i,
-            /^ea$/i,
             /^regular\s+price$/i,
             /^reg\s+price$/i,
             /^was\s+\$?\d+\.\d{2}$/i,
             /^t\s*=\s*ia\s+tax$/i,
             /^[t]\s*-\s*ia\s+tax$/i,
-            /^\d+\.\d+\s*on\s*\$?\d+\.\d{2}$/i,
             /^\*?\d{4}\s+debit\s+total$/i,
             /^aid[:;]\s*[a-z0-9]+$/i,
             /^auth\s+code[:;]$/i,
@@ -1039,8 +1068,6 @@ export default function ReceiptScan() {
             /^clothing$/i,
 
             // ============ TRADER JOE'S SPECIFIC PATTERNS ============
-            /^\d+\s*@\s*\$?\d+\.\d{2}$/i,
-            /^@\s*\$?\d+\.\d{2}$/i,
             /^items\s+in\s+transaction[:;]?\s*\d+$/i,
             /^balance\s+to\s+pay$/i,
             /^merchant\s+copy$/i,
@@ -1065,7 +1092,6 @@ export default function ReceiptScan() {
             /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb$/i,
             /^wt\s+.*lb$/i,
             /^\d+\.\d+\s*\/\s*lb$/i,
-            /^tax$/i,
             /^\*+\s*balance$/i,
             /^balance\s*\*+$/i,
             /^f$/i,
@@ -1130,24 +1156,18 @@ export default function ReceiptScan() {
             /terminal\s*#/i,
             /pay\s+from\s+primary/i,
             /purchase$/i,
-            /tax$/i,
-            /Tax$/i,
-            /TAX$/i,
-            /^t\s+[\d\s]+$/i,
-            /^tax\s+[\d\s]+$/i,
-            /^tex\s+[\d\s]+$/i,
             /^.*\s+tax\s+[\d\s]+$/i,
             /^.*\s+savings\s+[\d\s]+$/i,
             /^total\s+purchase\s+[\d\s]+$/i,
-            /^subtotal\s+[\d\s]+$/i,
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
 
-        // Process lines with context awareness
+        // Process lines with enhanced context awareness
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+            const next2Line = i < lines.length - 2 ? lines[i + 2] : '';
             const prevLine = i > 0 ? lines[i - 1] : '';
 
             // Skip common header/footer patterns
@@ -1156,15 +1176,27 @@ export default function ReceiptScan() {
                 continue;
             }
 
+            // ENHANCED: Skip if next line looks like quantity continuation that should be combined
+            if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
+                console.log(`📋 Detected quantity continuation in next line, will process with current line: ${line} + ${nextLine}`);
+                // Continue processing this line, the quantity logic below will handle the combination
+            }
+
             // Skip bottle deposit lines specifically
             if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
                 console.log(`📋 Skipping bottle deposit: ${line}`);
                 continue;
             }
 
-            // Skip tax calculation lines
+            // Skip tax calculation lines - ENHANCED
             if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
                 console.log(`📋 Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // NEW: Skip OCR-garbled tax calculation lines
+            if (line.match(/^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+/i)) {
+                console.log(`📋 Skipping OCR-garbled tax line: ${line}`);
                 continue;
             }
 
@@ -1204,51 +1236,15 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            // Skip if this line is just a quantity/price continuation of previous item
+            // ENHANCED: Skip if this line is a quantity continuation that should have been combined with previous
             if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
                 console.log(`📋 Skipping quantity line (part of previous item): ${line}`);
-                continue;
-            }
-
-            // Skip regular price lines
-            if (line.match(/^regular\s+price/i)) {
-                console.log(`📋 Skipping regular price line: ${line}`);
                 continue;
             }
 
             // Skip lines that are just whitespace or tax codes
             if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
                 console.log(`📋 Skipping tax code or whitespace: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just discount amounts
-            if (line.match(/\d+\.\d{2}-[nt]$/i)) {
-                console.log(`📋 Skipping discount line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that contain discount codes with percentages
-            if (line.match(/^\d+.*\d+%.*\(\$\d+\.\d{2}\)$/i)) {
-                console.log(`📋 Skipping discount code line: ${line}`);
-                continue;
-            }
-
-            // Skip measurement calculation lines
-            if (line.match(/^\d+\.?\d*\s*x\s*\$\d+\.\d{2}$/i)) {
-                console.log(`📋 Skipping measurement line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just weights/measurements
-            if (line.match(/^\d+\.?\d*x?$/i) && line.length < 5) {
-                console.log(`📋 Skipping weight line: ${line}`);
-                continue;
-            }
-
-            // Skip specific total lines (case insensitive)
-            if (line.match(/^(sub-total|sub total|subtotal|net amount|netamount|total|amount)$/i)) {
-                console.log(`📋 Skipping total line: ${line}`);
                 continue;
             }
 
@@ -1274,8 +1270,19 @@ export default function ReceiptScan() {
                 let quantity = 1;
                 let unitPrice = price;
 
-                // Check if next line contains quantity information
-                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
+                // ENHANCED: Check for quantity continuation in next line (like "4 Ea 3")
+                if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        // The third number might be package count or similar, use unit price calculation
+                        unitPrice = price / quantity;
+                        itemPrice = price; // Keep the line price as the actual paid amount
+                        console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
+                    }
+                }
+                // Check if next line contains quantity information (existing logic)
+                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
                     const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
@@ -1284,9 +1291,8 @@ export default function ReceiptScan() {
                         console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
                     }
                 }
-
                 // Check for Trader Joe's quantity continuation pattern
-                if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
+                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
                     const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
@@ -1420,7 +1426,7 @@ export default function ReceiptScan() {
                     !nameMatch.match(/^[tx]\s*\d/i) &&
                     !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i)) {
 
-                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice} = ${itemPrice}`);
+                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice.toFixed(2)} = ${itemPrice.toFixed(2)}`);
 
                     const item = {
                         id: Date.now() + Math.random(),
@@ -1431,12 +1437,18 @@ export default function ReceiptScan() {
                         upc: upcMatch ? upcMatch[0] : '',
                         category: guessCategory(nameMatch),
                         location: guessLocation(nameMatch),
-                        rawText: line + (nextLine && nextLine.match(/^\d+\s*@.*$/i) ? ` + ${nextLine}` : ''),
+                        rawText: line + (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i)) ? ` + ${nextLine}` : ''),
                         selected: true,
                         needsReview: false
                     };
 
                     items.push(item);
+
+                    // ENHANCED: Skip the next line if it was a quantity continuation line that we just processed
+                    if (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i))) {
+                        i++; // Skip the next line since we already processed it
+                        console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
+                    }
                 } else {
                     console.log(`📋 Skipping line with insufficient name: "${nameMatch}" from "${line}"`);
                 }
