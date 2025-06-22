@@ -56,7 +56,7 @@ function PWAInstallBannerContent() {
                         sessionStorage.removeItem('just-signed-out');
                         setIsSigningOut(false);
                         console.log('PWA Banner: Signout process completed - API calls allowed again');
-                    }, 5000); // Increased to 5 seconds
+                    }, 15000); // Increased to 15 seconds
                 }
             }
         };
