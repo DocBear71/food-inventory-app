@@ -1,6 +1,6 @@
-// FILE 1: /src/app/api/auth/verify-email/route.js
+// file: /src/app/api/auth/verify-email/route.js v2 - Fixed to work with User model verification methods
+
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -13,16 +13,13 @@ export async function GET(request) {
             return NextResponse.redirect(new URL('/auth/signin?error=missing-token', request.url));
         }
 
-        // Hash the token to compare with stored hash
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
         await connectDB();
 
-        // Find user with valid verification token that hasn't expired
+        // Find user with the verification token that hasn't expired
         const user = await User.findOne({
-            emailVerificationToken: hashedToken,
+            emailVerificationToken: token,
             emailVerificationExpires: { $gt: new Date() }
-        });
+        }).select('+emailVerificationToken +emailVerificationExpires');
 
         if (!user) {
             return NextResponse.redirect(new URL('/auth/signin?error=invalid-token', request.url));
@@ -33,8 +30,15 @@ export async function GET(request) {
             return NextResponse.redirect(new URL('/auth/signin?message=already-verified', request.url));
         }
 
-        // Verify the email
-        await user.verifyEmail();
+        // Use the verifyEmailWithToken method
+        const isValid = user.verifyEmailWithToken(token);
+
+        if (!isValid) {
+            return NextResponse.redirect(new URL('/auth/signin?error=invalid-token', request.url));
+        }
+
+        // Save the user with updated verification status
+        await user.save();
 
         console.log(`Email verified for user: ${user.email}`);
 
@@ -58,16 +62,13 @@ export async function POST(request) {
             );
         }
 
-        // Hash the token to compare with stored hash
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
         await connectDB();
 
-        // Find user with valid verification token that hasn't expired
+        // Find user with the verification token that hasn't expired
         const user = await User.findOne({
-            emailVerificationToken: hashedToken,
+            emailVerificationToken: token,
             emailVerificationExpires: { $gt: new Date() }
-        });
+        }).select('+emailVerificationToken +emailVerificationExpires');
 
         if (!user) {
             return NextResponse.json(
@@ -85,8 +86,18 @@ export async function POST(request) {
             });
         }
 
-        // Verify the email
-        await user.verifyEmail();
+        // Use the verifyEmailWithToken method
+        const isValid = user.verifyEmailWithToken(token);
+
+        if (!isValid) {
+            return NextResponse.json(
+                { error: 'Invalid or expired verification token' },
+                { status: 400 }
+            );
+        }
+
+        // Save the user with updated verification status
+        await user.save();
 
         console.log(`Email verified for user: ${user.email}`);
 
