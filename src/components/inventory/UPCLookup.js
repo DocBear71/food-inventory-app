@@ -73,6 +73,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
     // FIXED: Add local UPC state to ensure input works properly
     const [localUPC, setLocalUPC] = useState(currentUPC);
+    const [optimisticUsage, setOptimisticUsage] = useState(null);
+    const [isUpdatingUsage, setIsUpdatingUsage] = useState(false);
+    const usageUpdateTimeoutRef = useRef(null);
 
     // Text search specific state
     const [searchQuery, setSearchQuery] = useState('');
@@ -102,6 +105,256 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         loadUsageInfo();
     }, []);
 
+    // 2. ENHANCED: Immediate usage update function
+    const updateUsageImmediately = (incrementBy = 1) => {
+        if (!usageInfo) return;
+
+        // Immediate optimistic update
+        const newUsage = {
+            ...usageInfo,
+            currentMonth: usageInfo.currentMonth + incrementBy,
+            remaining: usageInfo.monthlyLimit === 'unlimited'
+                ? 'unlimited'
+                : Math.max(0, usageInfo.remaining - incrementBy),
+            canScan: usageInfo.monthlyLimit === 'unlimited'
+                ? true
+                : (usageInfo.currentMonth + incrementBy) < usageInfo.monthlyLimit
+        };
+
+        setOptimisticUsage(newUsage);
+        setIsUpdatingUsage(true);
+
+        console.log('📊 Immediate UI update:', {
+            from: usageInfo.currentMonth,
+            to: newUsage.currentMonth,
+            remaining: newUsage.remaining,
+            canScan: newUsage.canScan
+        });
+
+        // Debounced server refresh
+        if (usageUpdateTimeoutRef.current) {
+            clearTimeout(usageUpdateTimeoutRef.current);
+        }
+
+        usageUpdateTimeoutRef.current = setTimeout(async () => {
+            console.log('🔄 Refreshing usage from server...');
+            await loadUsageInfo();
+            setOptimisticUsage(null);
+            setIsUpdatingUsage(false);
+        }, 1500); // Wait 1.5 seconds before server refresh
+    };
+
+// 3. ENHANCED: Usage check with immediate feedback
+    const checkUsageLimitsWithImmediateUpdate = async () => {
+        const currentUsageData = optimisticUsage || usageInfo;
+
+        if (isUpdatingUsage && !currentUsageData) {
+            alert('⏳ Please wait while we check your scan limits...');
+            return false;
+        }
+
+        if (!currentUsageData) {
+            alert('❌ Unable to check scan limits. Please refresh the page and try again.');
+            return false;
+        }
+
+        if (!currentUsageData.canScan) {
+            const limitMessage = currentUsageData.monthlyLimit === 'unlimited'
+                ? 'Unexpected limit reached'
+                : `You've reached your monthly limit of ${currentUsageData.monthlyLimit} UPC scans. Used: ${currentUsageData.currentMonth}/${currentUsageData.monthlyLimit}`;
+
+            alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
+
+            // Redirect to pricing
+            window.location.href = `/pricing?source=upc-limit&feature=upc-scanning&required=gold`;
+            return false;
+        }
+
+        return true;
+    };
+
+// 4. ENHANCED: UPC lookup with immediate UI update
+    const handleUPCLookupWithImmediateUpdate = async (upc) => {
+        if (!upc || upc.length < 8) return;
+
+        // Check usage limits with optimistic data
+        if (!(await checkUsageLimitsWithImmediateUpdate())) {
+            return;
+        }
+
+        // Immediate UI update BEFORE API call
+        updateUsageImmediately(1);
+
+        setIsLooking(true);
+        setLookupResult(null);
+
+        try {
+            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`));
+            const data = await response.json();
+
+            if (data.success && data.product.found) {
+                const standardizedNutrition = standardizeNutritionData(data.product.nutrition);
+                const enhancedProduct = {
+                    ...data.product,
+                    nutrition: standardizedNutrition
+                };
+
+                setLookupResult({ success: true, product: enhancedProduct });
+                onProductFound(enhancedProduct);
+            } else {
+                setLookupResult({
+                    success: false,
+                    message: data.message || 'Product not found'
+                });
+            }
+        } catch (error) {
+            console.error('UPC lookup error:', error);
+            setLookupResult({
+                success: false,
+                message: 'Error looking up product'
+            });
+
+            // If API fails, revert the optimistic update
+            setOptimisticUsage(null);
+            setIsUpdatingUsage(false);
+            if (usageUpdateTimeoutRef.current) {
+                clearTimeout(usageUpdateTimeoutRef.current);
+            }
+        } finally {
+            setIsLooking(false);
+        }
+    };
+
+// 5. ENHANCED: Text search with immediate UI update
+    const performTextSearchWithImmediateUpdate = async (query, page = 1) => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            setTotalPages(0);
+            return;
+        }
+
+        // Check usage limits with optimistic data
+        if (!(await checkUsageLimitsWithImmediateUpdate())) {
+            return;
+        }
+
+        // Immediate UI update BEFORE API call
+        updateUsageImmediately(1);
+
+        setIsSearching(true);
+        setShowAutocomplete(false);
+
+        try {
+            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`);
+            const response = await fetch(searchUrl);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || `Search API returned ${response.status}`);
+            }
+
+            if (data.success) {
+                const results = data.results || [];
+                setSearchResults(results);
+                setTotalPages(data.pagination.totalPages);
+            } else {
+                throw new Error(data.error || 'Search failed');
+            }
+
+        } catch (error) {
+            console.error('Text search error:', error);
+            setSearchResults([]);
+            setTotalPages(0);
+
+            // If API fails, revert the optimistic update
+            setOptimisticUsage(null);
+            setIsUpdatingUsage(false);
+            if (usageUpdateTimeoutRef.current) {
+                clearTimeout(usageUpdateTimeoutRef.current);
+            }
+
+            if (error.message.includes('429') || error.message.includes('Rate limit')) {
+                alert('Search service is busy. Please wait a moment before searching again.');
+            } else if (error.message.includes('timeout')) {
+                alert('Search is taking longer than usual. Please try again.');
+            }
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+// 6. ENHANCED: Barcode detected with immediate UI update
+    const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
+        console.log('Barcode scanned:', barcode);
+
+        // Update both local and parent state
+        setLocalUPC(barcode);
+        if (onUPCChange) {
+            onUPCChange(barcode);
+        }
+
+        setShowScanner(false);
+
+        // Auto-lookup the scanned barcode with immediate UI update
+        await handleUPCLookupWithImmediateUpdate(barcode);
+    };
+
+// 7. ENHANCED: Display current usage (optimistic or real)
+    const getCurrentUsageDisplay = () => {
+        const currentUsageData = optimisticUsage || usageInfo;
+
+        if (!currentUsageData) return null;
+
+        return (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h4 className="text-sm font-medium text-blue-900">
+                            📊 UPC Scan Usage
+                            {isUpdatingUsage && (
+                                <span className="ml-2 text-xs text-blue-600">(Updating...)</span>
+                            )}
+                        </h4>
+                        <p className="text-sm text-blue-700">
+                            {currentUsageData.monthlyLimit === 'unlimited' ? (
+                                <span className="font-medium text-green-700">✨ Unlimited scans available</span>
+                            ) : (
+                                <>
+                                    <strong>{currentUsageData.remaining} scans remaining</strong> this month
+                                    <span className="text-blue-600 ml-2">
+                                    (Used: {currentUsageData.currentMonth}/{currentUsageData.monthlyLimit})
+                                </span>
+                                    {optimisticUsage && (
+                                        <span className="ml-2 text-xs text-blue-500">(Live update)</span>
+                                    )}
+                                </>
+                            )}
+                        </p>
+                    </div>
+                    {currentUsageData.monthlyLimit !== 'unlimited' && currentUsageData.remaining <= 2 && (
+                        <TouchEnhancedButton
+                            onClick={() => window.location.href = '/pricing?source=upc-low&feature=upc-scanning'}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
+                        >
+                            Upgrade
+                        </TouchEnhancedButton>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+// 8. CLEANUP: Add cleanup for timeout
+    useEffect(() => {
+        return () => {
+            if (usageUpdateTimeoutRef.current) {
+                clearTimeout(usageUpdateTimeoutRef.current);
+            }
+        };
+    }, []);
+
+// 9. REPLACE: Update your function calls to use the immediate update versions
+// Replace your usage display with getCurrentUsageDisplay()
     // NEW: Function to load current usage information
     const loadUsageInfo = async () => {
         try {
@@ -211,131 +464,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(true);
     };
 
-    // ENHANCED: UPC lookup with usage tracking refresh
-    const handleUPCLookup = async (upc) => {
-        if (!upc || upc.length < 8) return;
-
-        // Check usage limits before lookup
-        if (!(await checkUsageLimits())) {
-            return;
-        }
-
-        setIsLooking(true);
-        setLookupResult(null);
-
-        try {
-            // Use your existing API
-            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`));
-            const data = await response.json();
-
-            if (data.success && data.product.found) {
-                // Extract and standardize nutrition data from your API
-                const standardizedNutrition = standardizeNutritionData(data.product.nutrition);
-
-                // Enhanced product data with standardized nutrition
-                const enhancedProduct = {
-                    ...data.product,
-                    nutrition: standardizedNutrition
-                };
-
-                setLookupResult({ success: true, product: enhancedProduct });
-                onProductFound(enhancedProduct);
-
-                // FIXED: Force refresh usage info after successful lookup
-                console.log('🔄 Refreshing usage info after UPC lookup...');
-                await loadUsageInfo();
-            } else {
-                setLookupResult({
-                    success: false,
-                    message: data.message || 'Product not found'
-                });
-
-                // FIXED: Refresh usage even for unsuccessful lookups (scan was still counted)
-                console.log('🔄 Refreshing usage info after UPC lookup attempt...');
-                await loadUsageInfo();
-            }
-        } catch (error) {
-            console.error('UPC lookup error:', error);
-            setLookupResult({
-                success: false,
-                message: 'Error looking up product'
-            });
-
-            // FIXED: Refresh usage even on errors (scan may have been counted)
-            console.log('🔄 Refreshing usage info after UPC lookup error...');
-            await loadUsageInfo();
-        } finally {
-            setIsLooking(false);
-        }
-    };
-
-    // ENHANCED: Text search with usage check
-    const performTextSearch = async (query, page = 1) => {
-        if (!query.trim()) {
-            setSearchResults([]);
-            setTotalPages(0);
-            return;
-        }
-
-        // Check usage limits before search
-        if (!(await checkUsageLimits())) {
-            return;
-        }
-
-        setIsSearching(true);
-        setShowAutocomplete(false);
-        console.log(`Searching for products: "${query}" (page ${page})`);
-
-        try {
-            // Use our new API endpoint to avoid CORS issues
-            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`);
-
-            const response = await fetch(searchUrl);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || `Search API returned ${response.status}`);
-            }
-
-            if (data.success) {
-                console.log(`Search returned ${data.pagination.totalResults} total results, showing page ${page}`);
-
-                // Results are already in the correct format from our API
-                const results = data.results || [];
-
-                // Results are already prioritized by images in the API
-                setSearchResults(results);
-                setTotalPages(data.pagination.totalPages);
-
-                // FIXED: Force refresh usage info after successful search
-                console.log('🔄 Refreshing usage info after text search...');
-                await loadUsageInfo();
-            } else {
-                throw new Error(data.error || 'Search failed');
-            }
-
-        } catch (error) {
-            console.error('Text search error:', error);
-            setSearchResults([]);
-            setTotalPages(0);
-
-            // FIXED: Refresh usage even on search errors (search may have been counted)
-            console.log('🔄 Refreshing usage info after search error...');
-            await loadUsageInfo();
-
-            // Show user-friendly error message
-            if (error.message.includes('429') || error.message.includes('Rate limit') || error.message.includes('busy')) {
-                alert('Search service is busy. Please wait a moment before searching again.');
-            } else if (error.message.includes('timeout')) {
-                alert('Search is taking longer than usual. Please try again.');
-            } else {
-                console.log('Search error details:', error.message);
-            }
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
     // Autocomplete functionality with rate limiting protection
     const performAutocomplete = async (query) => {
         if (!query.trim() || query.length < 3) {
@@ -401,7 +529,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         if (query.trim() && query.length >= 3) {
             searchTimeoutRef.current = setTimeout(() => {
                 setSearchPage(1);
-                performTextSearch(query, 1);
+                performTextSearchWithImmediateUpdate(query, 1);
             }, 1200);
         } else {
             setSearchResults([]);
@@ -417,7 +545,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowAutocomplete(false);
         setAutocompleteResults([]);
         setSearchPage(1);
-        performTextSearch(suggestion.name, 1);
+        performTextSearchWithImmediateUpdate(suggestion.name, 1);
     };
 
     // Handle search result selection
@@ -447,7 +575,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     // Handle pagination
     const handlePageChange = (newPage) => {
         setSearchPage(newPage);
-        performTextSearch(searchQuery, newPage);
+        performTextSearchWithImmediateUpdate(searchQuery, newPage);
     };
 
     // Manual close function for autocomplete
@@ -477,37 +605,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         // Auto-lookup when UPC looks complete
         if (upc.length >= 12 && upc.length <= 14) {
-            handleUPCLookup(upc);
+            handleUPCLookupWithImmediateUpdate(upc);
         }
     };
 
     const handleManualLookup = () => {
         const upcToLookup = localUPC || currentUPC;
         if (upcToLookup) {
-            handleUPCLookup(upcToLookup);
+            handleUPCLookupWithImmediateUpdate(upcToLookup);
         }
-    };
-
-    // ENHANCED: Barcode detected with usage refresh
-    const handleBarcodeDetected = async (barcode) => {
-        console.log('Barcode scanned:', barcode);
-
-        // Update both local and parent state
-        setLocalUPC(barcode);
-        if (onUPCChange) {
-            onUPCChange(barcode);
-        }
-
-        setShowScanner(false);
-
-        // Auto-lookup the scanned barcode
-        await handleUPCLookup(barcode);
-
-        // FIXED: Additional usage refresh after barcode scan
-        console.log('🔄 Additional usage refresh after barcode scan...');
-        setTimeout(async () => {
-            await loadUsageInfo();
-        }, 1000); // Small delay to ensure backend has processed
     };
 
     const handleScannerClose = () => {
@@ -527,36 +633,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
     return (
         <div className="space-y-4">
-            {/* NEW: Usage Display */}
-            {!isLoadingUsage && usageInfo && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-sm font-medium text-blue-900">📊 UPC Scan Usage</h4>
-                            <p className="text-sm text-blue-700">
-                                {usageInfo.monthlyLimit === 'unlimited' ? (
-                                    <span className="font-medium text-green-700">✨ Unlimited scans available</span>
-                                ) : (
-                                    <>
-                                        <strong>{usageInfo.remaining} scans remaining</strong> this month
-                                        <span className="text-blue-600 ml-2">
-                                            (Used: {usageInfo.currentMonth}/{usageInfo.monthlyLimit})
-                                        </span>
-                                    </>
-                                )}
-                            </p>
-                        </div>
-                        {usageInfo.monthlyLimit !== 'unlimited' && usageInfo.remaining <= 2 && (
-                            <TouchEnhancedButton
-                                onClick={() => window.location.href = '/pricing?source=upc-low&feature=upc-scanning'}
-                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
-                            >
-                                Upgrade
-                            </TouchEnhancedButton>
-                        )}
-                    </div>
-                </div>
-            )}
+            {/* FIXED: Usage Display - Call the function properly */}
+            {getCurrentUsageDisplay()}
 
             {/* Tab Navigation */}
             <div className="border-b border-gray-200">
@@ -784,6 +862,54 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 </div>
             )}
 
+            {/* UPC Tab Content */}
+            {activeTab === 'upc' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
+                            UPC/Barcode
+                        </label>
+                        <div className="flex space-x-2">
+                            <input
+                                type="text"
+                                id="upc"
+                                name="upc"
+                                value={localUPC}
+                                onChange={handleUPCInput}
+                                placeholder="Enter or scan UPC code"
+                                className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleScannerClick}
+                                disabled={isLooking}
+                                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
+                                    cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
+                                }`}
+                                title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
+                            >
+                                📷 {cameraAvailable ? 'Scan' : 'No Camera'}
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleManualLookup}
+                                disabled={!localUPC || isLooking}
+                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
+                            >
+                                {isLooking ? '🔍' : '🔍'} Lookup
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+
+                    {/* Scanner Component */}
+                    <BarcodeScanner
+                        isActive={showScanner}
+                        onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                        onClose={handleScannerClose}
+                    />
+                </div>
+            )}
+
             {/* Loading State for UPC */}
             {isLooking && (
                 <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
@@ -964,62 +1090,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             </div>
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* UPC Tab Content */}
-            {activeTab === 'upc' && (
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                            UPC/Barcode
-                        </label>
-                        <div className="flex space-x-2">
-                            <input
-                                type="text"
-                                id="upc"
-                                name="upc"
-                                value={localUPC}
-                                onChange={handleUPCInput}
-                                placeholder="Enter or scan UPC code"
-                                className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            />
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={handleScannerClick}
-                                disabled={isLooking}
-                                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
-                                    cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
-                                }`}
-                                title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
-                            >
-                                📷 {cameraAvailable ? 'Scan' : 'No Camera'}
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={handleManualLookup}
-                                disabled={!localUPC || isLooking}
-                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
-                            >
-                                {isLooking ? '🔍' : '🔍'} Lookup
-                            </TouchEnhancedButton>
-                        </div>
-                    </div>
-
-                    {/* Scanner Component */}
-                    <BarcodeScanner
-                        isActive={showScanner}
-                        onBarcodeDetected={handleBarcodeDetected}
-                        onClose={handleScannerClose}
-                    />
-                </div>
-            )}
-
-            {/* Loading State for UPC */}
-            {isLooking && (
-                <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-blue-700">Looking up product...</span>
                 </div>
             )}
 
