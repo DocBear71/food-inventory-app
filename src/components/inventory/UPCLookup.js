@@ -106,13 +106,33 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const loadUsageInfo = async () => {
         try {
             setIsLoadingUsage(true);
-            const response = await fetch(getApiUrl('/api/upc/usage'));
+            console.log('📊 Loading UPC usage information...');
+
+            const response = await fetch(getApiUrl('/api/upc/usage'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // Force fresh data, no cache
+                cache: 'no-cache'
+            });
+
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
+                console.log('📊 UPC usage loaded:', {
+                    remaining: data.remaining,
+                    used: data.currentMonth,
+                    limit: data.monthlyLimit,
+                    canScan: data.canScan
+                });
+            } else {
+                console.error('Failed to load UPC usage:', response.status);
+                // Don't reset usageInfo on error, keep showing last known values
             }
         } catch (error) {
             console.error('Failed to load UPC usage info:', error);
+            // Don't reset usageInfo on error, keep showing last known values
         } finally {
             setIsLoadingUsage(false);
         }
@@ -195,7 +215,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const handleUPCLookup = async (upc) => {
         if (!upc || upc.length < 8) return;
 
-        // NEW: Check usage limits before lookup
+        // Check usage limits before lookup
         if (!(await checkUsageLimits())) {
             return;
         }
@@ -221,13 +241,18 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 setLookupResult({ success: true, product: enhancedProduct });
                 onProductFound(enhancedProduct);
 
-                // NEW: Refresh usage info after successful lookup
+                // FIXED: Force refresh usage info after successful lookup
+                console.log('🔄 Refreshing usage info after UPC lookup...');
                 await loadUsageInfo();
             } else {
                 setLookupResult({
                     success: false,
                     message: data.message || 'Product not found'
                 });
+
+                // FIXED: Refresh usage even for unsuccessful lookups (scan was still counted)
+                console.log('🔄 Refreshing usage info after UPC lookup attempt...');
+                await loadUsageInfo();
             }
         } catch (error) {
             console.error('UPC lookup error:', error);
@@ -235,6 +260,10 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 success: false,
                 message: 'Error looking up product'
             });
+
+            // FIXED: Refresh usage even on errors (scan may have been counted)
+            console.log('🔄 Refreshing usage info after UPC lookup error...');
+            await loadUsageInfo();
         } finally {
             setIsLooking(false);
         }
@@ -248,7 +277,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             return;
         }
 
-        // NEW: Check usage limits before search
+        // Check usage limits before search
         if (!(await checkUsageLimits())) {
             return;
         }
@@ -259,7 +288,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         try {
             // Use our new API endpoint to avoid CORS issues
-            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`;
+            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`);
 
             const response = await fetch(searchUrl);
             const data = await response.json();
@@ -278,7 +307,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 setSearchResults(results);
                 setTotalPages(data.pagination.totalPages);
 
-                // NEW: Refresh usage info after successful search
+                // FIXED: Force refresh usage info after successful search
+                console.log('🔄 Refreshing usage info after text search...');
                 await loadUsageInfo();
             } else {
                 throw new Error(data.error || 'Search failed');
@@ -288,6 +318,10 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             console.error('Text search error:', error);
             setSearchResults([]);
             setTotalPages(0);
+
+            // FIXED: Refresh usage even on search errors (search may have been counted)
+            console.log('🔄 Refreshing usage info after search error...');
+            await loadUsageInfo();
 
             // Show user-friendly error message
             if (error.message.includes('429') || error.message.includes('Rate limit') || error.message.includes('busy')) {
@@ -387,11 +421,11 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     };
 
     // Handle search result selection
-    const handleSearchResultSelect = (product) => {
+    const handleSearchResultSelect = async (product) => {
         setLookupResult({ success: true, product });
         onProductFound(product);
 
-        // FIXED: Update UPC field with the selected product's UPC
+        // Update UPC field with the selected product's UPC
         if (product.upc) {
             setLocalUPC(product.upc);
             if (onUPCChange) {
@@ -402,9 +436,12 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         // Clear search results to show the selected product
         setSearchResults([]);
         setSearchQuery('');
-        // Hide autocomplete dropdown
         setShowAutocomplete(false);
         setAutocompleteResults([]);
+
+        // FIXED: Refresh usage after search result selection
+        console.log('🔄 Refreshing usage info after search result selection...');
+        await loadUsageInfo();
     };
 
     // Handle pagination
@@ -465,6 +502,12 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
         // Auto-lookup the scanned barcode
         await handleUPCLookup(barcode);
+
+        // FIXED: Additional usage refresh after barcode scan
+        console.log('🔄 Additional usage refresh after barcode scan...');
+        setTimeout(async () => {
+            await loadUsageInfo();
+        }, 1000); // Small delay to ensure backend has processed
     };
 
     const handleScannerClose = () => {

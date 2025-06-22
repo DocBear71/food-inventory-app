@@ -42,16 +42,31 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const loadUsageInfo = async () => {
         try {
             setIsLoadingUsage(true);
-            const response = await fetch(getApiUrl('/api/upc/usage'));
+            console.log('📊 Loading UPC usage information for scanner...');
+
+            const response = await fetch(getApiUrl('/api/upc/usage'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // Force fresh data, no cache
+                cache: 'no-cache'
+            });
+
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
-                console.log('📊 UPC usage loaded:', data);
+                console.log('📊 Scanner usage loaded:', {
+                    remaining: data.remaining,
+                    used: data.currentMonth,
+                    limit: data.monthlyLimit,
+                    canScan: data.canScan
+                });
             } else {
-                console.error('Failed to load UPC usage:', response.status);
+                console.error('Failed to load UPC usage in scanner:', response.status);
             }
         } catch (error) {
-            console.error('Failed to load UPC usage info:', error);
+            console.error('Failed to load UPC usage info in scanner:', error);
         } finally {
             setIsLoadingUsage(false);
         }
@@ -334,23 +349,51 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }, 500);
         }
 
-        // Process result with a longer delay to ensure user sees the feedback
+        // Process result with proper usage refresh
         setTimeout(async () => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
 
-                // Refresh usage info after successful scan
+                // Call the parent callback first
+                onBarcodeDetected(cleanCode);
+
+                // FIXED: Refresh usage info after successful scan with multiple attempts
+                console.log('🔄 Refreshing scanner usage info after successful scan...');
                 await loadUsageInfo();
 
-                onBarcodeDetected(cleanCode);
+                // Additional refresh after a delay to ensure backend has processed
+                setTimeout(async () => {
+                    if (mountedRef.current) {
+                        console.log('🔄 Secondary usage refresh after scan...');
+                        await loadUsageInfo();
+                    }
+                }, 2000);
             }
         }, 800); // Increased delay
 
     }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo]);
 
-    // Your existing scanner initialization useEffect goes here...
-    // (keeping all the existing logic unchanged, just adding the subscription wrapper at the end)
+    useEffect(() => {
+        if (isActive) {
+            console.log('🔄 Scanner activated, refreshing usage info...');
+            loadUsageInfo();
+        }
+    }, [isActive]);
 
+// 4. ADD: Effect to periodically refresh usage while scanner is active
+    useEffect(() => {
+        if (!isActive) return;
+
+        // Refresh usage every 10 seconds while scanner is active
+        const interval = setInterval(() => {
+            if (mountedRef.current && isActive) {
+                console.log('🔄 Periodic usage refresh in scanner...');
+                loadUsageInfo();
+            }
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [isActive, loadUsageInfo]);
     // Main scanner initialization effect - keeping your existing logic
     useEffect(() => {
         let Quagga;

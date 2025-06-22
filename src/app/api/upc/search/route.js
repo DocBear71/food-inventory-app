@@ -1,12 +1,88 @@
-// file: /src/app/api/upc/search/route.js - v1 Text search API for Open Food Facts
+// file: /src/app/api/upc/search/route.js - v2 Add usage tracking for text searches
 
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/mongodb';
+import { User } from '@/lib/models';
+import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
 // Open Food Facts V1 Search API endpoint
 const OPEN_FOOD_FACTS_SEARCH_API = 'https://world.openfoodfacts.org/cgi/search.pl';
 
 export async function GET(request) {
     try {
+        // ADDED: Authentication and usage limit checking
+        const session = await getServerSession(authOptions);
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+        }
+
+        await connectDB();
+
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        // Get current subscription info
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        // Reset monthly counter if needed
+        const now = new Date();
+        try {
+            if (!user.usageTracking ||
+                user.usageTracking.currentMonth !== now.getMonth() ||
+                user.usageTracking.currentYear !== now.getFullYear()) {
+
+                if (!user.usageTracking) {
+                    user.usageTracking = {};
+                }
+
+                user.usageTracking.currentMonth = now.getMonth();
+                user.usageTracking.currentYear = now.getFullYear();
+                user.usageTracking.monthlyUPCScans = 0;
+                user.usageTracking.lastUpdated = now;
+
+                await User.updateOne(
+                    { _id: session.user.id },
+                    {
+                        $set: {
+                            'usageTracking.currentMonth': now.getMonth(),
+                            'usageTracking.currentYear': now.getFullYear(),
+                            'usageTracking.monthlyUPCScans': 0,
+                            'usageTracking.lastUpdated': now
+                        }
+                    },
+                    { runValidators: false }
+                );
+            }
+        } catch (trackingError) {
+            console.error('Error resetting search usage tracking:', trackingError);
+        }
+
+        const currentScans = user.usageTracking?.monthlyUPCScans || 0;
+
+        // Check if user can perform UPC scan/search
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
+
+        if (!hasCapacity) {
+            const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCANNING);
+            return NextResponse.json({
+                error: getUpgradeMessage(FEATURE_GATES.UPC_SCANNING, requiredTier),
+                code: 'USAGE_LIMIT_EXCEEDED',
+                feature: FEATURE_GATES.UPC_SCANNING,
+                currentCount: currentScans,
+                currentTier: userSubscription.tier,
+                requiredTier: requiredTier,
+                upgradeUrl: `/pricing?source=upc-limit&feature=${FEATURE_GATES.UPC_SCANNING}&required=${requiredTier}`
+            }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('query');
         const page = searchParams.get('page') || '1';
@@ -25,6 +101,37 @@ export async function GET(request) {
         const cleanQuery = query.trim();
         const pageNum = Math.max(1, parseInt(page));
         const pageSizeNum = Math.min(50, Math.max(5, parseInt(pageSize))); // Limit between 5-50
+
+        // ADDED: Track the search usage BEFORE processing
+        try {
+            if (!user.usageTracking) {
+                user.usageTracking = {
+                    currentMonth: now.getMonth(),
+                    currentYear: now.getFullYear(),
+                    monthlyUPCScans: 0,
+                    lastUpdated: now
+                };
+            }
+
+            user.usageTracking.monthlyUPCScans = (user.usageTracking.monthlyUPCScans || 0) + 1;
+            user.usageTracking.lastUpdated = now;
+
+            await User.updateOne(
+                { _id: session.user.id },
+                {
+                    $set: {
+                        'usageTracking.monthlyUPCScans': user.usageTracking.monthlyUPCScans,
+                        'usageTracking.lastUpdated': now
+                    }
+                },
+                { runValidators: false }
+            );
+
+            console.log(`✅ Text search tracked. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
+        } catch (trackingError) {
+            console.error('❌ Error tracking text search:', trackingError);
+            // Continue with the request even if tracking fails
+        }
 
         // Build search URL with parameters
         const searchUrl = new URL(OPEN_FOOD_FACTS_SEARCH_API);
@@ -135,16 +242,20 @@ export async function GET(request) {
                 hasNextPage: pageNum < totalPages,
                 hasPreviousPage: pageNum > 1
             },
-            query: cleanQuery
+            query: cleanQuery,
+            // ADDED: Include usage information in response
+            usageInfo: {
+                scansUsed: user.usageTracking.monthlyUPCScans,
+                scansRemaining: userSubscription.tier === 'free' ? Math.max(0, 10 - user.usageTracking.monthlyUPCScans) : 'unlimited'
+            }
         });
 
     } catch (error) {
         console.error('Text search error:', error);
         console.error('Error stack:', error.stack);
-        console.error('Query that caused error:', query);
 
         // Handle rate limiting errors specifically
-        if (error.message.includes('429') || response?.status === 429) {
+        if (error.message.includes('429') || error.message.includes('Rate limit')) {
             return NextResponse.json(
                 {
                     success: false,
