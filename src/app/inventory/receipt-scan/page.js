@@ -1,4 +1,5 @@
 'use client';
+
 // file: /src/app/inventory/receipt-scan/page.js - v11 Fixed mobile null reference errors
 
 import {useState, useRef, useEffect} from 'react';
@@ -8,8 +9,6 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {getApiUrl} from '@/lib/api-config';
-import {useFeatureGate} from '@/hooks/useSubscription';
-import {FEATURE_GATES} from "@/lib/subscription-config";
 
 export default function ReceiptScan() {
     // const {data: session, status} = useSafeSession();
@@ -134,95 +133,64 @@ export default function ReceiptScan() {
     }
 
 
+// iOS PWA Camera Modal Component - Enhanced with better UX
+    function IOSPWACameraModal() {
+        if (!showIOSPWAModal) return null;
 
-    if (!usageLoading && receiptScanUsage && !receiptScanUsage.canScan) {
-        return (
-            <MobileOptimizedLayout>
-                <div className="space-y-6">
-                    <div className="bg-white shadow rounded-lg">
-                        <div className="px-4 py-5 sm:p-6">
-                            <div className="text-center py-12">
-                                <div className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                                    <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
-                                    </svg>
-                                </div>
-                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit Reached</h3>
-                                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                                    You've used all {receiptScanUsage.monthlyLimit} of your receipt scans this month.
-                                    Your scans will reset on the 1st of next month.
-                                </p>
-                                <div className="space-y-4">
-                                    <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=receipt-scan-limit&feature=receipt-scanning'}
-                                        className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
-                                    >
-                                        Upgrade for More Scans
-                                    </TouchEnhancedButton>
+        if (!usageLoading && receiptScanUsage && !receiptScanUsage.canScan) {
+            return (
+                <MobileOptimizedLayout>
+                    <div className="space-y-6">
+                        <div className="bg-white shadow rounded-lg">
+                            <div className="px-4 py-5 sm:p-6">
+                                <div className="text-center py-12">
+                                    <div
+                                        className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                                        <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor"
+                                             viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"/>
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit
+                                        Reached</h3>
+                                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                                        You've used all {receiptScanUsage.monthlyLimit} of your receipt scans this
+                                        month.
+                                        Your scans will reset on the 1st of next month.
+                                    </p>
+                                    <div className="space-y-4">
+                                        <TouchEnhancedButton
+                                            onClick={() => window.location.href = '/pricing?source=receipt-scan-limit&feature=receipt-scanning'}
+                                            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                        >
+                                            Upgrade for More Scans
+                                        </TouchEnhancedButton>
 
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📱 Upgrade Benefits:</h4>
-                                        <ul className="text-sm text-blue-800 space-y-1 text-left">
-                                            <li>• <strong>Gold:</strong> 20 receipt scans per month</li>
-                                            <li>• <strong>Platinum:</strong> Unlimited receipt scanning</li>
-                                            <li>• Advanced OCR text recognition</li>
-                                            <li>• Automatic item categorization</li>
-                                            <li>• UPC code detection and lookup</li>
-                                        </ul>
+                                        <div
+                                            className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                                            <h4 className="text-sm font-medium text-blue-900 mb-2">📱 Upgrade
+                                                Benefits:</h4>
+                                            <ul className="text-sm text-blue-800 space-y-1 text-left">
+                                                <li>• <strong>Gold:</strong> 20 receipt scans per month</li>
+                                                <li>• <strong>Platinum:</strong> Unlimited receipt scanning</li>
+                                                <li>• Advanced OCR text recognition</li>
+                                                <li>• Automatic item categorization</li>
+                                                <li>• UPC code detection and lookup</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </MobileOptimizedLayout>
-        );
-    }
+                    <IOSPWACameraModal/>
+                </MobileOptimizedLayout>
 
-    // Minimal camera attempt function (last resort)
-    async function startCameraMinimal() {
-        console.log('🔄 Trying minimal camera mode for iOS PWA...');
-        setCameraError(null);
-
-        try {
-            // Use the optimized camera with minimal constraints
-            const minimalDeviceInfo = {
-                ...deviceInfo,
-                isMobile: true // Force mobile constraints for minimal mode
-            };
-
-            const stream = await initializeOptimizedCamera(minimalDeviceInfo);
-
-            if (stream && stream.getVideoTracks().length > 0) {
-                console.log('✅ Minimal camera mode worked!');
-                streamRef.current = stream;
-                setShowCamera(true);
-
-                // Basic video setup with null check
-                if (videoRef.current) {
-                    await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
-                } else {
-                    console.warn('Video ref is null, waiting for component to render...');
-                    // Wait a bit and try again
-                    setTimeout(async () => {
-                        if (videoRef.current) {
-                            await setupOptimizedVideo(videoRef.current, stream, minimalDeviceInfo);
-                        }
-                    }, 100);
-                }
-            } else {
-                throw new Error('No video tracks in minimal stream');
-            }
-        } catch (error) {
-            console.log('❌ Even minimal camera mode failed:', error);
-            setCameraError('Camera not available in iOS PWA mode. Please use the upload option.');
-
-            // Auto-trigger upload as fallback
-            setTimeout(() => {
-                fileInputRef.current?.click();
-            }, 1000);
+            )
         }
     }
+
 
     // Enhanced camera start function with iOS PWA fixes based on research
     async function startCamera() {
@@ -879,63 +847,6 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('❌ OCR processing failed:', error);
             throw error;
-        }
-    }
-
-    // ============ OPTIMIZED USAGE EXAMPLE ============
-    async function startOptimizedReceiptScan(videoElement, canvasElement,
-                                             deviceInfo) {
-        try {
-            // 1. Initialize optimized camera
-            const stream = await initializeOptimizedCamera(deviceInfo);
-
-            // 2. Setup optimized video
-            await setupOptimizedVideo(videoElement, stream, deviceInfo);
-
-            return stream;
-
-        } catch (error) {
-            console.error('❌ Optimized camera setup failed:', error);
-            throw error;
-        }
-    }
-
-    async function captureAndProcessReceipt(videoElement, canvasElement,
-                                            deviceInfo, progressCallback) {
-        try {
-            // 1. Capture optimized image
-            const imageBlob = await captureOptimizedImage(videoElement, canvasElement);
-
-            // 2. Process with optimized OCR
-            const text = await processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback);
-
-            return {imageBlob, text};
-
-        } catch (error) {
-            console.error('❌ Optimized capture and OCR failed:', error);
-            throw error;
-        }
-    }
-
-    // ============ PERFORMANCE MONITORING ============
-    class ReceiptScannerPerformanceMonitor {
-        constructor() {
-            this.metrics = {};
-        }
-
-        startTimer(operation) {
-            this.metrics[operation] = {start: performance.now()};
-        }
-
-        endTimer(operation) {
-            if (this.metrics[operation]) {
-                this.metrics[operation].duration = performance.now() - this.metrics[operation].start;
-                console.log(`⏱️ ${operation}: ${this.metrics[operation].duration.toFixed(2)}ms`);
-            }
-        }
-
-        getMetrics() {
-            return this.metrics;
         }
     }
 
@@ -2263,13 +2174,17 @@ export default function ReceiptScan() {
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0">
-                                                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                                <svg className="w-5 h-5 text-blue-400" fill="currentColor"
+                                                     viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd"
+                                                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                          clipRule="evenodd"/>
                                                 </svg>
                                             </div>
                                             <div className="ml-3">
                                                 <p className="text-sm text-blue-700">
-                                                    <strong>📊 {receiptScanUsage.remaining} receipt scans remaining this month</strong>
+                                                    <strong>📊 {receiptScanUsage.remaining} receipt scans remaining
+                                                        this month</strong>
                                                 </p>
                                                 <p className="text-xs text-blue-600 mt-1">
                                                     Used: {receiptScanUsage.currentMonth}/{receiptScanUsage.monthlyLimit}
@@ -3069,5 +2984,5 @@ export default function ReceiptScan() {
                 <Footer/>
             </div>
         </MobileOptimizedLayout>
-    );
+    )
 }
