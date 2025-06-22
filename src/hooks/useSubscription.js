@@ -3,7 +3,7 @@
 // file: /src/hooks/useSubscription.js v3 - Fixed to prevent API calls during signout
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/hooks/useSafeSession';
 import {
     SUBSCRIPTION_TIERS,
     FEATURE_GATES,
@@ -17,7 +17,7 @@ import {
 const SubscriptionContext = createContext();
 
 export function SubscriptionProvider({ children }) {
-    const { data: session, status } = useSession();
+    const { data: session, status } = useSafeSession();
     const [subscriptionData, setSubscriptionData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
