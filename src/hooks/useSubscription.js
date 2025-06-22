@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/hooks/useSubscription.js v2 - Fixed error handling and feature gate mapping
+// file: /src/hooks/useSubscription.js v3 - Fixed to prevent API calls during signout
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -27,6 +27,20 @@ export function SubscriptionProvider({ children }) {
 
     // Debounced fetch function to prevent excessive API calls
     const fetchSubscriptionData = useCallback(async (force = false) => {
+        // ADDED: Check for signout flags before making API calls
+        const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
+        const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
+        const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+
+        if (preventCalls || signingOut || justSignedOut) {
+            console.log('Subscription: Skipping data fetch - signout in progress');
+            setSubscriptionData(null);
+            setError(null);
+            setLoading(false);
+            setRetryCount(0);
+            return;
+        }
+
         // Prevent excessive calls - only allow one call per 5 seconds unless forced
         const now = Date.now();
         if (!force && (now - lastFetchRef.current) < 5000) {
@@ -68,6 +82,11 @@ export function SubscriptionProvider({ children }) {
                     console.log('User not authenticated, clearing subscription data');
                     setSubscriptionData(null);
                     setError(null);
+
+                    // ADDED: If API fails with 401, might be because session is invalid - clear signout flags
+                    localStorage.removeItem('prevent-session-calls');
+                    sessionStorage.removeItem('signout-in-progress');
+                    sessionStorage.removeItem('just-signed-out');
                 } else {
                     setError(errorMessage);
 
@@ -112,6 +131,20 @@ export function SubscriptionProvider({ children }) {
             return; // Wait for session to load
         }
 
+        // ADDED: Check for signout flags before making API calls
+        const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
+        const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
+        const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+
+        if (preventCalls || signingOut || justSignedOut) {
+            console.log('Subscription: Skipping data fetch - signout flags active');
+            setSubscriptionData(null);
+            setError(null);
+            setLoading(false);
+            setRetryCount(0);
+            return;
+        }
+
         if (session?.user?.id) {
             console.log('Session found, fetching subscription data');
             fetchSubscriptionData(true);
@@ -121,6 +154,11 @@ export function SubscriptionProvider({ children }) {
             setError(null);
             setLoading(false);
             setRetryCount(0);
+
+            // ADDED: Clear signout flags when session is properly cleared
+            localStorage.removeItem('prevent-session-calls');
+            sessionStorage.removeItem('signout-in-progress');
+            sessionStorage.removeItem('just-signed-out');
         }
 
         // Cleanup timeout on unmount or session change
