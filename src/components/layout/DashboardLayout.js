@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }) {
                 const cookies = document.cookie.split(";");
                 for (let cookie of cookies) {
                     const eqPos = cookie.indexOf("=");
-                    const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                    const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
                     if (name.includes('next-auth') || name.includes('__Secure-next-auth') || name.includes('session')) {
                         // Clear for current domain
                         document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
