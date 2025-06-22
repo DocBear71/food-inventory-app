@@ -1,4 +1,4 @@
-// file: /src/app/api/receipt-scan/usage/route.js - v4 - Final version tested with your User model
+// file: /src/app/api/receipt-scan/usage/route.js - v5 - Fixed validation issues with User model
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -71,7 +71,7 @@ export async function GET(request) {
                 currentMonth: currentMonth,
                 currentYear: currentYear,
                 monthlyUPCScans: 0,
-                monthlyReceiptScans: 0, // Simple number as in your model
+                monthlyReceiptScans: 0,
                 totalInventoryItems: 0,
                 totalPersonalRecipes: 0,
                 totalSavedRecipes: 0,
@@ -81,25 +81,50 @@ export async function GET(request) {
             };
         }
 
-        // Reset monthly counters if it's a new month (matches your model logic)
+        // Check if we need to reset monthly counters
+        let needsReset = false;
         if (user.usageTracking.currentMonth !== currentMonth ||
             user.usageTracking.currentYear !== currentYear) {
-            console.log('Resetting monthly counters for new month');
-            user.usageTracking.currentMonth = currentMonth;
-            user.usageTracking.currentYear = currentYear;
-            user.usageTracking.monthlyUPCScans = 0;
-            user.usageTracking.monthlyReceiptScans = 0; // Reset to 0 as simple number
-            user.usageTracking.lastUpdated = now;
+            console.log('Monthly counters need reset for new month');
+            needsReset = true;
+        }
 
+        // FIXED: Use updateOne to avoid validation issues
+        if (needsReset || !user.usageTracking) {
             try {
-                await user.save();
-                console.log('Monthly counters reset and saved');
-            } catch (saveError) {
-                console.error('Error saving monthly reset:', saveError);
+                await User.updateOne(
+                    { _id: session.user.id },
+                    {
+                        $set: {
+                            'usageTracking.currentMonth': currentMonth,
+                            'usageTracking.currentYear': currentYear,
+                            'usageTracking.monthlyUPCScans': needsReset ? 0 : (user.usageTracking?.monthlyUPCScans || 0),
+                            'usageTracking.monthlyReceiptScans': needsReset ? 0 : (user.usageTracking?.monthlyReceiptScans || 0),
+                            'usageTracking.totalInventoryItems': user.usageTracking?.totalInventoryItems || 0,
+                            'usageTracking.totalPersonalRecipes': user.usageTracking?.totalPersonalRecipes || 0,
+                            'usageTracking.totalSavedRecipes': user.usageTracking?.totalSavedRecipes || 0,
+                            'usageTracking.totalPublicRecipes': user.usageTracking?.totalPublicRecipes || 0,
+                            'usageTracking.totalRecipeCollections': user.usageTracking?.totalRecipeCollections || 0,
+                            'usageTracking.lastUpdated': now
+                        }
+                    },
+                    {
+                        runValidators: false  // Skip validation to avoid legalAcceptance issues
+                    }
+                );
+                console.log('Usage tracking initialized/reset successfully');
+
+                // Refresh user data after update
+                const updatedUser = await User.findById(session.user.id);
+                if (updatedUser) {
+                    user.usageTracking = updatedUser.usageTracking;
+                }
+            } catch (updateError) {
+                console.error('Error updating usage tracking:', updateError);
             }
         }
 
-        const currentMonthUsage = user.usageTracking.monthlyReceiptScans || 0;
+        const currentMonthUsage = user.usageTracking?.monthlyReceiptScans || 0;
         const monthlyLimit = getUsageLimit(userTier, 'monthlyReceiptScans');
         const hasCapacity = checkUsageLimit(userTier, currentMonthUsage, 'monthlyReceiptScans');
 
@@ -174,30 +199,60 @@ export async function POST(request) {
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
 
-        // Initialize usage tracking if it doesn't exist (matches your model)
+        // Ensure usage tracking exists
         if (!user.usageTracking) {
-            user.usageTracking = {
-                currentMonth: currentMonth,
-                currentYear: currentYear,
-                monthlyUPCScans: 0,
-                monthlyReceiptScans: 0, // Simple number
-                totalInventoryItems: 0,
-                totalPersonalRecipes: 0,
-                totalSavedRecipes: 0,
-                totalPublicRecipes: 0,
-                totalRecipeCollections: 0,
-                lastUpdated: now
-            };
+            // FIXED: Use updateOne to initialize without validation
+            await User.updateOne(
+                { _id: session.user.id },
+                {
+                    $set: {
+                        'usageTracking.currentMonth': currentMonth,
+                        'usageTracking.currentYear': currentYear,
+                        'usageTracking.monthlyUPCScans': 0,
+                        'usageTracking.monthlyReceiptScans': 0,
+                        'usageTracking.totalInventoryItems': 0,
+                        'usageTracking.totalPersonalRecipes': 0,
+                        'usageTracking.totalSavedRecipes': 0,
+                        'usageTracking.totalPublicRecipes': 0,
+                        'usageTracking.totalRecipeCollections': 0,
+                        'usageTracking.lastUpdated': now
+                    }
+                },
+                { runValidators: false }
+            );
+
+            // Refresh user data
+            const updatedUser = await User.findById(session.user.id);
+            if (updatedUser) {
+                user.usageTracking = updatedUser.usageTracking;
+            }
         }
 
         // Reset monthly counters if it's a new month
         if (user.usageTracking.currentMonth !== currentMonth ||
             user.usageTracking.currentYear !== currentYear) {
             console.log('Resetting monthly counters for new month');
+
+            // FIXED: Use updateOne to reset without validation
+            await User.updateOne(
+                { _id: session.user.id },
+                {
+                    $set: {
+                        'usageTracking.currentMonth': currentMonth,
+                        'usageTracking.currentYear': currentYear,
+                        'usageTracking.monthlyUPCScans': 0,
+                        'usageTracking.monthlyReceiptScans': 0,
+                        'usageTracking.lastUpdated': now
+                    }
+                },
+                { runValidators: false }
+            );
+
+            // Update local data
             user.usageTracking.currentMonth = currentMonth;
             user.usageTracking.currentYear = currentYear;
             user.usageTracking.monthlyUPCScans = 0;
-            user.usageTracking.monthlyReceiptScans = 0; // Reset as simple number
+            user.usageTracking.monthlyReceiptScans = 0;
         }
 
         const currentMonthUsage = user.usageTracking.monthlyReceiptScans || 0;
@@ -229,25 +284,28 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // Increment usage - FIXED: Direct number increment, not object property
-        user.usageTracking.monthlyReceiptScans = currentMonthUsage + 1;
-        user.usageTracking.lastUpdated = new Date();
+        const newUsage = currentMonthUsage + 1;
+        const totalScans = (user.usageTracking.totalReceiptScans || 0) + 1;
 
-        // Optional: Add total tracking if you want
-        if (!user.usageTracking.totalReceiptScans) {
-            user.usageTracking.totalReceiptScans = 0;
-        }
-        user.usageTracking.totalReceiptScans += 1;
-
+        // FIXED: Use updateOne to increment without triggering validation
         try {
-            await user.save();
-            console.log('Usage saved successfully');
-        } catch (saveError) {
-            console.error('Error saving usage:', saveError);
-            throw saveError;
+            await User.updateOne(
+                { _id: session.user.id },
+                {
+                    $set: {
+                        'usageTracking.monthlyReceiptScans': newUsage,
+                        'usageTracking.totalReceiptScans': totalScans,
+                        'usageTracking.lastUpdated': now
+                    }
+                },
+                { runValidators: false }  // Skip validation
+            );
+            console.log('Usage incremented successfully');
+        } catch (updateError) {
+            console.error('Error incrementing usage:', updateError);
+            throw updateError;
         }
 
-        const newUsage = user.usageTracking.monthlyReceiptScans;
         const monthlyLimit = getUsageLimit(userTier, 'monthlyReceiptScans');
 
         console.log('Receipt scan usage incremented:', {
