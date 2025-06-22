@@ -1,6 +1,7 @@
 'use client';
 // file: /src/components/layout/DashboardLayout.js - v4 - Fixed sign-out functionality with proper session clearing
 
+import { handleMobileSignOut } from '@/lib/mobile-signout';
 import { signOut } from 'next-auth/react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
+
 
 export default function DashboardLayout({ children }) {
     const { data: session } = useSafeSession();
@@ -44,7 +46,7 @@ export default function DashboardLayout({ children }) {
         // { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 
-    // FIXED: Nuclear option - completely clear all auth state before signOut
+    // FIXED: Enhanced sign-out that detects environment and uses appropriate method
     const handleSignOut = async () => {
         if (isSigningOut) return; // Prevent double-clicks
 
@@ -52,56 +54,56 @@ export default function DashboardLayout({ children }) {
             setIsSigningOut(true);
             MobileHaptics?.medium(); // Only call if available
 
-            // NUCLEAR OPTION: Clear ALL possible auth-related storage
-            try {
-                // Clear all localStorage
-                localStorage.clear();
-                // Clear all sessionStorage
-                sessionStorage.clear();
+            console.log('Dashboard sign-out initiated');
 
-                // Clear all NextAuth cookies manually
-                const cookies = document.cookie.split(";");
-                for (let cookie of cookies) {
-                    const eqPos = cookie.indexOf("=");
-                    const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
-                    if (name.includes('next-auth') || name.includes('__Secure-next-auth') || name.includes('session')) {
-                        // Clear for current domain
-                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
-                        // Clear for .docbearscomfort.kitchen
-                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.docbearscomfort.kitchen;`;
-                        // Clear for www.docbearscomfort.kitchen
-                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=www.docbearscomfort.kitchen;`;
-                    }
-                }
+            // Detect if we're in a mobile/PWA environment
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator?.standalone === true ||
+                document.referrer.includes('android-app://');
 
-                console.log('All auth storage cleared manually');
-            } catch (error) {
-                console.log('Storage/cookie clear failed:', error);
-            }
-
-            // Now try NextAuth signOut - but don't trust it to redirect properly
-            try {
-                await signOut({
-                    callbackUrl: '/',
-                    redirect: false // We'll handle redirect ourselves
+            if (isPWA) {
+                console.log('PWA environment detected, using mobile sign-out');
+                await handleMobileSignOut({
+                    callbackUrl: '/'
                 });
-                console.log('NextAuth signOut completed');
-            } catch (signOutError) {
-                console.log('NextAuth signOut failed:', signOutError);
-            }
+            } else {
+                console.log('Desktop browser environment, using standard sign-out');
 
-            // Force immediate redirect regardless of signOut result
-            console.log('Forcing redirect to home page');
-            window.location.href = '/';
+                // For desktop browsers, use a simpler approach
+                try {
+                    // Clear storage first
+                    localStorage.clear();
+                    sessionStorage.clear();
+
+                    // Then call NextAuth signOut
+                    await signOut({
+                        callbackUrl: '/',
+                        redirect: true
+                    });
+                } catch (signOutError) {
+                    console.log('Standard signOut failed:', signOutError);
+                    // Fallback to manual redirect
+                    window.location.href = '/';
+                }
+            }
 
         } catch (error) {
-            console.error('Sign out error:', error);
+            console.error('Dashboard sign-out error:', error);
             setIsSigningOut(false);
 
-            // Emergency fallback - just reload the page
-            window.location.reload();
+            // Emergency fallback
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (storageError) {
+                console.log('Emergency storage clear failed:', storageError);
+            }
+
+            window.location.href = '/';
         }
     };
+
+
 
     const toggleSubmenu = (itemName) => {
         setExpandedMenus(prev => ({

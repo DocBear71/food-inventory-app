@@ -2,7 +2,7 @@
 // file: /src/components/layout/MobileDashboardLayout.js v6 - Fixed sign-out functionality with proper session clearing
 
 import {useState, useEffect} from 'react';
-import { signOut } from 'next-auth/react';
+import { handleMobileSignOut } from '@/lib/mobile-signout';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {useRouter, usePathname} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
@@ -91,7 +91,7 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // FIXED: Use custom signout page that properly clears cookies
+    // FIXED: Enhanced mobile sign-out that properly handles PWA environments
     const handleSignOut = async () => {
         if (isSigningOut) return; // Prevent double-clicks
 
@@ -100,15 +100,26 @@ export default function MobileDashboardLayout({children}) {
             MobileHaptics?.medium(); // Only call if available
             setMobileMenuOpen(false); // Close mobile menu
 
-            // Navigate to custom signout page that handles everything
-            window.location.href = '/auth/signout';
+            console.log('Mobile dashboard sign-out initiated');
+
+            // Use the specialized mobile sign-out handler
+            await handleMobileSignOut({
+                callbackUrl: '/'
+            });
 
         } catch (error) {
-            console.error('Sign out error:', error);
+            console.error('Mobile dashboard sign-out error:', error);
             setIsSigningOut(false);
 
             // Emergency fallback
-            window.location.href = '/auth/signout';
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (storageError) {
+                console.log('Emergency storage clear failed:', storageError);
+            }
+
+            window.location.href = '/';
         }
     };
 
