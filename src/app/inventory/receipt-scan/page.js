@@ -860,17 +860,21 @@ export default function ReceiptScan() {
         }
     }
 
-    // ENHANCED: Handle receipt file upload with usage gating
-    function handleReceiptFileUpload(event) {
-        // NEW: Check usage limits BEFORE processing upload
+    // NEW: Handle upload button click with usage gating
+    function handleUploadButtonClick() {
+        // Check usage limits BEFORE opening file picker
         if (!checkUsageLimitsBeforeScan()) {
-            // Clear the file input so user can try again after upgrading
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-            return;
+            return; // Don't open file picker if limits exceeded
         }
 
+        // Only open file picker if usage check passes
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    }
+
+    // ENHANCED: Handle receipt file upload (now simplified since usage is checked before)
+    function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
             const imageUrl = URL.createObjectURL(file);
@@ -1516,7 +1520,7 @@ export default function ReceiptScan() {
 
                                     {/* Upload Option */}
                                     <TouchEnhancedButton
-                                        onClick={() => fileInputRef.current?.click()}
+                                        onClick={handleUploadButtonClick}
                                         className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                                     >
                                         <div className="text-4xl mb-2">📁</div>
