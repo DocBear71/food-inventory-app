@@ -91,92 +91,9 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // FIXED: Most aggressive sign-out approach - clear everything and force reload
-    const handleSignOut = async () => {
-        if (isSigningOut) return; // Prevent double-clicks
-
-        try {
-            setIsSigningOut(true);
-            MobileHaptics?.medium(); // Only call if available
-            setMobileMenuOpen(false); // Close mobile menu
-
-            console.log('Starting aggressive sign-out process...');
-
-            // STEP 1: Clear ALL possible storage and cookies
-            try {
-                // Clear all storage
-                localStorage.clear();
-                sessionStorage.clear();
-
-                // Get all possible domains for your site
-                const domains = [
-                    '', // Current domain
-                    'docbearscomfort.kitchen',
-                    '.docbearscomfort.kitchen',
-                    'www.docbearscomfort.kitchen',
-                    '.www.docbearscomfort.kitchen'
-                ];
-
-                // Get all cookies and clear NextAuth-related ones for ALL domains
-                const cookies = document.cookie.split(";");
-                console.log('Found cookies:', cookies.map(c => c.split('=')[0].trim()));
-
-                for (let cookie of cookies) {
-                    const eqPos = cookie.indexOf("=");
-                    const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
-
-                    // Clear any auth-related cookies
-                    if (name.includes('next-auth') ||
-                        name.includes('__Secure-next-auth') ||
-                        name.includes('session') ||
-                        name.includes('csrf') ||
-                        name.includes('callback')) {
-
-                        console.log(`Clearing cookie: ${name}`);
-
-                        // Clear for all possible domain combinations
-                        domains.forEach(domain => {
-                            const domainStr = domain ? `;domain=${domain}` : '';
-                            // Clear with and without secure flag
-                            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domainStr};`;
-                            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domainStr};secure;`;
-                            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domainStr};samesite=lax;`;
-                            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domainStr};secure;samesite=lax;`;
-                        });
-                    }
-                }
-
-                console.log('All auth storage and cookies cleared');
-            } catch (error) {
-                console.log('Storage/cookie clear failed:', error);
-            }
-
-            // STEP 2: Call NextAuth signOut without redirect
-            try {
-                console.log('Calling NextAuth signOut...');
-                await signOut({
-                    redirect: false,
-                    callbackUrl: '/'
-                });
-                console.log('NextAuth signOut completed');
-            } catch (signOutError) {
-                console.log('NextAuth signOut failed:', signOutError);
-            }
-
-            // STEP 3: Wait a moment to let NextAuth finish
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // STEP 4: Force a complete page reload to ensure clean state
-            console.log('Forcing page reload to ensure clean state');
-            window.location.reload();
-
-        } catch (error) {
-            console.error('Sign out error:', error);
-            setIsSigningOut(false);
-
-            // Emergency fallback - just reload the page
-            window.location.reload();
-        }
+    // Instead of calling signOut(), just navigate to the custom signout page
+    const handleSignOut = () => {
+        window.location.href = '/auth/signout';
     };
 
     // Calculate bottom padding based on whether PWA banner is shown

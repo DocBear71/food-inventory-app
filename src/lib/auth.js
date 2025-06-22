@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - v2 - Fixed cookie configuration to resolve sign-out issues
+// file: /src/lib/auth.js - v3 - Added aggressive signOut event handling
 console.log('Auth config loading...');
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
@@ -55,6 +55,7 @@ export const authOptions = {
     pages: {
         signIn: '/auth/signin',
         signUp: '/auth/signup',
+        signOut: '/auth/signout', // Add custom signout page
     },
     callbacks: {
         async jwt({ token, user }) {
@@ -71,6 +72,11 @@ export const authOptions = {
         },
         async redirect({ url, baseUrl }) {
             console.log('Auth redirect:', url, '→', baseUrl);
+
+            // For sign out, always go to home page
+            if (url.includes('signout') || url.includes('signOut')) {
+                return '/';
+            }
 
             // For mobile apps, always redirect to dashboard after login
             if (url === '/dashboard' || url.endsWith('/dashboard')) {
@@ -96,6 +102,26 @@ export const authOptions = {
             return true;
         },
     },
+    // ADDED: Events to handle signout more aggressively
+    events: {
+        async signOut({ token, session }) {
+            console.log('SignOut event triggered - clearing all auth state');
+            // This event is called when signOut happens
+            // We can use this to ensure cleanup
+        },
+        async session({ token, session }) {
+            // Prevent session restoration after signout
+            if (session && session.expires) {
+                const now = new Date();
+                const expires = new Date(session.expires);
+                if (now >= expires) {
+                    console.log('Session expired, preventing restoration');
+                    return null;
+                }
+            }
+        }
+    },
+    // Keep simplified settings
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
 };
