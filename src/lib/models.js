@@ -1,6 +1,7 @@
 // file: /src/lib/models.js - v11 - UPDATED with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
 
 import mongoose from 'mongoose';
+const crypto = require('crypto');
 
 // Nutrition Schema
 const NutritionSchema = new mongoose.Schema({
@@ -1868,6 +1869,61 @@ UserSchema.methods.getUsageSummary = function() {
             userId: this._id
         };
     }
+};
+
+// Email verification rate limiting (allow 3 requests per hour)
+UserSchema.methods.canRequestEmailVerification = function() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // If no previous request or it was over an hour ago, allow request
+    if (!this.emailVerificationRequestedAt || this.emailVerificationRequestedAt < oneHourAgo) {
+        return true;
+    }
+
+    // For security, limit to 3 verification requests per hour
+    return false;
+};
+
+// Generate email verification token and set expiration
+UserSchema.methods.generateEmailVerificationToken = function() {
+    const crypto = require('crypto');
+
+    // Generate a secure random token
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // Set token and expiration (24 hours from now)
+    this.emailVerificationToken = token;
+    this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    this.emailVerificationRequestedAt = new Date();
+
+    return token;
+};
+
+// Verify email with token
+UserSchema.methods.verifyEmailWithToken = function(token) {
+    // Check if token matches and hasn't expired
+    if (this.emailVerificationToken === token &&
+        this.emailVerificationExpires &&
+        new Date() < this.emailVerificationExpires) {
+
+        // Mark email as verified and clear verification fields
+        this.emailVerified = true;
+        this.emailVerificationToken = undefined;
+        this.emailVerificationExpires = undefined;
+        this.emailVerificationRequestedAt = undefined;
+
+        return true;
+    }
+
+    return false;
+};
+
+// Clear email verification fields after successful verification
+UserSchema.methods.clearEmailVerification = function() {
+    this.emailVerificationToken = undefined;
+    this.emailVerificationExpires = undefined;
+    this.emailVerificationRequestedAt = undefined;
+    return this.save();
 };
 
 // Methods for meal prep suggestions
