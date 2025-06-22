@@ -91,7 +91,7 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // FIXED: Proper sign-out handler with CSRF token (required for redirect: false)
+    // FIXED: Simplest working sign-out - let NextAuth handle everything
     const handleSignOut = async () => {
         if (isSigningOut) return; // Prevent double-clicks
 
@@ -108,38 +108,25 @@ export default function MobileDashboardLayout({children}) {
                 console.log('Storage clear failed:', error);
             }
 
-            // Import getCsrfToken dynamically to get the CSRF token
-            const { getCsrfToken } = await import('next-auth/react');
-            const csrfToken = await getCsrfToken();
-
-            // Use NextAuth signOut with CSRF token (required when redirect: false)
-            const result = await signOut({
-                redirect: false,
+            // Use NextAuth signOut with redirect: true (default behavior)
+            // This should work reliably across all environments
+            await signOut({
                 callbackUrl: '/',
-                csrfToken // This is required when redirect: false
+                redirect: true
             });
 
-            console.log('SignOut result:', result);
-
-            // Use the validated URL from the result for redirect
-            if (result?.url) {
-                window.location.href = result.url;
-            } else {
-                // Fallback to home page
-                window.location.href = '/';
-            }
+            // Note: code after this won't execute due to redirect: true
 
         } catch (error) {
             console.error('Sign out error:', error);
             setIsSigningOut(false);
 
-            // Emergency fallback - try regular signOut with redirect: true
+            // Emergency fallback - manual redirect
             try {
-                await signOut({ callbackUrl: '/' });
-            } catch (fallbackError) {
-                console.error('Fallback sign out failed:', fallbackError);
-                // Last resort - force reload which should clear session
                 window.location.href = '/';
+            } catch (fallbackError) {
+                console.error('Fallback navigation failed:', fallbackError);
+                window.location.reload();
             }
         }
     };
