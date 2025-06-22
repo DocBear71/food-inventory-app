@@ -1,13 +1,12 @@
 'use client';
 
-// file: /src/components/mobile/PWAInstallBanner.js v9 - Fixed crash with proper null checking
+// file: /src/components/mobile/PWAInstallBanner.js v10 - Fixed to prevent API calls during signout
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
 import { Capacitor } from '@capacitor/core';
-
 
 export function PWAInstallBanner() {
     if (Capacitor.isNativePlatform()) {
@@ -24,6 +23,7 @@ function PWAInstallBannerContent() {
     const [isStandalone, setIsStandalone] = useState(false);
     const [userDisabledBanner, setUserDisabledBanner] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
     // Safely extract session data with null checks
     const session = sessionResult || {};
@@ -31,13 +31,39 @@ function PWAInstallBannerContent() {
     const sessionData = session.data || null;
     const userId = sessionData?.user?.id || null;
 
+    // Detect if we're in a signout process
+    useEffect(() => {
+        const checkSignoutProcess = () => {
+            // Check if we're on signout page or just came from it
+            if (typeof window !== 'undefined') {
+                const isOnSignoutPage = window.location.pathname === '/auth/signout';
+                const cameFromSignout = sessionStorage.getItem('signout-in-progress') === 'true';
+
+                if (isOnSignoutPage) {
+                    sessionStorage.setItem('signout-in-progress', 'true');
+                    setIsSigningOut(true);
+                } else if (cameFromSignout) {
+                    // Still in signout process, don't make API calls
+                    setIsSigningOut(true);
+                    // Clear the flag after a delay
+                    setTimeout(() => {
+                        sessionStorage.removeItem('signout-in-progress');
+                        setIsSigningOut(false);
+                    }, 3000);
+                }
+            }
+        };
+
+        checkSignoutProcess();
+    }, []);
+
     // Prevent hydration issues
     useEffect(() => {
         setMounted(true);
     }, []);
 
     useEffect(() => {
-        if (!mounted) return;
+        if (!mounted || isSigningOut) return;
 
         // Check if running on iOS
         const checkIsIOS = () => {
@@ -56,17 +82,24 @@ function PWAInstallBannerContent() {
 
         // Check if user has disabled PWA banner in their profile
         const checkUserDisabledBanner = async () => {
-            // Only check if session is loaded and user is authenticated
-            if (sessionStatus === 'authenticated' && userId) {
-                try {
-                    const response = await fetch(getApiUrl('/api/user/preferences'));
-                    if (response.ok) {
-                        const data = await response.json();
-                        return data.preferences?.disablePWABanner === true;
-                    }
-                } catch (error) {
-                    console.log('Could not fetch user preferences for PWA banner:', error);
+            // FIXED: Don't make API calls if signing out or session is not properly authenticated
+            if (isSigningOut || sessionStatus !== 'authenticated' || !userId) {
+                console.log('PWA Banner: Skipping user preferences API call - signout in progress or not authenticated');
+                return false;
+            }
+
+            try {
+                console.log('PWA Banner: Fetching user preferences...');
+                const response = await fetch(getApiUrl('/api/user/preferences'));
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('PWA Banner: User preferences received:', data.preferences?.disablePWABanner);
+                    return data.preferences?.disablePWABanner === true;
+                } else {
+                    console.log('PWA Banner: User preferences API failed:', response.status);
                 }
+            } catch (error) {
+                console.log('PWA Banner: Could not fetch user preferences:', error);
             }
             return false;
         };
@@ -77,7 +110,7 @@ function PWAInstallBannerContent() {
         setIsIOS(isiOS);
         setIsStandalone(isStandaloneMode);
 
-        console.log('PWA Banner: iOS:', isiOS, 'Standalone:', isStandaloneMode, 'Session status:', sessionStatus);
+        console.log('PWA Banner: iOS:', isiOS, 'Standalone:', isStandaloneMode, 'Session status:', sessionStatus, 'Signing out:', isSigningOut);
 
         // Don't show if already running as PWA
         if (isStandaloneMode) {
@@ -91,8 +124,8 @@ function PWAInstallBannerContent() {
             return;
         }
 
-        // Check user preference if logged in
-        if (sessionStatus === 'authenticated' && userId) {
+        // Check user preference if logged in (but not if signing out)
+        if (sessionStatus === 'authenticated' && userId && !isSigningOut) {
             checkUserDisabledBanner().then(disabled => {
                 console.log('PWA Banner: User disabled banner:', disabled);
                 setUserDisabledBanner(disabled);
@@ -104,14 +137,14 @@ function PWAInstallBannerContent() {
                     }, 1000);
                 }
             });
-        } else if (sessionStatus === 'unauthenticated') {
-            // For non-logged in users, always show
+        } else if (sessionStatus === 'unauthenticated' && !isSigningOut) {
+            // For non-logged in users, always show (but not during signout)
             setTimeout(() => {
                 console.log('PWA Banner: Showing banner for guest user');
                 setShowBanner(true);
             }, 1000);
         }
-    }, [mounted, sessionStatus, userId]);
+    }, [mounted, sessionStatus, userId, isSigningOut]);
 
     const handleInstall = async () => {
         console.log('PWA Banner: Install clicked - iOS:', isIOS);
@@ -168,7 +201,7 @@ function PWAInstallBannerContent() {
                         >
                             Got it!
                         </button>
-                        ${sessionStatus === 'authenticated' && userId ? `
+                        ${sessionStatus === 'authenticated' && userId && !isSigningOut ? `
                         <button 
                             onclick="
                                 fetch(getApiUrl('/api/user/preferences'), { 
@@ -223,7 +256,8 @@ function PWAInstallBannerContent() {
     // - User has disabled it in their profile
     // - Banner state is false
     // - Session is still loading
-    if (isStandalone || userDisabledBanner || !showBanner || sessionStatus === 'loading') {
+    // - Currently signing out
+    if (isStandalone || userDisabledBanner || !showBanner || sessionStatus === 'loading' || isSigningOut) {
         return null;
     }
 
