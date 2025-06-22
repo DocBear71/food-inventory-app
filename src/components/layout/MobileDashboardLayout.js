@@ -91,9 +91,25 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    // Instead of calling signOut(), just navigate to the custom signout page
-    const handleSignOut = () => {
-        window.location.href = '/auth/signout';
+    // FIXED: Use custom signout page that properly clears cookies
+    const handleSignOut = async () => {
+        if (isSigningOut) return; // Prevent double-clicks
+
+        try {
+            setIsSigningOut(true);
+            MobileHaptics?.medium(); // Only call if available
+            setMobileMenuOpen(false); // Close mobile menu
+
+            // Navigate to custom signout page that handles everything
+            window.location.href = '/auth/signout';
+
+        } catch (error) {
+            console.error('Sign out error:', error);
+            setIsSigningOut(false);
+
+            // Emergency fallback
+            window.location.href = '/auth/signout';
+        }
     };
 
     // Calculate bottom padding based on whether PWA banner is shown

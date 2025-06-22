@@ -44,9 +44,63 @@ export default function DashboardLayout({ children }) {
         // { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
 
-    // Instead of calling signOut(), just navigate to the custom signout page
-    const handleSignOut = () => {
-        window.location.href = '/auth/signout';
+    // FIXED: Nuclear option - completely clear all auth state before signOut
+    const handleSignOut = async () => {
+        if (isSigningOut) return; // Prevent double-clicks
+
+        try {
+            setIsSigningOut(true);
+            MobileHaptics?.medium(); // Only call if available
+
+            // NUCLEAR OPTION: Clear ALL possible auth-related storage
+            try {
+                // Clear all localStorage
+                localStorage.clear();
+                // Clear all sessionStorage
+                sessionStorage.clear();
+
+                // Clear all NextAuth cookies manually
+                const cookies = document.cookie.split(";");
+                for (let cookie of cookies) {
+                    const eqPos = cookie.indexOf("=");
+                    const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+                    if (name.includes('next-auth') || name.includes('__Secure-next-auth') || name.includes('session')) {
+                        // Clear for current domain
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
+                        // Clear for .docbearscomfort.kitchen
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.docbearscomfort.kitchen;`;
+                        // Clear for www.docbearscomfort.kitchen
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=www.docbearscomfort.kitchen;`;
+                    }
+                }
+
+                console.log('All auth storage cleared manually');
+            } catch (error) {
+                console.log('Storage/cookie clear failed:', error);
+            }
+
+            // Now try NextAuth signOut - but don't trust it to redirect properly
+            try {
+                await signOut({
+                    callbackUrl: '/',
+                    redirect: false // We'll handle redirect ourselves
+                });
+                console.log('NextAuth signOut completed');
+            } catch (signOutError) {
+                console.log('NextAuth signOut failed:', signOutError);
+            }
+
+            // Force immediate redirect regardless of signOut result
+            console.log('Forcing redirect to home page');
+            window.location.href = '/';
+
+        } catch (error) {
+            console.error('Sign out error:', error);
+            setIsSigningOut(false);
+
+            // Emergency fallback - just reload the page
+            window.location.reload();
+        }
     };
 
     const toggleSubmenu = (itemName) => {
