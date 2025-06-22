@@ -1,4 +1,4 @@
-// file: /src/app/layout.js v3 - Updated with SubscriptionProvider for subscription management
+// file: /src/app/layout.js v4 - Fixed to always include SessionProvider for web builds
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -61,17 +61,20 @@ export function generateViewport() {
 }
 
 export default async function RootLayout({children}) {
-    const isMobileBuild = process.env.NODE_ENV === 'production' &&
-        process.env.NEXT_CONFIG_FILE?.includes('mobile');
+    // FIXED: Determine if this is a native mobile app (Capacitor) vs web
+    // Only exclude SessionProvider for actual native mobile apps, not web/PWA builds
+    const isNativeMobileApp = process.env.CAPACITOR_PLATFORM === 'ios' ||
+        process.env.CAPACITOR_PLATFORM === 'android';
+
     return (
         <html lang="en">
         <body className={inter.className}>
-        <CapacitorAuthProvider>  {/* Always include this for mobile auth redirect */}
-            {isMobileBuild ? (
-                // Mobile build - no SessionProvider but keep CapacitorAuthProvider
+        <CapacitorAuthProvider>
+            {isNativeMobileApp ? (
+                // Only for native mobile apps - no SessionProvider
                 children
             ) : (
-                // Web build - with SessionProvider and SubscriptionProvider
+                // For web builds (including PWA) - always include SessionProvider
                 <SessionProvider>
                     <SubscriptionProvider>
                         <PWAInstallBanner />
