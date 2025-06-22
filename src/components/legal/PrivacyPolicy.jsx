@@ -261,8 +261,8 @@ const PrivacyPolicy = () => {
                     </p>
                     <div style={{ color: '#595959', fontSize: '15px', marginTop: '1rem' }}>
                         <div><strong>Doc Bear Enterprises, LLC.</strong></div>
-                        <div>3920 Lennox Ave NE</div>
-                        <div>Cedar Rapids, IA 52402</div>
+                        <div></div>
+                        <div>Cedar Rapids, IA </div>
                         <div>United States</div>
                         <div>privacy@docbear-ent.com</div>
                     </div>

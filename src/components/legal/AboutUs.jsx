@@ -278,7 +278,7 @@ const AboutUs = () => {
                     </p>
                     <div style={{ color: '#666', fontSize: '16px' }}>
                         <p><strong>Doc Bear Enterprises, LLC.</strong></p>
-                        <p>3920 Lennox Ave NE<br/>Cedar Rapids, IA 52402</p>
+                        <p><br/>Cedar Rapids, IA </p>
                         <p>
                             Email: <a href="mailto:privacy@docbear-ent.com" style={{ color: '#e74c3c', textDecoration: 'none' }}>privacy@docbear-ent.com</a><br/>
                             Website: <a href="https://docbearscomfort.kitchen" target="_blank" rel="noopener noreferrer" style={{ color: '#e74c3c', textDecoration: 'none' }}>docbearscomfort.kitchen</a>

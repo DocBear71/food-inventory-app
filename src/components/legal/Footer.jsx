@@ -206,8 +206,8 @@ const Footer = () => {
                                         <strong>Doc Bear Enterprises, LLC.</strong>
                                     </p>
                                     <p style={{ margin: '0 0 0.5rem 0' }}>
-                                        3920 Lennox Ave NE<br/>
-                                        Cedar Rapids, IA 52402
+                                        <br/>
+                                        Cedar Rapids, IA
                                     </p>
                                     <p style={{ margin: '0' }}>
                                         <a
