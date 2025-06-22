@@ -34,27 +34,45 @@ function PWAInstallBannerContent() {
     // Detect if we're in a signout process
     useEffect(() => {
         const checkSignoutProcess = () => {
-            // Check if we're on signout page or just came from it
             if (typeof window !== 'undefined') {
                 const isOnSignoutPage = window.location.pathname === '/auth/signout';
                 const cameFromSignout = sessionStorage.getItem('signout-in-progress') === 'true';
+                const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+
+                console.log('PWA Banner: Signout check - onSignoutPage:', isOnSignoutPage, 'cameFromSignout:', cameFromSignout, 'justSignedOut:', justSignedOut);
 
                 if (isOnSignoutPage) {
                     sessionStorage.setItem('signout-in-progress', 'true');
+                    sessionStorage.setItem('just-signed-out', 'true');
                     setIsSigningOut(true);
-                } else if (cameFromSignout) {
+                    console.log('PWA Banner: On signout page - setting signout flags');
+                } else if (cameFromSignout || justSignedOut) {
                     // Still in signout process, don't make API calls
                     setIsSigningOut(true);
-                    // Clear the flag after a delay
+                    console.log('PWA Banner: Signout in progress - blocking API calls');
+                    // Clear the flags after a longer delay
                     setTimeout(() => {
                         sessionStorage.removeItem('signout-in-progress');
+                        sessionStorage.removeItem('just-signed-out');
                         setIsSigningOut(false);
-                    }, 3000);
+                        console.log('PWA Banner: Signout process completed - API calls allowed again');
+                    }, 5000); // Increased to 5 seconds
                 }
             }
         };
 
         checkSignoutProcess();
+
+        // Also check on every route change
+        const handleRouteChange = () => {
+            checkSignoutProcess();
+        };
+
+        // Listen for route changes
+        if (typeof window !== 'undefined') {
+            window.addEventListener('popstate', handleRouteChange);
+            return () => window.removeEventListener('popstate', handleRouteChange);
+        }
     }, []);
 
     // Prevent hydration issues
@@ -82,9 +100,15 @@ function PWAInstallBannerContent() {
 
         // Check if user has disabled PWA banner in their profile
         const checkUserDisabledBanner = async () => {
-            // FIXED: Don't make API calls if signing out or session is not properly authenticated
-            if (isSigningOut || sessionStatus !== 'authenticated' || !userId) {
-                console.log('PWA Banner: Skipping user preferences API call - signout in progress or not authenticated');
+            // FIXED: Multiple checks to prevent API calls during signout
+            const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
+            const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
+            const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+
+            if (isSigningOut || sessionStatus !== 'authenticated' || !userId || preventCalls || signingOut || justSignedOut) {
+                console.log('PWA Banner: Skipping user preferences API call - signout flags:', {
+                    isSigningOut, sessionStatus, userId: !!userId, preventCalls, signingOut, justSignedOut
+                });
                 return false;
             }
 
@@ -97,6 +121,12 @@ function PWAInstallBannerContent() {
                     return data.preferences?.disablePWABanner === true;
                 } else {
                     console.log('PWA Banner: User preferences API failed:', response.status);
+                    // If API fails, might be because session is invalid - clear signout flags
+                    if (response.status === 401) {
+                        localStorage.removeItem('prevent-session-calls');
+                        sessionStorage.removeItem('signout-in-progress');
+                        sessionStorage.removeItem('just-signed-out');
+                    }
                 }
             } catch (error) {
                 console.log('PWA Banner: Could not fetch user preferences:', error);
@@ -139,6 +169,11 @@ function PWAInstallBannerContent() {
             });
         } else if (sessionStatus === 'unauthenticated' && !isSigningOut) {
             // For non-logged in users, always show (but not during signout)
+            // Also clear any leftover signout flags since user is now unauthenticated
+            localStorage.removeItem('prevent-session-calls');
+            sessionStorage.removeItem('signout-in-progress');
+            sessionStorage.removeItem('just-signed-out');
+
             setTimeout(() => {
                 console.log('PWA Banner: Showing banner for guest user');
                 setShowBanner(true);

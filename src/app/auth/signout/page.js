@@ -9,10 +9,27 @@ export default function SignOutPage() {
             try {
                 console.log('Starting aggressive signout...');
 
-                // Clear all storage
+                // IMMEDIATELY set signout flags to prevent any API calls
+                sessionStorage.setItem('signout-in-progress', 'true');
+                sessionStorage.setItem('just-signed-out', 'true');
+                localStorage.setItem('prevent-session-calls', 'true');
+
+                // Clear all storage (except our signout flags)
+                const signoutFlags = {
+                    'signout-in-progress': sessionStorage.getItem('signout-in-progress'),
+                    'just-signed-out': sessionStorage.getItem('just-signed-out')
+                };
+
                 localStorage.clear();
                 sessionStorage.clear();
-                console.log('Storage cleared');
+
+                // Restore signout flags
+                Object.entries(signoutFlags).forEach(([key, value]) => {
+                    if (value) sessionStorage.setItem(key, value);
+                });
+                localStorage.setItem('prevent-session-calls', 'true');
+
+                console.log('Storage cleared with signout flags preserved');
 
                 // Get all current cookies for debugging
                 const allCookies = document.cookie.split(";");
