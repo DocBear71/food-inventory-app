@@ -64,18 +64,19 @@ export async function GET(request) {
         const currentScans = user.usageTracking?.monthlyUPCScans || 0;
 
         // Check if user can perform UPC scan
-        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCAN, currentScans);
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
+
 
         if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCAN);
+            const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCANNING);
             return NextResponse.json({
-                error: getUpgradeMessage(FEATURE_GATES.UPC_SCAN, requiredTier),
+                error: getUpgradeMessage(FEATURE_GATES.UPC_SCANNING, requiredTier),
                 code: 'USAGE_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.UPC_SCAN,
+                feature: FEATURE_GATES.UPC_SCANNING,
                 currentCount: currentScans,
                 currentTier: userSubscription.tier,
                 requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=upc-limit&feature=${FEATURE_GATES.UPC_SCAN}&required=${requiredTier}`
+                upgradeUrl: `/pricing?source=upc-limit&feature=${FEATURE_GATES.UPC_SCANNING}&required=${requiredTier}`
             }, { status: 403 });
         }
 

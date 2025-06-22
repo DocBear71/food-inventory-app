@@ -1,10 +1,16 @@
-// file: /src/lib/middleware/subscriptionMiddleware.js v1 - Middleware for protecting API routes with subscription checks
+// file: /src/lib/middleware/subscriptionMiddleware.js v2 - FIXED: Use proper feature gates
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
-import { checkFeatureAccess, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
+import {
+    checkFeatureAccess,
+    checkUsageLimit,
+    getUpgradeMessage,
+    getRequiredTier,
+    FEATURE_GATES // FIXED: Import the actual feature gates
+} from '@/lib/subscription-config';
 
 export async function withSubscriptionCheck(handler, requiredFeature, options = {}) {
     return async (req, res) => {
@@ -98,17 +104,18 @@ export async function trackUsage(userId, feature, count = 1) {
             return { success: false, error: 'User not found' };
         }
 
+        // FIXED: Use proper feature gate constants instead of strings
         switch (feature) {
-            case 'upc_scan':
+            case FEATURE_GATES.UPC_SCANNING: // FIXED: Use feature gate constant
                 await user.trackUPCScan();
                 break;
-            case 'receipt_scan':
+            case FEATURE_GATES.RECEIPT_SCAN:
                 await user.trackReceiptScan();
                 break;
-            case 'inventory_item':
+            case FEATURE_GATES.INVENTORY_LIMIT:
                 // Count will be updated by the API endpoint that creates/deletes items
                 break;
-            case 'personal_recipe':
+            case FEATURE_GATES.PERSONAL_RECIPES:
                 // Count will be updated by the API endpoint that creates/deletes recipes
                 break;
             default:
@@ -124,11 +131,11 @@ export async function trackUsage(userId, feature, count = 1) {
 
 // Specific middleware functions for common use cases
 
-// Middleware for UPC scanning
+// FIXED: Middleware for UPC scanning
 export function withUPCScanLimit(handler) {
     return withSubscriptionCheck(
         handler,
-        'upc_scan',
+        FEATURE_GATES.UPC_SCANNING, // FIXED: Use proper feature gate
         {
             checkUsageLimit: true,
             getCurrentCount: async (user) => {
@@ -145,11 +152,11 @@ export function withUPCScanLimit(handler) {
     );
 }
 
-// Middleware for inventory item limits
+// FIXED: Middleware for inventory item limits
 export function withInventoryLimit(handler) {
     return withSubscriptionCheck(
         handler,
-        'add_inventory_item',
+        FEATURE_GATES.INVENTORY_LIMIT, // FIXED: Use proper feature gate
         {
             checkUsageLimit: true,
             getCurrentCount: async (user) => {
@@ -161,11 +168,11 @@ export function withInventoryLimit(handler) {
     );
 }
 
-// Middleware for personal recipe limits
+// FIXED: Middleware for personal recipe limits
 export function withPersonalRecipeLimit(handler) {
     return withSubscriptionCheck(
         handler,
-        'add_personal_recipe',
+        FEATURE_GATES.PERSONAL_RECIPES, // FIXED: Use proper feature gate
         {
             checkUsageLimit: true,
             getCurrentCount: async (user) => {
@@ -176,11 +183,11 @@ export function withPersonalRecipeLimit(handler) {
     );
 }
 
-// Middleware for receipt scanning
+// FIXED: Middleware for receipt scanning
 export function withReceiptScanLimit(handler) {
     return withSubscriptionCheck(
         handler,
-        'receipt_scan',
+        FEATURE_GATES.RECEIPT_SCAN, // FIXED: Use proper feature gate
         {
             checkUsageLimit: true,
             getCurrentCount: async (user) => {

@@ -27,7 +27,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
     // Subscription hooks
     const subscription = useSubscription();
-    const upcScanGate = useFeatureGate(FEATURE_GATES.UPC_SCAN, subscription.usage?.monthlyUPCScans);
+    const upcScanGate = useFeatureGate(FEATURE_GATES.UPC_SCANNING, subscription.usage?.monthlyUPCScans);
 
     // Add this function before your existing useEffect in BarcodeScanner.js
     const requestCameraPermission = async () => {
@@ -562,7 +562,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     // Wrap the entire scanner with subscription gate
     return (
         <FeatureGate
-            feature={FEATURE_GATES.UPC_SCAN}
+            feature={FEATURE_GATES.UPC_SCANNING}
             currentCount={subscription.usage?.monthlyUPCScans || 0}
             fallback={
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
@@ -576,7 +576,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             </p>
                             <div className="text-sm text-gray-500 mb-4">
                                 <UsageLimitDisplay
-                                    feature={FEATURE_GATES.UPC_SCAN}
+                                    feature={FEATURE_GATES.UPC_SCANNING}
                                     label="Remaining scans"
                                 />
                             </div>
@@ -607,7 +607,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             <div>
                                 <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
                                 <UsageLimitDisplay
-                                    feature={FEATURE_GATES.UPC_SCAN}
+                                    feature={FEATURE_GATES.UPC_SCANNING}
                                     label="Scans remaining this month"
                                     className="text-gray-300"
                                 />
@@ -765,7 +765,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
                                 <UsageLimitDisplay
-                                    feature={FEATURE_GATES.UPC_SCAN}
+                                    feature={FEATURE_GATES.UPC_SCANNING}
                                     label="Scans remaining this month"
                                     className="text-gray-500"
                                 />
