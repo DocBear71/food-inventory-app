@@ -29,6 +29,44 @@ export default function SignOutPage() {
                 });
                 localStorage.setItem('prevent-session-calls', 'true');
 
+                // ADDED: Clear PWA-specific storage
+                try {
+                    // Clear IndexedDB if available
+                    if (typeof window !== 'undefined' && window.indexedDB) {
+                        console.log('Clearing IndexedDB...');
+                        // This is more complex but often not needed for auth
+                    }
+
+                    // Clear Service Worker cache if available
+                    if ('serviceWorker' in navigator && 'caches' in window) {
+                        console.log('Clearing service worker caches...');
+                        caches.keys().then(function(cacheNames) {
+                            return Promise.all(
+                                cacheNames.map(function(cacheName) {
+                                    console.log('Deleting cache:', cacheName);
+                                    return caches.delete(cacheName);
+                                })
+                            );
+                        }).then(() => {
+                            console.log('Service worker caches cleared');
+                        }).catch(err => {
+                            console.log('Cache clearing failed:', err);
+                        });
+                    }
+
+                    // Force service worker to update/restart
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                            for(let registration of registrations) {
+                                console.log('Updating service worker...');
+                                registration.update();
+                            }
+                        });
+                    }
+                } catch (cacheError) {
+                    console.log('PWA cache clearing failed:', cacheError);
+                }
+
                 console.log('Storage cleared with signout flags preserved');
 
                 // Get all current cookies for debugging
@@ -135,8 +173,13 @@ export default function SignOutPage() {
                     console.log('NextAuth API call failed:', apiError);
                 }
 
-                // Wait a moment for everything to process
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Wait longer for PWA environments to ensure everything clears
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                    window.navigator.standalone === true;
+                const waitTime = isPWA ? 2000 : 1000; // 2 seconds for PWA, 1 second for browser
+
+                console.log(`Waiting ${waitTime}ms for signout to complete (PWA: ${isPWA})`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
 
                 console.log('Redirecting to home page...');
 
