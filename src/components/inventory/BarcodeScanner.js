@@ -1,6 +1,4 @@
-'use client';
-
-// file: /src/components/inventory/BarcodeScanner.js v9 - FIXED: Removed undefined trackUPCScan reference
+// file: /src/components/inventory/BarcodeScanner.js v11 - Enhanced with usage display and reset fix
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -9,6 +7,7 @@ import {Camera} from '@capacitor/camera';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const scannerRef = useRef(null);
@@ -29,6 +28,35 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const subscription = useSubscription();
     const upcScanGate = useFeatureGate(FEATURE_GATES.UPC_SCANNING, subscription.usage?.monthlyUPCScans);
 
+    // NEW: Usage state
+    const [usageInfo, setUsageInfo] = useState(null);
+    const [isLoadingUsage, setIsLoadingUsage] = useState(true);
+
+    // NEW: Load usage information
+    useEffect(() => {
+        if (isActive) {
+            loadUsageInfo();
+        }
+    }, [isActive]);
+
+    const loadUsageInfo = async () => {
+        try {
+            setIsLoadingUsage(true);
+            const response = await fetch(getApiUrl('/api/upc/usage'));
+            if (response.ok) {
+                const data = await response.json();
+                setUsageInfo(data);
+                console.log('📊 UPC usage loaded:', data);
+            } else {
+                console.error('Failed to load UPC usage:', response.status);
+            }
+        } catch (error) {
+            console.error('Failed to load UPC usage info:', error);
+        } finally {
+            setIsLoadingUsage(false);
+        }
+    };
+
     // Add this function before your existing useEffect in BarcodeScanner.js
     const requestCameraPermission = async () => {
         console.log('🔐 Requesting camera permission...');
@@ -47,7 +75,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     throw new Error('Camera permission denied. Please enable camera access in your device settings.');
                 } else if (permission.camera === 'prompt') {
                     console.log('❓ Camera permission prompt will be shown');
-                    // Permission dialog will be shown by the system
                     return true;
                 }
             } catch (error) {
@@ -230,7 +257,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         console.log('✅ Scanner cleanup completed');
     }, []);
 
-    // FIXED: Enhanced barcode detection handler - REMOVED trackUPCScan dependency
+    // Enhanced barcode detection handler with usage refresh
     const handleBarcodeDetection = useCallback(async (result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -308,17 +335,18 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
 
         // Process result with a longer delay to ensure user sees the feedback
-        setTimeout(() => {
+        setTimeout(async () => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
+
+                // Refresh usage info after successful scan
+                await loadUsageInfo();
+
                 onBarcodeDetected(cleanCode);
             }
         }, 800); // Increased delay
 
-        // NOTE: UPC scan tracking is handled in the backend API (/api/upc/lookup)
-        // when the actual lookup request is made, not in the frontend scanner component
-
-    }, [isScanning, validateUPC, onBarcodeDetected]); // REMOVED trackUPCScan from dependencies
+    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo]);
 
     // Your existing scanner initialization useEffect goes here...
     // (keeping all the existing logic unchanged, just adding the subscription wrapper at the end)
@@ -599,54 +627,67 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 </div>
             }
         >
-            {/* Your existing scanner UI with usage indicator */}
+            {/* Your existing scanner UI with enhanced usage indicator */}
             {isMobile ? (
-                    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                        {/* Mobile Header with subscription info */}
-                        <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
-                                <UsageLimitDisplay
-                                    feature={FEATURE_GATES.UPC_SCANNING}
-                                    label="Scans remaining this month"
-                                    className="text-gray-300"
-                                />
-                            </div>
-                            <TouchEnhancedButton
-                                onClick={() => {
-                                    cleanupScanner();
-                                    onClose();
-                                }}
-                                className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
-                            >
-                                ×
-                            </TouchEnhancedButton>
+                <div className="fixed inset-0 bg-black z-50 flex flex-col">
+                    {/* Mobile Header with enhanced subscription info */}
+                    <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
+                        <div>
+                            <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
+                            {/* Enhanced usage display */}
+                            {!isLoadingUsage && usageInfo && (
+                                <div className="text-sm text-gray-300 mt-1">
+                                    {usageInfo.monthlyLimit === 'unlimited' ? (
+                                        <span className="text-green-400">✨ Unlimited scans</span>
+                                    ) : (
+                                        <>
+                                            <span className="font-medium">{usageInfo.remaining} scans remaining</span>
+                                            <span className="text-gray-400 ml-2">
+                                                    ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
+                                                </span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            {isLoadingUsage && (
+                                <div className="text-sm text-gray-400">Loading usage...</div>
+                            )}
                         </div>
+                        <TouchEnhancedButton
+                            onClick={() => {
+                                cleanupScanner();
+                                onClose();
+                            }}
+                            className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                        >
+                            ×
+                        </TouchEnhancedButton>
+                    </div>
 
-                        {/* Rest of your existing mobile scanner UI */}
-                        {error ? (
-                            <div className="flex-1 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                                    <div className="text-red-600 mb-4">❌ {error}</div>
-                                    <div className="text-sm text-gray-500 mb-4">
-                                        Please ensure camera permissions are enabled.
-                                    </div>
+                    {/* Rest of your existing mobile scanner UI */}
+                    {error ? (
+                        <div className="flex-1 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
+                                <div className="text-red-600 mb-4">❌ {error}</div>
+                                <div className="text-sm text-gray-500 mb-4">
+                                    Please ensure camera permissions are enabled.
+                                </div>
 
-                                    <div className="space-y-3">
-                                        <TouchEnhancedButton
-                                            onClick={() => {
-                                                cleanupScanner();
-                                                onClose();
-                                            }}
-                                            className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
-                                        >
-                                            Close Scanner
-                                        </TouchEnhancedButton>
-                                    </div>
+                                <div className="space-y-3">
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            cleanupScanner();
+                                            onClose();
+                                        }}
+                                        className="w-full px-4 py-2 bg-gray-600 text-white rounded-md"
+                                    >
+                                        Close Scanner
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
-                        ) : (
-                            <>
+                        </div>
+                    ) : (
+                        <>
                             {/* Loading State */}
                             {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
@@ -723,24 +764,24 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 )}
                             </div>
 
-                                {/* Mobile Footer */}
-                                <div className="flex-shrink-0 bg-black px-4 py-3">
-                                    <TouchEnhancedButton
-                                        onClick={() => {
-                                            cleanupScanner();
-                                            onClose();
-                                        }}
-                                        className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
-                                        disabled={!isScanning}
-                                    >
-                                        {isScanning ? 'Cancel Scan' : 'Processing...'}
-                                    </TouchEnhancedButton>
-                                </div>
-                            </>
-                        )}
+                            {/* Mobile Footer */}
+                            <div className="flex-shrink-0 bg-black px-4 py-3">
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        cleanupScanner();
+                                        onClose();
+                                    }}
+                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
+                                    disabled={!isScanning}
+                                >
+                                    {isScanning ? 'Cancel Scan' : 'Processing...'}
+                                </TouchEnhancedButton>
+                            </div>
+                        </>
+                    )}
 
-                        {/* Enhanced CSS animations */}
-                        <style jsx>{`
+                    {/* Enhanced CSS animations */}
+                    <style jsx>{`
                         @keyframes scanline {
                             0% {
                                 top: 0;
@@ -756,19 +797,29 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             }
                         }
                     `}</style>
-                    </div>
+                </div>
             ) : (
-                // Desktop version - keeping your existing desktop UI
+                // Desktop version with enhanced usage display
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
                         <div className="flex justify-between items-center mb-4">
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
-                                <UsageLimitDisplay
-                                    feature={FEATURE_GATES.UPC_SCANNING}
-                                    label="Scans remaining this month"
-                                    className="text-gray-500"
-                                />
+                                {/* Enhanced desktop usage display */}
+                                {!isLoadingUsage && usageInfo && (
+                                    <div className="text-sm text-gray-500 mt-1">
+                                        {usageInfo.monthlyLimit === 'unlimited' ? (
+                                            <span className="text-green-600">✨ Unlimited scans available</span>
+                                        ) : (
+                                            <>
+                                                <span className="font-medium">{usageInfo.remaining} scans remaining</span>
+                                                <span className="text-gray-400 ml-2">
+                                                    ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <TouchEnhancedButton
                                 onClick={() => {

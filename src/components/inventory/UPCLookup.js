@@ -1,11 +1,12 @@
 'use client';
-// file: /src/components/inventory/UPCLookup.js - v8 Fixed UPC input issue
-
+// file: /src/components/inventory/UPCLookup.js - v9 Enhanced with usage limits and display
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl} from "@/lib/api-config";
+import { useSubscription } from '@/hooks/useSubscription';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -86,10 +87,63 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
     const searchInputRef = useRef(null);
     const autocompleteRef = useRef(null);
 
+    // NEW: Usage tracking state
+    const subscription = useSubscription();
+    const [usageInfo, setUsageInfo] = useState(null);
+    const [isLoadingUsage, setIsLoadingUsage] = useState(true);
+
     // FIXED: Sync local UPC state with prop changes
     useEffect(() => {
         setLocalUPC(currentUPC);
     }, [currentUPC]);
+
+    // NEW: Load usage information on component mount
+    useEffect(() => {
+        loadUsageInfo();
+    }, []);
+
+    // NEW: Function to load current usage information
+    const loadUsageInfo = async () => {
+        try {
+            setIsLoadingUsage(true);
+            const response = await fetch(getApiUrl('/api/upc/usage'));
+            if (response.ok) {
+                const data = await response.json();
+                setUsageInfo(data);
+            }
+        } catch (error) {
+            console.error('Failed to load UPC usage info:', error);
+        } finally {
+            setIsLoadingUsage(false);
+        }
+    };
+
+    // NEW: Function to check usage limits before any UPC operation
+    const checkUsageLimits = async () => {
+        if (isLoadingUsage) {
+            alert('⏳ Please wait while we check your scan limits...');
+            return false;
+        }
+
+        if (!usageInfo) {
+            alert('❌ Unable to check scan limits. Please refresh the page and try again.');
+            return false;
+        }
+
+        if (!usageInfo.canScan) {
+            const limitMessage = usageInfo.monthlyLimit === 'unlimited'
+                ? 'Unexpected limit reached'
+                : `You've reached your monthly limit of ${usageInfo.monthlyLimit} UPC scans. Used: ${usageInfo.currentMonth}/${usageInfo.monthlyLimit}`;
+
+            alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
+
+            // Redirect to pricing
+            window.location.href = `/pricing?source=upc-limit&feature=upc-scanning&required=gold`;
+            return false;
+        }
+
+        return true;
+    };
 
     // Handle clicks outside autocomplete to close it
     useEffect(() => {
@@ -122,16 +176,29 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         return true;
     };
 
-    const handleScannerClick = () => {
+    // ENHANCED: Scanner click with usage check
+    const handleScannerClick = async () => {
         if (!checkCameraAvailability()) {
             alert('Camera not available on this device. Please enter UPC manually.');
             return;
         }
+
+        // NEW: Check usage limits before opening scanner
+        if (!(await checkUsageLimits())) {
+            return;
+        }
+
         setShowScanner(true);
     };
 
+    // ENHANCED: UPC lookup with usage tracking refresh
     const handleUPCLookup = async (upc) => {
         if (!upc || upc.length < 8) return;
+
+        // NEW: Check usage limits before lookup
+        if (!(await checkUsageLimits())) {
+            return;
+        }
 
         setIsLooking(true);
         setLookupResult(null);
@@ -153,6 +220,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
                 setLookupResult({ success: true, product: enhancedProduct });
                 onProductFound(enhancedProduct);
+
+                // NEW: Refresh usage info after successful lookup
+                await loadUsageInfo();
             } else {
                 setLookupResult({
                     success: false,
@@ -170,11 +240,16 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // Text search functionality using our API proxy
+    // ENHANCED: Text search with usage check
     const performTextSearch = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
             setTotalPages(0);
+            return;
+        }
+
+        // NEW: Check usage limits before search
+        if (!(await checkUsageLimits())) {
             return;
         }
 
@@ -202,6 +277,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 // Results are already prioritized by images in the API
                 setSearchResults(results);
                 setTotalPages(data.pagination.totalPages);
+
+                // NEW: Refresh usage info after successful search
+                await loadUsageInfo();
             } else {
                 throw new Error(data.error || 'Search failed');
             }
@@ -348,7 +426,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // FIXED: Improved UPC input handler
+    // ENHANCED: UPC input handler with usage check
     const handleUPCInput = (e) => {
         const upc = e.target.value;
 
@@ -373,7 +451,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    const handleBarcodeDetected = (barcode) => {
+    // ENHANCED: Barcode detected with usage refresh
+    const handleBarcodeDetected = async (barcode) => {
         console.log('Barcode scanned:', barcode);
 
         // Update both local and parent state
@@ -385,7 +464,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(false);
 
         // Auto-lookup the scanned barcode
-        handleUPCLookup(barcode);
+        await handleUPCLookup(barcode);
     };
 
     const handleScannerClose = () => {
@@ -405,6 +484,37 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
     return (
         <div className="space-y-4">
+            {/* NEW: Usage Display */}
+            {!isLoadingUsage && usageInfo && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h4 className="text-sm font-medium text-blue-900">📊 UPC Scan Usage</h4>
+                            <p className="text-sm text-blue-700">
+                                {usageInfo.monthlyLimit === 'unlimited' ? (
+                                    <span className="font-medium text-green-700">✨ Unlimited scans available</span>
+                                ) : (
+                                    <>
+                                        <strong>{usageInfo.remaining} scans remaining</strong> this month
+                                        <span className="text-blue-600 ml-2">
+                                            (Used: {usageInfo.currentMonth}/{usageInfo.monthlyLimit})
+                                        </span>
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                        {usageInfo.monthlyLimit !== 'unlimited' && usageInfo.remaining <= 2 && (
+                            <TouchEnhancedButton
+                                onClick={() => window.location.href = '/pricing?source=upc-low&feature=upc-scanning'}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
+                            >
+                                Upgrade
+                            </TouchEnhancedButton>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Tab Navigation */}
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
@@ -446,6 +556,394 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 </nav>
             </div>
 
+            {/* Search Tab Content */}
+            {activeTab === 'search' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                            Search by Product Name
+                        </label>
+                        <div className="relative">
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                id="search"
+                                value={searchQuery}
+                                onChange={handleSearchInputChange}
+                                onFocus={handleSearchInputFocus}
+                                placeholder="Type product name (e.g., 'Cheerios', 'Campbell's Soup')"
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+
+                            {/* Autocomplete dropdown */}
+                            {showAutocomplete && autocompleteResults.length > 0 && (
+                                <div
+                                    ref={autocompleteRef}
+                                    className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
+                                >
+                                    {/* Header with close button */}
+                                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                        <span className="text-xs font-medium text-gray-600">Quick suggestions</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleCloseAutocomplete}
+                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            title="Close suggestions"
+                                        >
+                                            <span className="text-sm">✕</span>
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Autocomplete results */}
+                                    {autocompleteResults.map((suggestion, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            type="button"
+                                            onClick={() => handleAutocompleteSelect(suggestion)}
+                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            {suggestion.image && (
+                                                <img
+                                                    src={suggestion.image}
+                                                    alt=""
+                                                    className="w-8 h-8 object-cover rounded flex-shrink-0"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {suggestion.name}
+                                                </div>
+                                                {suggestion.brand && (
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {suggestion.brand}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Help text */}
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            <div>💡 <strong>Search Tips:</strong></div>
+                            <div>• Type at least 3 characters to start searching</div>
+                            <div>• Try brand + product name (e.g., "Campbell's Tomato Soup")</div>
+                            <div>• Use specific terms (e.g., "Honey Nut Cheerios" vs "cereal")</div>
+                            <div>• Results prioritize products with images for easy identification</div>
+                            <div>• Wait between searches to avoid rate limits</div>
+                        </div>
+                    </div>
+
+                    {/* Search loading */}
+                    {isSearching && (
+                        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-blue-700">Searching products...</span>
+                        </div>
+                    )}
+
+                    {/* Search Results */}
+                    {searchResults.length > 0 && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-lg font-medium text-gray-900">
+                                    Search Results ({searchResults.length} found)
+                                </h4>
+                                {totalPages > 1 && (
+                                    <div className="text-sm text-gray-500">
+                                        Page {searchPage} of {totalPages}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {searchResults.map((product, index) => (
+                                    <TouchEnhancedButton
+                                        key={index}
+                                        type="button"
+                                        onClick={() => handleSearchResultSelect(product)}
+                                        className="text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-md transition-all"
+                                    >
+                                        <div className="flex items-start space-x-3">
+                                            {product.image ? (
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-gray-400 text-xs">No Image</span>
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">
+                                                    {product.name}
+                                                </h5>
+                                                {product.brand && (
+                                                    <p className="text-xs text-gray-600 mb-1">{product.brand}</p>
+                                                )}
+                                                <p className="text-xs text-gray-500">{product.category}</p>
+                                                {product.scores?.nutriscore && (
+                                                    <div className="mt-1">
+                                                        <span className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
+                                                              style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}>
+                                                            {product.scores.nutriscore.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center space-x-2 mt-4">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage - 1)}
+                                        disabled={searchPage <= 1}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Previous
+                                    </TouchEnhancedButton>
+
+                                    <span className="text-sm text-gray-600">
+                                        Page {searchPage} of {totalPages}
+                                    </span>
+
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage + 1)}
+                                        disabled={searchPage >= totalPages}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Next
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* No results message */}
+                    {searchQuery && !isSearching && searchResults.length === 0 && (
+                        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="text-yellow-600 font-medium">No products found for "{searchQuery}"</div>
+                            <div className="text-sm text-yellow-600 mt-1">
+                                Try different search terms or check spelling
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Loading State for UPC */}
+            {isLooking && (
+                <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-blue-700">Looking up product...</span>
+                </div>
+            )}
+
+            {/* Lookup Results (shared between UPC and search) */}
+            {lookupResult && (
+                <div className={`p-4 rounded-lg ${
+                    lookupResult.success ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
+                }`}>
+                    {lookupResult.success ? (
+                        <div>
+                            <div className="flex items-center mb-3">
+                                <span className="text-green-600 font-medium">✅ Product Found!</span>
+                                {hasNutrition && (
+                                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        🥗 Nutrition Available
+                                    </span>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 text-sm">
+                                    <div><strong>Name:</strong> {lookupResult.product.name}</div>
+                                    {lookupResult.product.brand && (
+                                        <div><strong>Brand:</strong> {lookupResult.product.brand}</div>
+                                    )}
+                                    <div><strong>Category:</strong> {lookupResult.product.category}</div>
+                                    {lookupResult.product.quantity && (
+                                        <div><strong>Size:</strong> {lookupResult.product.quantity}</div>
+                                    )}
+                                    {lookupResult.product.scores && lookupResult.product.scores.nutriscore && (
+                                        <div><strong>Nutri-Score:</strong>
+                                            <span className="ml-1 px-2 py-1 text-xs font-bold text-white rounded"
+                                                  style={{backgroundColor: getNutriScoreColor(lookupResult.product.scores.nutriscore)}}>
+                                                {lookupResult.product.scores.nutriscore.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {lookupResult.product.scores && lookupResult.product.scores.nova_group && (
+                                        <div><strong>NOVA Group:</strong>
+                                            <span className={`ml-1 px-2 py-1 text-xs font-bold text-white rounded ${
+                                                lookupResult.product.scores.nova_group === 1 ? 'bg-green-500' :
+                                                    lookupResult.product.scores.nova_group === 2 ? 'bg-yellow-500' :
+                                                        lookupResult.product.scores.nova_group === 3 ? 'bg-orange-500' :
+                                                            'bg-red-500'
+                                            }`}>
+                                                {lookupResult.product.scores.nova_group}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {lookupResult.product.image && (
+                                    <div className="flex justify-center">
+                                        <img
+                                            src={lookupResult.product.image}
+                                            alt={lookupResult.product.name}
+                                            className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nutrition Section */}
+                            {hasNutrition && (
+                                <div className="mt-4 pt-4 border-t border-green-200">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-green-800 font-medium">🥗 Nutrition Information</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleToggleNutrition}
+                                            className="text-sm text-green-600 hover:text-green-800 underline focus:outline-none"
+                                        >
+                                            {showNutrition ? 'Hide' : 'Show'} Details
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Quick Nutrition Preview */}
+                                    {!showNutrition && (
+                                        <div className="grid grid-cols-4 gap-2 text-xs text-green-700">
+                                            {lookupResult.product.nutrition.calories?.value > 0 && (
+                                                <div className="text-center bg-green-100 p-2 rounded">
+                                                    <div className="font-medium">{Math.round(lookupResult.product.nutrition.calories.value)}</div>
+                                                    <div>calories</div>
+                                                </div>
+                                            )}
+                                            {lookupResult.product.nutrition.protein?.value > 0 && (
+                                                <div className="text-center bg-green-100 p-2 rounded">
+                                                    <div className="font-medium">{lookupResult.product.nutrition.protein.value.toFixed(1)}g</div>
+                                                    <div>protein</div>
+                                                </div>
+                                            )}
+                                            {lookupResult.product.nutrition.carbs?.value > 0 && (
+                                                <div className="text-center bg-green-100 p-2 rounded">
+                                                    <div className="font-medium">{lookupResult.product.nutrition.carbs.value.toFixed(1)}g</div>
+                                                    <div>carbs</div>
+                                                </div>
+                                            )}
+                                            {lookupResult.product.nutrition.fat?.value > 0 && (
+                                                <div className="text-center bg-green-100 p-2 rounded">
+                                                    <div className="font-medium">{lookupResult.product.nutrition.fat.value.toFixed(1)}g</div>
+                                                    <div>fat</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Detailed Nutrition Display */}
+                                    {showNutrition && (
+                                        <div className="bg-white border border-green-200 rounded-lg p-4">
+                                            <div className="text-sm font-medium text-gray-900 mb-3">Nutrition Facts (per 100g)</div>
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                {Object.entries(lookupResult.product.nutrition).map(([key, nutrient]) => {
+                                                    if (!nutrient || nutrient.value <= 0) return null;
+                                                    return (
+                                                        <div key={key} className="flex justify-between">
+                                                            <span className="text-gray-700">{nutrient.name}:</span>
+                                                            <span className="font-medium">
+                                                                {nutrient.value < 1 ? nutrient.value.toFixed(1) : Math.round(nutrient.value)}
+                                                                {nutrient.unit}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-3 text-xs text-gray-500">
+                                                * Nutrition data from Open Food Facts community database
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Additional Product Information */}
+                            {(lookupResult.product.ingredients || lookupResult.product.allergens?.length > 0) && (
+                                <div className="mt-4 pt-4 border-t border-green-200">
+                                    {lookupResult.product.ingredients && (
+                                        <div className="mb-3">
+                                            <div className="text-sm font-medium text-green-900 mb-1">Ingredients:</div>
+                                            <div className="text-xs text-green-700 max-h-20 overflow-y-auto">
+                                                {lookupResult.product.ingredients}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {lookupResult.product.allergens && lookupResult.product.allergens.length > 0 && (
+                                        <div>
+                                            <div className="text-sm font-medium text-orange-900 mb-1">⚠️ Allergens:</div>
+                                            <div className="text-xs text-orange-700">
+                                                {lookupResult.product.allergens.map(allergen =>
+                                                    allergen.replace('en:', '').replace('-', ' ')
+                                                ).join(', ')}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="mt-3 text-xs text-gray-500">
+                                <a
+                                    href={lookupResult.product.openFoodFactsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800"
+                                >
+                                    View on Open Food Facts →
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <div className="flex items-center mb-2">
+                                <span className="text-yellow-600 font-medium">⚠️ {lookupResult.message}</span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                                You can still add this item manually by filling out the form below, or try a different search.
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Usage Tips - Enhanced */}
+            <div className="text-xs text-gray-500 space-y-1">
+                <div>💡 <strong>Tips:</strong></div>
+                {activeTab === 'upc' ? (
+                    <>
+                        <div>• UPC codes are usually 12-14 digits long</div>
+                        <div>• Camera scanning works best in good lighting</div>
+                        <div>• Hold your device steady when scanning</div>
+                    </>
+                ) : (
+                    <>
+                        <div>• Try specific product names for better results</div>
+                        <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
+                        <div>• Results with images appear first for easier identification</div>
+                    </>
+                )}
+                <div>• Data comes from Open Food Facts community database</div>
+                <div>• Nutrition information included when available</div>
+                <div>• If not found, you can still add the item manually</div>
+            </div>
             {/* UPC Tab Content */}
             {activeTab === 'upc' && (
                 <div className="space-y-4">
@@ -458,7 +956,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 type="text"
                                 id="upc"
                                 name="upc"
-                                value={localUPC} // FIXED: Use local state for immediate responsiveness
+                                value={localUPC}
                                 onChange={handleUPCInput}
                                 placeholder="Enter or scan UPC code"
                                 className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -477,7 +975,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={handleManualLookup}
-                                disabled={!localUPC || isLooking} // FIXED: Use local UPC for button state
+                                disabled={!localUPC || isLooking}
                                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
                             >
                                 {isLooking ? '🔍' : '🔍'} Lookup
