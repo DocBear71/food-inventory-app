@@ -242,7 +242,7 @@ export function useSubscription() {
         }
     };
 
-    // FIXED: Map feature gates to correct usage tracking fields
+    // FIXED: Map feature gates to correct usage tracking fields with monthly tracking
     const getCurrentUsageCount = (feature) => {
         if (!subscriptionData?.usage) return 0;
 
@@ -253,8 +253,10 @@ export function useSubscription() {
             case FEATURE_GATES.PERSONAL_RECIPES:
                 return subscriptionData.usage.personalRecipes || 0;
             case FEATURE_GATES.UPC_SCANNING:
+                // Use monthly UPC scans for current month
                 return subscriptionData.usage.monthlyUPCScans || 0;
-            case FEATURE_GATES.RECEIPT_SCAN:  // FIXED: Now using proper constant
+            case FEATURE_GATES.RECEIPT_SCAN:
+                // FIXED: Use monthly receipt scans for current month
                 return subscriptionData.usage.monthlyReceiptScans || 0;
             case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
                 return subscriptionData.usage.publicRecipes || 0;
@@ -358,7 +360,7 @@ export function useSubscription() {
         remainingInventoryItems: getRemainingCount(FEATURE_GATES.INVENTORY_LIMIT),
         remainingPersonalRecipes: getRemainingCount(FEATURE_GATES.PERSONAL_RECIPES),
         remainingUPCScans: getRemainingCount(FEATURE_GATES.UPC_SCANNING),
-        remainingReceiptScans: getRemainingCount('RECEIPT_SCAN'),
+        remainingReceiptScans: getRemainingCount(FEATURE_GATES.RECEIPT_SCAN),
         remainingSavedRecipes: getRemainingCount('SAVE_PUBLIC_RECIPE'),
 
         // Actions

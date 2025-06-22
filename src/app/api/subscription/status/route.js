@@ -83,18 +83,41 @@ export async function GET(request) {
                 totalRecipeCollections: 0,
                 lastUpdated: now
             };
+        } else {
+            // ENHANCED: Ensure all required fields exist
+            if (user.usageTracking.monthlyUPCScans === undefined) {
+                user.usageTracking.monthlyUPCScans = 0;
+            }
+            if (user.usageTracking.monthlyReceiptScans === undefined) {
+                user.usageTracking.monthlyReceiptScans = 0;
+            }
+            if (user.usageTracking.monthlyEmailShares === undefined) {
+                user.usageTracking.monthlyEmailShares = 0;
+            }
+            if (user.usageTracking.monthlyEmailNotifications === undefined) {
+                user.usageTracking.monthlyEmailNotifications = 0;
+            }
         }
 
         // Reset monthly counters if it's a new month
         if (user.usageTracking.currentMonth !== currentMonth ||
             user.usageTracking.currentYear !== currentYear) {
-            console.log('Resetting monthly counters for new month');
+            console.log('Resetting monthly counters for new month/year');
             user.usageTracking.currentMonth = currentMonth;
             user.usageTracking.currentYear = currentYear;
             user.usageTracking.monthlyUPCScans = 0;
             user.usageTracking.monthlyReceiptScans = 0;
             user.usageTracking.monthlyEmailShares = 0;
             user.usageTracking.monthlyEmailNotifications = 0;
+            user.usageTracking.lastUpdated = now;
+
+            // Mark for saving since we changed monthly data
+            try {
+                await user.save();
+                console.log('Monthly usage counters reset and saved');
+            } catch (saveError) {
+                console.error('Error saving monthly reset:', saveError);
+            }
         }
 
         // Update current counts
@@ -144,7 +167,7 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
-            // Usage counts
+            // ENHANCED: Usage counts with monthly tracking
             usage: {
                 inventoryItems: currentInventoryCount,
                 personalRecipes: personalRecipes,
@@ -154,7 +177,12 @@ export async function GET(request) {
                 monthlyEmailNotifications: user.usageTracking.monthlyEmailNotifications || 0,
                 savedRecipes: user.usageTracking.totalSavedRecipes || 0,
                 publicRecipes: user.usageTracking.totalPublicRecipes || 0,
-                recipeCollections: user.usageTracking.totalRecipeCollections || 0
+                recipeCollections: user.usageTracking.totalRecipeCollections || 0,
+
+                // ADDED: Current month/year for debugging
+                currentMonth: user.usageTracking.currentMonth,
+                currentYear: user.usageTracking.currentYear,
+                lastUpdated: user.usageTracking.lastUpdated
             },
 
             // Status flags

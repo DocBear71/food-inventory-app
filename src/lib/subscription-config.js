@@ -153,13 +153,41 @@ export function checkFeatureAccess(subscription, feature) {
     return FEATURE_ACCESS[tier]?.[feature] || false;
 }
 
-export function checkUsageLimit(subscription, limitType, currentUsage) {
+// FIXED: Enhanced checkUsageLimit to handle monthly limits properly
+export function checkUsageLimit(subscription, feature, currentUsage) {
     const tier = getSubscriptionTier(subscription);
-    const limit = USAGE_LIMITS[tier]?.[limitType];
 
+    // Map feature gates to usage limit keys
+    let limitKey;
+    switch (feature) {
+        case FEATURE_GATES.INVENTORY_LIMIT:
+            limitKey = 'inventoryItems';
+            break;
+        case FEATURE_GATES.UPC_SCANNING:
+            limitKey = 'upcScansPerMonth';
+            break;
+        case FEATURE_GATES.RECEIPT_SCAN:
+            limitKey = 'monthlyReceiptScans'; // FIXED: Use correct key
+            break;
+        case FEATURE_GATES.PERSONAL_RECIPES:
+            limitKey = 'personalRecipes';
+            break;
+        case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
+            limitKey = 'publicRecipes';
+            break;
+        case FEATURE_GATES.RECIPE_COLLECTIONS:
+            limitKey = 'recipeCollections';
+            break;
+        default:
+            // For access-only features, check if tier has access
+            return checkFeatureAccess(subscription, feature);
+    }
+
+    const limit = USAGE_LIMITS[tier]?.[limitKey];
+
+    if (limit === undefined) return true; // no limit defined, allow access
     if (limit === -1) return true; // unlimited
     if (limit === 0) return false; // not allowed
-    if (limit === undefined) return true; // no limit defined
 
     return currentUsage < limit;
 }
@@ -169,9 +197,39 @@ export function getUsageLimit(subscription, limitType) {
     return USAGE_LIMITS[tier]?.[limitType] || 0;
 }
 
-export function getRemainingUsage(subscription, limitType, currentUsage) {
-    const limit = getUsageLimit(subscription, limitType);
-    if (limit === -1) return -1; // unlimited
+// FIXED: Enhanced getRemainingUsage to handle monthly limits
+export function getRemainingUsage(subscription, feature, currentUsage) {
+    const tier = getSubscriptionTier(subscription);
+
+    // Map feature gates to usage limit keys
+    let limitKey;
+    switch (feature) {
+        case FEATURE_GATES.INVENTORY_LIMIT:
+            limitKey = 'inventoryItems';
+            break;
+        case FEATURE_GATES.UPC_SCANNING:
+            limitKey = 'upcScansPerMonth';
+            break;
+        case FEATURE_GATES.RECEIPT_SCAN:
+            limitKey = 'monthlyReceiptScans'; // FIXED: Use correct key
+            break;
+        case FEATURE_GATES.PERSONAL_RECIPES:
+            limitKey = 'personalRecipes';
+            break;
+        case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
+            limitKey = 'publicRecipes';
+            break;
+        case FEATURE_GATES.RECIPE_COLLECTIONS:
+            limitKey = 'recipeCollections';
+            break;
+        default:
+            return 0;
+    }
+
+    const limit = USAGE_LIMITS[tier]?.[limitKey];
+    if (limit === -1) return 'Unlimited'; // unlimited
+    if (limit === undefined || limit === 0) return 0;
+
     return Math.max(0, limit - currentUsage);
 }
 

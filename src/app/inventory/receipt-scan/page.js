@@ -21,7 +21,8 @@ export default function ReceiptScan() {
 
     // State management - ALL HOOKS FIRST (Fixed order)
     const {data: session, status} = useSafeSession();
-    const receiptScanGate = useFeatureGate(FEATURE_GATES.RECEIPT_SCAN);
+    const [receiptScanUsage, setReceiptScanUsage] = useState(null);
+    const [usageLoading, setUsageLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
     const [capturedImage, setCapturedImage] = useState(null);
@@ -93,6 +94,29 @@ export default function ReceiptScan() {
         };
     }, []);
 
+    // Check usage limits on component mount and when needed
+    useEffect(() => {
+        if (session?.user?.id && status === 'authenticated') {
+            checkReceiptScanUsage();
+        }
+    }, [session?.user?.id, status]);
+
+    async function checkReceiptScanUsage() {
+        try {
+            setUsageLoading(true);
+            const response = await fetch(getApiUrl('/api/receipt-scan/usage'));
+            if (response.ok) {
+                const data = await response.json();
+                setReceiptScanUsage(data.usage);
+                console.log('Receipt scan usage loaded:', data.usage);
+            }
+        } catch (error) {
+            console.error('Failed to load receipt scan usage:', error);
+        } finally {
+            setUsageLoading(false);
+        }
+    }
+
     // Early returns AFTER all hooks are defined
     if (status === 'unauthenticated') {
         router.push('/auth/signin');
@@ -110,178 +134,50 @@ export default function ReceiptScan() {
     }
 
 
-// iOS PWA Camera Modal Component - Enhanced with better UX
-    function IOSPWACameraModal() {
-        if (!showIOSPWAModal) return null;
 
-        const safariUrl = window.location.href;
-
+    if (!usageLoading && receiptScanUsage && !receiptScanUsage.canScan) {
         return (
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">📄 Receipt Scanner</h1>
-                            <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
-                            {/* Debug info for development */}
-                            {process.env.NODE_ENV === 'development' && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                    {deviceInfo.isIOSPWA ? '📱 iOS PWA Mode' : deviceInfo.isIOS ? '📱 iOS Browser' : '📱 Standard'}
-                                </div>
-                            )}
-                        </div>
-                        <TouchEnhancedButton
-                            onClick={() => router.push('/inventory')}
-                            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                        >
-                            ← Back to Inventory
-                        </TouchEnhancedButton>
-                    </div>
-                </div>
-
-                {/* Feature Gate Check */}
-                {!receiptScanGate.canUse ? (
+            <MobileOptimizedLayout>
+                <div className="space-y-6">
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
                             <div className="text-center py-12">
-                                <div
-                                    className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                                    <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor"
-                                         viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                <div className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                                    <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
                                     </svg>
                                 </div>
-                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Unlock Receipt
-                                    Scanning</h3>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit Reached</h3>
                                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                                    Receipt scanning is available with Gold and Platinum subscriptions. Quickly add
-                                    items to your inventory by scanning grocery receipts with advanced OCR
-                                    technology.
+                                    You've used all {receiptScanUsage.monthlyLimit} of your receipt scans this month.
+                                    Your scans will reset on the 1st of next month.
                                 </p>
                                 <div className="space-y-4">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=receipt-scan&feature=receipt-scanning'}
+                                        onClick={() => window.location.href = '/pricing?source=receipt-scan-limit&feature=receipt-scanning'}
                                         className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
                                     >
-                                        Upgrade to Gold
+                                        Upgrade for More Scans
                                     </TouchEnhancedButton>
 
-                                    <div
-                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📱 What you'll
-                                            get:</h4>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📱 Upgrade Benefits:</h4>
                                         <ul className="text-sm text-blue-800 space-y-1 text-left">
-                                            <li>• Scan grocery receipts with your camera</li>
-                                            <li>• Upload receipt images from your photo gallery</li>
+                                            <li>• <strong>Gold:</strong> 20 receipt scans per month</li>
+                                            <li>• <strong>Platinum:</strong> Unlimited receipt scanning</li>
                                             <li>• Advanced OCR text recognition</li>
                                             <li>• Automatic item categorization</li>
                                             <li>• UPC code detection and lookup</li>
-                                            <li>• {receiptScanGate.tier === 'free' ? 'Gold: 20 scans/month, Platinum: Unlimited' : 'Based on your subscription tier'}</li>
                                         </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                ) : (
-                    // Show usage info if user has access but is approaching limits
-                    <>
-                        {receiptScanGate.remaining !== 'Unlimited' && receiptScanGate.remaining <= 5 && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <svg className="w-5 h-5 text-yellow-400" fill="currentColor"
-                                             viewBox="0 0 20 20">
-                                            <path fillRule="evenodd"
-                                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                                  clipRule="evenodd"/>
-                                        </svg>
-                                    </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm text-yellow-700">
-                                            <strong>Low on receipt scans:</strong> You
-                                            have {receiptScanGate.remaining} scans remaining this month.
-                                            {receiptScanGate.tier === 'gold' && (
-                                                <span> Upgrade to Platinum for unlimited scanning!</span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Main Content - Your existing receipt scanner UI */}
-                        <div className="bg-white shadow rounded-lg">
-                            <div className="px-4 py-5 sm:p-6">
-                                {/* Step 1: Upload/Capture */}
-                                {step === 'upload' && (
-                                    <div className="space-y-6">
-                                        <div className="text-center">
-                                            <div className="text-6xl mb-4">📱</div>
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                                Capture Your Receipt
-                                            </h3>
-                                            <p className="text-gray-600 mb-6">
-                                                Take a photo or upload an image of your shopping receipt
-                                            </p>
-                                            {receiptScanGate.remaining !== 'Unlimited' && (
-                                                <p className="text-sm text-blue-600 mb-4">
-                                                    📊 {receiptScanGate.remaining} scans remaining this month
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Rest of your existing upload/capture UI... */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Camera Option */}
-                                            <TouchEnhancedButton
-                                                onClick={startCamera}
-                                                className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-                                            >
-                                                <div className="text-4xl mb-2">📷</div>
-                                                <div className="text-lg font-medium text-indigo-700">
-                                                    Take Photo
-                                                </div>
-                                                <div className="text-sm text-gray-500">
-                                                    {deviceInfo.isIOSPWA ? 'iOS PWA - Will try aggressive fixes' : 'Use device camera'}
-                                                </div>
-                                            </TouchEnhancedButton>
-
-                                            {/* Upload Option */}
-                                            <TouchEnhancedButton
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
-                                            >
-                                                <div className="text-4xl mb-2">📁</div>
-                                                <div className="text-lg font-medium text-green-700">Upload Image
-                                                </div>
-                                                <div className="text-sm text-gray-500">Select from gallery</div>
-                                            </TouchEnhancedButton>
-                                        </div>
-
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleReceiptFileUpload}
-                                            className="hidden"
-                                        />
-
-                                        );
-                                    </div>
-                                )};
-                            </div>
-                        </div>
-                    </>
-                )}
-                <canvas ref={canvasRef} className="hidden"/>
-                <IOSPWACameraModal/>
-            </div>
+                </div>
+            </MobileOptimizedLayout>
         );
     }
-
 
     // Minimal camera attempt function (last resort)
     async function startCameraMinimal() {
@@ -410,15 +306,49 @@ export default function ReceiptScan() {
         }
     }
 
-    // Enhanced OCR processing with better settings
+    // FIXED: Enhanced OCR processing with usage tracking and enforcement
     async function processImage(imageFile) {
         setIsProcessing(true);
         setStep('processing');
         setOcrProgress(0);
-        setProcessingStatus('Initializing OCR...');
+        setProcessingStatus('Checking scan limits...');
 
         try {
-            // Use the optimized OCR processing
+            // STEP 1: Check usage limits BEFORE processing
+            console.log('Checking receipt scan usage limits...');
+            const usageResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!usageResponse.ok) {
+                throw new Error('Failed to check usage limits');
+            }
+
+            const usageData = await usageResponse.json();
+            console.log('Usage check result:', usageData);
+
+            // Check if user has capacity
+            if (!usageData.usage.hasCapacity) {
+                setProcessingStatus('Scan limit exceeded');
+
+                // Show limit exceeded message
+                const limitMessage = usageData.usage.monthlyLimit === 'unlimited'
+                    ? 'Unexpected limit reached'
+                    : `You've reached your monthly limit of ${usageData.usage.monthlyLimit} receipt scans. Used: ${usageData.usage.currentMonth}/${usageData.usage.monthlyLimit}`;
+
+                alert(`❌ ${limitMessage}\n\nUpgrade to Gold for 20 scans/month or Platinum for unlimited scanning!`);
+
+                // Redirect to pricing
+                window.location.href = `/pricing?source=receipt-scan-limit&feature=receipt-scanning&required=${usageData.subscription.tier === 'free' ? 'gold' : 'platinum'}`;
+                return;
+            }
+
+            setProcessingStatus('Initializing OCR...');
+
+            // STEP 2: Process the image with OCR (existing logic)
             const text = await processImageWithOptimizedOCR(
                 imageFile,
                 deviceInfo,
@@ -430,19 +360,102 @@ export default function ReceiptScan() {
 
             setProcessingStatus('Analyzing receipt...');
 
-            // Keep your existing parsing logic
+            // STEP 3: Parse receipt text (existing logic)
             const items = parseReceiptText(text);
+
+            if (items.length === 0) {
+                // Even if no items found, this counts as a scan attempt
+                setProcessingStatus('Recording scan attempt...');
+                await recordReceiptScanUsage(0, 'no-items-found');
+
+                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image.');
+                setStep('upload');
+                return;
+            }
+
+            // STEP 4: Record successful usage AFTER successful processing
+            setProcessingStatus('Recording successful scan...');
+
+            try {
+                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scanType: 'receipt',
+                        itemsExtracted: items.length
+                    })
+                });
+
+                if (!recordResponse.ok) {
+                    console.error('Failed to record receipt scan usage');
+                    // Continue anyway since the scan was successful
+                } else {
+                    const recordData = await recordResponse.json();
+                    console.log('Receipt scan usage recorded:', recordData);
+
+                    // Update UI with remaining scans
+                    if (recordData.usage.remaining !== 'unlimited') {
+                        setProcessingStatus(`Scan successful! ${recordData.usage.remaining} scans remaining this month.`);
+                    }
+                }
+            } catch (recordError) {
+                console.error('Error recording receipt scan usage:', recordError);
+                // Continue anyway since the scan was successful
+            }
+
+            // STEP 5: Show results
             setExtractedItems(items);
             setProcessingStatus('Complete!');
             setStep('review');
 
         } catch (error) {
             console.error('OCR processing error:', error);
-            alert('Error processing receipt. Please try again with a clearer image.');
+
+            // If it's a usage limit error, don't count as a failed scan
+            if (error.message.includes('limit') || error.message.includes('capacity')) {
+                setStep('upload');
+                return;
+            }
+
+            // For actual processing errors, still count as a scan attempt
+            try {
+                await recordReceiptScanUsage(0, 'processing-failed');
+            } catch (recordError) {
+                console.error('Failed to record failed scan:', recordError);
+            }
+
+            alert('❌ Error processing receipt. This scan has been counted towards your monthly limit. Please try again with a clearer image.');
             setStep('upload');
         } finally {
             setIsProcessing(false);
             setOcrProgress(0);
+        }
+    }
+
+// Helper function to record receipt scan usage
+    async function recordReceiptScanUsage(itemsExtracted, scanType = 'receipt') {
+        try {
+            const response = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    scanType,
+                    itemsExtracted
+                })
+            });
+
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error(`Failed to record usage: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error recording receipt scan usage:', error);
+            throw error;
         }
     }
 
@@ -2244,6 +2257,27 @@ export default function ReceiptScan() {
                                         shopping receipt
                                     </p>
                                 </div>
+
+                                {/* Usage display - show remaining scans */}
+                                {receiptScanUsage && receiptScanUsage.remaining !== 'unlimited' && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                        <div className="flex items-center">
+                                            <div className="flex-shrink-0">
+                                                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm text-blue-700">
+                                                    <strong>📊 {receiptScanUsage.remaining} receipt scans remaining this month</strong>
+                                                </p>
+                                                <p className="text-xs text-blue-600 mt-1">
+                                                    Used: {receiptScanUsage.currentMonth}/{receiptScanUsage.monthlyLimit}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div
                                     className="grid grid-cols-1 md:grid-cols-2 gap-4">
