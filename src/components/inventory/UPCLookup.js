@@ -924,26 +924,6 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 </div>
             )}
 
-            {/* Usage Tips - Enhanced */}
-            <div className="text-xs text-gray-500 space-y-1">
-                <div>💡 <strong>Tips:</strong></div>
-                {activeTab === 'upc' ? (
-                    <>
-                        <div>• UPC codes are usually 12-14 digits long</div>
-                        <div>• Camera scanning works best in good lighting</div>
-                        <div>• Hold your device steady when scanning</div>
-                    </>
-                ) : (
-                    <>
-                        <div>• Try specific product names for better results</div>
-                        <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
-                        <div>• Results with images appear first for easier identification</div>
-                    </>
-                )}
-                <div>• Data comes from Open Food Facts community database</div>
-                <div>• Nutrition information included when available</div>
-                <div>• If not found, you can still add the item manually</div>
-            </div>
             {/* UPC Tab Content */}
             {activeTab === 'upc' && (
                 <div className="space-y-4">
