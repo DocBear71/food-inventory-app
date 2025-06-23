@@ -40,11 +40,9 @@ async function connectDB(retryAttempt = 0) {
             const opts = {
                 bufferCommands: false,
                 ssl: true,
-                sslValidate: true,
                 w: 'majority',
                 maxPoolSize: 5,
                 minPoolSize: 1,
-                maxIdleTimeout: 30000,
                 serverSelectionTimeoutMS: 10000,
                 socketTimeoutMS: 45000,
                 connectTimeoutMS: 10000,
@@ -53,7 +51,6 @@ async function connectDB(retryAttempt = 0) {
                 retryReads: true,
                 tlsAllowInvalidCertificates: false,
                 tlsAllowInvalidHostnames: false,
-                bufferMaxEntries: 0,
                 useNewUrlParser: true,
                 useUnifiedTopology: true,
                 appName: 'DocBearsComfortKitchen'
