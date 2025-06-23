@@ -315,8 +315,72 @@ export async function DELETE(request) {
             // Don't fail the request for this
         }
 
-        await user.save();
-        console.log('✅ DELETE /api/saved-recipes - User saved successfully');
+        // FIXED: Handle user validation before saving
+        try {
+            // Ensure required legal fields exist before saving
+            if (!user.legalAcceptance?.acceptanceDate) {
+                console.log('📝 DELETE /api/saved-recipes - User missing required legal acceptance date, setting defaults');
+
+                if (!user.legalAcceptance) {
+                    user.legalAcceptance = {};
+                }
+
+                // Set required fields with defaults if missing
+                if (user.legalAcceptance.termsAccepted === undefined) {
+                    user.legalAcceptance.termsAccepted = false;
+                }
+                if (user.legalAcceptance.privacyAccepted === undefined) {
+                    user.legalAcceptance.privacyAccepted = false;
+                }
+                if (!user.legalAcceptance.acceptanceDate) {
+                    user.legalAcceptance.acceptanceDate = user.createdAt || new Date();
+                }
+
+                // Set version defaults if missing
+                if (!user.legalVersion) {
+                    user.legalVersion = {
+                        termsVersion: '1.0',
+                        privacyVersion: '1.0'
+                    };
+                }
+            }
+
+            await user.save();
+            console.log('✅ DELETE /api/saved-recipes - User saved successfully');
+        } catch (saveError) {
+            console.error('❌ DELETE /api/saved-recipes - Error saving user:', saveError);
+
+            // If it's a validation error, try to fix it
+            if (saveError.name === 'ValidationError') {
+                console.error('❌ DELETE /api/saved-recipes - Validation errors:', saveError.errors);
+
+                try {
+                    // Force set all required fields
+                    if (!user.legalAcceptance) {
+                        user.legalAcceptance = {
+                            termsAccepted: false,
+                            privacyAccepted: false,
+                            acceptanceDate: user.createdAt || new Date()
+                        };
+                    }
+                    if (!user.legalVersion) {
+                        user.legalVersion = {
+                            termsVersion: '1.0',
+                            privacyVersion: '1.0'
+                        };
+                    }
+
+                    await user.save();
+                    console.log('✅ DELETE /api/saved-recipes - User saved after fixing validation errors');
+                } catch (retryError) {
+                    console.error('❌ DELETE /api/saved-recipes - Failed to save user even after fixing validation:', retryError);
+                    // This is a critical error since we need to save the changes
+                    throw new Error('Unable to unsave recipe due to user validation issues');
+                }
+            } else {
+                throw saveError; // Re-throw non-validation errors
+            }
+        }
 
         console.log('✅ DELETE /api/saved-recipes - Request completed successfully');
 

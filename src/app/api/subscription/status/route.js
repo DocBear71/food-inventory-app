@@ -135,13 +135,70 @@ export async function GET(request) {
         user.usageTracking.totalRecipeCollections = collectionCount;
         user.usageTracking.lastUpdated = now;
 
-        // Save user with error handling
+        // Save user with error handling and validation fix
         try {
+            // FIXED: Ensure required legal fields exist before saving
+            if (!user.legalAcceptance?.acceptanceDate) {
+                console.log('User missing required legal acceptance date, setting defaults');
+
+                if (!user.legalAcceptance) {
+                    user.legalAcceptance = {};
+                }
+
+                // Set required fields with defaults if missing
+                if (user.legalAcceptance.termsAccepted === undefined) {
+                    user.legalAcceptance.termsAccepted = false;
+                }
+                if (user.legalAcceptance.privacyAccepted === undefined) {
+                    user.legalAcceptance.privacyAccepted = false;
+                }
+                if (!user.legalAcceptance.acceptanceDate) {
+                    user.legalAcceptance.acceptanceDate = user.createdAt || new Date();
+                }
+
+                // Set version defaults if missing
+                if (!user.legalVersion) {
+                    user.legalVersion = {
+                        termsVersion: '1.0',
+                        privacyVersion: '1.0'
+                    };
+                }
+            }
+
             await user.save();
             console.log('User usage tracking updated successfully');
         } catch (saveError) {
             console.error('Error saving user usage tracking:', saveError);
-            // Continue without failing the request
+
+            // If it's a validation error, log the specific validation issues
+            if (saveError.name === 'ValidationError') {
+                console.error('Validation errors:', saveError.errors);
+
+                // Try to fix validation errors and save again
+                try {
+                    // Ensure all required fields have values
+                    if (!user.legalAcceptance) {
+                        user.legalAcceptance = {
+                            termsAccepted: false,
+                            privacyAccepted: false,
+                            acceptanceDate: user.createdAt || new Date()
+                        };
+                    }
+                    if (!user.legalVersion) {
+                        user.legalVersion = {
+                            termsVersion: '1.0',
+                            privacyVersion: '1.0'
+                        };
+                    }
+
+                    await user.save();
+                    console.log('User saved after fixing validation errors');
+                } catch (retryError) {
+                    console.error('Failed to save user even after fixing validation:', retryError);
+                    // Continue without failing the request - usage tracking update is not critical
+                }
+            }
+            // Continue without failing the request - usage tracking is not critical for the API response
         }
 
         // Initialize subscription data with safe defaults
