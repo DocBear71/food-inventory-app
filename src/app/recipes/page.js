@@ -484,7 +484,7 @@ function RecipesContent() {
                 };
             case 'collections':
                 return {
-                    current: subscription.usage?.recipeCollections || collectionsCount,
+                    current: collectionsCount,
                     limit: tier === 'free' ? 2 : tier === 'gold' ? 10 : 'Unlimited',
                     isUnlimited: tier === 'platinum',
                     tier
