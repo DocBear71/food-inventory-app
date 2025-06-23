@@ -1,17 +1,30 @@
 'use client';
-// file: /src/components/recipes/SavedRecipes.js v2 - FIXED with enhanced error handling and null checks
+// file: /src/components/recipes/SavedRecipes.js v3 - FIXED with global hook integration for real-time updates
 
 import React, { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
+import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { StarRating } from '@/components/reviews/RecipeRating';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { getApiUrl } from '@/lib/api-config';
-import SaveRecipeButton from './SaveRecipeButton';
 
 const SavedRecipes = ({ onCountChange }) => {
     const { data: session } = useSafeSession();
+
+    // Use the global saved recipes hook
+    const {
+        savedRecipes: globalSavedRecipeIds,
+        loading: globalLoading,
+        error: globalError,
+        totalCount: globalTotalCount,
+        fetchSavedRecipes: refreshGlobalCache,
+        invalidateCache,
+        removeFromSaved
+    } = useSavedRecipes();
+
+    // Local state for full recipe data (populated)
     const [savedRecipes, setSavedRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -39,18 +52,43 @@ const SavedRecipes = ({ onCountChange }) => {
         { value: 'breakfast', label: 'Breakfast' }
     ];
 
+    // Update parent count whenever global count changes
     useEffect(() => {
-        if (session?.user?.id) {
-            fetchSavedRecipes();
+        if (onCountChange && globalTotalCount !== undefined) {
+            console.log('📊 SavedRecipes - Updating parent count:', globalTotalCount);
+            onCountChange(globalTotalCount);
         }
-    }, [session?.user?.id]);
+    }, [globalTotalCount, onCountChange]);
 
-    const fetchSavedRecipes = async () => {
+    // Fetch full recipe data when global recipe IDs change
+    useEffect(() => {
+        if (!globalLoading && Array.isArray(globalSavedRecipeIds)) {
+            console.log('🔍 SavedRecipes - Global IDs updated, fetching full data for', globalSavedRecipeIds.length, 'recipes');
+            fetchFullRecipeData();
+        }
+    }, [globalSavedRecipeIds, globalLoading]);
+
+    // Handle global errors
+    useEffect(() => {
+        if (globalError) {
+            setError(globalError);
+            setLoading(false);
+        }
+    }, [globalError]);
+
+    const fetchFullRecipeData = async () => {
         try {
             setLoading(true);
             setError('');
 
-            console.log('🔍 SavedRecipes - Fetching saved recipes...');
+            // If no saved recipes, set empty array
+            if (globalSavedRecipeIds.length === 0) {
+                setSavedRecipes([]);
+                setLoading(false);
+                return;
+            }
+
+            console.log('🔍 SavedRecipes - Fetching full saved recipes data...');
 
             const response = await fetch(getApiUrl('/api/saved-recipes'), {
                 method: 'GET',
@@ -75,35 +113,36 @@ const SavedRecipes = ({ onCountChange }) => {
 
             const data = await response.json();
 
-            if (data.success) {
-                // FIXED: Ensure savedRecipes is always an array and filter out invalid entries
-                const validSavedRecipes = Array.isArray(data.savedRecipes)
-                    ? data.savedRecipes.filter(saved => saved && saved.recipeId)
-                    : [];
+            if (data.success && Array.isArray(data.savedRecipes)) {
+                // Filter out any null recipes and sort by savedAt date
+                const validRecipes = data.savedRecipes
+                    .filter(saved => saved && saved.recipeId)
+                    .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
 
-                setSavedRecipes(validSavedRecipes);
+                setSavedRecipes(validRecipes);
+                console.log('✅ SavedRecipes - Successfully loaded:', validRecipes.length, 'saved recipes');
 
-                // Update parent component count
-                if (onCountChange) {
-                    onCountChange(validSavedRecipes.length);
+                // Update count if there's a discrepancy
+                if (onCountChange && validRecipes.length !== globalTotalCount) {
+                    console.log('📊 SavedRecipes - Count discrepancy detected, updating parent');
+                    onCountChange(validRecipes.length);
                 }
-
-                console.log('✅ SavedRecipes - Successfully loaded:', validSavedRecipes.length, 'saved recipes');
 
                 if (data.warning) {
                     console.warn('⚠️ SavedRecipes - API warning:', data.warning);
                 }
+            } else if (data.warning) {
+                console.warn('⚠️ SavedRecipes - API returned warning:', data.warning);
+                setSavedRecipes([]);
             } else {
                 console.error('❌ SavedRecipes - API returned error:', data.error);
                 setError(data.error || 'Failed to fetch saved recipes');
-                setSavedRecipes([]); // Ensure empty array on error
-                if (onCountChange) onCountChange(0);
+                setSavedRecipes([]);
             }
         } catch (error) {
             console.error('❌ SavedRecipes - Error fetching saved recipes:', error);
-            setError(error.message || 'Failed to fetch saved recipes');
-            setSavedRecipes([]); // Ensure empty array on error
-            if (onCountChange) onCountChange(0);
+            setError(error.message || 'Failed to load saved recipes');
+            setSavedRecipes([]);
         } finally {
             setLoading(false);
         }
@@ -111,7 +150,15 @@ const SavedRecipes = ({ onCountChange }) => {
 
     const handleUnsaveRecipe = async (recipeId) => {
         try {
-            console.log('🗑️ SavedRecipes - Unsaving recipe:', recipeId);
+            console.log('🗑️ SavedRecipes - Removing recipe:', recipeId);
+
+            // Optimistically update local UI
+            setSavedRecipes(prev => prev.filter(saved =>
+                (saved.recipeId?._id || saved.recipeId) !== recipeId
+            ));
+
+            // Update global state optimistically
+            removeFromSaved(recipeId);
 
             const response = await fetch(getApiUrl(`/api/saved-recipes?recipeId=${recipeId}`), {
                 method: 'DELETE'
@@ -119,29 +166,23 @@ const SavedRecipes = ({ onCountChange }) => {
 
             if (!response.ok) {
                 console.error('❌ SavedRecipes - Failed to unsave recipe:', response.status);
+                // Revert changes on error by refreshing data
+                fetchFullRecipeData();
+                refreshGlobalCache(true);
                 throw new Error(`Failed to unsave recipe (${response.status})`);
             }
 
             const data = await response.json();
 
             if (data.success) {
-                // FIXED: Use safe filtering with null checks
-                const updatedSavedRecipes = Array.isArray(savedRecipes)
-                    ? savedRecipes.filter(saved =>
-                        saved && saved.recipeId && saved.recipeId._id !== recipeId
-                    )
-                    : [];
-
-                setSavedRecipes(updatedSavedRecipes);
-
-                // Update parent component count
-                if (onCountChange) {
-                    onCountChange(updatedSavedRecipes.length);
-                }
-
                 console.log('✅ SavedRecipes - Recipe successfully unsaved');
+                // Refresh global cache to ensure consistency
+                setTimeout(() => refreshGlobalCache(true), 500);
             } else {
                 console.error('❌ SavedRecipes - API returned error:', data.error);
+                // Revert changes on error
+                fetchFullRecipeData();
+                refreshGlobalCache(true);
                 setError(data.error || 'Failed to unsave recipe');
             }
         } catch (error) {
@@ -223,7 +264,8 @@ const SavedRecipes = ({ onCountChange }) => {
         });
     };
 
-    if (loading) {
+    // Show loading state
+    if (loading || globalLoading) {
         return (
             <div className="space-y-4">
                 <div className="animate-pulse">
@@ -278,14 +320,17 @@ const SavedRecipes = ({ onCountChange }) => {
             }
         >
             <div className="space-y-6">
-                {/* Header */}
+                {/* Header with Real-time Count */}
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                        📚 Saved Recipes ({Array.isArray(savedRecipes) ? savedRecipes.length : 0})
+                    <h2 className="text-xl font-semibold text-gray-900" key={`saved-header-${globalTotalCount}`}>
+                        📚 Saved Recipes ({globalTotalCount || 0})
                     </h2>
                     {error && (
                         <TouchEnhancedButton
-                            onClick={fetchSavedRecipes}
+                            onClick={() => {
+                                fetchFullRecipeData();
+                                refreshGlobalCache(true);
+                            }}
                             className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-md hover:bg-indigo-200"
                         >
                             Retry
@@ -299,6 +344,14 @@ const SavedRecipes = ({ onCountChange }) => {
                         <div className="text-sm text-red-800">
                             <strong>Error:</strong> {error}
                         </div>
+                    </div>
+                )}
+
+                {/* Debug Info (Development Only) */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="bg-gray-100 border rounded-lg p-2 text-xs">
+                        <strong>Debug:</strong> globalCount={globalTotalCount}, localCount={savedRecipes.length},
+                        globalLoading={globalLoading}, localLoading={loading}
                     </div>
                 )}
 

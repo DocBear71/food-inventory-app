@@ -36,7 +36,6 @@ function RecipesContent() {
     const { totalCount: globalSavedCount, loading: savedRecipesGlobalLoading } = useSavedRecipes();
 
     // Enhanced state for saved recipes and collections counts with better error handling
-    const [savedRecipesCount, setSavedRecipesCount] = useState(0);
     const [collectionsCount, setCollectionsCount] = useState(0);
     const [loadingCounts, setLoadingCounts] = useState(true);
     const [countsError, setCountsError] = useState('');
@@ -322,12 +321,6 @@ function RecipesContent() {
     // Replace the handleRecipeSaveStateChange function with this simplified version:
     const handleRecipeSaveStateChange = (recipeId, isSaved) => {
         console.log('📊 Recipe save state changed:', recipeId, isSaved);
-
-        // The global hook will automatically handle the count updates
-        // Just force a small re-render to ensure UI updates
-        setTimeout(() => {
-            setLoadingCounts(false);
-        }, 50);
     };
 
     // Add this new error boundary component to handle network errors gracefully:
@@ -516,7 +509,7 @@ function RecipesContent() {
         return {
             myRecipes: myRecipes.length,
             publicRecipes: publicRecipes.length,
-            savedRecipes: savedRecipesCount,
+            savedRecipes: globalSavedCount, // Use global count directly
             collections: collectionsCount
         };
     };
@@ -539,7 +532,7 @@ function RecipesContent() {
                 };
             case 'saved-recipes':
                 return {
-                    current: subscription.usage?.savedRecipes || savedRecipesCount,
+                    current: globalSavedCount, // Use global count directly
                     limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
                     isUnlimited: tier === 'platinum',
                     tier
@@ -558,7 +551,17 @@ function RecipesContent() {
 
     // Format count display with usage limits
     const formatCountWithLimit = (tabType) => {
-        if (loadingCounts || subscription.loading) {
+        if (subscription.loading) {
+            return '...';
+        }
+
+        // For saved recipes, show loading only if global hook is loading
+        if (tabType === 'saved-recipes' && savedRecipesGlobalLoading) {
+            return '...';
+        }
+
+        // For other tabs, use existing loading check
+        if (tabType !== 'saved-recipes' && loadingCounts) {
             return '...';
         }
 
@@ -572,9 +575,19 @@ function RecipesContent() {
         return `${count}/${usage.limit}`;
     };
 
-    // Get count color based on usage
+    // Update getCountColor to use proper loading states:
     const getCountColor = (tabType, isActive) => {
-        if (loadingCounts || subscription.loading) {
+        if (subscription.loading) {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
+        // For saved recipes, check global loading state
+        if (tabType === 'saved-recipes' && savedRecipesGlobalLoading) {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
+        // For other tabs, use existing loading check
+        if (tabType !== 'saved-recipes' && loadingCounts) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
 
@@ -725,8 +738,8 @@ function RecipesContent() {
                     </div>
                 </div>
 
-                {/* Enhanced Tab Navigation with Usage Counts */}
-                <div className="mb-6" key={`tab-counts-${savedRecipesCount}-${collectionsCount}`}>
+                {/* Enhanced Tab Navigation with Usage Counts - Real-time Updates */}
+                <div className="mb-6" key={`tab-counts-${globalSavedCount}-${collectionsCount}-${Date.now()}`}>
                     <div className="bg-gray-100 p-1 rounded-lg flex">
                         <TouchEnhancedButton
                             onClick={() => setActiveTab('my-recipes')}
@@ -759,7 +772,7 @@ function RecipesContent() {
                                         ? 'bg-indigo-100 text-indigo-600'
                                         : 'bg-gray-200 text-gray-600'
                                 }`}>
-                    {tabCounts.publicRecipes}
+                    {getTabCounts().publicRecipes}
                 </span>
                             </div>
                         </TouchEnhancedButton>
@@ -774,7 +787,7 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📚 Saved</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`}>
+                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`} key={`saved-count-${globalSavedCount}`}>
                     {formatCountWithLimit('saved-recipes')}
                 </span>
                             </div>
@@ -797,10 +810,14 @@ function RecipesContent() {
                         </TouchEnhancedButton>
                     </div>
                 </div>
+
+                {/* Enhanced debugging helper to see what's happening with the counts: */}
                 {process.env.NODE_ENV === 'development' && (
                     <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-                        <strong>Debug:</strong> savedRecipesCount={savedRecipesCount}, globalSavedCount={globalSavedCount},
-                        loading={loadingCounts}, tabCounts.savedRecipes={tabCounts.savedRecipes}
+                        <strong>Debug:</strong> globalSavedCount={globalSavedCount},
+                        globalLoading={savedRecipesGlobalLoading},
+                        tabCounts.savedRecipes={getTabCounts().savedRecipes},
+                        formatCountWithLimit(&#39;saved-recipes&#39;)={formatCountWithLimit('saved-recipes')}
                     </div>
                 )}
 
