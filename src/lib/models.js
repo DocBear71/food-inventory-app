@@ -337,6 +337,19 @@ const UserSchema = new mongoose.Schema({
             }
         })
     },
+    savedRecipes: [
+        {
+            recipeId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Recipe',
+                required: true
+            },
+            savedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ],
     // UPDATED: Meal planning preferences with new meal types
     mealPlanningPreferences: {
         type: UserMealPlanningPreferencesSchema,
@@ -457,6 +470,7 @@ const UserSchema = new mongoose.Schema({
         totalSavedRecipes: {type: Number, default: 0},
         totalPublicRecipes: {type: Number, default: 0},
         totalRecipeCollections: {type: Number, default: 0},
+        savedRecipes: {type: Number, default: 0},
         lastUpdated: {type: Date, default: Date.now}
     },
 });
