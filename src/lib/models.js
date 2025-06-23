@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v11 - UPDATED with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
+// file: /src/lib/models.js - v12 - FIXED with RecipeCollection model and proper exports
 
 import mongoose from 'mongoose';
 const crypto = require('crypto');
@@ -61,6 +61,142 @@ const NutritionSchema = new mongoose.Schema({
         name: {type: String, default: 'Iron'}
     }
 }, {_id: false});
+
+// NEW: Recipe Collection Schema - MISSING MODEL ADDED
+const RecipeCollectionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100
+    },
+    description: {
+        type: String,
+        maxlength: 500,
+        trim: true,
+        default: ''
+    },
+
+    // Array of recipes in this collection
+    recipes: [{
+        recipeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Recipe',
+            required: true
+        },
+        addedAt: {
+            type: Date,
+            default: Date.now
+        },
+        notes: {
+            type: String,
+            maxlength: 200
+        }
+    }],
+
+    // Collection settings
+    isPublic: {
+        type: Boolean,
+        default: false
+    },
+    color: {
+        type: String,
+        default: '#3b82f6' // Default blue color for UI
+    },
+    tags: [String], // User-defined tags for organization
+
+    // Statistics (cached for performance)
+    stats: {
+        recipeCount: {type: Number, default: 0},
+        averageDifficulty: {type: String, default: 'medium'},
+        totalCookTime: {type: Number, default: 0}, // Total minutes for all recipes
+        categories: [String] // Most common categories in this collection
+    },
+
+    // Usage tracking
+    usage: {
+        timesViewed: {type: Number, default: 0},
+        lastViewed: Date,
+        lastModified: Date,
+        recipesAdded: {type: Number, default: 0},
+        recipesRemoved: {type: Number, default: 0}
+    },
+
+    // Sharing and collaboration
+    sharedWith: [{
+        email: String,
+        name: String,
+        permissions: {
+            type: String,
+            enum: ['view', 'edit'],
+            default: 'view'
+        },
+        sharedAt: {type: Date, default: Date.now}
+    }],
+
+    createdAt: {type: Date, default: Date.now},
+    updatedAt: {type: Date, default: Date.now}
+});
+
+// Pre-save middleware to update stats and timestamps
+RecipeCollectionSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+    this.usage.lastModified = new Date();
+
+    // Update recipe count
+    this.stats.recipeCount = this.recipes.length;
+
+    next();
+});
+
+// Methods for RecipeCollection
+RecipeCollectionSchema.methods.addRecipe = function(recipeId, notes = '') {
+    // Check if recipe already exists
+    const existingRecipe = this.recipes.find(r => r.recipeId.toString() === recipeId.toString());
+
+    if (!existingRecipe) {
+        this.recipes.push({
+            recipeId: recipeId,
+            addedAt: new Date(),
+            notes: notes
+        });
+        this.usage.recipesAdded += 1;
+        return true;
+    }
+
+    return false; // Recipe already exists
+};
+
+RecipeCollectionSchema.methods.removeRecipe = function(recipeId) {
+    const initialLength = this.recipes.length;
+    this.recipes = this.recipes.filter(r => r.recipeId.toString() !== recipeId.toString());
+
+    if (this.recipes.length < initialLength) {
+        this.usage.recipesRemoved += 1;
+        return true;
+    }
+
+    return false; // Recipe not found
+};
+
+RecipeCollectionSchema.methods.recordView = function() {
+    this.usage.timesViewed += 1;
+    this.usage.lastViewed = new Date();
+    return this.save();
+};
+
+// Indexes for RecipeCollection
+RecipeCollectionSchema.index({userId: 1, name: 1}, {unique: true}); // Users can't have duplicate collection names
+RecipeCollectionSchema.index({userId: 1, createdAt: -1});
+RecipeCollectionSchema.index({isPublic: 1, createdAt: -1});
+RecipeCollectionSchema.index({'recipes.recipeId': 1});
+RecipeCollectionSchema.index({tags: 1});
+RecipeCollectionSchema.index({'usage.lastViewed': -1});
 
 // Curated Meal Component Schema
 const CuratedMealComponentSchema = new mongoose.Schema({
@@ -2056,7 +2192,6 @@ MealPlanEntrySchema.methods.getIngredients = function () {
     }
 };
 
-
 // Methods for meal suggestions
 CuratedMealSchema.methods.recordSuggestion = function() {
     this.usageStats.timesSuggested += 1;
@@ -2192,7 +2327,7 @@ CuratedMealSchema.index({difficulty: 1});
 
 // Declare variables first
 let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
-    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal;
+    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal, RecipeCollection;
 
 try {
     // Export models (prevent re-compilation in development)
@@ -2210,6 +2345,10 @@ try {
     MealPrepTemplate = mongoose.models.MealPrepTemplate || mongoose.model('MealPrepTemplate', MealPrepTemplateSchema);
     MealPrepKnowledge = mongoose.models.MealPrepKnowledge || mongoose.model('MealPrepKnowledge', MealPrepKnowledgeSchema);
     CuratedMeal = mongoose.models.CuratedMeal || mongoose.model('CuratedMeal', CuratedMealSchema);
+
+    // NEW: Add RecipeCollection model
+    RecipeCollection = mongoose.models.RecipeCollection || mongoose.model('RecipeCollection', RecipeCollectionSchema);
+
 } catch (error) {
     console.error('Error creating models:', error);
     // Initialize as empty objects to prevent import errors
@@ -2228,6 +2367,7 @@ try {
     MealPrepTemplate = MealPrepTemplate || emptyModel;
     MealPrepKnowledge = MealPrepKnowledge || emptyModel;
     CuratedMeal = CuratedMeal || emptyModel;
+    RecipeCollection = RecipeCollection || emptyModel;
 }
 
 export {
@@ -2244,5 +2384,6 @@ export {
     MealPrepSuggestion,
     MealPrepTemplate,
     MealPrepKnowledge,
-    CuratedMeal
+    CuratedMeal,
+    RecipeCollection // NEW: Export RecipeCollection
 };

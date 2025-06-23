@@ -1,10 +1,10 @@
-// file: /src/app/api/saved-recipes/route.js v1 - Individual recipe saving API
+// file: /src/app/api/saved-recipes/route.js v2 - FIXED imports and error handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { User, Recipe } from '@/lib/models';
+import { User, Recipe } from '@/lib/models'; // FIXED: Correct import
 import { FEATURE_GATES, checkFeatureAccess, checkUsageLimit, getRequiredTier, getUpgradeMessage } from '@/lib/subscription-config';
 
 // GET - Fetch user's saved recipes

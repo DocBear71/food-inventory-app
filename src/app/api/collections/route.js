@@ -1,4 +1,4 @@
-// file: /src/app/api/collections/route.js v2 - Added subscription gates for collection limits
+// file: /src/app/api/collections/route.js v3 - FIXED imports and subscription gates for collection limits
 // GET /api/collections - Fetch user's collections
 // POST /api/collections - Create new collection (with subscription limits)
 
@@ -6,8 +6,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import RecipeCollection from '@/models/RecipeCollection';
-import { User } from '@/lib/models';
+import { RecipeCollection, User } from '@/lib/models'; // FIXED: Correct import
 import { FEATURE_GATES, checkFeatureAccess, checkUsageLimit } from '@/lib/subscription-config';
 
 export async function GET(request) {
@@ -96,7 +95,12 @@ export async function POST(request) {
         }
 
         // Check if user has feature access for recipe collections
-        const hasAccess = checkFeatureAccess(user.subscription, FEATURE_GATES.RECIPE_COLLECTIONS);
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        const hasAccess = checkFeatureAccess(userSubscription, FEATURE_GATES.RECIPE_COLLECTIONS);
         if (!hasAccess) {
             return NextResponse.json({
                 error: 'Recipe collections are not available on your current plan',
@@ -109,12 +113,6 @@ export async function POST(request) {
         const currentCollectionCount = await RecipeCollection.countDocuments({
             userId: session.user.id
         });
-
-        // Check feature access
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
 
         // Initialize usageTracking if it doesn't exist
         if (!user.usageTracking) {

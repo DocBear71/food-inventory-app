@@ -1,4 +1,4 @@
-// file: /src/app/api/collections/[id]/route.js
+// file: /src/app/api/collections/[id]/route.js v2 - FIXED imports
 // GET /api/collections/[id] - Get specific collection
 // PUT /api/collections/[id] - Update collection details
 // DELETE /api/collections/[id] - Delete collection
@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import RecipeCollection from '@/models/RecipeCollection';
+import { RecipeCollection } from '@/lib/models'; // FIXED: Correct import
 import mongoose from 'mongoose';
 
 export async function GET(request, { params }) {

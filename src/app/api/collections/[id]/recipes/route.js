@@ -1,5 +1,4 @@
-
-// file: /src/app/api/collections/[id]/recipes/route.js
+// file: /src/app/api/collections/[id]/recipes/route.js v2 - FIXED imports
 // POST /api/collections/[id]/recipes - Add recipe to collection
 // DELETE /api/collections/[id]/recipes - Remove recipe from collection
 
@@ -7,8 +6,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import RecipeCollection from '@/models/RecipeCollection';
-import { Recipe } from '@/lib/models';
+import { RecipeCollection, Recipe } from '@/lib/models'; // FIXED: Correct import
 import mongoose from 'mongoose';
 
 export async function POST(request, { params }) {
