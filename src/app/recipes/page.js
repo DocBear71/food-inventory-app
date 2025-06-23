@@ -16,7 +16,7 @@ import RecipeCollections from '@/components/recipes/RecipeCollections';
 import SavedRecipes from "@/components/recipes/SavedRecipes";
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
-import { useSavedRecipes } from '@/hooks/useSavedRecipes';
+import {useSavedRecipes} from '@/hooks/useSavedRecipes';
 import {FEATURE_GATES} from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
 
@@ -35,7 +35,7 @@ function RecipesContent() {
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
-    const { totalCount: globalSavedCount, loading: savedRecipesGlobalLoading } = useSavedRecipes();
+    const {totalCount: globalSavedCount, loading: savedRecipesGlobalLoading} = useSavedRecipes();
 
     // Enhanced state for saved recipes and collections counts with better error handling
     const [collectionsCount, setCollectionsCount] = useState(0);
@@ -171,10 +171,10 @@ function RecipesContent() {
                     });
 
                     clearTimeout(timeoutId);
-                    return { response, name, success: true };
+                    return {response, name, success: true};
                 } catch (error) {
                     console.warn(`⚠️ ${name} request failed:`, error.message);
-                    return { success: false, name, error: error.message };
+                    return {success: false, name, error: error.message};
                 }
             };
 
@@ -271,7 +271,7 @@ function RecipesContent() {
     };
 
     // Add this new error boundary component to handle network errors gracefully:
-    const ErrorBoundary = ({ children, fallback }) => {
+    const ErrorBoundary = ({children, fallback}) => {
         return (
             <div className="min-h-[200px] flex items-center justify-center">
                 {fallback || (
@@ -464,7 +464,7 @@ function RecipesContent() {
     // Update the getUsageInfo function to use globalSavedCount:
     const getUsageInfo = (tabType) => {
         if (!subscription || subscription.loading) {
-            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+            return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
         const tier = subscription.tier || 'free';
@@ -492,7 +492,7 @@ function RecipesContent() {
                     tier
                 };
             default:
-                return { current: 0, limit: 'N/A', isUnlimited: false, tier };
+                return {current: 0, limit: 'N/A', isUnlimited: false, tier};
         }
     };
 
@@ -611,7 +611,8 @@ function RecipesContent() {
                                 <div className="text-sm text-red-700 mt-1">
                                     {recipesError.includes('503') || recipesError.includes('temporarily') ? (
                                         <>
-                                            <p>Our servers are experiencing high traffic. This usually resolves within a few minutes.</p>
+                                            <p>Our servers are experiencing high traffic. This usually resolves within a
+                                                few minutes.</p>
                                             <div className="mt-2 flex gap-2">
                                                 <button
                                                     onClick={fetchRecipes}
@@ -691,7 +692,8 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📝 My Recipes</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
+                                <span
+                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
                     {formatCountWithLimit('my-recipes')}
                 </span>
                             </div>
@@ -727,7 +729,9 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📚 Saved</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`} key={`saved-count-${globalSavedCount}`}>
+                                <span
+                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`}
+                                    key={`saved-count-${globalSavedCount}`}>
                     {formatCountWithLimit('saved-recipes')}
                 </span>
                             </div>
@@ -743,7 +747,8 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📁 Collections</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
+                                <span
+                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
                     {formatCountWithLimit('collections')}
                 </span>
                             </div>
@@ -764,32 +769,65 @@ function RecipesContent() {
                 {/* Enhanced Tab Content Info with Usage Details */}
                 <div className="mb-6">
                     {activeTab === 'my-recipes' ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div className="flex items-start">
-                                <div className="text-blue-600 mr-3 mt-0.5">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd"
-                                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                              clipRule="evenodd"/>
-                                    </svg>
+                        <>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-start">
+                                    <div className="text-blue-600 mr-3 mt-0.5">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd"
+                                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                  clipRule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-medium text-blue-800">Your Personal Recipe
+                                            Collection</h3>
+                                        <p className="text-sm text-blue-700 mt-1">
+                                            These are recipes you've created or added to your personal collection. You
+                                            can edit, delete, and manage these recipes.
+                                        </p>
+                                        {!loadingCounts && !subscription.loading && (
+                                            <div className="mt-2 text-xs text-blue-600">
+                                                {(() => {
+                                                    const usage = getUsageInfo('my-recipes');
+                                                    const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                    return `${usage.current} used • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-medium text-blue-800">Your Personal Recipe Collection</h3>
-                                    <p className="text-sm text-blue-700 mt-1">
-                                        These are recipes you've created or added to your personal collection. You can edit, delete, and manage these recipes.
-                                    </p>
-                                    {!loadingCounts && !subscription.loading && (
-                                        <div className="mt-2 text-xs text-blue-600">
+                            </div>
+                            {/* Header with Usage Info - MOVED OUTSIDE THE BLUE BOX */}
+                            <div className="flex items-center justify-between my-6">
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900">
+                                        📝 My Recipes
+                                        ({getUsageInfo('my-recipes').current}/{getUsageInfo('my-recipes').limit})
+                                    </h2>
+                                    {!subscription.loading && (
+                                        <p className="text-sm text-gray-600 mt-1">
                                             {(() => {
                                                 const usage = getUsageInfo('my-recipes');
-                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                                return `${usage.current} used • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                                return usage.isUnlimited ? (
+                                                    'Unlimited recipes on Platinum plan'
+                                                ) : usage.current >= usage.limit ? (
+                                                    <span className="text-red-600 font-medium">
+                                    You've reached your {usage.tier} plan limit
+                                </span>
+                                                ) : usage.current >= (usage.limit * 0.8) ? (
+                                                    <span className="text-orange-600">
+                                    {usage.limit - usage.current} recipe{usage.limit - usage.current !== 1 ? 's' : ''} remaining
+                                </span>
+                                                ) : (
+                                                    `${usage.limit - usage.current} recipe${usage.limit - usage.current !== 1 ? 's' : ''} remaining on ${usage.tier} plan`
+                                                );
                                             })()}
-                                        </div>
+                                        </p>
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </>
                     ) : activeTab === 'public-recipes' ? (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <div className="flex items-start">
@@ -803,7 +841,8 @@ function RecipesContent() {
                                 <div>
                                     <h3 className="text-sm font-medium text-green-800">Community Recipe Collection</h3>
                                     <p className="text-sm text-green-700 mt-1">
-                                        Discover recipes shared by the community, including Doc Bear's Comfort Food collection. Save favorites to your personal collection!
+                                        Discover recipes shared by the community, including Doc Bear's Comfort Food
+                                        collection. Save favorites to your personal collection!
                                     </p>
                                 </div>
                             </div>
@@ -848,7 +887,8 @@ function RecipesContent() {
                                 <div className="flex-1">
                                     <h3 className="text-sm font-medium text-orange-800">Recipe Collections</h3>
                                     <p className="text-sm text-orange-700 mt-1">
-                                        Organize your recipes into themed collections like "Comfort Food", "Quick Dinners", or "Holiday Recipes" for easy discovery.
+                                        Organize your recipes into themed collections like "Comfort Food", "Quick
+                                        Dinners", or "Holiday Recipes" for easy discovery.
                                     </p>
                                     {!loadingCounts && !subscription.loading && (
                                         <div className="mt-2 text-xs text-orange-600">
@@ -867,9 +907,9 @@ function RecipesContent() {
 
                 {/* Main Content - Conditional Rendering for Collections vs Recipes */}
                 {activeTab === 'collections' ? (
-                    <RecipeCollections onCountChange={handleCollectionsCountChange} />
+                    <RecipeCollections onCountChange={handleCollectionsCountChange}/>
                 ) : activeTab === 'saved-recipes' ? (
-                    <SavedRecipes />
+                    <SavedRecipes/>
                 ) : (
                     <>
                         {/* Add the recipe limit check ONLY for My Recipes tab */}
@@ -883,13 +923,17 @@ function RecipesContent() {
                                             <div className="flex items-start">
                                                 <div className="text-red-500 mr-3 mt-0.5">
                                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                                        <path fillRule="evenodd"
+                                                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                                              clipRule="evenodd"/>
                                                     </svg>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h3 className="text-sm font-medium text-red-800">Recipe Limit Reached</h3>
+                                                    <h3 className="text-sm font-medium text-red-800">Recipe Limit
+                                                        Reached</h3>
                                                     <p className="text-sm text-red-700 mt-1">
-                                                        You've reached your {getUsageInfo('my-recipes').tier} plan limit of {getUsageInfo('my-recipes').limit} recipes.
+                                                        You've reached your {getUsageInfo('my-recipes').tier} plan limit
+                                                        of {getUsageInfo('my-recipes').limit} recipes.
                                                         {getUsageInfo('my-recipes').tier === 'free' && ' Upgrade to Gold for 100 recipes or Platinum for unlimited.'}
                                                         {getUsageInfo('my-recipes').tier === 'gold' && ' Upgrade to Platinum for unlimited recipes.'}
                                                     </p>
@@ -1108,7 +1152,8 @@ function RecipesContent() {
                                                 {activeTab === 'public-recipes' && recipe.createdBy && (
                                                     <div className="mb-3">
                                                         <div className="flex items-center text-sm text-gray-600">
-                                                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor"
+                                                            <svg className="w-4 h-4 mr-1" fill="none"
+                                                                 stroke="currentColor"
                                                                  viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round"
                                                                       strokeWidth={2}
@@ -1129,7 +1174,8 @@ function RecipesContent() {
                                                 {/* Ingredient Search Match Indicator */}
                                                 {ingredientSearch && searchInIngredients(recipe, ingredientSearch, ingredientSearchType) && (
                                                     <div className="mb-3">
-                                                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                                                        <div
+                                                            className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
                                                             <div className="flex items-center text-xs text-yellow-800">
                                                                 <svg className="w-3 h-3 mr-1" fill="currentColor"
                                                                      viewBox="0 0 20 20">
@@ -1137,7 +1183,8 @@ function RecipesContent() {
                                                                           d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
                                                                           clipRule="evenodd"/>
                                                                 </svg>
-                                                                <span className="font-medium">Contains: "{ingredientSearch}"</span>
+                                                                <span
+                                                                    className="font-medium">Contains: "{ingredientSearch}"</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1168,11 +1215,13 @@ function RecipesContent() {
                                                 )}
 
                                                 {/* Recipe Info */}
-                                                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                                                <div
+                                                    className="flex items-center justify-between text-sm text-gray-500 mb-4">
                                                     <div className="flex items-center space-x-4">
                                                         {recipe.servings && (
                                                             <span className="flex items-center space-x-1">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                <svg className="w-4 h-4" fill="none"
+                                                                     stroke="currentColor"
                                                                      viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round"
                                                                           strokeWidth={2}
@@ -1183,7 +1232,8 @@ function RecipesContent() {
                                                         )}
                                                         {formatCookTime(recipe.cookTime) && (
                                                             <span className="flex items-center space-x-1">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                <svg className="w-4 h-4" fill="none"
+                                                                     stroke="currentColor"
                                                                      viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round"
                                                                           strokeWidth={2}

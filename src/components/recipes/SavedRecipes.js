@@ -26,6 +26,9 @@ const SavedRecipes = ({ onCountChange }) => {
     } = useSavedRecipes();
 
     const subscription = useSubscription();
+    const usageInfo = getUsageInfo();
+    const isAtLimit = !usageInfo.isUnlimited && globalTotalCount >= usageInfo.limit;
+    const isNearLimit = !usageInfo.isUnlimited && globalTotalCount >= (usageInfo.limit * 0.8);
 
     // Local state for full recipe data (populated)
     const [savedRecipes, setSavedRecipes] = useState([]);
@@ -83,7 +86,8 @@ const SavedRecipes = ({ onCountChange }) => {
         if (!subscription || subscription.loading) {
             return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
         }
-
+        usageInfo.isAtLimit = isAtLimit;
+        usageInfo.isNearLimit = isNearLimit;
         const tier = subscription.tier || 'free';
         return {
             current: globalTotalCount || 0,
@@ -337,11 +341,30 @@ const SavedRecipes = ({ onCountChange }) => {
             }
         >
             <div className="space-y-6">
-                {/* Header with Real-time Count */}
+                {/* Header with Usage Info */}
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-900" key={`saved-header-${globalTotalCount}`}>
-                        📚 Saved Recipes ({globalTotalCount || 0})
-                    </h2>
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            📚 Saved Recipes ({usageInfo.current}/{usageInfo.limit})
+                        </h2>
+                        {!subscription.loading && (
+                            <p className="text-sm text-gray-600 mt-1">
+                                {usageInfo.isUnlimited ? (
+                                    'Unlimited saved recipes on Platinum plan'
+                                ) : usageInfo.isAtLimit ? (
+                                    <span className="text-red-600 font-medium">
+                        You've reached your {usageInfo.tier} plan limit
+                    </span>
+                                ) : usageInfo.isNearLimit ? (
+                                    <span className="text-orange-600">
+                        {usageInfo.limit - usageInfo.current} saved recipe{usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining
+                    </span>
+                                ) : (
+                                    `${usageInfo.limit - usageInfo.current} saved recipe${usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`
+                                )}
+                            </p>
+                        )}
+                    </div>
                     {error && (
                         <TouchEnhancedButton
                             onClick={() => {
