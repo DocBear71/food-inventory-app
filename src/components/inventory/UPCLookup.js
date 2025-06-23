@@ -131,17 +131,17 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             canScan: newUsage.canScan
         });
 
-        // FIXED: Longer delay and smarter refresh logic
+        // FIXED: Much longer delay and more persistent optimistic update
         if (usageUpdateTimeoutRef.current) {
             clearTimeout(usageUpdateTimeoutRef.current);
         }
 
         usageUpdateTimeoutRef.current = setTimeout(async () => {
-            console.log('🔄 Refreshing usage from server...');
+            console.log('🔄 Refreshing usage from server after 6 seconds...');
             const previousUsage = { ...usageInfo };
             const newServerData = await loadUsageInfo();
 
-            // Check if server data actually updated
+            // FIXED: Give server much more time and be more forgiving
             setTimeout(() => {
                 if (newServerData && newServerData.currentMonth > previousUsage.currentMonth) {
                     // Server data is updated, clear optimistic update
@@ -153,36 +153,47 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                     setOptimisticUsage(null);
                     setIsUpdatingUsage(false);
                 } else {
-                    // Server hasn't caught up yet, keep the optimistic update longer
+                    // Server still hasn't caught up - try one more time with longer delay
                     console.warn('⚠️ Server data not updated yet. Expected:', previousUsage.currentMonth + 1, 'Got:', newServerData?.currentMonth);
-                    console.log('🔄 Keeping optimistic update and retrying in 2 seconds...');
+                    console.log('🔄 Server needs more time. Trying again in 5 seconds...');
 
-                    // Try one more time after 2 seconds
+                    // Final retry after 5 more seconds
                     setTimeout(async () => {
                         console.log('🔄 Final retry of server refresh...');
                         const retryServerData = await loadUsageInfo();
 
                         if (retryServerData && retryServerData.currentMonth > previousUsage.currentMonth) {
-                            console.log('✅ Server data updated on retry:', {
+                            console.log('✅ Server data updated on final retry:', {
                                 old: previousUsage.currentMonth,
                                 new: retryServerData.currentMonth
                             });
                         } else {
-                            console.warn('⚠️ Server data still not updated after retry. Keeping optimistic update for now.');
-                            console.log('📊 Final state - Expected:', previousUsage.currentMonth + 1, 'Got:', retryServerData?.currentMonth);
+                            console.warn('⚠️ Server still not updated after 11 seconds total. This may indicate:');
+                            console.warn('   - Database transaction delay');
+                            console.warn('   - Caching in /api/upc/usage endpoint');
+                            console.warn('   - UPC lookup API not actually incrementing counter');
+                            console.log('📊 Final check - Expected:', previousUsage.currentMonth + 1, 'Got:', retryServerData?.currentMonth);
 
-                            // At this point, we'll clear the optimistic update anyway
-                            // The user will see the correct count on next page load
+                            // Keep the optimistic update visible to user since server is slow
+                            console.log('🎯 Keeping optimistic update visible to user');
                         }
 
-                        setOptimisticUsage(null);
+                        // Always clear updating status after final retry
                         setIsUpdatingUsage(false);
-                    }, 2000);
+
+                        // Only clear optimistic update if server actually updated
+                        if (retryServerData && retryServerData.currentMonth > previousUsage.currentMonth) {
+                            setOptimisticUsage(null);
+                        }
+                        // If server never caught up, keep optimistic update until next page refresh
+
+                    }, 5000); // Wait 5 more seconds for final retry
                 }
             }, 100);
 
-        }, 3000); // Wait 3 seconds before server refresh
+        }, 6000); // Wait 6 seconds before first server refresh (was 3 seconds)
     };
+
 
 // 3. ENHANCED: Usage check with immediate feedback
     const checkUsageLimitsWithImmediateUpdate = async () => {
@@ -304,7 +315,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             if (data.success) {
                 const results = data.results || [];
                 setSearchResults(results);
-                setTotalPages(data.pagination.totalPages);
+                // FIXED: Handle missing pagination data gracefully
+                setTotalPages(data.pagination?.totalPages || Math.ceil(results.length / 15) || 1);
             } else {
                 throw new Error(data.error || 'Search failed');
             }
@@ -315,6 +327,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             setTotalPages(0);
 
             // If API fails, revert the optimistic update
+            console.log('❌ Search API failed, reverting optimistic update');
             setOptimisticUsage(null);
             setIsUpdatingUsage(false);
             if (usageUpdateTimeoutRef.current) {

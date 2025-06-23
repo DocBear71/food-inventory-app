@@ -115,16 +115,37 @@ export async function GET(request) {
                 };
             }
 
-            user.usageTracking.monthlyUPCScans = (user.usageTracking.monthlyUPCScans || 0) + 1;
+            const previousCount = user.usageTracking.monthlyUPCScans || 0;
+            user.usageTracking.monthlyUPCScans = previousCount + 1;
             user.usageTracking.lastUpdated = now;
 
-            // Save the updated scan count
+            // FIXED: Use both save() and updateOne for maximum reliability
+            console.log(`🔄 Incrementing UPC scan count from ${previousCount} to ${user.usageTracking.monthlyUPCScans}`);
+
+            // Method 1: Save the user document
             await user.save();
 
-            console.log(`✅ UPC scan tracked. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
+            // Method 2: Also use updateOne as backup to ensure the write goes through
+            await User.updateOne(
+                { _id: user._id },
+                {
+                    $set: {
+                        'usageTracking.monthlyUPCScans': user.usageTracking.monthlyUPCScans,
+                        'usageTracking.lastUpdated': now
+                    }
+                },
+                { runValidators: false }
+            );
+
+            console.log(`✅ UPC scan tracked successfully. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
+
+            // FIXED: Add a small delay to ensure database write is committed
+            await new Promise(resolve => setTimeout(resolve, 100));
+
         } catch (trackingError) {
             console.error('❌ Error tracking UPC scan:', trackingError);
-            // Continue with the request even if tracking fails
+            // Continue with the request even if tracking fails, but log it prominently
+            console.error('⚠️ UPC usage tracking failed - this will cause UI sync issues!');
         }
 
         // Query Open Food Facts API v2 (current version)

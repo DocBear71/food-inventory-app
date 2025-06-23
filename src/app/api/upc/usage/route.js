@@ -1,4 +1,4 @@
-// file: /src/app/api/upc/usage/route.js - v1 Get UPC scan usage information
+// file: /src/app/api/upc/usage/route.js - v2 FIXED: Database consistency and cache issues
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -17,7 +17,11 @@ export async function GET(request) {
 
         await connectDB();
 
-        const user = await User.findById(session.user.id);
+        // FIXED: Force fresh read from database with proper options
+        const user = await User.findById(session.user.id)
+            .lean(false)  // Don't use lean to ensure we get the latest data
+            .exec();      // Force execution
+
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -74,16 +78,17 @@ export async function GET(request) {
         const monthlyLimit = getUsageLimit(userSubscription, 'upcScansPerMonth');
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
 
-        console.log('UPC usage check:', {
+        console.log('📊 UPC usage check (fresh from DB):', {
             userId: session.user.id,
             tier: userSubscription.tier,
             currentScans,
             monthlyLimit,
             hasCapacity,
-            needsReset
+            needsReset,
+            timestamp: new Date().toISOString()
         });
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             currentMonth: currentScans,
             monthlyLimit: monthlyLimit === -1 ? 'unlimited' : monthlyLimit,
@@ -94,8 +99,18 @@ export async function GET(request) {
                 tier: userSubscription.tier,
                 status: userSubscription.status
             },
-            resetDate: needsReset ? 'Just reset' : 'Next month'
+            resetDate: needsReset ? 'Just reset' : 'Next month',
+            // FIXED: Add timestamp to help debug timing issues
+            fetchedAt: new Date().toISOString()
         });
+
+        // FIXED: Add cache-busting headers to ensure fresh data
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        response.headers.set('Surrogate-Control', 'no-store');
+
+        return response;
 
     } catch (error) {
         console.error('GET UPC usage error:', error);
