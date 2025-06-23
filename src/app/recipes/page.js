@@ -15,10 +15,13 @@ import {getApiUrl} from '@/lib/api-config';
 import RecipeCollections from '@/components/recipes/RecipeCollections';
 import SavedRecipes from "@/components/recipes/SavedRecipes";
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
+import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
     const subscription = useSubscription();
+    const [showLoadingModal, setShowLoadingModal] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +83,10 @@ function RecipesContent() {
 
     const fetchRecipes = async () => {
         try {
+            if (isInitialLoad) {
+                setShowLoadingModal(true);
+            }
+
             setRecipesError('');
             const response = await fetch(getApiUrl('/api/recipes'));
 
@@ -125,6 +132,13 @@ function RecipesContent() {
             setRecipes([]); // Ensure empty array on error
         } finally {
             setLoading(false);
+
+            if (isInitialLoad) {
+                setTimeout(() => {
+                    setShowLoadingModal(false);
+                    setIsInitialLoad(false);
+                }, 1000);
+            }
         }
     };
 
@@ -481,16 +495,14 @@ function RecipesContent() {
     if (status === 'loading' || loading) {
         return (
             <MobileOptimizedLayout>
-                <div className="max-w-6xl mx-auto px-4 py-8">
-                    <div className="animate-pulse space-y-4">
-                        <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="h-64 bg-gray-200 rounded"></div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+                <RecipesLoadingModal
+                    isOpen={true}
+                    activeTab="my-recipes"
+                    myRecipesCount={0}
+                    publicRecipesCount={0}
+                    savedRecipesCount={0}
+                    collectionsCount={0}
+                />
             </MobileOptimizedLayout>
         );
     }
@@ -501,6 +513,14 @@ function RecipesContent() {
 
     return (
         <MobileOptimizedLayout>
+            <RecipesLoadingModal
+                isOpen={showLoadingModal}
+                activeTab={activeTab}
+                myRecipesCount={tabCounts.myRecipes || 0}
+                publicRecipesCount={tabCounts.publicRecipes || 0}
+                savedRecipesCount={tabCounts.savedRecipes || 0}
+                collectionsCount={tabCounts.collections || 0}
+            />
             <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Error Messages */}
                 {recipesError && (
