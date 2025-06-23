@@ -763,47 +763,6 @@ function RecipesContent() {
 
                 {/* Enhanced Tab Content Info with Usage Details */}
                 <div className="mb-6">
-                    <FeatureGate
-                        feature={FEATURE_GATES.PERSONAL_RECIPES}
-                        currentCount={getUsageInfo('my-recipes').current}
-                        fallback={
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                <div className="flex items-start">
-                                    <div className="text-red-500 mr-3 mt-0.5">
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-sm font-medium text-red-800">
-                                            Recipe Limit Reached
-                                        </h3>
-                                        <p className="text-sm text-red-700 mt-1">
-                                            You've reached your {getUsageInfo('my-recipes').tier} plan limit of {getUsageInfo('my-recipes').limit} recipes.
-                                            {getUsageInfo('my-recipes').tier === 'free' && ' Upgrade to Gold for 100 recipes or Platinum for unlimited.'}
-                                            {getUsageInfo('my-recipes').tier === 'gold' && ' Upgrade to Platinum for unlimited recipes.'}
-                                        </p>
-                                        <TouchEnhancedButton
-                                            onClick={() => window.location.href = `/pricing?source=recipe-limit&tier=${getUsageInfo('my-recipes').tier}`}
-                                            className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
-                                        >
-                                            🚀 Upgrade Now
-                                        </TouchEnhancedButton>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    >
-                        <div className="flex justify-center">
-                            <Link
-                                href="/recipes/add"
-                                className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
-                            >
-                                📝 Add New Recipe
-                            </Link>
-                        </div>
-                    </FeatureGate>
-
                     {activeTab === 'my-recipes' ? (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <div className="flex items-start">
@@ -913,6 +872,50 @@ function RecipesContent() {
                     <SavedRecipes />
                 ) : (
                     <>
+                        {/* Add the recipe limit check ONLY for My Recipes tab */}
+                        {activeTab === 'my-recipes' && (
+                            <div className="mb-6">
+                                <FeatureGate
+                                    feature={FEATURE_GATES.PERSONAL_RECIPES}
+                                    currentCount={getUsageInfo('my-recipes').current}
+                                    fallback={
+                                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                            <div className="flex items-start">
+                                                <div className="text-red-500 mr-3 mt-0.5">
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-sm font-medium text-red-800">Recipe Limit Reached</h3>
+                                                    <p className="text-sm text-red-700 mt-1">
+                                                        You've reached your {getUsageInfo('my-recipes').tier} plan limit of {getUsageInfo('my-recipes').limit} recipes.
+                                                        {getUsageInfo('my-recipes').tier === 'free' && ' Upgrade to Gold for 100 recipes or Platinum for unlimited.'}
+                                                        {getUsageInfo('my-recipes').tier === 'gold' && ' Upgrade to Platinum for unlimited recipes.'}
+                                                    </p>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => window.location.href = `/pricing?source=recipe-limit&tier=${getUsageInfo('my-recipes').tier}`}
+                                                        className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
+                                                    >
+                                                        🚀 Upgrade Now
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                >
+                                    <div className="flex justify-center mb-6">
+                                        <Link
+                                            href="/recipes/add"
+                                            className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
+                                        >
+                                            📝 Add New Recipe
+                                        </Link>
+                                    </div>
+                                </FeatureGate>
+                            </div>
+                        )}
+
                         {/* Enhanced Filters and Search */}
                         <div className="bg-white rounded-lg border p-6 mb-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
