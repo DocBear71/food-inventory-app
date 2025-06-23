@@ -25,10 +25,26 @@ const SavedRecipes = ({ onCountChange }) => {
         removeFromSaved
     } = useSavedRecipes();
 
+    const getUsageInfo = () => {
+        if (!subscription || subscription.loading) {
+            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+        }
+        const tier = subscription.tier || 'free';
+        return {
+            current: globalTotalCount || 0,
+            limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
+            isUnlimited: tier === 'platinum',
+            tier
+        };
+    };
+
     const subscription = useSubscription();
     const usageInfo = getUsageInfo();
     const isAtLimit = !usageInfo.isUnlimited && globalTotalCount >= usageInfo.limit;
     const isNearLimit = !usageInfo.isUnlimited && globalTotalCount >= (usageInfo.limit * 0.8);
+
+    usageInfo.isAtLimit = isAtLimit;
+    usageInfo.isNearLimit = isNearLimit;
 
     // Local state for full recipe data (populated)
     const [savedRecipes, setSavedRecipes] = useState([]);
@@ -82,20 +98,7 @@ const SavedRecipes = ({ onCountChange }) => {
         }
     }, [globalError]);
 
-    const getUsageInfo = () => {
-        if (!subscription || subscription.loading) {
-            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
-        }
-        usageInfo.isAtLimit = isAtLimit;
-        usageInfo.isNearLimit = isNearLimit;
-        const tier = subscription.tier || 'free';
-        return {
-            current: globalTotalCount || 0,
-            limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
-            isUnlimited: tier === 'platinum',
-            tier
-        };
-    };
+
 
     const fetchFullRecipeData = async () => {
         try {
