@@ -1,12 +1,12 @@
 'use client';
 // file: /src/components/inventory/UPCLookup.js - v9 Enhanced with usage limits and display
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
-import { useSubscription } from '@/hooks/useSubscription';
-import { FEATURE_GATES } from '@/lib/subscription-config';
+import {getApiUrl} from "@/lib/api-config";
+import {useSubscription} from '@/hooks/useSubscription';
+import {FEATURE_GATES} from '@/lib/subscription-config';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -63,7 +63,7 @@ function standardizeNutritionData(nutrition) {
     };
 }
 
-export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = '' }) {
+export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}) {
     const [activeTab, setActiveTab] = useState('upc'); // 'upc' or 'search'
     const [isLooking, setIsLooking] = useState(false);
     const [lookupResult, setLookupResult] = useState(null);
@@ -105,11 +105,11 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         loadUsageInfo();
     }, []);
 
-    // 2. ENHANCED: Immediate usage update function
+    // 2. SIMPLIFIED: Immediate usage update function (now just for initial optimistic update)
     const updateUsageImmediately = (incrementBy = 1) => {
         if (!usageInfo) return;
 
-        // Immediate optimistic update
+        // Immediate optimistic update (will be made permanent if API succeeds)
         const newUsage = {
             ...usageInfo,
             currentMonth: usageInfo.currentMonth + incrementBy,
@@ -124,74 +124,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setOptimisticUsage(newUsage);
         setIsUpdatingUsage(true);
 
-        console.log('📊 Immediate UI update:', {
+        console.log('📊 Immediate UI update (optimistic):', {
             from: usageInfo.currentMonth,
             to: newUsage.currentMonth,
             remaining: newUsage.remaining,
             canScan: newUsage.canScan
         });
 
-        // FIXED: Much longer delay and more persistent optimistic update
-        if (usageUpdateTimeoutRef.current) {
-            clearTimeout(usageUpdateTimeoutRef.current);
-        }
-
-        usageUpdateTimeoutRef.current = setTimeout(async () => {
-            console.log('🔄 Refreshing usage from server after 6 seconds...');
-            const previousUsage = { ...usageInfo };
-            const newServerData = await loadUsageInfo();
-
-            // FIXED: Give server much more time and be more forgiving
-            setTimeout(() => {
-                if (newServerData && newServerData.currentMonth > previousUsage.currentMonth) {
-                    // Server data is updated, clear optimistic update
-                    console.log('✅ Server data updated successfully:', {
-                        old: previousUsage.currentMonth,
-                        new: newServerData.currentMonth,
-                        increment: newServerData.currentMonth - previousUsage.currentMonth
-                    });
-                    setOptimisticUsage(null);
-                    setIsUpdatingUsage(false);
-                } else {
-                    // Server still hasn't caught up - try one more time with longer delay
-                    console.warn('⚠️ Server data not updated yet. Expected:', previousUsage.currentMonth + 1, 'Got:', newServerData?.currentMonth);
-                    console.log('🔄 Server needs more time. Trying again in 5 seconds...');
-
-                    // Final retry after 5 more seconds
-                    setTimeout(async () => {
-                        console.log('🔄 Final retry of server refresh...');
-                        const retryServerData = await loadUsageInfo();
-
-                        if (retryServerData && retryServerData.currentMonth > previousUsage.currentMonth) {
-                            console.log('✅ Server data updated on final retry:', {
-                                old: previousUsage.currentMonth,
-                                new: retryServerData.currentMonth
-                            });
-                        } else {
-                            console.warn('⚠️ Server still not updated after 11 seconds total. This may indicate:');
-                            console.warn('   - Database transaction delay');
-                            console.warn('   - Caching in /api/upc/usage endpoint');
-                            console.warn('   - UPC lookup API not actually incrementing counter');
-                            console.log('📊 Final check - Expected:', previousUsage.currentMonth + 1, 'Got:', retryServerData?.currentMonth);
-
-                            // Keep the optimistic update visible to user since server is slow
-                            console.log('🎯 Keeping optimistic update visible to user');
-                        }
-
-                        // Always clear updating status after final retry
-                        setIsUpdatingUsage(false);
-
-                        // Only clear optimistic update if server actually updated
-                        if (retryServerData && retryServerData.currentMonth > previousUsage.currentMonth) {
-                            setOptimisticUsage(null);
-                        }
-                        // If server never caught up, keep optimistic update until next page refresh
-
-                    }, 5000); // Wait 5 more seconds for final retry
-                }
-            }, 100);
-
-        }, 6000); // Wait 6 seconds before first server refresh (was 3 seconds)
+        // Note: No server refresh timeout here - we'll make it permanent if API succeeds
+        // or revert it if API fails
     };
 
 
@@ -257,13 +198,58 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                     nutrition: standardizedNutrition
                 };
 
-                setLookupResult({ success: true, product: enhancedProduct });
+                setLookupResult({success: true, product: enhancedProduct});
                 onProductFound(enhancedProduct);
+
+                // FIXED: Since UPC lookup was successful, make the optimistic update permanent
+                console.log('✅ UPC lookup successful - making usage update permanent');
+
+                // Update real usage state immediately (don't wait for server)
+                setUsageInfo(prev => {
+                    if (!prev) return prev;
+
+                    const newUsage = {
+                        ...prev,
+                        currentMonth: prev.currentMonth + 1,
+                        remaining: prev.monthlyLimit === 'unlimited'
+                            ? 'unlimited'
+                            : Math.max(0, prev.remaining - 1),
+                        canScan: prev.monthlyLimit === 'unlimited'
+                            ? true
+                            : (prev.currentMonth + 1) < prev.monthlyLimit
+                    };
+
+                    console.log('🎯 Updated real usage state:', {
+                        from: prev.currentMonth,
+                        to: newUsage.currentMonth,
+                        remaining: newUsage.remaining
+                    });
+
+                    return newUsage;
+                });
+
+                // Clear optimistic update since we updated the real state
+                setOptimisticUsage(null);
+                setIsUpdatingUsage(false);
+
+                // Cancel any pending server refresh
+                if (usageUpdateTimeoutRef.current) {
+                    clearTimeout(usageUpdateTimeoutRef.current);
+                }
+
             } else {
                 setLookupResult({
                     success: false,
                     message: data.message || 'Product not found'
                 });
+
+                // If lookup failed, revert the optimistic update
+                console.log('❌ UPC lookup failed, reverting optimistic update');
+                setOptimisticUsage(null);
+                setIsUpdatingUsage(false);
+                if (usageUpdateTimeoutRef.current) {
+                    clearTimeout(usageUpdateTimeoutRef.current);
+                }
             }
         } catch (error) {
             console.error('UPC lookup error:', error);
@@ -317,6 +303,37 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 setSearchResults(results);
                 // FIXED: Handle missing pagination data gracefully
                 setTotalPages(data.pagination?.totalPages || Math.ceil(results.length / 15) || 1);
+
+                // FIXED: Search was successful, make the usage update permanent
+                console.log('✅ Search successful - making usage update permanent');
+
+                // Update real usage state immediately
+                setUsageInfo(prev => {
+                    if (!prev) return prev;
+
+                    const newUsage = {
+                        ...prev,
+                        currentMonth: prev.currentMonth + 1,
+                        remaining: prev.monthlyLimit === 'unlimited'
+                            ? 'unlimited'
+                            : Math.max(0, prev.remaining - 1),
+                        canScan: prev.monthlyLimit === 'unlimited'
+                            ? true
+                            : (prev.currentMonth + 1) < prev.monthlyLimit
+                    };
+
+                    return newUsage;
+                });
+
+                // Clear optimistic update since we updated the real state
+                setOptimisticUsage(null);
+                setIsUpdatingUsage(false);
+
+                // Cancel any pending server refresh
+                if (usageUpdateTimeoutRef.current) {
+                    clearTimeout(usageUpdateTimeoutRef.current);
+                }
+
             } else {
                 throw new Error(data.error || 'Search failed');
             }
@@ -416,7 +433,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
 // 9. REPLACE: Update your function calls to use the immediate update versions
 // Replace your usage display with getCurrentUsageDisplay()
-    // NEW: Function to load current usage information
+// NEW: Function to load current usage information
     const loadUsageInfo = async () => {
         try {
             setIsLoadingUsage(true);
@@ -459,7 +476,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // NEW: Function to check usage limits before any UPC operation
+// NEW: Function to check usage limits before any UPC operation
     const checkUsageLimits = async () => {
         if (isLoadingUsage) {
             alert('⏳ Please wait while we check your scan limits...');
@@ -486,7 +503,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         return true;
     };
 
-    // Handle clicks outside autocomplete to close it
+// Handle clicks outside autocomplete to close it
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (autocompleteRef.current && !autocompleteRef.current.contains(event.target) &&
@@ -501,14 +518,14 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         };
     }, []);
 
-    // Close autocomplete when search results are displayed
+// Close autocomplete when search results are displayed
     useEffect(() => {
         if (searchResults.length > 0) {
             setShowAutocomplete(false);
         }
     }, [searchResults]);
 
-    // Check if camera is available
+// Check if camera is available
     const checkCameraAvailability = () => {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             setCameraAvailable(false);
@@ -517,7 +534,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         return true;
     };
 
-    // ENHANCED: Scanner click with usage check
+// ENHANCED: Scanner click with usage check
     const handleScannerClick = async () => {
         if (!checkCameraAvailability()) {
             alert('Camera not available on this device. Please enter UPC manually.');
@@ -532,7 +549,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(true);
     };
 
-    // Autocomplete functionality with rate limiting protection
+// Autocomplete functionality with rate limiting protection
     const performAutocomplete = async (query) => {
         if (!query.trim() || query.length < 3) {
             setAutocompleteResults([]);
@@ -570,7 +587,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // Handle search input changes with better rate limiting
+// Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
@@ -607,7 +624,7 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         }
     };
 
-    // Handle autocomplete selection
+// Handle autocomplete selection
     const handleAutocompleteSelect = (suggestion) => {
         setSearchQuery(suggestion.name);
         setShowAutocomplete(false);
@@ -616,9 +633,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         performTextSearchWithImmediateUpdate(suggestion.name, 1);
     };
 
-    // Handle search result selection
+// Handle search result selection
     const handleSearchResultSelect = async (product) => {
-        setLookupResult({ success: true, product });
+        setLookupResult({success: true, product});
         onProductFound(product);
 
         // Update UPC field with the selected product's UPC
@@ -640,26 +657,26 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         await loadUsageInfo();
     };
 
-    // Handle pagination
+// Handle pagination
     const handlePageChange = (newPage) => {
         setSearchPage(newPage);
         performTextSearchWithImmediateUpdate(searchQuery, newPage);
     };
 
-    // Manual close function for autocomplete
+// Manual close function for autocomplete
     const handleCloseAutocomplete = () => {
         setShowAutocomplete(false);
         setAutocompleteResults([]);
     };
 
-    // Handle input focus to show autocomplete again if there are results
+// Handle input focus to show autocomplete again if there are results
     const handleSearchInputFocus = () => {
         if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
             setShowAutocomplete(true);
         }
     };
 
-    // ENHANCED: UPC input handler with usage check
+// ENHANCED: UPC input handler with usage check
     const handleUPCInput = (e) => {
         const upc = e.target.value;
 
@@ -688,14 +705,14 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setShowScanner(false);
     };
 
-    // Handle nutrition display toggle
+// Handle nutrition display toggle
     const handleToggleNutrition = (e) => {
         e.preventDefault();
         e.stopPropagation();
         setShowNutrition(!showNutrition);
     };
 
-    // Check if nutrition data is available
+// Check if nutrition data is available
     const hasNutrition = lookupResult?.success && lookupResult.product.nutrition &&
         Object.values(lookupResult.product.nutrition).some(n => n.value > 0);
 
@@ -771,7 +788,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                     className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
                                 >
                                     {/* Header with close button */}
-                                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                    <div
+                                        className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
                                         <span className="text-xs font-medium text-gray-600">Quick suggestions</span>
                                         <TouchEnhancedButton
                                             type="button"
@@ -863,7 +881,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                                     className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                                                 />
                                             ) : (
-                                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <div
+                                                    className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
                                                     <span className="text-gray-400 text-xs">No Image</span>
                                                 </div>
                                             )}
@@ -877,8 +896,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                                 <p className="text-xs text-gray-500">{product.category}</p>
                                                 {product.scores?.nutriscore && (
                                                     <div className="mt-1">
-                                                        <span className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
-                                                              style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}>
+                                                        <span
+                                                            className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
+                                                            style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}>
                                                             {product.scores.nutriscore.toUpperCase()}
                                                         </span>
                                                     </div>
@@ -1062,25 +1082,32 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                         <div className="grid grid-cols-4 gap-2 text-xs text-green-700">
                                             {lookupResult.product.nutrition.calories?.value > 0 && (
                                                 <div className="text-center bg-green-100 p-2 rounded">
-                                                    <div className="font-medium">{Math.round(lookupResult.product.nutrition.calories.value)}</div>
+                                                    <div
+                                                        className="font-medium">{Math.round(lookupResult.product.nutrition.calories.value)}</div>
                                                     <div>calories</div>
                                                 </div>
                                             )}
                                             {lookupResult.product.nutrition.protein?.value > 0 && (
                                                 <div className="text-center bg-green-100 p-2 rounded">
-                                                    <div className="font-medium">{lookupResult.product.nutrition.protein.value.toFixed(1)}g</div>
+                                                    <div
+                                                        className="font-medium">{lookupResult.product.nutrition.protein.value.toFixed(1)}g
+                                                    </div>
                                                     <div>protein</div>
                                                 </div>
                                             )}
                                             {lookupResult.product.nutrition.carbs?.value > 0 && (
                                                 <div className="text-center bg-green-100 p-2 rounded">
-                                                    <div className="font-medium">{lookupResult.product.nutrition.carbs.value.toFixed(1)}g</div>
+                                                    <div
+                                                        className="font-medium">{lookupResult.product.nutrition.carbs.value.toFixed(1)}g
+                                                    </div>
                                                     <div>carbs</div>
                                                 </div>
                                             )}
                                             {lookupResult.product.nutrition.fat?.value > 0 && (
                                                 <div className="text-center bg-green-100 p-2 rounded">
-                                                    <div className="font-medium">{lookupResult.product.nutrition.fat.value.toFixed(1)}g</div>
+                                                    <div
+                                                        className="font-medium">{lookupResult.product.nutrition.fat.value.toFixed(1)}g
+                                                    </div>
                                                     <div>fat</div>
                                                 </div>
                                             )}
@@ -1090,7 +1117,9 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                     {/* Detailed Nutrition Display */}
                                     {showNutrition && (
                                         <div className="bg-white border border-green-200 rounded-lg p-4">
-                                            <div className="text-sm font-medium text-gray-900 mb-3">Nutrition Facts (per 100g)</div>
+                                            <div className="text-sm font-medium text-gray-900 mb-3">Nutrition Facts (per
+                                                100g)
+                                            </div>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
                                                 {Object.entries(lookupResult.product.nutrition).map(([key, nutrient]) => {
                                                     if (!nutrient || nutrient.value <= 0) return null;
@@ -1126,7 +1155,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                     )}
                                     {lookupResult.product.allergens && lookupResult.product.allergens.length > 0 && (
                                         <div>
-                                            <div className="text-sm font-medium text-orange-900 mb-1">⚠️ Allergens:</div>
+                                            <div className="text-sm font-medium text-orange-900 mb-1">⚠️ Allergens:
+                                            </div>
                                             <div className="text-xs text-orange-700">
                                                 {lookupResult.product.allergens.map(allergen =>
                                                     allergen.replace('en:', '').replace('-', ' ')
@@ -1154,7 +1184,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                                 <span className="text-yellow-600 font-medium">⚠️ {lookupResult.message}</span>
                             </div>
                             <div className="text-sm text-gray-600">
-                                You can still add this item manually by filling out the form below, or try a different search.
+                                You can still add this item manually by filling out the form below, or try a different
+                                search.
                             </div>
                         </div>
                     )}
