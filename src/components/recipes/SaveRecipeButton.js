@@ -25,17 +25,28 @@ export default function SaveRecipeButton({
 
     // Check if recipe is saved on component mount
     useEffect(() => {
-        if (session?.user?.id && recipeId) {
+        if (session?.user?.id && recipeId && !error) {
             checkSavedStatus();
         }
     }, [session?.user?.id, recipeId]);
 
     const checkSavedStatus = async () => {
         try {
+            console.log('🔍 SaveRecipeButton - Checking saved status for recipe:', recipeId);
+
             const response = await fetch(getApiUrl('/api/saved-recipes'));
 
             if (!response.ok) {
-                console.warn('Failed to check saved status:', response.status);
+                console.warn('⚠️ SaveRecipeButton - Failed to check saved status:', response.status, response.statusText);
+
+                // Don't set error state for failed status checks - just log and continue
+                if (response.status === 401) {
+                    console.log('🔐 SaveRecipeButton - User not authenticated');
+                    return;
+                } else if (response.status >= 500) {
+                    console.warn('🚨 SaveRecipeButton - Server error checking saved status, will skip status check');
+                    return;
+                }
                 return;
             }
 
@@ -45,10 +56,19 @@ export default function SaveRecipeButton({
                 const savedRecipeIds = data.savedRecipes.map(saved =>
                     saved.recipeId?._id || saved.recipeId
                 ).filter(Boolean);
-                setIsSaved(savedRecipeIds.includes(recipeId));
+
+                const isCurrentlySaved = savedRecipeIds.includes(recipeId);
+                setIsSaved(isCurrentlySaved);
+
+                console.log('✅ SaveRecipeButton - Status check complete. Recipe saved:', isCurrentlySaved);
+            } else if (data.warning) {
+                console.warn('⚠️ SaveRecipeButton - API returned warning:', data.warning);
+                // Continue with default state if there's a warning
             }
         } catch (error) {
-            console.warn('Error checking saved status:', error);
+            console.warn('⚠️ SaveRecipeButton - Error checking saved status:', error.message);
+            // Don't set error state for network issues during status check
+            // Just log and continue with default state
         }
     };
 
@@ -78,7 +98,7 @@ export default function SaveRecipeButton({
                 if (data.success) {
                     setIsSaved(false);
                     setSuccess('Recipe removed from saved recipes');
-                    if (onSaveStateChange) onSaveStateChange(false);
+                    if (onSaveStateChange) onSaveStateChange(recipe._id, false);
                 } else {
                     throw new Error(data.error || 'Failed to unsave recipe');
                 }
@@ -101,7 +121,7 @@ export default function SaveRecipeButton({
                 if (data.success) {
                     setIsSaved(true);
                     setSuccess(data.message || 'Recipe saved successfully');
-                    if (onSaveStateChange) onSaveStateChange(true);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
                 } else {
                     if (data.code === 'USAGE_LIMIT_EXCEEDED') {
                         // Handle upgrade prompt

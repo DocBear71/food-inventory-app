@@ -15,13 +15,10 @@ import {getApiUrl} from '@/lib/api-config';
 import RecipeCollections from '@/components/recipes/RecipeCollections';
 import SavedRecipes from "@/components/recipes/SavedRecipes";
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
-import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
     const subscription = useSubscription();
-    const [showLoadingModal, setShowLoadingModal] = useState(false);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +29,6 @@ function RecipesContent() {
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
-
 
     // NEW: Additional state for saved recipes and collections counts
     const [savedRecipesCount, setSavedRecipesCount] = useState(0);
@@ -80,9 +76,6 @@ function RecipesContent() {
 
     const fetchRecipes = async () => {
         try {
-            if (isInitialLoad) {
-                setShowLoadingModal(true);
-            }
             const response = await fetch(getApiUrl('/api/recipes'));
             const data = await response.json();
 
@@ -107,19 +100,16 @@ function RecipesContent() {
             console.error('Error fetching recipes:', error);
         } finally {
             setLoading(false);
-
-            if (isInitialLoad) {
-                setTimeout(() => {
-                    setShowLoadingModal(false);
-                    setIsInitialLoad(false);
-                }, 1000);
-            }
         }
     };
 
-    // NEW: Fetch saved recipes and collections counts
-    const fetchCounts = async () => {
+    // Enhanced fetchCounts with callback support
+    const fetchCounts = async (showLoading = true) => {
         try {
+            if (showLoading) {
+                setLoadingCounts(true);
+            }
+
             const [savedResponse, collectionsResponse] = await Promise.all([
                 fetch(getApiUrl('/api/saved-recipes')),
                 fetch(getApiUrl('/api/collections'))
@@ -141,8 +131,38 @@ function RecipesContent() {
         } catch (error) {
             console.error('Error fetching counts:', error);
         } finally {
-            setLoadingCounts(false);
+            if (showLoading) {
+                setLoadingCounts(false);
+            }
         }
+    };
+
+    // NEW: Real-time count update handlers
+    const handleSavedRecipesCountChange = (newCount) => {
+        console.log('📊 Updating saved recipes count:', newCount);
+        setSavedRecipesCount(newCount);
+    };
+
+    const handleCollectionsCountChange = (newCount) => {
+        console.log('📊 Updating collections count:', newCount);
+        setCollectionsCount(newCount);
+    };
+
+    // NEW: Handle recipe saves/unsaves from individual recipe cards
+    const handleRecipeSaveStateChange = (recipeId, isSaved) => {
+        console.log('📊 Recipe save state changed:', recipeId, isSaved);
+
+        // Update saved recipes count immediately for better UX
+        if (isSaved) {
+            setSavedRecipesCount(prev => prev + 1);
+        } else {
+            setSavedRecipesCount(prev => Math.max(0, prev - 1));
+        }
+
+        // Refresh actual count after a short delay to ensure accuracy
+        setTimeout(() => {
+            fetchCounts(false); // Don't show loading spinner for background refresh
+        }, 1000);
     };
 
     const handleDelete = async (recipeId) => {
@@ -367,14 +387,16 @@ function RecipesContent() {
     if (status === 'loading' || loading) {
         return (
             <MobileOptimizedLayout>
-                <RecipesLoadingModal
-                    isOpen={true}
-                    activeTab="my-recipes"
-                    myRecipesCount={0}
-                    publicRecipesCount={0}
-                    savedRecipesCount={0}
-                    collectionsCount={0}
-                />
+                <div className="max-w-6xl mx-auto px-4 py-8">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[...Array(6)].map((_, i) => (
+                                <div key={i} className="h-64 bg-gray-200 rounded"></div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </MobileOptimizedLayout>
         );
     }
@@ -384,14 +406,6 @@ function RecipesContent() {
 
     return (
         <MobileOptimizedLayout>
-            <RecipesLoadingModal
-                isOpen={showLoadingModal}
-                activeTab={activeTab}
-                myRecipesCount={tabCounts.myRecipes || 0}
-                publicRecipesCount={tabCounts.publicRecipes || 0}
-                savedRecipesCount={tabCounts.savedRecipes || 0}
-                collectionsCount={tabCounts.collections || 0}
-            />
             <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
@@ -589,9 +603,9 @@ function RecipesContent() {
 
                 {/* Main Content - Conditional Rendering for Collections vs Recipes */}
                 {activeTab === 'collections' ? (
-                    <RecipeCollections onCountChange={setCollectionsCount} />
+                    <RecipeCollections onCountChange={handleCollectionsCountChange} />
                 ) : activeTab === 'saved-recipes' ? (
-                    <SavedRecipes onCountChange={setSavedRecipesCount} />
+                    <SavedRecipes onCountChange={handleSavedRecipesCountChange} />
                 ) : (
                     <>
                         {/* Enhanced Filters and Search */}
@@ -740,6 +754,7 @@ function RecipesContent() {
                                                             recipeName={recipe.title}
                                                             size="small"
                                                             showText={false}
+                                                            onSaveStateChange={handleRecipeSaveStateChange}
                                                         />
                                                     )}
                                                     {canEditRecipe(recipe) && (

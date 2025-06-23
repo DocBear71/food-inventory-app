@@ -1,401 +1,109 @@
-// file: /src/app/api/saved-recipes/route.js v5 - Enhanced error handling and debugging
+// file: /src/app/api/test/saved-recipes/route.js v1 - Debug endpoint for saved recipes
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { User, Recipe } from '@/lib/models';
+import { User } from '@/lib/models';
 
-// Simple saved recipe limit check
-const checkSavedRecipeLimits = (userTier, currentCount) => {
-    const limits = {
-        free: 10,
-        gold: 200,
-        platinum: -1 // unlimited
-    };
-
-    const limit = limits[userTier] || limits.free;
-
-    if (limit === -1) return { allowed: true }; // unlimited
-
-    if (currentCount >= limit) {
-        return {
-            allowed: false,
-            reason: 'limit_exceeded',
-            currentCount,
-            limit,
-            tier: userTier
-        };
-    }
-
-    return { allowed: true };
-};
-
-// GET - Fetch user's saved recipes
 export async function GET(request) {
     try {
-        console.log('🔍 GET /api/saved-recipes - Starting request');
+        console.log('🧪 Testing saved recipes functionality...');
 
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
-            console.log('❌ GET /api/saved-recipes - No session found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        console.log('✅ GET /api/saved-recipes - Session found for user:', session.user.id);
-
-        await connectDB();
-        console.log('✅ GET /api/saved-recipes - Database connected');
-
-        // Get user with saved recipes
-        const user = await User.findById(session.user.id)
-            .populate({
-                path: 'savedRecipes.recipeId',
-                select: 'title description category difficulty prepTime cookTime servings isPublic createdAt ratingStats metrics tags',
-                populate: {
-                    path: 'createdBy',
-                    select: 'name email'
-                }
-            });
-
-        if (!user) {
-            console.log('❌ GET /api/saved-recipes - User not found');
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        console.log('✅ GET /api/saved-recipes - User found');
-
-        // Initialize savedRecipes array if it doesn't exist
-        if (!user.savedRecipes) {
-            user.savedRecipes = [];
-            console.log('📝 GET /api/saved-recipes - Initialized empty savedRecipes array');
-        }
-
-        // Filter out any saved recipes where the recipe was deleted
-        const validSavedRecipes = user.savedRecipes.filter(saved => saved.recipeId);
-        console.log(`✅ GET /api/saved-recipes - Found ${validSavedRecipes.length} valid saved recipes`);
-
-        return NextResponse.json({
-            success: true,
-            savedRecipes: validSavedRecipes,
-            totalCount: validSavedRecipes.length
-        });
-
-    } catch (error) {
-        console.error('❌ GET /api/saved-recipes - Error:', error);
-        console.error('❌ GET /api/saved-recipes - Stack:', error.stack);
-        return NextResponse.json(
-            { error: 'Failed to fetch saved recipes', details: error.message },
-            { status: 500 }
-        );
-    }
-}
-
-// POST - Save a recipe
-export async function POST(request) {
-    try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await request.json();
-        const { recipeId } = body;
-
-        if (!recipeId) {
-            return NextResponse.json(
-                { error: 'Recipe ID is required' },
-                { status: 400 }
-            );
-        }
-
-        await connectDB();
-
-        // Get user
-        const user = await User.findById(session.user.id);
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        // Initialize savedRecipes array if it doesn't exist
-        if (!user.savedRecipes) {
-            user.savedRecipes = [];
-        }
-
-        // Get user tier for limit checking
-        const userTier = user.subscription?.tier || 'free';
-
-        // Check saved recipe limits
-        const currentSavedCount = user.savedRecipes.length;
-        const limitCheck = checkSavedRecipeLimits(userTier, currentSavedCount);
-
-        if (!limitCheck.allowed) {
-            let errorMessage;
-            if (userTier === 'free') {
-                errorMessage = `You've reached the free plan limit of 10 saved recipes. Upgrade to Gold for 200 saved recipes or Platinum for unlimited.`;
-            } else if (userTier === 'gold') {
-                errorMessage = `You've reached the Gold plan limit of 200 saved recipes. Upgrade to Platinum for unlimited saved recipes.`;
-            } else {
-                errorMessage = `You've reached your saved recipe limit.`;
-            }
-
             return NextResponse.json({
-                error: errorMessage,
-                code: 'USAGE_LIMIT_EXCEEDED',
-                feature: 'save_recipe',
-                currentCount: limitCheck.currentCount,
-                currentTier: userTier,
-                upgradeUrl: `/pricing?source=save-recipe-limit`
-            }, { status: 403 });
+                success: false,
+                error: 'No session found',
+                step: 'session_check'
+            }, { status: 401 });
         }
 
-        // Verify recipe exists and is accessible
-        const recipe = await Recipe.findOne({
-            _id: recipeId,
-            $or: [
-                { createdBy: session.user.id }, // User's own recipes
-                { isPublic: true } // Public recipes
-            ]
-        });
-
-        if (!recipe) {
-            return NextResponse.json(
-                { error: 'Recipe not found or not accessible' },
-                { status: 404 }
-            );
-        }
-
-        // Check if recipe is already saved
-        const alreadySaved = user.savedRecipes.some(
-            saved => saved.recipeId.toString() === recipeId
-        );
-
-        if (alreadySaved) {
-            return NextResponse.json(
-                { error: 'Recipe is already saved' },
-                { status: 400 }
-            );
-        }
-
-        // Add recipe to saved recipes
-        user.savedRecipes.push({
-            recipeId: recipeId,
-            savedAt: new Date()
-        });
-
-        // Update usage tracking if available
-        try {
-            if (!user.usageTracking) {
-                user.usageTracking = {};
-            }
-            user.usageTracking.savedRecipes = user.savedRecipes.length;
-            user.usageTracking.lastUpdated = new Date();
-        } catch (error) {
-            console.warn('Could not update usage tracking:', error);
-            // Don't fail the request for this
-        }
-
-        await user.save();
-
-        // Get the saved recipe with populated data for response
-        const savedUser = await User.findById(session.user.id)
-            .populate({
-                path: 'savedRecipes.recipeId',
-                match: { _id: recipeId },
-                select: 'title description category difficulty prepTime cookTime servings isPublic createdAt',
-                populate: {
-                    path: 'createdBy',
-                    select: 'name email'
-                }
-            });
-
-        const savedRecipe = savedUser.savedRecipes.find(
-            saved => saved.recipeId && saved.recipeId._id.toString() === recipeId
-        );
-
-        const tier = user.subscription?.tier || 'free';
-        let remainingSaves;
-        if (tier === 'free') {
-            remainingSaves = Math.max(0, 10 - user.savedRecipes.length);
-        } else if (tier === 'gold') {
-            remainingSaves = Math.max(0, 200 - user.savedRecipes.length);
-        } else {
-            remainingSaves = 'Unlimited';
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: `"${recipe.title}" saved successfully`,
-            savedRecipe: savedRecipe,
-            totalSaved: user.savedRecipes.length,
-            remainingSaves: remainingSaves
-        });
-
-    } catch (error) {
-        console.error('Error saving recipe:', error);
-        return NextResponse.json(
-            { error: 'Failed to save recipe' },
-            { status: 500 }
-        );
-    }
-}
-
-// DELETE - Unsave a recipe
-export async function DELETE(request) {
-    try {
-        console.log('🔍 DELETE /api/saved-recipes - Starting request');
-
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user?.id) {
-            console.log('❌ DELETE /api/saved-recipes - No session found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        console.log('✅ DELETE /api/saved-recipes - Session found for user:', session.user.id);
-
-        const { searchParams } = new URL(request.url);
-        const recipeId = searchParams.get('recipeId');
-
-        if (!recipeId) {
-            console.log('❌ DELETE /api/saved-recipes - No recipeId provided');
-            return NextResponse.json(
-                { error: 'Recipe ID is required' },
-                { status: 400 }
-            );
-        }
-
-        console.log('✅ DELETE /api/saved-recipes - Recipe ID:', recipeId);
+        console.log('✅ Session found for user:', session.user.id);
 
         await connectDB();
-        console.log('✅ DELETE /api/saved-recipes - Database connected');
+        console.log('✅ Database connected');
 
+        // Step 1: Basic user fetch
         const user = await User.findById(session.user.id);
         if (!user) {
-            console.log('❌ DELETE /api/saved-recipes - User not found');
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return NextResponse.json({
+                success: false,
+                error: 'User not found',
+                step: 'user_fetch',
+                userId: session.user.id
+            }, { status: 404 });
         }
 
-        console.log('✅ DELETE /api/saved-recipes - User found');
+        console.log('✅ User found');
 
-        // Initialize savedRecipes array if it doesn't exist
+        // Step 2: Check user structure
+        const userStructure = {
+            hasId: !!user._id,
+            hasEmail: !!user.email,
+            hasName: !!user.name,
+            hasSavedRecipes: user.hasOwnProperty('savedRecipes'),
+            savedRecipesType: typeof user.savedRecipes,
+            savedRecipesLength: Array.isArray(user.savedRecipes) ? user.savedRecipes.length : 'not_array',
+            hasLegalAcceptance: user.hasOwnProperty('legalAcceptance'),
+            legalAcceptanceStructure: user.legalAcceptance ? {
+                hasTermsAccepted: user.legalAcceptance.hasOwnProperty('termsAccepted'),
+                hasPrivacyAccepted: user.legalAcceptance.hasOwnProperty('privacyAccepted'),
+                hasAcceptanceDate: user.legalAcceptance.hasOwnProperty('acceptanceDate'),
+                acceptanceDate: user.legalAcceptance.acceptanceDate
+            } : null,
+            hasLegalVersion: user.hasOwnProperty('legalVersion')
+        };
+
+        console.log('📊 User structure:', userStructure);
+
+        // Step 3: Initialize savedRecipes if needed
         if (!user.savedRecipes) {
+            console.log('📝 Initializing savedRecipes array...');
             user.savedRecipes = [];
-            console.log('📝 DELETE /api/saved-recipes - Initialized empty savedRecipes array');
         }
 
-        // Find and remove the saved recipe
-        const initialLength = user.savedRecipes.length;
-        user.savedRecipes = user.savedRecipes.filter(
-            saved => saved.recipeId.toString() !== recipeId
-        );
-
-        if (user.savedRecipes.length === initialLength) {
-            console.log('❌ DELETE /api/saved-recipes - Recipe was not saved');
-            return NextResponse.json(
-                { error: 'Recipe was not saved' },
-                { status: 404 }
-            );
-        }
-
-        console.log('✅ DELETE /api/saved-recipes - Recipe removed from saved recipes');
-
-        // Update usage tracking if available
+        // Step 4: Check if we can save the user (validation test)
+        let saveTest = { canSave: false, error: null };
         try {
-            if (!user.usageTracking) {
-                user.usageTracking = {};
-            }
-            user.usageTracking.savedRecipes = user.savedRecipes.length;
-            user.usageTracking.lastUpdated = new Date();
-            console.log('✅ DELETE /api/saved-recipes - Updated usage tracking');
-        } catch (trackingError) {
-            console.warn('⚠️ DELETE /api/saved-recipes - Could not update usage tracking:', trackingError);
-            // Don't fail the request for this
+            // Test saving without actually saving
+            await user.validate();
+            saveTest.canSave = true;
+            console.log('✅ User validation passed');
+        } catch (validationError) {
+            saveTest.error = {
+                name: validationError.name,
+                message: validationError.message,
+                errors: validationError.errors
+            };
+            console.log('❌ User validation failed:', validationError.message);
         }
-
-        // FIXED: Handle user validation before saving
-        try {
-            // Ensure required legal fields exist before saving
-            if (!user.legalAcceptance?.acceptanceDate) {
-                console.log('📝 DELETE /api/saved-recipes - User missing required legal acceptance date, setting defaults');
-
-                if (!user.legalAcceptance) {
-                    user.legalAcceptance = {};
-                }
-
-                // Set required fields with defaults if missing
-                if (user.legalAcceptance.termsAccepted === undefined) {
-                    user.legalAcceptance.termsAccepted = false;
-                }
-                if (user.legalAcceptance.privacyAccepted === undefined) {
-                    user.legalAcceptance.privacyAccepted = false;
-                }
-                if (!user.legalAcceptance.acceptanceDate) {
-                    user.legalAcceptance.acceptanceDate = user.createdAt || new Date();
-                }
-
-                // Set version defaults if missing
-                if (!user.legalVersion) {
-                    user.legalVersion = {
-                        termsVersion: '1.0',
-                        privacyVersion: '1.0'
-                    };
-                }
-            }
-
-            await user.save();
-            console.log('✅ DELETE /api/saved-recipes - User saved successfully');
-        } catch (saveError) {
-            console.error('❌ DELETE /api/saved-recipes - Error saving user:', saveError);
-
-            // If it's a validation error, try to fix it
-            if (saveError.name === 'ValidationError') {
-                console.error('❌ DELETE /api/saved-recipes - Validation errors:', saveError.errors);
-
-                try {
-                    // Force set all required fields
-                    if (!user.legalAcceptance) {
-                        user.legalAcceptance = {
-                            termsAccepted: false,
-                            privacyAccepted: false,
-                            acceptanceDate: user.createdAt || new Date()
-                        };
-                    }
-                    if (!user.legalVersion) {
-                        user.legalVersion = {
-                            termsVersion: '1.0',
-                            privacyVersion: '1.0'
-                        };
-                    }
-
-                    await user.save();
-                    console.log('✅ DELETE /api/saved-recipes - User saved after fixing validation errors');
-                } catch (retryError) {
-                    console.error('❌ DELETE /api/saved-recipes - Failed to save user even after fixing validation:', retryError);
-                    // This is a critical error since we need to save the changes
-                    throw new Error('Unable to unsave recipe due to user validation issues');
-                }
-            } else {
-                throw saveError; // Re-throw non-validation errors
-            }
-        }
-
-        console.log('✅ DELETE /api/saved-recipes - Request completed successfully');
 
         return NextResponse.json({
             success: true,
-            message: 'Recipe unsaved successfully',
-            totalSaved: user.savedRecipes.length
+            message: 'Saved recipes debug test completed',
+            results: {
+                session: {
+                    userId: session.user.id,
+                    userEmail: session.user.email
+                },
+                userStructure,
+                saveTest,
+                currentSavedRecipesCount: Array.isArray(user.savedRecipes) ? user.savedRecipes.length : 0,
+                sampleSavedRecipes: Array.isArray(user.savedRecipes) ? user.savedRecipes.slice(0, 3) : []
+            }
         });
 
     } catch (error) {
-        console.error('❌ DELETE /api/saved-recipes - Error:', error);
-        console.error('❌ DELETE /api/saved-recipes - Stack:', error.stack);
-        return NextResponse.json(
-            { error: 'Failed to unsave recipe', details: error.message },
-            { status: 500 }
-        );
+        console.error('❌ Saved recipes test failed:', error);
+
+        return NextResponse.json({
+            success: false,
+            error: error.message,
+            errorType: error.constructor.name,
+            stack: error.stack?.split('\n').slice(0, 5),
+            step: 'unknown_error'
+        }, { status: 500 });
     }
 }
