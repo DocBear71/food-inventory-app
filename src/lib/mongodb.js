@@ -1,4 +1,4 @@
-// file: /src/lib/mongodb.js v3 - Enhanced with SSL error handling and connection retry
+// file: /src/lib/mongodb.js v4 - Simplified with only supported options
 
 import mongoose from 'mongoose';
 
@@ -36,29 +36,17 @@ async function connectDB(retryAttempt = 0) {
         }
 
         if (!cached.promise) {
+            // SIMPLIFIED: Only use well-supported options
             const opts = {
                 bufferCommands: false,
-                maxPoolSize: 10, // Maintain up to 10 socket connections
-                serverSelectionTimeoutMS: 10000, // Keep trying to send operations for 10 seconds
-                socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-                bufferMaxEntries: 0, // Disable mongoose buffering
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
-
-                // Enhanced SSL/TLS configuration for better reliability
-                ssl: true,
-                sslValidate: true,
-
-                // Connection retry configuration
+                maxPoolSize: 10,
+                serverSelectionTimeoutMS: 10000,
+                socketTimeoutMS: 45000,
+                connectTimeoutMS: 30000,
+                heartbeatFrequencyMS: 10000,
                 retryWrites: true,
                 retryReads: true,
-
-                // Additional options for stability
-                heartbeatFrequencyMS: 10000, // Check connection every 10 seconds
-                connectTimeoutMS: 30000, // Give up initial connection after 30 seconds
-
-                // App name for debugging in MongoDB logs
-                appName: 'DocBearsComfortKitchen',
+                appName: 'DocBearsComfortKitchen'
             };
 
             console.log(`🔗 Creating new MongoDB connection (attempt ${retryAttempt + 1}/${maxRetries + 1})...`);
@@ -69,7 +57,6 @@ async function connectDB(retryAttempt = 0) {
                 // Add connection event listeners for better monitoring
                 mongoose.connection.on('error', (err) => {
                     console.error('🔴 MongoDB connection error:', err);
-                    // Don't reset cached connection here as it might be temporary
                 });
 
                 mongoose.connection.on('disconnected', () => {
@@ -139,12 +126,16 @@ function isSSLError(error) {
         'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR',
         'ENOTFOUND',
         'ECONNRESET',
-        'ETIMEDOUT'
+        'ETIMEDOUT',
+        'MongoNetworkError'
     ];
 
     const errorMessage = error.message || error.toString();
+    const errorName = error.constructor.name || '';
+
     return sslErrorIndicators.some(indicator =>
-        errorMessage.toLowerCase().includes(indicator.toLowerCase())
+        errorMessage.toLowerCase().includes(indicator.toLowerCase()) ||
+        errorName.toLowerCase().includes(indicator.toLowerCase())
     );
 }
 
