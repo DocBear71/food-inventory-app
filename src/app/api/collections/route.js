@@ -106,16 +106,43 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // Count current collections for usage limit check
         const currentCollectionCount = await RecipeCollection.countDocuments({
             userId: session.user.id
         });
 
-        // Check usage limits
+        // Check feature access
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        // Initialize usageTracking if it doesn't exist
+        if (!user.usageTracking) {
+            user.usageTracking = {
+                currentMonth: new Date().getMonth(),
+                currentYear: new Date().getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                savedRecipes: user.savedRecipes ? user.savedRecipes.length : 0,
+                lastUpdated: new Date()
+            };
+            await user.save();
+        }
+
+        console.log('Collection count check:', {
+            userId: session.user.id,
+            actualCollections: currentCollectionCount,
+            userTier: userSubscription.tier,
+            hasAccess
+        });
+
+        // Check usage limits using ACTUAL count from database
         const hasCapacity = checkUsageLimit(
-            user.subscription,
-            'recipeCollections',
-            currentCollectionCount
+            userSubscription,
+            FEATURE_GATES.RECIPE_COLLECTIONS,
+            currentCollectionCount  // Use actual count, not cached count
         );
 
         if (!hasCapacity) {
