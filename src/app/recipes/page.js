@@ -82,18 +82,6 @@ function RecipesContent() {
         }
     }, [session]);
 
-    // Update saved recipes count from global hook
-    useEffect(() => {
-        if (!savedRecipesGlobalLoading && globalSavedCount !== undefined) {
-            console.log('📊 Updating saved recipes count from global hook:', globalSavedCount);
-            setSavedRecipesCount(globalSavedCount);
-
-            // Force a re-render of the tab counts by briefly toggling loading state
-            setLoadingCounts(true);
-            setTimeout(() => setLoadingCounts(false), 10);
-        }
-    }, [globalSavedCount, savedRecipesGlobalLoading]);
-
     const fetchRecipes = async () => {
         try {
             if (isInitialLoad) {
@@ -155,7 +143,7 @@ function RecipesContent() {
         }
     };
 
-    // Replace the existing fetchCounts function with this improved version:
+    // Update the fetchCounts function to only fetch collections (since global hook handles saved recipes):
     const fetchCounts = async (showLoading = true, retryCount = 0) => {
         const maxRetries = 1; // Reduced retries to prevent connection spam
 
@@ -165,13 +153,13 @@ function RecipesContent() {
             }
             setCountsError('');
 
-            console.log(`🔄 Fetching counts (attempt ${retryCount + 1}/${maxRetries + 1})`);
+            console.log(`🔄 Fetching collections count (attempt ${retryCount + 1}/${maxRetries + 1})`);
 
-            // Create requests with shorter timeout and better error handling
+            // Only fetch collections count now (saved recipes handled by global hook)
             const createSafeRequest = async (url, name) => {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
                     const response = await fetch(getApiUrl(url), {
                         signal: controller.signal,
@@ -188,45 +176,12 @@ function RecipesContent() {
                 }
             };
 
-            // Make both requests with individual error handling
-            const [savedResult, collectionsResult] = await Promise.all([
-                createSafeRequest('/api/saved-recipes', 'Saved recipes'),
-                createSafeRequest('/api/collections', 'Collections')
-            ]);
+            // Only fetch collections
+            const collectionsResult = await createSafeRequest('/api/collections', 'Collections');
 
-            let savedCount = savedRecipesCount; // Keep current value as fallback
             let collectionsCountVal = collectionsCount; // Keep current value as fallback
             let hasUpdates = false;
             let hasErrors = false;
-
-            // Handle saved recipes response
-            if (savedResult.success && savedResult.response.ok) {
-                try {
-                    const savedData = await savedResult.response.json();
-                    if (savedData.success) {
-                        savedCount = savedData.totalCount || 0;
-                        hasUpdates = true;
-                        console.log('✅ Saved recipes count fetched:', savedCount);
-                    } else if (savedData.code === 'DATABASE_CONNECTION_ERROR' || savedData.code === 'DATABASE_NETWORK_ERROR') {
-                        console.warn('⚠️ Database temporarily unavailable for saved recipes');
-                        hasErrors = true;
-                    } else {
-                        console.warn('Saved recipes API returned error:', savedData.error);
-                        if (savedData.warning) {
-                            console.warn('Saved recipes warning:', savedData.warning);
-                        }
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing saved recipes response:', parseError);
-                    hasErrors = true;
-                }
-            } else if (savedResult.success && savedResult.response.status === 503) {
-                console.warn('⚠️ Saved recipes API temporarily unavailable (503)');
-                hasErrors = true;
-            } else {
-                console.warn('Saved recipes API failed:', savedResult.success ? savedResult.response.status : savedResult.error);
-                hasErrors = true;
-            }
 
             // Handle collections response
             if (collectionsResult.success && collectionsResult.response.ok) {
@@ -255,35 +210,33 @@ function RecipesContent() {
                 hasErrors = true;
             }
 
-            // Update counts if we got any successful responses
+            // Update collections count if we got successful response
             if (hasUpdates || retryCount === 0) {
-                setSavedRecipesCount(savedCount);
                 setCollectionsCount(collectionsCountVal);
             }
 
             // Handle retry logic more conservatively
             if (hasErrors && !hasUpdates && retryCount < maxRetries) {
-                console.log(`🔄 Some requests failed, retrying once in 5 seconds...`);
+                console.log(`🔄 Collections request failed, retrying once in 5 seconds...`);
                 setTimeout(() => {
-                    fetchCounts(false, retryCount + 1); // Don't show loading on retry
-                }, 5000); // Longer delay to reduce server load
+                    fetchCounts(false, retryCount + 1);
+                }, 5000);
                 return;
             }
 
-            // Show error only if both failed on final attempt
+            // Show error only if failed on final attempt
             if (hasErrors && !hasUpdates && retryCount >= maxRetries) {
-                setCountsError('Some data temporarily unavailable');
+                setCountsError('Collections data temporarily unavailable');
             }
 
         } catch (error) {
             console.error('Error in fetchCounts:', error);
 
-            // More conservative retry logic
             if (retryCount < maxRetries) {
                 console.log(`🔄 Network error, retrying once in 8 seconds...`);
                 setTimeout(() => {
                     fetchCounts(false, retryCount + 1);
-                }, 8000); // Longer delay
+                }, 8000);
             } else {
                 setCountsError('Data temporarily unavailable - please refresh');
             }
@@ -293,7 +246,6 @@ function RecipesContent() {
             }
         }
     };
-
 // Also add this enhanced count update function:
     const updateCountsWithFallback = () => {
         // Try to fetch counts, but don't show loading if it fails
@@ -303,14 +255,7 @@ function RecipesContent() {
         });
     };
 
-    // Real-time count update handlers with better error handling
-    const handleSavedRecipesCountChange = (newCount) => {
-        console.log('📊 Updating saved recipes count:', newCount);
-        if (typeof newCount === 'number' && newCount >= 0) {
-            setSavedRecipesCount(newCount);
-        }
-    };
-
+    // Update collections count handlers:
     const handleCollectionsCountChange = (newCount) => {
         console.log('📊 Updating collections count:', newCount);
         if (typeof newCount === 'number' && newCount >= 0) {
@@ -496,7 +441,7 @@ function RecipesContent() {
         return colors[difficulty] || colors.medium;
     };
 
-    // Get tab-specific counts with usage limits and null checks
+    // Update the getTabCounts function to use globalSavedCount:
     const getTabCounts = () => {
         // FIXED: Ensure recipes is always an array before filtering
         const recipesArray = Array.isArray(recipes) ? recipes : [];
@@ -509,12 +454,12 @@ function RecipesContent() {
         return {
             myRecipes: myRecipes.length,
             publicRecipes: publicRecipes.length,
-            savedRecipes: globalSavedCount, // Use global count directly
+            savedRecipes: globalSavedCount || 0, // Use global count directly
             collections: collectionsCount
         };
     };
 
-    // Get usage information for tabs with better error handling
+    // Update the getUsageInfo function to use globalSavedCount:
     const getUsageInfo = (tabType) => {
         if (!subscription || subscription.loading) {
             return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
@@ -532,7 +477,7 @@ function RecipesContent() {
                 };
             case 'saved-recipes':
                 return {
-                    current: globalSavedCount, // Use global count directly
+                    current: globalSavedCount || 0, // Use global count directly
                     limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
                     isUnlimited: tier === 'platinum',
                     tier
@@ -549,7 +494,7 @@ function RecipesContent() {
         }
     };
 
-    // Format count display with usage limits
+    // Update formatCountWithLimit to handle loading states better:
     const formatCountWithLimit = (tabType) => {
         if (subscription.loading) {
             return '...';
@@ -929,7 +874,7 @@ function RecipesContent() {
                 {activeTab === 'collections' ? (
                     <RecipeCollections onCountChange={handleCollectionsCountChange} />
                 ) : activeTab === 'saved-recipes' ? (
-                    <SavedRecipes onCountChange={handleSavedRecipesCountChange} />
+                    <SavedRecipes />
                 ) : (
                     <>
                         {/* Enhanced Filters and Search */}
