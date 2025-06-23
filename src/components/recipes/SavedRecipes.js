@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
+import { useSubscription } from "@/hooks/useSubscription";
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { StarRating } from '@/components/reviews/RecipeRating';
 import FeatureGate from '@/components/subscription/FeatureGate';
@@ -23,6 +24,8 @@ const SavedRecipes = ({ onCountChange }) => {
         invalidateCache,
         removeFromSaved
     } = useSavedRecipes();
+
+    const subscription = useSubscription();
 
     // Local state for full recipe data (populated)
     const [savedRecipes, setSavedRecipes] = useState([]);
@@ -75,6 +78,20 @@ const SavedRecipes = ({ onCountChange }) => {
             setLoading(false);
         }
     }, [globalError]);
+
+    const getUsageInfo = () => {
+        if (!subscription || subscription.loading) {
+            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+        }
+
+        const tier = subscription.tier || 'free';
+        return {
+            current: globalTotalCount || 0,
+            limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
+            isUnlimited: tier === 'platinum',
+            tier
+        };
+    };
 
     const fetchFullRecipeData = async () => {
         try {
@@ -338,22 +355,69 @@ const SavedRecipes = ({ onCountChange }) => {
                     )}
                 </div>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="text-sm text-red-800">
-                            <strong>Error:</strong> {error}
-                        </div>
-                    </div>
-                )}
+                {/* Usage Limit Warning - Add this after the header */}
+                {(() => {
+                    const usageInfo = getUsageInfo('saved-recipes'); // You'll need to pass this as a prop or create a local version
+                    const isAtLimit = !usageInfo.isUnlimited && globalTotalCount >= usageInfo.limit;
+                    const isNearLimit = !usageInfo.isUnlimited && globalTotalCount >= (usageInfo.limit * 0.8);
 
-                {/* Debug Info (Development Only) */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="bg-gray-100 border rounded-lg p-2 text-xs">
-                        <strong>Debug:</strong> globalCount={globalTotalCount}, localCount={savedRecipes.length},
-                        globalLoading={globalLoading}, localLoading={loading}
-                    </div>
-                )}
+                    if (isAtLimit) {
+                        return (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                                <div className="flex items-start">
+                                    <div className="text-red-500 mr-3 mt-0.5">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-medium text-red-800">
+                                            Saved Recipe Limit Reached
+                                        </h3>
+                                        <p className="text-sm text-red-700 mt-1">
+                                            You've reached your {usageInfo.tier} plan limit of {usageInfo.limit} saved recipes.
+                                            {usageInfo.tier === 'free' && ' Upgrade to Gold for 200 saved recipes or Platinum for unlimited.'}
+                                            {usageInfo.tier === 'gold' && ' Upgrade to Platinum for unlimited saved recipes.'}
+                                        </p>
+                                        <TouchEnhancedButton
+                                            onClick={() => window.location.href = `/pricing?source=saved-recipes-limit&tier=${usageInfo.tier}`}
+                                            className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
+                                        >
+                                            🚀 Upgrade Now
+                                        </TouchEnhancedButton>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    } else if (isNearLimit) {
+                        return (
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                                <div className="flex items-start">
+                                    <div className="text-orange-500 mr-3 mt-0.5">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-medium text-orange-800">
+                                            Approaching Saved Recipe Limit
+                                        </h3>
+                                        <p className="text-sm text-orange-700 mt-1">
+                                            You have {usageInfo.limit - globalTotalCount} saved recipe slots remaining on your {usageInfo.tier} plan.
+                                        </p>
+                                        <TouchEnhancedButton
+                                            onClick={() => window.location.href = `/pricing?source=saved-recipes-warning&tier=${usageInfo.tier}`}
+                                            className="mt-2 text-orange-600 hover:text-orange-800 underline text-sm"
+                                        >
+                                            View Upgrade Options
+                                        </TouchEnhancedButton>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Filters */}
                 {Array.isArray(savedRecipes) && savedRecipes.length > 0 && (
