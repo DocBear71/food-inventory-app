@@ -51,8 +51,6 @@ async function connectDB(retryAttempt = 0) {
                 retryReads: true,
                 tlsAllowInvalidCertificates: false,
                 tlsAllowInvalidHostnames: false,
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
                 appName: 'DocBearsComfortKitchen'
             };
 
