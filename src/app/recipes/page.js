@@ -16,6 +16,7 @@ import RecipeCollections from '@/components/recipes/RecipeCollections';
 import SavedRecipes from "@/components/recipes/SavedRecipes";
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
+import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
@@ -32,6 +33,7 @@ function RecipesContent() {
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
+    const { totalCount: globalSavedCount, loading: savedRecipesGlobalLoading } = useSavedRecipes();
 
     // Enhanced state for saved recipes and collections counts with better error handling
     const [savedRecipesCount, setSavedRecipesCount] = useState(0);
@@ -80,6 +82,14 @@ function RecipesContent() {
             fetchCounts();
         }
     }, [session]);
+
+    // Update saved recipes count from global hook
+    useEffect(() => {
+        if (!savedRecipesGlobalLoading && globalSavedCount !== undefined) {
+            console.log('📊 Updating saved recipes count from global hook:', globalSavedCount);
+            setSavedRecipesCount(globalSavedCount);
+        }
+    }, [globalSavedCount, savedRecipesGlobalLoading]);
 
     const fetchRecipes = async () => {
         try {
@@ -305,24 +315,15 @@ function RecipesContent() {
         }
     };
 
-    // Also replace the handleRecipeSaveStateChange function with this improved version:
+    // Replace the handleRecipeSaveStateChange function with this simplified version:
     const handleRecipeSaveStateChange = (recipeId, isSaved) => {
         console.log('📊 Recipe save state changed:', recipeId, isSaved);
 
-        // Update saved recipes count immediately for better UX
-        if (isSaved) {
-            setSavedRecipesCount(prev => Math.max(0, prev + 1));
-        } else {
-            setSavedRecipesCount(prev => Math.max(0, prev - 1));
-        }
-
-        // Refresh actual count after a longer delay to reduce server load
+        // The global hook will automatically handle the count updates
+        // Just force a small re-render to ensure UI updates
         setTimeout(() => {
-            // Only refresh if we don't have pending errors
-            if (!countsError) {
-                fetchCounts(false, 0); // Don't show loading spinner, start fresh
-            }
-        }, 3000); // Longer delay to reduce API calls
+            setLoadingCounts(false);
+        }, 50);
     };
 
     // Add this new error boundary component to handle network errors gracefully:

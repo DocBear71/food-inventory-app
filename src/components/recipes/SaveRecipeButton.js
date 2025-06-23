@@ -1,19 +1,13 @@
 'use client';
-// file: /src/components/recipes/SaveRecipeButton.js v4 - FIXED excessive API calls with caching and debouncing
+// file: /src/components/recipes/SaveRecipeButton.js v5 - FIXED using global saved recipes hook to eliminate API spam
 
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
+import {useSavedRecipes} from '@/hooks/useSavedRecipes';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import {getApiUrl} from '@/lib/api-config';
-
-// Global cache for saved recipes to prevent multiple API calls
-let savedRecipesCache = null;
-let cacheTimestamp = null;
-let ongoingRequest = null;
-const CACHE_DURATION = 30000; // 30 seconds
-const pendingComponents = new Set();
 
 export default function SaveRecipeButton({
                                              recipeId,
@@ -25,153 +19,33 @@ export default function SaveRecipeButton({
                                              size = 'medium' // 'small', 'medium', 'large'
                                          }) {
     const {data: session} = useSafeSession();
-    const [isSaved, setIsSaved] = useState(initialSavedState);
+    const {
+        savedRecipes,
+        loading: savedRecipesLoading,
+        error: savedRecipesError,
+        isRecipeSaved,
+        addToSaved,
+        removeFromSaved,
+        invalidateCache,
+        totalCount
+    } = useSavedRecipes();
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [statusCheckFailed, setStatusCheckFailed] = useState(false);
-    const mountedRef = useRef(true);
-    const componentId = useRef(`save-btn-${Date.now()}-${Math.random()}`);
 
-    // Cleanup on unmount
+    // Determine if recipe is saved using global state
+    const isSaved = isRecipeSaved(recipeId);
+
+    // Handle initial loading state
     useEffect(() => {
-        return () => {
-            mountedRef.current = false;
-            pendingComponents.delete(componentId.current);
-        };
-    }, []);
-
-    // Check if cache is valid
-    const isCacheValid = () => {
-        return savedRecipesCache !== null &&
-            cacheTimestamp !== null &&
-            (Date.now() - cacheTimestamp) < CACHE_DURATION;
-    };
-
-    // Get saved status from cache or API
-    const getSavedRecipes = async () => {
-        // If cache is valid, use it
-        if (isCacheValid()) {
-            console.log('🎯 SaveRecipeButton - Using cached saved recipes');
-            return savedRecipesCache;
-        }
-
-        // If there's already an ongoing request, wait for it
-        if (ongoingRequest) {
-            console.log('⏳ SaveRecipeButton - Waiting for ongoing request');
-            try {
-                return await ongoingRequest;
-            } catch (error) {
-                console.warn('⚠️ SaveRecipeButton - Ongoing request failed:', error);
-                throw error;
-            }
-        }
-
-        // Make a new request
-        console.log('🔄 SaveRecipeButton - Making new API request for saved recipes');
-
-        ongoingRequest = (async () => {
-            try {
-                const response = await fetch(getApiUrl('/api/saved-recipes'), {
-                    method: 'GET',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                    },
-                });
-
-                if (!response.ok) {
-                    // Handle server errors gracefully
-                    if (response.status >= 500) {
-                        console.warn('🚨 SaveRecipeButton - Server error, using fallback');
-                        savedRecipesCache = [];
-                        cacheTimestamp = Date.now();
-                        return [];
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                if (data.success && Array.isArray(data.savedRecipes)) {
-                    const savedRecipeIds = data.savedRecipes
-                        .map(saved => saved.recipeId?._id || saved.recipeId)
-                        .filter(id => id);
-
-                    savedRecipesCache = savedRecipeIds;
-                    cacheTimestamp = Date.now();
-                    console.log(`✅ SaveRecipeButton - Cached ${savedRecipeIds.length} saved recipes`);
-                    return savedRecipeIds;
-                } else if (data.warning) {
-                    console.warn('⚠️ SaveRecipeButton - API returned warning:', data.warning);
-                    savedRecipesCache = [];
-                    cacheTimestamp = Date.now();
-                    return [];
-                } else {
-                    throw new Error('Unexpected API response format');
-                }
-            } catch (error) {
-                console.warn('⚠️ SaveRecipeButton - Error fetching saved recipes:', error.message);
-                // Set empty cache on error to prevent repeated failed requests
-                savedRecipesCache = [];
-                cacheTimestamp = Date.now();
-                throw error;
-            } finally {
-                ongoingRequest = null;
-            }
-        })();
-
-        return await ongoingRequest;
-    };
-
-    // Check saved status with caching and debouncing
-    const checkSavedStatus = async () => {
-        if (!session?.user?.id || !recipeId) return;
-
-        // Add this component to pending set to prevent duplicate calls
-        pendingComponents.add(componentId.current);
-
-        try {
-            console.log('🔍 SaveRecipeButton - Checking saved status for recipe:', recipeId);
-            setStatusCheckFailed(false);
-
-            const savedRecipeIds = await getSavedRecipes();
-
-            if (!mountedRef.current) return; // Component unmounted
-
-            const isCurrentlySaved = savedRecipeIds.includes(recipeId);
-            setIsSaved(isCurrentlySaved);
-
-            console.log('✅ SaveRecipeButton - Status check complete. Recipe saved:', isCurrentlySaved);
-        } catch (error) {
-            if (!mountedRef.current) return; // Component unmounted
-
-            console.warn('⚠️ SaveRecipeButton - Status check failed:', error.message);
+        if (savedRecipesError) {
             setStatusCheckFailed(true);
-            // Don't show error to user for status check failures
-        } finally {
-            pendingComponents.delete(componentId.current);
+        } else {
+            setStatusCheckFailed(false);
         }
-    };
-
-    // Invalidate cache when save/unsave operations complete
-    const invalidateCache = () => {
-        savedRecipesCache = null;
-        cacheTimestamp = null;
-        ongoingRequest = null;
-        console.log('🗑️ SaveRecipeButton - Cache invalidated');
-    };
-
-    // Check saved status on mount with debouncing
-    useEffect(() => {
-        if (session?.user?.id && recipeId) {
-            // Small delay to allow multiple components to mount before making API call
-            const timeoutId = setTimeout(() => {
-                checkSavedStatus();
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        }
-    }, [session?.user?.id, recipeId]);
+    }, [savedRecipesError]);
 
     const handleSaveToggle = async () => {
         if (!session?.user?.id) {
@@ -185,7 +59,11 @@ export default function SaveRecipeButton({
 
         try {
             if (isSaved) {
-                // Unsave recipe
+                // Optimistically update UI first
+                removeFromSaved(recipeId);
+                if (onSaveStateChange) onSaveStateChange(recipeId, false);
+
+                // Then make API call
                 const response = await fetch(getApiUrl(`/api/saved-recipes?recipeId=${recipeId}`), {
                     method: 'DELETE',
                     headers: {
@@ -194,6 +72,10 @@ export default function SaveRecipeButton({
                 });
 
                 if (!response.ok) {
+                    // Revert optimistic update on error
+                    addToSaved(recipeId);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
+
                     if (response.status >= 500) {
                         throw new Error('Server temporarily unavailable. Please try again later.');
                     }
@@ -204,15 +86,19 @@ export default function SaveRecipeButton({
                 const data = await response.json();
 
                 if (data.success) {
-                    setIsSaved(false);
                     setSuccess('Recipe removed from saved recipes');
-                    invalidateCache(); // Clear cache
-                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
                 } else {
+                    // Revert optimistic update on API error
+                    addToSaved(recipeId);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
                     throw new Error(data.error || 'Failed to unsave recipe');
                 }
             } else {
-                // Save recipe
+                // Optimistically update UI first
+                addToSaved(recipeId);
+                if (onSaveStateChange) onSaveStateChange(recipeId, true);
+
+                // Then make API call
                 const response = await fetch(getApiUrl('/api/saved-recipes'), {
                     method: 'POST',
                     headers: {
@@ -222,6 +108,10 @@ export default function SaveRecipeButton({
                 });
 
                 if (!response.ok) {
+                    // Revert optimistic update on error
+                    removeFromSaved(recipeId);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
+
                     if (response.status >= 500) {
                         throw new Error('Server temporarily unavailable. Please try again later.');
                     }
@@ -232,11 +122,12 @@ export default function SaveRecipeButton({
                 const data = await response.json();
 
                 if (data.success) {
-                    setIsSaved(true);
                     setSuccess(data.message || 'Recipe saved successfully');
-                    invalidateCache(); // Clear cache
-                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
                 } else {
+                    // Revert optimistic update on API error
+                    removeFromSaved(recipeId);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
+
                     if (data.code === 'USAGE_LIMIT_EXCEEDED') {
                         // Handle upgrade prompt
                         if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
@@ -329,7 +220,7 @@ export default function SaveRecipeButton({
             <div className="relative">
                 <TouchEnhancedButton
                     onClick={handleSaveToggle}
-                    disabled={loading}
+                    disabled={loading || savedRecipesLoading}
                     className={`${
                         isSaved
                             ? 'bg-green-600 hover:bg-green-700 text-white'
@@ -339,7 +230,7 @@ export default function SaveRecipeButton({
                     }`}
                     title={statusCheckFailed ? 'Save status could not be verified' : ''}
                 >
-                    {loading ? (
+                    {(loading || savedRecipesLoading) ? (
                         <div className={`animate-spin rounded-full border-b-2 ${
                             isSaved ? 'border-white' : 'border-gray-600'
                         } ${getIconSize()}`}></div>
@@ -360,8 +251,10 @@ export default function SaveRecipeButton({
                     )}
                     {showText && (
                         <span>
-                            {loading ? 'Saving...' : isSaved ? 'Saved' : 'Save Recipe'}
-                            {statusCheckFailed && !loading && (
+                            {loading ? 'Saving...' :
+                                savedRecipesLoading ? 'Loading...' :
+                                    isSaved ? 'Saved' : 'Save Recipe'}
+                            {statusCheckFailed && !loading && !savedRecipesLoading && (
                                 <span className="text-xs opacity-75"> (?)</span>
                             )}
                         </span>
@@ -382,7 +275,7 @@ export default function SaveRecipeButton({
                 )}
 
                 {/* Status Check Failed Warning (only show if user hovers and check failed) */}
-                {statusCheckFailed && !loading && !success && !error && (
+                {statusCheckFailed && !loading && !savedRecipesLoading && !success && !error && (
                     <div className="absolute top-full left-0 mt-1 w-48 text-xs text-gray-500 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
                         Save status could not be verified
                     </div>
