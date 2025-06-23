@@ -1,4 +1,4 @@
-// file: /src/app/api/upc/lookup/route.js v3 - FIXED trackUPCScan error and improved error handling
+// CORRECTED version - Replace your entire UPC lookup route with this:
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -36,7 +36,7 @@ export async function GET(request) {
             status: user.subscription?.status || 'free'
         };
 
-        // Reset monthly counter if needed - FIXED: Better error handling
+        // Reset monthly counter if needed
         const now = new Date();
         try {
             if (!user.usageTracking ||
@@ -53,19 +53,31 @@ export async function GET(request) {
                 user.usageTracking.monthlyUPCScans = 0;
                 user.usageTracking.lastUpdated = now;
 
-                // Save the usage tracking reset
-                await user.save();
+                // Reset using updateOne to avoid validation issues
+                await User.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: {
+                            'usageTracking.currentMonth': now.getMonth(),
+                            'usageTracking.currentYear': now.getFullYear(),
+                            'usageTracking.monthlyUPCScans': 0,
+                            'usageTracking.lastUpdated': now
+                        }
+                    },
+                    { runValidators: false }
+                );
+
+                console.log(`✅ UPC usage tracking reset for user ${user.email} (new month)`);
             }
         } catch (trackingError) {
-            console.error('Error initializing usage tracking:', trackingError);
-            // Continue with the request even if tracking initialization fails
+            console.error('Error resetting usage tracking:', trackingError);
+            // Continue with current values even if reset fails
         }
 
         const currentScans = user.usageTracking?.monthlyUPCScans || 0;
 
         // Check if user can perform UPC scan
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
-
 
         if (!hasCapacity) {
             const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCANNING);
@@ -103,48 +115,39 @@ export async function GET(request) {
             );
         }
 
-        // FIXED: Track the successful scan BEFORE processing to avoid issues
+        // FIXED: Track the successful scan ONLY ONCE with proper error handling
         try {
-            // Increment the scan count
-            if (!user.usageTracking) {
-                user.usageTracking = {
-                    currentMonth: now.getMonth(),
-                    currentYear: now.getFullYear(),
-                    monthlyUPCScans: 0,
-                    lastUpdated: now
-                };
-            }
+            const newScanCount = currentScans + 1;
 
-            const previousCount = user.usageTracking.monthlyUPCScans || 0;
-            user.usageTracking.monthlyUPCScans = previousCount + 1;
-            user.usageTracking.lastUpdated = now;
+            console.log(`🔄 Incrementing UPC scan count from ${currentScans} to ${newScanCount} for user ${user.email}`);
 
-            // FIXED: Use both save() and updateOne for maximum reliability
-            console.log(`🔄 Incrementing UPC scan count from ${previousCount} to ${user.usageTracking.monthlyUPCScans}`);
-
-            // Method 1: Save the user document
-            await user.save();
-
-            // Method 2: Also use updateOne as backup to ensure the write goes through
-            await User.updateOne(
+            // FIXED: Use updateOne to avoid User model validation issues
+            const updateResult = await User.updateOne(
                 { _id: user._id },
                 {
                     $set: {
-                        'usageTracking.monthlyUPCScans': user.usageTracking.monthlyUPCScans,
-                        'usageTracking.lastUpdated': now
+                        'usageTracking.monthlyUPCScans': newScanCount,
+                        'usageTracking.lastUpdated': now,
+                        // Ensure other tracking fields exist
+                        'usageTracking.currentMonth': now.getMonth(),
+                        'usageTracking.currentYear': now.getFullYear()
                     }
                 },
-                { runValidators: false }
+                {
+                    runValidators: false,  // Skip validation to avoid legalAcceptance issues
+                    upsert: false
+                }
             );
 
-            console.log(`✅ UPC scan tracked successfully. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
-
-            // FIXED: Add a small delay to ensure database write is committed
-            await new Promise(resolve => setTimeout(resolve, 100));
+            if (updateResult.modifiedCount === 1) {
+                console.log(`✅ UPC scan tracked successfully. User ${user.email} now has ${newScanCount} scans this month.`);
+            } else {
+                console.warn(`⚠️ UPC scan tracking update didn't modify document. Result:`, updateResult);
+            }
 
         } catch (trackingError) {
             console.error('❌ Error tracking UPC scan:', trackingError);
-            // Continue with the request even if tracking fails, but log it prominently
+            // Continue with the request even if tracking fails
             console.error('⚠️ UPC usage tracking failed - this will cause UI sync issues!');
         }
 
@@ -174,7 +177,7 @@ export async function GET(request) {
                     message: 'Product not found in Open Food Facts database',
                     upc: cleanUpc,
                     remainingScans: userSubscription.tier === 'free' ?
-                        Math.max(0, 10 - (user.usageTracking?.monthlyUPCScans || 0)) : 'Unlimited'
+                        Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'  // +1 because we already incremented
                 },
                 { status: 404 }
             );
@@ -220,8 +223,9 @@ export async function GET(request) {
         return NextResponse.json({
             success: true,
             product: productInfo,
+            usageIncremented: true,  // Add this flag for debugging
             remainingScans: userSubscription.tier === 'free' ?
-                Math.max(0, 10 - (user.usageTracking?.monthlyUPCScans || 0)) : 'Unlimited'
+                Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'  // +1 because we already incremented
         });
 
     } catch (error) {
