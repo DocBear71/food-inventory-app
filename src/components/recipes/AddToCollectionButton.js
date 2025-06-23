@@ -13,6 +13,8 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [creatingCollection, setCreatingCollection] = useState(false);
 
     useEffect(() => {
         if (showDropdown && collections.length === 0) {
@@ -99,6 +101,61 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
         }
     };
 
+    // NEW: Handle creating a new collection and adding the recipe to it
+    const handleCreateCollection = async (formData) => {
+        try {
+            setCreatingCollection(true);
+            const name = formData.get('name');
+            const description = formData.get('description');
+
+            if (!name || name.trim().length === 0) {
+                setError('Collection name is required');
+                return;
+            }
+
+            const response = await fetch(getApiUrl('/api/collections'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    description: description?.trim() || '',
+                    recipes: [{ recipeId }] // Add current recipe to new collection
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                setSuccess(`Created collection "${name}" and added "${recipeName}"!`);
+                setShowDropdown(false);
+                setShowCreateForm(false);
+
+                // Add new collection to the list
+                setCollections([...collections, data.collection]);
+            } else {
+                if (data.code === 'USAGE_LIMIT_EXCEEDED') {
+                    if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
+                        window.location.href = data.upgradeUrl || '/pricing';
+                    }
+                    return;
+                } else {
+                    throw new Error(data.error || 'Failed to create collection');
+                }
+            }
+        } catch (error) {
+            console.error('Error creating collection:', error);
+            setError(error.message || 'Failed to create collection');
+        } finally {
+            setCreatingCollection(false);
+        }
+    };
+
     const isRecipeInCollection = (collection) => {
         if (!collection.recipes || !Array.isArray(collection.recipes)) {
             return false;
@@ -159,6 +216,63 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                         Try again
                                     </TouchEnhancedButton>
                                 </div>
+                            ) : showCreateForm ? (
+                                // NEW: Inline collection creation form
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-medium text-gray-900">Create New Collection</h4>
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowCreateForm(false)}
+                                            className="text-gray-400 hover:text-gray-600"
+                                        >
+                                            ×
+                                        </TouchEnhancedButton>
+                                    </div>
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            const formData = new FormData(e.target);
+                                            handleCreateCollection(formData);
+                                        }}
+                                        className="space-y-3"
+                                    >
+                                        <div>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                placeholder="Collection name"
+                                                required
+                                                maxLength={100}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <textarea
+                                                name="description"
+                                                placeholder="Description (optional)"
+                                                rows={2}
+                                                maxLength={500}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <TouchEnhancedButton
+                                                type="submit"
+                                                disabled={creatingCollection}
+                                                className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-md text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {creatingCollection ? 'Creating...' : 'Create & Add Recipe'}
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={() => setShowCreateForm(false)}
+                                                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700"
+                                            >
+                                                Cancel
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </form>
+                                </div>
                             ) : collections.length > 0 ? (
                                 <div className="space-y-2 max-h-48 overflow-y-auto">
                                     {collections.map((collection) => {
@@ -199,11 +313,8 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                         No collections yet
                                     </div>
                                     <TouchEnhancedButton
-                                        onClick={() => {
-                                            setShowDropdown(false);
-                                            window.location.href = '/recipes?tab=collections';
-                                        }}
-                                        className="text-purple-600 hover:text-purple-700 text-sm"
+                                        onClick={() => setShowCreateForm(true)}
+                                        className="bg-purple-600 text-white px-3 py-2 rounded-md text-sm hover:bg-purple-700"
                                     >
                                         Create your first collection
                                     </TouchEnhancedButton>
@@ -211,13 +322,10 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                             )}
 
                             {/* Create New Collection Link */}
-                            {collections.length > 0 && (
+                            {collections.length > 0 && !showCreateForm && (
                                 <div className="mt-3 pt-3 border-t border-gray-200">
                                     <TouchEnhancedButton
-                                        onClick={() => {
-                                            setShowDropdown(false);
-                                            window.location.href = '/recipes?tab=collections';
-                                        }}
+                                        onClick={() => setShowCreateForm(true)}
                                         className="w-full text-purple-600 hover:text-purple-700 text-sm text-center py-2"
                                     >
                                         + Create New Collection
