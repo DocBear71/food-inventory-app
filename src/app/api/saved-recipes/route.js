@@ -1,4 +1,4 @@
-// file: /src/app/api/saved-recipes/route.js v4 - FIXED to work with existing subscription system
+// file: /src/app/api/saved-recipes/route.js v5 - Enhanced error handling and debugging
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -34,13 +34,19 @@ const checkSavedRecipeLimits = (userTier, currentCount) => {
 // GET - Fetch user's saved recipes
 export async function GET(request) {
     try {
+        console.log('🔍 GET /api/saved-recipes - Starting request');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
+            console.log('❌ GET /api/saved-recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log('✅ GET /api/saved-recipes - Session found for user:', session.user.id);
+
         await connectDB();
+        console.log('✅ GET /api/saved-recipes - Database connected');
 
         // Get user with saved recipes
         const user = await User.findById(session.user.id)
@@ -54,16 +60,21 @@ export async function GET(request) {
             });
 
         if (!user) {
+            console.log('❌ GET /api/saved-recipes - User not found');
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
+
+        console.log('✅ GET /api/saved-recipes - User found');
 
         // Initialize savedRecipes array if it doesn't exist
         if (!user.savedRecipes) {
             user.savedRecipes = [];
+            console.log('📝 GET /api/saved-recipes - Initialized empty savedRecipes array');
         }
 
         // Filter out any saved recipes where the recipe was deleted
         const validSavedRecipes = user.savedRecipes.filter(saved => saved.recipeId);
+        console.log(`✅ GET /api/saved-recipes - Found ${validSavedRecipes.length} valid saved recipes`);
 
         return NextResponse.json({
             success: true,
@@ -72,9 +83,10 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        console.error('Error fetching saved recipes:', error);
+        console.error('❌ GET /api/saved-recipes - Error:', error);
+        console.error('❌ GET /api/saved-recipes - Stack:', error.stack);
         return NextResponse.json(
-            { error: 'Failed to fetch saved recipes' },
+            { error: 'Failed to fetch saved recipes', details: error.message },
             { status: 500 }
         );
     }
@@ -233,32 +245,45 @@ export async function POST(request) {
 // DELETE - Unsave a recipe
 export async function DELETE(request) {
     try {
+        console.log('🔍 DELETE /api/saved-recipes - Starting request');
+
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
+            console.log('❌ DELETE /api/saved-recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('✅ DELETE /api/saved-recipes - Session found for user:', session.user.id);
 
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
 
         if (!recipeId) {
+            console.log('❌ DELETE /api/saved-recipes - No recipeId provided');
             return NextResponse.json(
                 { error: 'Recipe ID is required' },
                 { status: 400 }
             );
         }
 
+        console.log('✅ DELETE /api/saved-recipes - Recipe ID:', recipeId);
+
         await connectDB();
+        console.log('✅ DELETE /api/saved-recipes - Database connected');
 
         const user = await User.findById(session.user.id);
         if (!user) {
+            console.log('❌ DELETE /api/saved-recipes - User not found');
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
+
+        console.log('✅ DELETE /api/saved-recipes - User found');
 
         // Initialize savedRecipes array if it doesn't exist
         if (!user.savedRecipes) {
             user.savedRecipes = [];
+            console.log('📝 DELETE /api/saved-recipes - Initialized empty savedRecipes array');
         }
 
         // Find and remove the saved recipe
@@ -268,11 +293,14 @@ export async function DELETE(request) {
         );
 
         if (user.savedRecipes.length === initialLength) {
+            console.log('❌ DELETE /api/saved-recipes - Recipe was not saved');
             return NextResponse.json(
                 { error: 'Recipe was not saved' },
                 { status: 404 }
             );
         }
+
+        console.log('✅ DELETE /api/saved-recipes - Recipe removed from saved recipes');
 
         // Update usage tracking if available
         try {
@@ -281,12 +309,16 @@ export async function DELETE(request) {
             }
             user.usageTracking.savedRecipes = user.savedRecipes.length;
             user.usageTracking.lastUpdated = new Date();
-        } catch (error) {
-            console.warn('Could not update usage tracking:', error);
+            console.log('✅ DELETE /api/saved-recipes - Updated usage tracking');
+        } catch (trackingError) {
+            console.warn('⚠️ DELETE /api/saved-recipes - Could not update usage tracking:', trackingError);
             // Don't fail the request for this
         }
 
         await user.save();
+        console.log('✅ DELETE /api/saved-recipes - User saved successfully');
+
+        console.log('✅ DELETE /api/saved-recipes - Request completed successfully');
 
         return NextResponse.json({
             success: true,
@@ -295,9 +327,10 @@ export async function DELETE(request) {
         });
 
     } catch (error) {
-        console.error('Error unsaving recipe:', error);
+        console.error('❌ DELETE /api/saved-recipes - Error:', error);
+        console.error('❌ DELETE /api/saved-recipes - Stack:', error.stack);
         return NextResponse.json(
-            { error: 'Failed to unsave recipe' },
+            { error: 'Failed to unsave recipe', details: error.message },
             { status: 500 }
         );
     }
