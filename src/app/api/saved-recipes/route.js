@@ -1,9 +1,9 @@
-// file: /src/app/api/saved-recipes/route.js v7 - FIXED MongoDB SSL error handling
+// file: /src/app/api/saved-recipes/route.js v8 - FIXED for M0 MongoDB limits with better connection management and error handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import connectWithRetry from '@/lib/mongodb'; // Use the retry version
+import connectDB, { connectWithRetry } from '@/lib/mongodb'; // Import both versions
 import { User, Recipe } from '@/lib/models';
 
 // Simple saved recipe limit check
@@ -44,7 +44,10 @@ const isNetworkError = (error) => {
         'ECONNREFUSED',
         'ETIMEDOUT',
         'connection timed out',
-        'network error'
+        'network error',
+        'too many connections',
+        'connection limit',
+        'connection pool'
     ];
 
     const errorMessage = error.message || error.toString();
@@ -139,7 +142,7 @@ const ensureUserValidation = async (user) => {
     }
 };
 
-// GET - Fetch user's saved recipes
+// GET - Fetch user's saved recipes with enhanced error handling
 export async function GET(request) {
     try {
         console.log('🔍 GET /api/saved-recipes - Starting request');
@@ -156,17 +159,18 @@ export async function GET(request) {
 
         console.log('✅ GET /api/saved-recipes - Session found for user:', session.user.id);
 
-        // FIXED: Use retry connection for SSL errors
+        // Use simple connection for GET requests to reduce load
         try {
-            await connectWithRetry();
+            await connectDB();
             console.log('✅ GET /api/saved-recipes - Database connected');
         } catch (connectionError) {
             console.error('❌ GET /api/saved-recipes - Database connection failed:', connectionError);
 
+            // For M0 connection issues, return graceful error
             if (isNetworkError(connectionError)) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable. Please try again in a moment.',
+                    error: 'Database temporarily unavailable. Please refresh the page.',
                     code: 'DATABASE_CONNECTION_ERROR'
                 }, { status: 503 });
             } else {
@@ -178,19 +182,26 @@ export async function GET(request) {
             }
         }
 
-        // Enhanced user fetching with network error handling
+        // Enhanced user fetching with timeout and error handling
         let user;
         try {
             console.log('🔍 GET /api/saved-recipes - Fetching user...');
-            user = await User.findById(session.user.id);
+
+            // Add timeout for user fetch to prevent hanging
+            const userPromise = User.findById(session.user.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('User fetch timeout')), 10000)
+            );
+
+            user = await Promise.race([userPromise, timeoutPromise]);
             console.log('✅ GET /api/saved-recipes - User query completed, user found:', !!user);
         } catch (userFetchError) {
             console.error('❌ GET /api/saved-recipes - Error fetching user:', userFetchError);
 
-            if (isNetworkError(userFetchError)) {
+            if (isNetworkError(userFetchError) || userFetchError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during user lookup',
+                    error: 'Database temporarily slow. Please try again.',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             } else {
@@ -212,19 +223,28 @@ export async function GET(request) {
 
         console.log('✅ GET /api/saved-recipes - User found, ensuring validation...');
 
-        // Ensure user has all required fields
+        // Ensure user has all required fields with timeout
         try {
-            user = await ensureUserValidation(user);
+            const validationPromise = ensureUserValidation(user);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Validation timeout')), 8000)
+            );
+
+            user = await Promise.race([validationPromise, timeoutPromise]);
         } catch (validationError) {
             console.error('❌ GET /api/saved-recipes - User validation failed:', validationError);
 
-            if (isNetworkError(validationError)) {
-                // Return empty array for network issues to prevent client crashes
+            if (isNetworkError(validationError) || validationError.message.includes('timeout')) {
+                // Return basic data without validation updates for network issues
                 return NextResponse.json({
                     success: true,
-                    savedRecipes: [],
-                    totalCount: 0,
-                    warning: 'Database temporarily unavailable, showing empty list'
+                    savedRecipes: (user.savedRecipes || []).map(saved => ({
+                        _id: saved._id,
+                        recipeId: saved.recipeId,
+                        savedAt: saved.savedAt
+                    })),
+                    totalCount: (user.savedRecipes || []).length,
+                    warning: 'Database temporarily slow, basic data returned'
                 });
             } else {
                 return NextResponse.json({
@@ -237,11 +257,12 @@ export async function GET(request) {
 
         console.log(`✅ GET /api/saved-recipes - User has ${user.savedRecipes.length} saved recipes`);
 
-        // Enhanced population with network error handling
+        // Enhanced population with timeout and fallback
         let populatedUser;
         try {
             console.log('🔍 GET /api/saved-recipes - Populating saved recipes...');
-            populatedUser = await User.findById(session.user.id)
+
+            const populatePromise = User.findById(session.user.id)
                 .populate({
                     path: 'savedRecipes.recipeId',
                     select: 'title description category difficulty prepTime cookTime servings isPublic createdAt ratingStats metrics tags',
@@ -250,13 +271,19 @@ export async function GET(request) {
                         select: 'name email'
                     }
                 });
+
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Population timeout')), 12000)
+            );
+
+            populatedUser = await Promise.race([populatePromise, timeoutPromise]);
             console.log('✅ GET /api/saved-recipes - Population completed');
         } catch (populateError) {
             console.error('❌ GET /api/saved-recipes - Error during population:', populateError);
 
-            if (isNetworkError(populateError)) {
+            if (isNetworkError(populateError) || populateError.message.includes('timeout')) {
                 // Fallback: return basic user data without population
-                console.log('📝 GET /api/saved-recipes - Network error, returning unpopulated data');
+                console.log('📝 GET /api/saved-recipes - Network/timeout error, returning unpopulated data');
                 return NextResponse.json({
                     success: true,
                     savedRecipes: user.savedRecipes.map(saved => ({
@@ -265,7 +292,7 @@ export async function GET(request) {
                         savedAt: saved.savedAt
                     })),
                     totalCount: user.savedRecipes.length,
-                    warning: 'Recipe details temporarily unavailable due to network issues'
+                    warning: 'Recipe details temporarily unavailable'
                 });
             } else {
                 // Fallback for other errors
@@ -301,15 +328,24 @@ export async function GET(request) {
         if (validSavedRecipes.length !== user.savedRecipes.length) {
             console.log('🧹 GET /api/saved-recipes - Cleaning up invalid saved recipes...');
             try {
-                user.savedRecipes = validSavedRecipes.map(saved => ({
-                    recipeId: saved.recipeId._id || saved.recipeId,
-                    savedAt: saved.savedAt
-                }));
-                await user.save();
+                // Only attempt cleanup if we're not experiencing network issues
+                const cleanupPromise = (async () => {
+                    user.savedRecipes = validSavedRecipes.map(saved => ({
+                        recipeId: saved.recipeId._id || saved.recipeId,
+                        savedAt: saved.savedAt
+                    }));
+                    await user.save();
+                })();
+
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Cleanup timeout')), 5000)
+                );
+
+                await Promise.race([cleanupPromise, timeoutPromise]);
                 console.log('✅ GET /api/saved-recipes - Cleaned up invalid saved recipes');
             } catch (cleanupError) {
-                if (isNetworkError(cleanupError)) {
-                    console.warn('⚠️ GET /api/saved-recipes - Network error during cleanup, skipping');
+                if (isNetworkError(cleanupError) || cleanupError.message.includes('timeout')) {
+                    console.warn('⚠️ GET /api/saved-recipes - Network/timeout error during cleanup, skipping');
                 } else {
                     console.warn('⚠️ GET /api/saved-recipes - Could not clean up invalid saved recipes:', cleanupError);
                 }
@@ -332,7 +368,7 @@ export async function GET(request) {
         let statusCode = 500;
 
         if (isNetworkError(error)) {
-            userMessage = 'Database temporarily unavailable. Please try again in a moment.';
+            userMessage = 'Database temporarily unavailable. Please refresh the page.';
             statusCode = 503;
         } else if (error.name === 'ValidationError') {
             userMessage = 'User data validation error';
@@ -355,7 +391,7 @@ export async function GET(request) {
     }
 }
 
-// POST - Save a recipe (with network error handling)
+// POST - Save a recipe (with enhanced connection management)
 export async function POST(request) {
     try {
         console.log('📝 POST /api/saved-recipes - Starting request');
@@ -382,9 +418,9 @@ export async function POST(request) {
             );
         }
 
-        // Use retry connection
+        // Use retry connection for write operations
         try {
-            await connectWithRetry();
+            await connectWithRetry(2); // Only 2 retries for writes
         } catch (connectionError) {
             console.error('❌ POST /api/saved-recipes - Database connection failed:', connectionError);
 
@@ -402,15 +438,20 @@ export async function POST(request) {
             }
         }
 
-        // Get user and ensure validation
+        // Get user and ensure validation with timeout
         let user;
         try {
-            user = await User.findById(session.user.id);
+            const userPromise = User.findById(session.user.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('User fetch timeout')), 8000)
+            );
+
+            user = await Promise.race([userPromise, timeoutPromise]);
         } catch (fetchError) {
-            if (isNetworkError(fetchError)) {
+            if (isNetworkError(fetchError) || fetchError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during user lookup',
+                    error: 'Database temporarily slow during user lookup',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }
@@ -424,14 +465,19 @@ export async function POST(request) {
             }, { status: 404 });
         }
 
-        // Ensure user validation
+        // Ensure user validation with timeout
         try {
-            user = await ensureUserValidation(user);
+            const validationPromise = ensureUserValidation(user);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Validation timeout')), 6000)
+            );
+
+            user = await Promise.race([validationPromise, timeoutPromise]);
         } catch (validationError) {
-            if (isNetworkError(validationError)) {
+            if (isNetworkError(validationError) || validationError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during validation',
+                    error: 'Database temporarily slow during validation',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             } else {
@@ -470,21 +516,27 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // Verify recipe exists and is accessible
+        // Verify recipe exists and is accessible with timeout
         let recipe;
         try {
-            recipe = await Recipe.findOne({
+            const recipePromise = Recipe.findOne({
                 _id: recipeId,
                 $or: [
                     { createdBy: session.user.id }, // User's own recipes
                     { isPublic: true } // Public recipes
                 ]
             });
+
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Recipe fetch timeout')), 6000)
+            );
+
+            recipe = await Promise.race([recipePromise, timeoutPromise]);
         } catch (recipeError) {
-            if (isNetworkError(recipeError)) {
+            if (isNetworkError(recipeError) || recipeError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during recipe lookup',
+                    error: 'Database temporarily slow during recipe lookup',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }
@@ -528,12 +580,17 @@ export async function POST(request) {
         user.usageTracking.lastUpdated = new Date();
 
         try {
-            await user.save();
+            const savePromise = user.save();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Save timeout')), 8000)
+            );
+
+            await Promise.race([savePromise, timeoutPromise]);
         } catch (saveError) {
-            if (isNetworkError(saveError)) {
+            if (isNetworkError(saveError) || saveError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during save',
+                    error: 'Database temporarily slow during save. Please try again.',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }
@@ -579,7 +636,7 @@ export async function POST(request) {
     }
 }
 
-// DELETE - Unsave a recipe (with network error handling)
+// DELETE - Unsave a recipe (with enhanced connection management)
 export async function DELETE(request) {
     try {
         console.log('🔍 DELETE /api/saved-recipes - Starting request');
@@ -609,7 +666,7 @@ export async function DELETE(request) {
 
         // Use retry connection
         try {
-            await connectWithRetry();
+            await connectWithRetry(2);
         } catch (connectionError) {
             if (isNetworkError(connectionError)) {
                 return NextResponse.json({
@@ -623,12 +680,17 @@ export async function DELETE(request) {
 
         let user;
         try {
-            user = await User.findById(session.user.id);
+            const userPromise = User.findById(session.user.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('User fetch timeout')), 8000)
+            );
+
+            user = await Promise.race([userPromise, timeoutPromise]);
         } catch (fetchError) {
-            if (isNetworkError(fetchError)) {
+            if (isNetworkError(fetchError) || fetchError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during user lookup',
+                    error: 'Database temporarily slow during user lookup',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }
@@ -644,12 +706,17 @@ export async function DELETE(request) {
 
         // Ensure user validation
         try {
-            user = await ensureUserValidation(user);
+            const validationPromise = ensureUserValidation(user);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Validation timeout')), 6000)
+            );
+
+            user = await Promise.race([validationPromise, timeoutPromise]);
         } catch (validationError) {
-            if (isNetworkError(validationError)) {
+            if (isNetworkError(validationError) || validationError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during validation',
+                    error: 'Database temporarily slow during validation',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }
@@ -678,12 +745,17 @@ export async function DELETE(request) {
         user.usageTracking.lastUpdated = new Date();
 
         try {
-            await user.save();
+            const savePromise = user.save();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Save timeout')), 8000)
+            );
+
+            await Promise.race([savePromise, timeoutPromise]);
         } catch (saveError) {
-            if (isNetworkError(saveError)) {
+            if (isNetworkError(saveError) || saveError.message.includes('timeout')) {
                 return NextResponse.json({
                     success: false,
-                    error: 'Database temporarily unavailable during save',
+                    error: 'Database temporarily slow during save',
                     code: 'DATABASE_NETWORK_ERROR'
                 }, { status: 503 });
             }

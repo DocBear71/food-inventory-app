@@ -142,12 +142,9 @@ function RecipesContent() {
         }
     };
 
-    // file: /src/app/recipes/page.js v8 - IMPROVED count fetching with retry logic and better error recovery
-
-// Add this improved fetchCounts function to replace the existing one:
-
+// Replace the existing fetchCounts function with this improved version:
     const fetchCounts = async (showLoading = true, retryCount = 0) => {
-        const maxRetries = 2;
+        const maxRetries = 1; // Reduced retries to prevent connection spam
 
         try {
             if (showLoading) {
@@ -157,11 +154,11 @@ function RecipesContent() {
 
             console.log(`🔄 Fetching counts (attempt ${retryCount + 1}/${maxRetries + 1})`);
 
-            // Create requests with timeout and error handling
+            // Create requests with shorter timeout and better error handling
             const createSafeRequest = async (url, name) => {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced timeout
 
                     const response = await fetch(getApiUrl(url), {
                         signal: controller.signal,
@@ -187,6 +184,7 @@ function RecipesContent() {
             let savedCount = savedRecipesCount; // Keep current value as fallback
             let collectionsCountVal = collectionsCount; // Keep current value as fallback
             let hasUpdates = false;
+            let hasErrors = false;
 
             // Handle saved recipes response
             if (savedResult.success && savedResult.response.ok) {
@@ -196,6 +194,9 @@ function RecipesContent() {
                         savedCount = savedData.totalCount || 0;
                         hasUpdates = true;
                         console.log('✅ Saved recipes count fetched:', savedCount);
+                    } else if (savedData.code === 'DATABASE_CONNECTION_ERROR' || savedData.code === 'DATABASE_NETWORK_ERROR') {
+                        console.warn('⚠️ Database temporarily unavailable for saved recipes');
+                        hasErrors = true;
                     } else {
                         console.warn('Saved recipes API returned error:', savedData.error);
                         if (savedData.warning) {
@@ -204,9 +205,14 @@ function RecipesContent() {
                     }
                 } catch (parseError) {
                     console.error('Error parsing saved recipes response:', parseError);
+                    hasErrors = true;
                 }
+            } else if (savedResult.success && savedResult.response.status === 503) {
+                console.warn('⚠️ Saved recipes API temporarily unavailable (503)');
+                hasErrors = true;
             } else {
                 console.warn('Saved recipes API failed:', savedResult.success ? savedResult.response.status : savedResult.error);
+                hasErrors = true;
             }
 
             // Handle collections response
@@ -217,15 +223,23 @@ function RecipesContent() {
                         collectionsCountVal = Array.isArray(collectionsData.collections) ? collectionsData.collections.length : 0;
                         hasUpdates = true;
                         console.log('✅ Collections count fetched:', collectionsCountVal);
+                    } else if (collectionsData.code === 'DATABASE_CONNECTION_ERROR' || collectionsData.code === 'DATABASE_NETWORK_ERROR') {
+                        console.warn('⚠️ Database temporarily unavailable for collections');
+                        hasErrors = true;
                     } else {
                         console.warn('Collections API returned error:', collectionsData.error);
                     }
                 } catch (parseError) {
                     console.error('Error parsing collections response:', parseError);
                     collectionsCountVal = 0;
+                    hasErrors = true;
                 }
+            } else if (collectionsResult.success && collectionsResult.response.status === 503) {
+                console.warn('⚠️ Collections API temporarily unavailable (503)');
+                hasErrors = true;
             } else {
                 console.warn('Collections API failed:', collectionsResult.success ? collectionsResult.response.status : collectionsResult.error);
+                hasErrors = true;
             }
 
             // Update counts if we got any successful responses
@@ -234,31 +248,31 @@ function RecipesContent() {
                 setCollectionsCount(collectionsCountVal);
             }
 
-            // If both failed and we haven't reached max retries, try again
-            if (!savedResult.success && !collectionsResult.success && retryCount < maxRetries) {
-                console.log(`🔄 Both requests failed, retrying in 2 seconds...`);
+            // Handle retry logic more conservatively
+            if (hasErrors && !hasUpdates && retryCount < maxRetries) {
+                console.log(`🔄 Some requests failed, retrying once in 5 seconds...`);
                 setTimeout(() => {
                     fetchCounts(false, retryCount + 1); // Don't show loading on retry
-                }, 2000);
+                }, 5000); // Longer delay to reduce server load
                 return;
             }
 
             // Show error only if both failed on final attempt
-            if (!savedResult.success && !collectionsResult.success && retryCount >= maxRetries) {
-                setCountsError('Unable to load some data after multiple attempts');
+            if (hasErrors && !hasUpdates && retryCount >= maxRetries) {
+                setCountsError('Some data temporarily unavailable');
             }
 
         } catch (error) {
             console.error('Error in fetchCounts:', error);
 
-            // Retry on network errors
+            // More conservative retry logic
             if (retryCount < maxRetries) {
-                console.log(`🔄 Network error, retrying in 3 seconds...`);
+                console.log(`🔄 Network error, retrying once in 8 seconds...`);
                 setTimeout(() => {
                     fetchCounts(false, retryCount + 1);
-                }, 3000);
+                }, 8000); // Longer delay
             } else {
-                setCountsError('Network error - please refresh to try again');
+                setCountsError('Data temporarily unavailable - please refresh');
             }
         } finally {
             if (showLoading) {
@@ -291,7 +305,7 @@ function RecipesContent() {
         }
     };
 
-    // Handle recipe saves/unsaves from individual recipe cards
+    // Also replace the handleRecipeSaveStateChange function with this improved version:
     const handleRecipeSaveStateChange = (recipeId, isSaved) => {
         console.log('📊 Recipe save state changed:', recipeId, isSaved);
 
@@ -302,10 +316,43 @@ function RecipesContent() {
             setSavedRecipesCount(prev => Math.max(0, prev - 1));
         }
 
-        // Refresh actual count after a short delay to ensure accuracy
+        // Refresh actual count after a longer delay to reduce server load
         setTimeout(() => {
-            fetchCounts(false); // Don't show loading spinner for background refresh
-        }, 1000);
+            // Only refresh if we don't have pending errors
+            if (!countsError) {
+                fetchCounts(false, 0); // Don't show loading spinner, start fresh
+            }
+        }, 3000); // Longer delay to reduce API calls
+    };
+
+    // Add this new error boundary component to handle network errors gracefully:
+    const ErrorBoundary = ({ children, fallback }) => {
+        return (
+            <div className="min-h-[200px] flex items-center justify-center">
+                {fallback || (
+                    <div className="text-center">
+                        <div className="text-gray-400 mb-4">
+                            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Temporarily Unavailable
+                        </h3>
+                        <p className="text-gray-500 mb-4">
+                            This feature is temporarily unavailable due to high server load.
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                        >
+                            Refresh Page
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const handleDelete = async (recipeId) => {
@@ -549,6 +596,7 @@ function RecipesContent() {
         return recipe && (recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id);
     };
 
+    // Keep your existing RecipesLoadingModal but enhance the message:
     if (status === 'loading' || loading) {
         return (
             <MobileOptimizedLayout>
@@ -559,6 +607,7 @@ function RecipesContent() {
                     publicRecipesCount={0}
                     savedRecipesCount={0}
                     collectionsCount={0}
+                    loadingMessage="Loading your recipes... This may take a moment due to high server traffic."
                 />
             </MobileOptimizedLayout>
         );
@@ -579,28 +628,80 @@ function RecipesContent() {
                 collectionsCount={tabCounts.collections || 0}
             />
             <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Error Messages */}
+                {/* Enhanced Error Messages */}
                 {recipesError && (
                     <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="text-sm text-red-800">
-                            <strong>Error loading recipes:</strong> {recipesError}
-                            <button
-                                onClick={fetchRecipes}
-                                className="ml-2 text-red-600 hover:text-red-800 underline"
-                            >
-                                Try Again
-                            </button>
+                        <div className="flex items-start">
+                            <div className="text-red-500 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd"
+                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                          clipRule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-medium text-red-800">
+                                    Unable to Load Recipes
+                                </h3>
+                                <div className="text-sm text-red-700 mt-1">
+                                    {recipesError.includes('503') || recipesError.includes('temporarily') ? (
+                                        <>
+                                            <p>Our servers are experiencing high traffic. This usually resolves within a few minutes.</p>
+                                            <div className="mt-2 flex gap-2">
+                                                <button
+                                                    onClick={fetchRecipes}
+                                                    className="text-red-600 hover:text-red-800 underline text-xs"
+                                                >
+                                                    Try Again
+                                                </button>
+                                                <span className="text-red-500">•</span>
+                                                <button
+                                                    onClick={() => window.location.reload()}
+                                                    className="text-red-600 hover:text-red-800 underline text-xs"
+                                                >
+                                                    Refresh Page
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p><strong>Error:</strong> {recipesError}</p>
+                                            <button
+                                                onClick={fetchRecipes}
+                                                className="mt-2 text-red-600 hover:text-red-800 underline text-xs"
+                                            >
+                                                Try Again
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {countsError && (
                     <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <div className="text-sm text-yellow-800">
-                            <strong>Warning:</strong> {countsError}
+                        <div className="flex items-start">
+                            <div className="text-yellow-500 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd"
+                                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                          clipRule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-medium text-yellow-800">
+                                    Some Features Temporarily Limited
+                                </h3>
+                                <p className="text-sm text-yellow-700 mt-1">
+                                    {countsError} The main recipe functionality is still available.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}
+
 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">

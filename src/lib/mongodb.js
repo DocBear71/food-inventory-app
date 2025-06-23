@@ -1,4 +1,4 @@
-// file: /src/lib/mongodb.js v4 - Simplified with only supported options
+// file: /src/lib/mongodb.js v5 - FIXED for MongoDB Atlas M0 free tier with better connection pooling and SSL error handling
 
 import mongoose from 'mongoose';
 
@@ -20,7 +20,7 @@ if (!cached) {
 }
 
 async function connectDB(retryAttempt = 0) {
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced retries for M0
 
     try {
         if (cached.conn) {
@@ -36,22 +36,39 @@ async function connectDB(retryAttempt = 0) {
         }
 
         if (!cached.promise) {
-            // SIMPLIFIED: Only use well-supported options
+            // OPTIMIZED for MongoDB Atlas M0 Free Tier
             const opts = {
                 bufferCommands: false,
-                ssl: true,
-                w: 'majority',
-                maxPoolSize: 5,
-                minPoolSize: 1,
-                serverSelectionTimeoutMS: 10000,
-                socketTimeoutMS: 45000,
-                connectTimeoutMS: 10000,
-                heartbeatFrequencyMS: 10000,
+
+                // Connection Pool Settings - CRITICAL for M0
+                maxPoolSize: 2, // Very low for M0 free tier (max 10-100 connections)
+                minPoolSize: 0, // Start with 0 connections
+                maxIdleTimeMS: 10000, // Close idle connections quickly
+                serverSelectionTimeoutMS: 5000, // Reduced timeout for faster failure
+                socketTimeoutMS: 15000, // Reduced socket timeout
+                connectTimeoutMS: 5000, // Reduced connection timeout
+
+                // Heartbeat and Monitoring
+                heartbeatFrequencyMS: 30000, // Less frequent heartbeats
+
+                // Retry Settings
                 retryWrites: true,
-                retryReads: true,
+                retryReads: false, // Disable retry reads for M0
+
+                // Write Concern
+                w: 'majority',
+
+                // SSL/TLS Settings - FIXED for SSL errors
+                ssl: true,
                 tlsAllowInvalidCertificates: false,
                 tlsAllowInvalidHostnames: false,
-                appName: 'DocBearsComfortKitchen'
+
+                // App identification
+                appName: 'DocBearsComfortKitchen',
+
+                // Additional M0 optimizations
+                autoIndex: false, // Disable auto-indexing for performance
+                autoCreate: false, // Disable auto-collection creation
             };
 
             console.log(`🔗 Creating new MongoDB connection (attempt ${retryAttempt + 1}/${maxRetries + 1})...`);
@@ -62,14 +79,30 @@ async function connectDB(retryAttempt = 0) {
                 // Add connection event listeners for better monitoring
                 mongoose.connection.on('error', (err) => {
                     console.error('🔴 MongoDB connection error:', err);
+                    // Clear cache on persistent errors
+                    if (isConnectionError(err)) {
+                        cached.conn = null;
+                        cached.promise = null;
+                    }
                 });
 
                 mongoose.connection.on('disconnected', () => {
                     console.log('🟡 MongoDB disconnected');
+                    cached.conn = null;
+                    cached.promise = null;
                 });
 
                 mongoose.connection.on('reconnected', () => {
                     console.log('🟢 MongoDB reconnected');
+                });
+
+                // Handle connection pool events for M0 monitoring
+                mongoose.connection.on('connectionPoolCreated', () => {
+                    console.log('🏊 MongoDB connection pool created');
+                });
+
+                mongoose.connection.on('connectionPoolClosed', () => {
+                    console.log('🏊‍♂️ MongoDB connection pool closed');
                 });
 
                 return mongoose;
@@ -112,10 +145,16 @@ async function connectDB(retryAttempt = 0) {
             cached.conn = null;
             cached.promise = null;
 
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, (retryAttempt + 1) * 1000));
+            // Wait before retrying with longer delay for SSL issues
+            await new Promise(resolve => setTimeout(resolve, (retryAttempt + 1) * 3000));
 
             return connectDB(retryAttempt + 1);
+        }
+
+        // For M0 connection limit errors, wait longer before throwing
+        if (isConnectionLimitError(error)) {
+            console.log('⏳ Connection limit reached, waiting before final error...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
         }
 
         throw error;
@@ -129,10 +168,10 @@ function isSSLError(error) {
         'tlsv1 alert',
         'ssl3_read_bytes',
         'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR',
-        'ENOTFOUND',
-        'ECONNRESET',
-        'ETIMEDOUT',
-        'MongoNetworkError'
+        'SSL alert number',
+        'alert internal error',
+        'ssl handshake',
+        'certificate verify failed'
     ];
 
     const errorMessage = error.message || error.toString();
@@ -144,6 +183,31 @@ function isSSLError(error) {
     );
 }
 
+// Helper function to identify connection limit errors
+function isConnectionLimitError(error) {
+    const limitErrorIndicators = [
+        'too many connections',
+        'connection limit',
+        'exceeded the maximum number',
+        'connection pool',
+        'ECONNRESET',
+        'MongoNetworkError'
+    ];
+
+    const errorMessage = error.message || error.toString();
+    return limitErrorIndicators.some(indicator =>
+        errorMessage.toLowerCase().includes(indicator.toLowerCase())
+    );
+}
+
+// Helper function to identify general connection errors
+function isConnectionError(error) {
+    return isSSLError(error) || isConnectionLimitError(error) ||
+        error.name === 'MongoNetworkError' ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('ETIMEDOUT');
+}
+
 // Add connection event listeners for better debugging
 mongoose.connection.on('connected', () => {
     console.log('🟢 Mongoose connected to MongoDB');
@@ -152,9 +216,9 @@ mongoose.connection.on('connected', () => {
 mongoose.connection.on('error', (err) => {
     console.error('🔴 Mongoose connection error:', err);
 
-    // If it's an SSL error, clear the cached connection to force retry
-    if (isSSLError(err)) {
-        console.log('🔄 SSL error detected, clearing cached connection for retry');
+    // If it's an SSL or connection error, clear the cached connection to force retry
+    if (isConnectionError(err)) {
+        console.log('🔄 Connection error detected, clearing cached connection for retry');
         cached.conn = null;
         cached.promise = null;
     }
@@ -162,15 +226,66 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
     console.log('🟡 Mongoose disconnected from MongoDB');
+    // Clear cache when disconnected
+    cached.conn = null;
+    cached.promise = null;
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
+// Enhanced graceful shutdown for Vercel
+const gracefulShutdown = async () => {
     console.log('🛑 Shutting down gracefully...');
     if (cached.conn) {
-        await cached.conn.connection.close();
+        try {
+            await cached.conn.connection.close();
+            console.log('✅ MongoDB connection closed successfully');
+        } catch (error) {
+            console.error('❌ Error closing MongoDB connection:', error);
+        }
     }
-    process.exit(0);
+    cached.conn = null;
+    cached.promise = null;
+};
+
+// Handle various shutdown signals for Vercel
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+process.on('beforeExit', gracefulShutdown);
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    if (isConnectionError(error)) {
+        cached.conn = null;
+        cached.promise = null;
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    if (isConnectionError(reason)) {
+        cached.conn = null;
+        cached.promise = null;
+    }
 });
 
 export default connectDB;
+
+// Create a separate function with retry logic for high-traffic endpoints
+export async function connectWithRetry(maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await connectDB();
+        } catch (error) {
+            console.error(`❌ Connection attempt ${attempt + 1} failed:`, error.message);
+
+            if (attempt === maxRetries - 1) {
+                throw error; // Last attempt failed
+            }
+
+            // Wait before retry with exponential backoff
+            const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+            console.log(`⏳ Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
