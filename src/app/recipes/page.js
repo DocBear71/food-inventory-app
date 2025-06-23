@@ -142,81 +142,138 @@ function RecipesContent() {
         }
     };
 
-    // Enhanced fetchCounts with better error handling
-    const fetchCounts = async (showLoading = true) => {
+    // file: /src/app/recipes/page.js v8 - IMPROVED count fetching with retry logic and better error recovery
+
+// Add this improved fetchCounts function to replace the existing one:
+
+    const fetchCounts = async (showLoading = true, retryCount = 0) => {
+        const maxRetries = 2;
+
         try {
             if (showLoading) {
                 setLoadingCounts(true);
             }
             setCountsError('');
 
-            const [savedResponse, collectionsResponse] = await Promise.all([
-                fetch(getApiUrl('/api/saved-recipes')).catch(error => {
-                    console.warn('Failed to fetch saved recipes:', error);
-                    return { ok: false, status: 500, error: error.message };
-                }),
-                fetch(getApiUrl('/api/collections')).catch(error => {
-                    console.warn('Failed to fetch collections:', error);
-                    return { ok: false, status: 500, error: error.message };
-                })
+            console.log(`🔄 Fetching counts (attempt ${retryCount + 1}/${maxRetries + 1})`);
+
+            // Create requests with timeout and error handling
+            const createSafeRequest = async (url, name) => {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                    const response = await fetch(getApiUrl(url), {
+                        signal: controller.signal,
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                        },
+                    });
+
+                    clearTimeout(timeoutId);
+                    return { response, name, success: true };
+                } catch (error) {
+                    console.warn(`⚠️ ${name} request failed:`, error.message);
+                    return { success: false, name, error: error.message };
+                }
+            };
+
+            // Make both requests with individual error handling
+            const [savedResult, collectionsResult] = await Promise.all([
+                createSafeRequest('/api/saved-recipes', 'Saved recipes'),
+                createSafeRequest('/api/collections', 'Collections')
             ]);
 
+            let savedCount = savedRecipesCount; // Keep current value as fallback
+            let collectionsCountVal = collectionsCount; // Keep current value as fallback
+            let hasUpdates = false;
+
             // Handle saved recipes response
-            if (savedResponse.ok) {
+            if (savedResult.success && savedResult.response.ok) {
                 try {
-                    const savedData = await savedResponse.json();
+                    const savedData = await savedResult.response.json();
                     if (savedData.success) {
-                        const count = savedData.totalCount || 0;
-                        setSavedRecipesCount(count);
-                        console.log('✅ Saved recipes count updated:', count);
+                        savedCount = savedData.totalCount || 0;
+                        hasUpdates = true;
+                        console.log('✅ Saved recipes count fetched:', savedCount);
                     } else {
                         console.warn('Saved recipes API returned error:', savedData.error);
                         if (savedData.warning) {
                             console.warn('Saved recipes warning:', savedData.warning);
                         }
-                        // Don't set error state for API warnings, just log them
                     }
                 } catch (parseError) {
                     console.error('Error parsing saved recipes response:', parseError);
                 }
             } else {
-                console.warn('Saved recipes API failed:', savedResponse.status);
-                // Don't set error state unless it's critical
-                if (savedResponse.status < 500) {
-                    setSavedRecipesCount(0); // Set to 0 for client errors
-                }
+                console.warn('Saved recipes API failed:', savedResult.success ? savedResult.response.status : savedResult.error);
             }
 
             // Handle collections response
-            if (collectionsResponse.ok) {
+            if (collectionsResult.success && collectionsResult.response.ok) {
                 try {
-                    const collectionsData = await collectionsResponse.json();
+                    const collectionsData = await collectionsResult.response.json();
                     if (collectionsData.success) {
-                        const count = Array.isArray(collectionsData.collections) ? collectionsData.collections.length : 0;
-                        setCollectionsCount(count);
-                        console.log('✅ Collections count updated:', count);
+                        collectionsCountVal = Array.isArray(collectionsData.collections) ? collectionsData.collections.length : 0;
+                        hasUpdates = true;
+                        console.log('✅ Collections count fetched:', collectionsCountVal);
                     } else {
                         console.warn('Collections API returned error:', collectionsData.error);
                     }
                 } catch (parseError) {
                     console.error('Error parsing collections response:', parseError);
-                    setCollectionsCount(0);
+                    collectionsCountVal = 0;
                 }
             } else {
-                console.warn('Collections API failed:', collectionsResponse.status);
-                if (collectionsResponse.status < 500) {
-                    setCollectionsCount(0); // Set to 0 for client errors
-                }
+                console.warn('Collections API failed:', collectionsResult.success ? collectionsResult.response.status : collectionsResult.error);
+            }
+
+            // Update counts if we got any successful responses
+            if (hasUpdates || retryCount === 0) {
+                setSavedRecipesCount(savedCount);
+                setCollectionsCount(collectionsCountVal);
+            }
+
+            // If both failed and we haven't reached max retries, try again
+            if (!savedResult.success && !collectionsResult.success && retryCount < maxRetries) {
+                console.log(`🔄 Both requests failed, retrying in 2 seconds...`);
+                setTimeout(() => {
+                    fetchCounts(false, retryCount + 1); // Don't show loading on retry
+                }, 2000);
+                return;
+            }
+
+            // Show error only if both failed on final attempt
+            if (!savedResult.success && !collectionsResult.success && retryCount >= maxRetries) {
+                setCountsError('Unable to load some data after multiple attempts');
             }
 
         } catch (error) {
-            console.error('Error fetching counts:', error);
-            setCountsError('Failed to load some data');
+            console.error('Error in fetchCounts:', error);
+
+            // Retry on network errors
+            if (retryCount < maxRetries) {
+                console.log(`🔄 Network error, retrying in 3 seconds...`);
+                setTimeout(() => {
+                    fetchCounts(false, retryCount + 1);
+                }, 3000);
+            } else {
+                setCountsError('Network error - please refresh to try again');
+            }
         } finally {
             if (showLoading) {
                 setLoadingCounts(false);
             }
         }
+    };
+
+// Also add this enhanced count update function:
+    const updateCountsWithFallback = () => {
+        // Try to fetch counts, but don't show loading if it fails
+        fetchCounts(false).catch(error => {
+            console.warn('Background count update failed:', error);
+            // Fallback: keep current counts
+        });
     };
 
     // Real-time count update handlers with better error handling

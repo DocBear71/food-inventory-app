@@ -1,9 +1,9 @@
-// file: /src/app/api/saved-recipes/route.js v6 - FIXED comprehensive error handling and validation
+// file: /src/app/api/saved-recipes/route.js v7 - FIXED MongoDB SSL error handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/mongodb';
+import connectWithRetry from '@/lib/mongodb'; // Use the retry version
 import { User, Recipe } from '@/lib/models';
 
 // Simple saved recipe limit check
@@ -29,6 +29,28 @@ const checkSavedRecipeLimits = (userTier, currentCount) => {
     }
 
     return { allowed: true };
+};
+
+// Helper function to check if error is network/connection related
+const isNetworkError = (error) => {
+    const networkErrorPatterns = [
+        'MongoNetworkError',
+        'SSL',
+        'TLS',
+        'ssl3_read_bytes',
+        'alert internal error',
+        'ENOTFOUND',
+        'ECONNRESET',
+        'ECONNREFUSED',
+        'ETIMEDOUT',
+        'connection timed out',
+        'network error'
+    ];
+
+    const errorMessage = error.message || error.toString();
+    return networkErrorPatterns.some(pattern =>
+        errorMessage.toLowerCase().includes(pattern.toLowerCase())
+    );
 };
 
 // Helper function to ensure user has required fields
@@ -134,10 +156,29 @@ export async function GET(request) {
 
         console.log('✅ GET /api/saved-recipes - Session found for user:', session.user.id);
 
-        await connectDB();
-        console.log('✅ GET /api/saved-recipes - Database connected');
+        // FIXED: Use retry connection for SSL errors
+        try {
+            await connectWithRetry();
+            console.log('✅ GET /api/saved-recipes - Database connected');
+        } catch (connectionError) {
+            console.error('❌ GET /api/saved-recipes - Database connection failed:', connectionError);
 
-        // ENHANCED: More robust user fetching with detailed error handling
+            if (isNetworkError(connectionError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable. Please try again in a moment.',
+                    code: 'DATABASE_CONNECTION_ERROR'
+                }, { status: 503 });
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database connection error',
+                    details: process.env.NODE_ENV === 'development' ? connectionError.message : undefined
+                }, { status: 500 });
+            }
+        }
+
+        // Enhanced user fetching with network error handling
         let user;
         try {
             console.log('🔍 GET /api/saved-recipes - Fetching user...');
@@ -145,11 +186,20 @@ export async function GET(request) {
             console.log('✅ GET /api/saved-recipes - User query completed, user found:', !!user);
         } catch (userFetchError) {
             console.error('❌ GET /api/saved-recipes - Error fetching user:', userFetchError);
-            return NextResponse.json({
-                success: false,
-                error: 'Database error while fetching user',
-                details: userFetchError.message
-            }, { status: 500 });
+
+            if (isNetworkError(userFetchError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during user lookup',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database error while fetching user',
+                    details: process.env.NODE_ENV === 'development' ? userFetchError.message : undefined
+                }, { status: 500 });
+            }
         }
 
         if (!user) {
@@ -162,23 +212,32 @@ export async function GET(request) {
 
         console.log('✅ GET /api/saved-recipes - User found, ensuring validation...');
 
-        // ENHANCED: Ensure user has all required fields before proceeding
+        // Ensure user has all required fields
         try {
             user = await ensureUserValidation(user);
         } catch (validationError) {
             console.error('❌ GET /api/saved-recipes - User validation failed:', validationError);
-            // Return empty array rather than error to prevent client crashes
-            return NextResponse.json({
-                success: true,
-                savedRecipes: [],
-                totalCount: 0,
-                warning: 'User validation issues detected, returning empty list'
-            });
+
+            if (isNetworkError(validationError)) {
+                // Return empty array for network issues to prevent client crashes
+                return NextResponse.json({
+                    success: true,
+                    savedRecipes: [],
+                    totalCount: 0,
+                    warning: 'Database temporarily unavailable, showing empty list'
+                });
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: 'User validation error',
+                    code: 'USER_VALIDATION_ERROR'
+                }, { status: 422 });
+            }
         }
 
         console.log(`✅ GET /api/saved-recipes - User has ${user.savedRecipes.length} saved recipes`);
 
-        // ENHANCED: Safely populate saved recipes with better error handling
+        // Enhanced population with network error handling
         let populatedUser;
         try {
             console.log('🔍 GET /api/saved-recipes - Populating saved recipes...');
@@ -194,18 +253,33 @@ export async function GET(request) {
             console.log('✅ GET /api/saved-recipes - Population completed');
         } catch (populateError) {
             console.error('❌ GET /api/saved-recipes - Error during population:', populateError);
-            // Fallback: return basic user data without population
-            console.log('📝 GET /api/saved-recipes - Returning unpopulated data as fallback');
-            return NextResponse.json({
-                success: true,
-                savedRecipes: user.savedRecipes.map(saved => ({
-                    _id: saved._id,
-                    recipeId: saved.recipeId,
-                    savedAt: saved.savedAt
-                })),
-                totalCount: user.savedRecipes.length,
-                warning: 'Recipe details could not be loaded'
-            });
+
+            if (isNetworkError(populateError)) {
+                // Fallback: return basic user data without population
+                console.log('📝 GET /api/saved-recipes - Network error, returning unpopulated data');
+                return NextResponse.json({
+                    success: true,
+                    savedRecipes: user.savedRecipes.map(saved => ({
+                        _id: saved._id,
+                        recipeId: saved.recipeId,
+                        savedAt: saved.savedAt
+                    })),
+                    totalCount: user.savedRecipes.length,
+                    warning: 'Recipe details temporarily unavailable due to network issues'
+                });
+            } else {
+                // Fallback for other errors
+                return NextResponse.json({
+                    success: true,
+                    savedRecipes: user.savedRecipes.map(saved => ({
+                        _id: saved._id,
+                        recipeId: saved.recipeId,
+                        savedAt: saved.savedAt
+                    })),
+                    totalCount: user.savedRecipes.length,
+                    warning: 'Recipe details could not be loaded'
+                });
+            }
         }
 
         // Filter out any saved recipes where the recipe was deleted or failed to populate
@@ -223,7 +297,7 @@ export async function GET(request) {
 
         console.log(`✅ GET /api/saved-recipes - Found ${validSavedRecipes.length} valid saved recipes`);
 
-        // Clean up invalid saved recipes from user document if needed
+        // Clean up invalid saved recipes from user document if needed (skip on network errors)
         if (validSavedRecipes.length !== user.savedRecipes.length) {
             console.log('🧹 GET /api/saved-recipes - Cleaning up invalid saved recipes...');
             try {
@@ -234,7 +308,11 @@ export async function GET(request) {
                 await user.save();
                 console.log('✅ GET /api/saved-recipes - Cleaned up invalid saved recipes');
             } catch (cleanupError) {
-                console.warn('⚠️ GET /api/saved-recipes - Could not clean up invalid saved recipes:', cleanupError);
+                if (isNetworkError(cleanupError)) {
+                    console.warn('⚠️ GET /api/saved-recipes - Network error during cleanup, skipping');
+                } else {
+                    console.warn('⚠️ GET /api/saved-recipes - Could not clean up invalid saved recipes:', cleanupError);
+                }
                 // Continue anyway, this is not critical
             }
         }
@@ -248,22 +326,20 @@ export async function GET(request) {
     } catch (error) {
         console.error('❌ GET /api/saved-recipes - Outer catch error:', error);
         console.error('❌ GET /api/saved-recipes - Error stack:', error.stack);
-        console.error('❌ GET /api/saved-recipes - Error name:', error.name);
-        console.error('❌ GET /api/saved-recipes - Error message:', error.message);
 
-        // Provide user-friendly error response
+        // Provide user-friendly error response based on error type
         let userMessage = 'Failed to fetch saved recipes';
         let statusCode = 500;
 
-        if (error.name === 'ValidationError') {
+        if (isNetworkError(error)) {
+            userMessage = 'Database temporarily unavailable. Please try again in a moment.';
+            statusCode = 503;
+        } else if (error.name === 'ValidationError') {
             userMessage = 'User data validation error';
             statusCode = 422;
         } else if (error.name === 'CastError') {
             userMessage = 'Invalid data format';
             statusCode = 400;
-        } else if (error.message.includes('timeout')) {
-            userMessage = 'Database timeout, please try again';
-            statusCode = 503;
         }
 
         return NextResponse.json(
@@ -271,14 +347,15 @@ export async function GET(request) {
                 success: false,
                 error: userMessage,
                 details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-                errorType: error.name || 'Unknown'
+                errorType: error.name || 'Unknown',
+                code: isNetworkError(error) ? 'DATABASE_NETWORK_ERROR' : 'UNKNOWN_ERROR'
             },
             { status: statusCode }
         );
     }
 }
 
-// POST - Save a recipe
+// POST - Save a recipe (with network error handling)
 export async function POST(request) {
     try {
         console.log('📝 POST /api/saved-recipes - Starting request');
@@ -305,10 +382,41 @@ export async function POST(request) {
             );
         }
 
-        await connectDB();
+        // Use retry connection
+        try {
+            await connectWithRetry();
+        } catch (connectionError) {
+            console.error('❌ POST /api/saved-recipes - Database connection failed:', connectionError);
+
+            if (isNetworkError(connectionError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable. Please try again.',
+                    code: 'DATABASE_CONNECTION_ERROR'
+                }, { status: 503 });
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database connection error'
+                }, { status: 500 });
+            }
+        }
 
         // Get user and ensure validation
-        let user = await User.findById(session.user.id);
+        let user;
+        try {
+            user = await User.findById(session.user.id);
+        } catch (fetchError) {
+            if (isNetworkError(fetchError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during user lookup',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw fetchError;
+        }
+
         if (!user) {
             return NextResponse.json({
                 success: false,
@@ -320,11 +428,18 @@ export async function POST(request) {
         try {
             user = await ensureUserValidation(user);
         } catch (validationError) {
-            console.error('❌ POST /api/saved-recipes - User validation failed:', validationError);
-            return NextResponse.json({
-                success: false,
-                error: 'User validation error'
-            }, { status: 422 });
+            if (isNetworkError(validationError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during validation',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: 'User validation error'
+                }, { status: 422 });
+            }
         }
 
         // Get user tier for limit checking
@@ -356,13 +471,25 @@ export async function POST(request) {
         }
 
         // Verify recipe exists and is accessible
-        const recipe = await Recipe.findOne({
-            _id: recipeId,
-            $or: [
-                { createdBy: session.user.id }, // User's own recipes
-                { isPublic: true } // Public recipes
-            ]
-        });
+        let recipe;
+        try {
+            recipe = await Recipe.findOne({
+                _id: recipeId,
+                $or: [
+                    { createdBy: session.user.id }, // User's own recipes
+                    { isPublic: true } // Public recipes
+                ]
+            });
+        } catch (recipeError) {
+            if (isNetworkError(recipeError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during recipe lookup',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw recipeError;
+        }
 
         if (!recipe) {
             return NextResponse.json(
@@ -400,23 +527,18 @@ export async function POST(request) {
         user.usageTracking.totalSavedRecipes = user.savedRecipes.length;
         user.usageTracking.lastUpdated = new Date();
 
-        await user.save();
-
-        // Get the saved recipe with populated data for response
-        const savedUser = await User.findById(session.user.id)
-            .populate({
-                path: 'savedRecipes.recipeId',
-                match: { _id: recipeId },
-                select: 'title description category difficulty prepTime cookTime servings isPublic createdAt',
-                populate: {
-                    path: 'createdBy',
-                    select: 'name email'
-                }
-            });
-
-        const savedRecipe = savedUser.savedRecipes.find(
-            saved => saved.recipeId && saved.recipeId._id.toString() === recipeId
-        );
+        try {
+            await user.save();
+        } catch (saveError) {
+            if (isNetworkError(saveError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during save',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw saveError;
+        }
 
         const tier = user.subscription?.tier || 'free';
         let remainingSaves;
@@ -431,25 +553,33 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             message: `"${recipe.title}" saved successfully`,
-            savedRecipe: savedRecipe,
             totalSaved: user.savedRecipes.length,
             remainingSaves: remainingSaves
         });
 
     } catch (error) {
         console.error('❌ POST /api/saved-recipes - Error:', error);
+
+        let userMessage = 'Failed to save recipe';
+        let statusCode = 500;
+
+        if (isNetworkError(error)) {
+            userMessage = 'Database temporarily unavailable. Please try again.';
+            statusCode = 503;
+        }
+
         return NextResponse.json(
             {
                 success: false,
-                error: 'Failed to save recipe',
+                error: userMessage,
                 details: process.env.NODE_ENV === 'development' ? error.message : undefined
             },
-            { status: 500 }
+            { status: statusCode }
         );
     }
 }
 
-// DELETE - Unsave a recipe
+// DELETE - Unsave a recipe (with network error handling)
 export async function DELETE(request) {
     try {
         console.log('🔍 DELETE /api/saved-recipes - Starting request');
@@ -464,13 +594,10 @@ export async function DELETE(request) {
             }, { status: 401 });
         }
 
-        console.log('✅ DELETE /api/saved-recipes - Session found for user:', session.user.id);
-
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
 
         if (!recipeId) {
-            console.log('❌ DELETE /api/saved-recipes - No recipeId provided');
             return NextResponse.json(
                 {
                     success: false,
@@ -480,31 +607,53 @@ export async function DELETE(request) {
             );
         }
 
-        console.log('✅ DELETE /api/saved-recipes - Recipe ID:', recipeId);
+        // Use retry connection
+        try {
+            await connectWithRetry();
+        } catch (connectionError) {
+            if (isNetworkError(connectionError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable. Please try again.',
+                    code: 'DATABASE_CONNECTION_ERROR'
+                }, { status: 503 });
+            }
+            throw connectionError;
+        }
 
-        await connectDB();
-        console.log('✅ DELETE /api/saved-recipes - Database connected');
+        let user;
+        try {
+            user = await User.findById(session.user.id);
+        } catch (fetchError) {
+            if (isNetworkError(fetchError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during user lookup',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw fetchError;
+        }
 
-        let user = await User.findById(session.user.id);
         if (!user) {
-            console.log('❌ DELETE /api/saved-recipes - User not found');
             return NextResponse.json({
                 success: false,
                 error: 'User not found'
             }, { status: 404 });
         }
 
-        console.log('✅ DELETE /api/saved-recipes - User found');
-
         // Ensure user validation
         try {
             user = await ensureUserValidation(user);
         } catch (validationError) {
-            console.error('❌ DELETE /api/saved-recipes - User validation failed:', validationError);
-            return NextResponse.json({
-                success: false,
-                error: 'User validation error'
-            }, { status: 422 });
+            if (isNetworkError(validationError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during validation',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw validationError;
         }
 
         // Find and remove the saved recipe
@@ -514,7 +663,6 @@ export async function DELETE(request) {
         );
 
         if (user.savedRecipes.length === initialLength) {
-            console.log('❌ DELETE /api/saved-recipes - Recipe was not saved');
             return NextResponse.json(
                 {
                     success: false,
@@ -524,17 +672,23 @@ export async function DELETE(request) {
             );
         }
 
-        console.log('✅ DELETE /api/saved-recipes - Recipe removed from saved recipes');
-
         // Update usage tracking
         user.usageTracking.savedRecipes = user.savedRecipes.length;
         user.usageTracking.totalSavedRecipes = user.savedRecipes.length;
         user.usageTracking.lastUpdated = new Date();
 
-        await user.save();
-        console.log('✅ DELETE /api/saved-recipes - User saved successfully');
-
-        console.log('✅ DELETE /api/saved-recipes - Request completed successfully');
+        try {
+            await user.save();
+        } catch (saveError) {
+            if (isNetworkError(saveError)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database temporarily unavailable during save',
+                    code: 'DATABASE_NETWORK_ERROR'
+                }, { status: 503 });
+            }
+            throw saveError;
+        }
 
         return NextResponse.json({
             success: true,
@@ -544,15 +698,13 @@ export async function DELETE(request) {
 
     } catch (error) {
         console.error('❌ DELETE /api/saved-recipes - Error:', error);
-        console.error('❌ DELETE /api/saved-recipes - Stack:', error.stack);
 
-        // Provide user-friendly error response
         let userMessage = 'Failed to unsave recipe';
         let statusCode = 500;
 
-        if (error.name === 'ValidationError') {
-            userMessage = 'User data validation error';
-            statusCode = 422;
+        if (isNetworkError(error)) {
+            userMessage = 'Database temporarily unavailable. Please try again.';
+            statusCode = 503;
         } else if (error.name === 'CastError') {
             userMessage = 'Invalid recipe ID format';
             statusCode = 400;
