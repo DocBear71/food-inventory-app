@@ -131,17 +131,57 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
             canScan: newUsage.canScan
         });
 
-        // Debounced server refresh
+        // FIXED: Longer delay and smarter refresh logic
         if (usageUpdateTimeoutRef.current) {
             clearTimeout(usageUpdateTimeoutRef.current);
         }
 
         usageUpdateTimeoutRef.current = setTimeout(async () => {
             console.log('🔄 Refreshing usage from server...');
-            await loadUsageInfo();
-            setOptimisticUsage(null);
-            setIsUpdatingUsage(false);
-        }, 1500); // Wait 1.5 seconds before server refresh
+            const previousUsage = { ...usageInfo };
+            const newServerData = await loadUsageInfo();
+
+            // Check if server data actually updated
+            setTimeout(() => {
+                if (newServerData && newServerData.currentMonth > previousUsage.currentMonth) {
+                    // Server data is updated, clear optimistic update
+                    console.log('✅ Server data updated successfully:', {
+                        old: previousUsage.currentMonth,
+                        new: newServerData.currentMonth,
+                        increment: newServerData.currentMonth - previousUsage.currentMonth
+                    });
+                    setOptimisticUsage(null);
+                    setIsUpdatingUsage(false);
+                } else {
+                    // Server hasn't caught up yet, keep the optimistic update longer
+                    console.warn('⚠️ Server data not updated yet. Expected:', previousUsage.currentMonth + 1, 'Got:', newServerData?.currentMonth);
+                    console.log('🔄 Keeping optimistic update and retrying in 2 seconds...');
+
+                    // Try one more time after 2 seconds
+                    setTimeout(async () => {
+                        console.log('🔄 Final retry of server refresh...');
+                        const retryServerData = await loadUsageInfo();
+
+                        if (retryServerData && retryServerData.currentMonth > previousUsage.currentMonth) {
+                            console.log('✅ Server data updated on retry:', {
+                                old: previousUsage.currentMonth,
+                                new: retryServerData.currentMonth
+                            });
+                        } else {
+                            console.warn('⚠️ Server data still not updated after retry. Keeping optimistic update for now.');
+                            console.log('📊 Final state - Expected:', previousUsage.currentMonth + 1, 'Got:', retryServerData?.currentMonth);
+
+                            // At this point, we'll clear the optimistic update anyway
+                            // The user will see the correct count on next page load
+                        }
+
+                        setOptimisticUsage(null);
+                        setIsUpdatingUsage(false);
+                    }, 2000);
+                }
+            }, 100);
+
+        }, 3000); // Wait 3 seconds before server refresh
     };
 
 // 3. ENHANCED: Usage check with immediate feedback
@@ -189,8 +229,15 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
         setLookupResult(null);
 
         try {
+            console.log('🔍 Starting UPC lookup for:', upc);
             const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`));
             const data = await response.json();
+
+            console.log('🔍 UPC lookup response:', {
+                success: data.success,
+                found: data.product?.found,
+                usageIncremented: data.usageIncremented  // Log if the API tells us usage was incremented
+            });
 
             if (data.success && data.product.found) {
                 const standardizedNutrition = standardizeNutritionData(data.product.nutrition);
@@ -214,7 +261,8 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
                 message: 'Error looking up product'
             });
 
-            // If API fails, revert the optimistic update
+            // If API fails, revert the optimistic update immediately
+            console.log('❌ API failed, reverting optimistic update');
             setOptimisticUsage(null);
             setIsUpdatingUsage(false);
             if (usageUpdateTimeoutRef.current) {
@@ -372,20 +420,27 @@ export default function UPCLookup({ onProductFound, onUPCChange, currentUPC = ''
 
             if (response.ok) {
                 const data = await response.json();
+
+                // FIXED: Update usageInfo state immediately
                 setUsageInfo(data);
+
                 console.log('📊 UPC usage loaded:', {
                     remaining: data.remaining,
                     used: data.currentMonth,
                     limit: data.monthlyLimit,
                     canScan: data.canScan
                 });
+
+                return data; // Return the data for immediate use
             } else {
                 console.error('Failed to load UPC usage:', response.status);
                 // Don't reset usageInfo on error, keep showing last known values
+                return null;
             }
         } catch (error) {
             console.error('Failed to load UPC usage info:', error);
             // Don't reset usageInfo on error, keep showing last known values
+            return null;
         } finally {
             setIsLoadingUsage(false);
         }
