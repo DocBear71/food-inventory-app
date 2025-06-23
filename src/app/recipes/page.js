@@ -1,10 +1,10 @@
 'use client';
-// file: /src/app/recipes/page.js v5 - Enhanced with tabbed interface and ingredient search functionality for bulk import cleanup
-
+// file: /src/app/recipes/page.js v6 - Enhanced with usage counts and limits for all tabs
 
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
+import {useSubscription} from '@/hooks/useSubscription';
 import {StarRating} from '@/components/reviews/RecipeRating';
 import {redirect} from 'next/navigation';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
+    const subscription = useSubscription();
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -29,9 +30,14 @@ function RecipesContent() {
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
 
-    // NEW: Ingredient search state
+    // NEW: Additional state for saved recipes and collections counts
+    const [savedRecipesCount, setSavedRecipesCount] = useState(0);
+    const [collectionsCount, setCollectionsCount] = useState(0);
+    const [loadingCounts, setLoadingCounts] = useState(true);
+
+    // Ingredient search state
     const [ingredientSearch, setIngredientSearch] = useState('');
-    const [ingredientSearchType, setIngredientSearchType] = useState('any'); // 'any', 'exact', 'amount'
+    const [ingredientSearchType, setIngredientSearchType] = useState('any');
 
     // Tab state for My Recipes vs Public Recipes
     const [activeTab, setActiveTab] = useState('my-recipes');
@@ -55,15 +61,6 @@ function RecipesContent() {
         {value: 'breakfast', label: 'Breakfast'}
     ];
 
-    // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
-    // const DECIMAL_PRESETS = [
-    //     { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
-    //     { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
-    //     { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
-    //     { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
-    //     { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
-    // ];
-
     useEffect(() => {
         if (status === 'unauthenticated') {
             redirect('/auth/signin');
@@ -73,6 +70,7 @@ function RecipesContent() {
     useEffect(() => {
         if (session) {
             fetchRecipes();
+            fetchCounts();
         }
     }, [session]);
 
@@ -105,6 +103,34 @@ function RecipesContent() {
         }
     };
 
+    // NEW: Fetch saved recipes and collections counts
+    const fetchCounts = async () => {
+        try {
+            const [savedResponse, collectionsResponse] = await Promise.all([
+                fetch(getApiUrl('/api/saved-recipes')),
+                fetch(getApiUrl('/api/collections'))
+            ]);
+
+            if (savedResponse.ok) {
+                const savedData = await savedResponse.json();
+                if (savedData.success) {
+                    setSavedRecipesCount(savedData.totalCount || 0);
+                }
+            }
+
+            if (collectionsResponse.ok) {
+                const collectionsData = await collectionsResponse.json();
+                if (collectionsData.success) {
+                    setCollectionsCount(collectionsData.collections?.length || 0);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching counts:', error);
+        } finally {
+            setLoadingCounts(false);
+        }
+    };
+
     const handleDelete = async (recipeId) => {
         if (!confirm('Are you sure you want to delete this recipe?')) {
             return;
@@ -126,14 +152,13 @@ function RecipesContent() {
         }
     };
 
-    // NEW: Enhanced ingredient search function
+    // Enhanced ingredient search function
     const searchInIngredients = (recipe, searchTerm, searchType) => {
         if (!recipe.ingredients || !searchTerm) return true;
 
         const normalizedSearch = searchTerm.toLowerCase().trim();
 
         return recipe.ingredients.some(ingredient => {
-            // Handle different ingredient data structures
             const ingredientText = typeof ingredient === 'string'
                 ? ingredient
                 : `${ingredient.amount || ''} ${ingredient.unit || ''} ${ingredient.name || ingredient.ingredient || ''}`.trim();
@@ -144,7 +169,6 @@ function RecipesContent() {
                 case 'exact':
                     return normalizedIngredient.includes(normalizedSearch);
                 case 'amount':
-                    // Search specifically in amounts/quantities
                     const amountMatch = ingredientText.match(/[\d\.\/]+/g);
                     if (amountMatch) {
                         return amountMatch.some(amount => amount.includes(searchTerm));
@@ -155,7 +179,6 @@ function RecipesContent() {
                         const regex = new RegExp(searchTerm, 'i');
                         return regex.test(ingredientText);
                     } catch (e) {
-                        // If regex is invalid, fall back to exact search
                         return normalizedIngredient.includes(normalizedSearch);
                     }
                 case 'any':
@@ -168,7 +191,6 @@ function RecipesContent() {
     // Enhanced filter function with ingredient search
     const getFilteredAndSortedRecipes = () => {
         let filtered = recipes.filter(recipe => {
-            // Filter by tab selection
             const matchesTab = activeTab === 'my-recipes'
                 ? recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
                 : recipe.isPublic === true;
@@ -186,14 +208,12 @@ function RecipesContent() {
             const matchesCategory = !selectedCategory ||
                 recipe.category === selectedCategory;
 
-            // NEW: Ingredient search filter
             const matchesIngredient = !ingredientSearch ||
                 searchInIngredients(recipe, ingredientSearch, ingredientSearchType);
 
             return matchesTab && matchesSearch && matchesTag && matchesDifficulty && matchesCategory && matchesIngredient;
         });
 
-        // Sort recipes
         return filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'newest':
@@ -218,12 +238,6 @@ function RecipesContent() {
         });
     };
 
-    // COMMENTED OUT: Quick preset handler for decimal cleanup
-    // const handleDecimalPreset = (preset) => {
-    //     setIngredientSearch(preset.value);
-    //     setIngredientSearchType(preset.type);
-    // };
-
     const formatCookTime = (minutes) => {
         if (!minutes) return null;
         if (minutes < 60) return `${minutes} min`;
@@ -241,7 +255,7 @@ function RecipesContent() {
         return colors[difficulty] || colors.medium;
     };
 
-    // Get tab-specific counts
+    // Get tab-specific counts with usage limits
     const getTabCounts = () => {
         const myRecipes = recipes.filter(recipe =>
             recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
@@ -250,8 +264,85 @@ function RecipesContent() {
 
         return {
             myRecipes: myRecipes.length,
-            publicRecipes: publicRecipes.length
+            publicRecipes: publicRecipes.length,
+            savedRecipes: savedRecipesCount,
+            collections: collectionsCount
         };
+    };
+
+    // NEW: Get usage information for tabs
+    const getUsageInfo = (tabType) => {
+        if (!subscription || subscription.loading) {
+            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+        }
+
+        const tier = subscription.tier || 'free';
+
+        switch (tabType) {
+            case 'my-recipes':
+                return {
+                    current: subscription.usage?.personalRecipes || 0,
+                    limit: tier === 'free' ? 5 : tier === 'gold' ? 100 : 'Unlimited',
+                    isUnlimited: tier === 'platinum',
+                    tier
+                };
+            case 'saved-recipes':
+                return {
+                    current: subscription.usage?.savedRecipes || savedRecipesCount,
+                    limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
+                    isUnlimited: tier === 'platinum',
+                    tier
+                };
+            case 'collections':
+                return {
+                    current: subscription.usage?.recipeCollections || collectionsCount,
+                    limit: tier === 'free' ? 2 : tier === 'gold' ? 10 : 'Unlimited',
+                    isUnlimited: tier === 'platinum',
+                    tier
+                };
+            default:
+                return { current: 0, limit: 'N/A', isUnlimited: false, tier };
+        }
+    };
+
+    // NEW: Format count display with usage limits
+    const formatCountWithLimit = (tabType) => {
+        if (loadingCounts || subscription.loading) {
+            return '...';
+        }
+
+        const usage = getUsageInfo(tabType);
+        const count = getTabCounts()[tabType] || usage.current;
+
+        if (usage.isUnlimited) {
+            return `${count}`;
+        }
+
+        return `${count}/${usage.limit}`;
+    };
+
+    // NEW: Get count color based on usage
+    const getCountColor = (tabType, isActive) => {
+        if (loadingCounts || subscription.loading) {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
+        const usage = getUsageInfo(tabType);
+        const count = getTabCounts()[tabType] || usage.current;
+        const limit = typeof usage.limit === 'number' ? usage.limit : 999999;
+
+        // Calculate usage percentage
+        const percentage = usage.isUnlimited ? 0 : (count / limit) * 100;
+
+        if (isActive) {
+            if (percentage >= 100) return 'bg-red-100 text-red-600'; // At limit
+            if (percentage >= 80) return 'bg-orange-100 text-orange-600'; // Near limit
+            return 'bg-indigo-100 text-indigo-600'; // Normal
+        } else {
+            if (percentage >= 100) return 'bg-red-200 text-red-700'; // At limit
+            if (percentage >= 80) return 'bg-orange-200 text-orange-700'; // Near limit
+            return 'bg-gray-200 text-gray-600'; // Normal
+        }
     };
 
     // Check if user can edit recipe
@@ -287,7 +378,6 @@ function RecipesContent() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Recipes</h1>
                         <p className="text-gray-600 mt-1">
-                            {/* Only show Add Recipe button on My Recipes tab */}
                             {activeTab === 'my-recipes' && (
                                 <Link
                                     href="/recipes/add"
@@ -300,7 +390,7 @@ function RecipesContent() {
                     </div>
                 </div>
 
-                {/* Mobile-Optimized Tab Navigation */}
+                {/* Enhanced Tab Navigation with Usage Counts */}
                 <div className="mb-6">
                     <div className="bg-gray-100 p-1 rounded-lg flex">
                         <TouchEnhancedButton
@@ -313,13 +403,9 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📝 My Recipes</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                    activeTab === 'my-recipes'
-                                        ? 'bg-indigo-100 text-indigo-600'
-                                        : 'bg-gray-200 text-gray-600'
-                                }`}>
-                {tabCounts.myRecipes}
-            </span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
+                                    {formatCountWithLimit('my-recipes')}
+                                </span>
                             </div>
                         </TouchEnhancedButton>
 
@@ -338,12 +424,11 @@ function RecipesContent() {
                                         ? 'bg-indigo-100 text-indigo-600'
                                         : 'bg-gray-200 text-gray-600'
                                 }`}>
-                {tabCounts.publicRecipes}
-            </span>
+                                    {tabCounts.publicRecipes}
+                                </span>
                             </div>
                         </TouchEnhancedButton>
 
-                        {/* NEW: Saved Recipes Tab */}
                         <TouchEnhancedButton
                             onClick={() => setActiveTab('saved-recipes')}
                             className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all touch-friendly ${
@@ -354,7 +439,9 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📚 Saved</span>
-                                {/* You can add saved count here if needed */}
+                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`}>
+                                    {formatCountWithLimit('saved-recipes')}
+                                </span>
                             </div>
                         </TouchEnhancedButton>
 
@@ -368,12 +455,15 @@ function RecipesContent() {
                         >
                             <div className="flex items-center justify-center gap-2">
                                 <span>📁 Collections</span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
+                                    {formatCountWithLimit('collections')}
+                                </span>
                             </div>
                         </TouchEnhancedButton>
                     </div>
                 </div>
 
-                {/* Tab Content Info */}
+                {/* Enhanced Tab Content Info with Usage Details */}
                 <div className="mb-6">
                     {activeTab === 'my-recipes' ? (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -385,13 +475,20 @@ function RecipesContent() {
                                               clipRule="evenodd"/>
                                     </svg>
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-medium text-blue-800">Your Personal Recipe
-                                        Collection</h3>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-medium text-blue-800">Your Personal Recipe Collection</h3>
                                     <p className="text-sm text-blue-700 mt-1">
-                                        These are recipes you've created or added to your personal collection. You can
-                                        edit, delete, and manage these recipes.
+                                        These are recipes you've created or added to your personal collection. You can edit, delete, and manage these recipes.
                                     </p>
+                                    {!loadingCounts && !subscription.loading && (
+                                        <div className="mt-2 text-xs text-blue-600">
+                                            {(() => {
+                                                const usage = getUsageInfo('my-recipes');
+                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                return `${usage.current} used • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -408,28 +505,62 @@ function RecipesContent() {
                                 <div>
                                     <h3 className="text-sm font-medium text-green-800">Community Recipe Collection</h3>
                                     <p className="text-sm text-green-700 mt-1">
-                                        Discover recipes shared by the community, including Doc Bear's Comfort Food
-                                        collection. Save favorites to your personal collection!
+                                        Discover recipes shared by the community, including Doc Bear's Comfort Food collection. Save favorites to your personal collection!
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'saved-recipes' ? (
                         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                             <div className="flex items-start">
                                 <div className="text-purple-600 mr-3 mt-0.5">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd"
+                                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                                              clipRule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-medium text-purple-800">Saved Recipes</h3>
+                                    <p className="text-sm text-purple-700 mt-1">
+                                        Recipes you've saved from the community for quick access and future reference.
+                                    </p>
+                                    {!loadingCounts && !subscription.loading && (
+                                        <div className="mt-2 text-xs text-purple-600">
+                                            {(() => {
+                                                const usage = getUsageInfo('saved-recipes');
+                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                return `${usage.current} saved • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                            <div className="flex items-start">
+                                <div className="text-orange-600 mr-3 mt-0.5">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd"
                                               d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
                                               clipRule="evenodd"/>
                                     </svg>
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-medium text-purple-800">Recipe Collections</h3>
-                                    <p className="text-sm text-purple-700 mt-1">
-                                        Organize your recipes into themed collections like "Comfort Food", "Quick
-                                        Dinners", or "Holiday Recipes" for easy discovery.
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-medium text-orange-800">Recipe Collections</h3>
+                                    <p className="text-sm text-orange-700 mt-1">
+                                        Organize your recipes into themed collections like "Comfort Food", "Quick Dinners", or "Holiday Recipes" for easy discovery.
                                     </p>
+                                    {!loadingCounts && !subscription.loading && (
+                                        <div className="mt-2 text-xs text-orange-600">
+                                            {(() => {
+                                                const usage = getUsageInfo('collections');
+                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                return `${usage.current} created • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -438,14 +569,12 @@ function RecipesContent() {
 
                 {/* Main Content - Conditional Rendering for Collections vs Recipes */}
                 {activeTab === 'collections' ? (
-                    <RecipeCollections/>
+                    <RecipeCollections onCountChange={setCollectionsCount} />
                 ) : activeTab === 'saved-recipes' ? (
-                    /* NEW: Saved Recipes Tab */
-                    <SavedRecipes/>
+                    <SavedRecipes onCountChange={setSavedRecipesCount} />
                 ) : (
-                    /* Show Recipe Content (Your existing code) */
                     <>
-                        {/* Enhanced Filters and Search - YOUR EXISTING CODE */}
+                        {/* Enhanced Filters and Search */}
                         <div className="bg-white rounded-lg border p-6 mb-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                                 {/* Search - spans 2 columns */}
@@ -543,13 +672,13 @@ function RecipesContent() {
                             </div>
                         </div>
 
-                        {/* Results Count - YOUR EXISTING CODE */}
+                        {/* Results Count */}
                         <div className="flex justify-between items-center mb-6">
                             <p className="text-gray-600">
                                 Showing {filteredRecipes.length} of {getTabCounts()[activeTab === 'my-recipes' ? 'myRecipes' : 'publicRecipes']} recipe{filteredRecipes.length !== 1 ? 's' : ''}
                                 <span className="text-indigo-600 font-medium ml-1">
-                    ({activeTab === 'my-recipes' ? 'My Recipes' : 'Public Recipes'})
-                </span>
+                                    ({activeTab === 'my-recipes' ? 'My Recipes' : 'Public Recipes'})
+                                </span>
                             </p>
                             {(searchTerm || selectedTag || selectedDifficulty || selectedCategory || ingredientSearch) && (
                                 <TouchEnhancedButton
@@ -568,7 +697,7 @@ function RecipesContent() {
                             )}
                         </div>
 
-                        {/* Recipe Grid - YOUR EXISTING CODE */}
+                        {/* Recipe Grid */}
                         {filteredRecipes.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredRecipes.map((recipe) => (
@@ -583,54 +712,50 @@ function RecipesContent() {
                                                 >
                                                     {recipe.title}
                                                 </Link>
-                                                {/* Only show edit/delete buttons for user's own recipes */}
-                                                {activeTab === 'public-recipes' && (
-                                                    <div className="flex gap-1 ml-2">
+                                                {/* Show appropriate buttons based on tab */}
+                                                <div className="flex gap-1 ml-2">
+                                                    {activeTab === 'public-recipes' && (
                                                         <SaveRecipeButton
                                                             recipeId={recipe._id}
                                                             recipeName={recipe.title}
                                                             size="small"
                                                             showText={false}
                                                         />
-                                                        {/* Your existing edit/delete buttons */}
-
-                                                        {canEditRecipe(recipe) && (
-                                                            <div className="flex space-x-1 ml-2">
-                                                                <TouchEnhancedButton
-                                                                    onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
-                                                                    className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
-                                                                    title="Edit recipe"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none"
-                                                                         stroke="currentColor"
-                                                                         viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round"
-                                                                              strokeLinejoin="round"
-                                                                              strokeWidth={2}
-                                                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                                    </svg>
-                                                                </TouchEnhancedButton>
-                                                                <TouchEnhancedButton
-                                                                    onClick={() => handleDelete(recipe._id)}
-                                                                    className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
-                                                                    title="Delete recipe"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none"
-                                                                         stroke="currentColor"
-                                                                         viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round"
-                                                                              strokeLinejoin="round"
-                                                                              strokeWidth={2}
-                                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                                    </svg>
-                                                                </TouchEnhancedButton>
-                                                            </div>
-
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    )}
+                                                    {canEditRecipe(recipe) && (
+                                                        <div className="flex space-x-1">
+                                                            <TouchEnhancedButton
+                                                                onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
+                                                                className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
+                                                                title="Edit recipe"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none"
+                                                                     stroke="currentColor"
+                                                                     viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round"
+                                                                          strokeLinejoin="round"
+                                                                          strokeWidth={2}
+                                                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                                </svg>
+                                                            </TouchEnhancedButton>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => handleDelete(recipe._id)}
+                                                                className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
+                                                                title="Delete recipe"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none"
+                                                                     stroke="currentColor"
+                                                                     viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round"
+                                                                          strokeLinejoin="round"
+                                                                          strokeWidth={2}
+                                                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                                </svg>
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-
 
                                             {/* Recipe Author Info (for public recipes) */}
                                             {activeTab === 'public-recipes' && recipe.createdBy && (
@@ -643,22 +768,21 @@ function RecipesContent() {
                                                                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                                         </svg>
                                                         <span>
-                                            by {recipe.createdBy.name || recipe.createdBy.email}
+                                                            by {recipe.createdBy.name || recipe.createdBy.email}
                                                             {recipe.importedFrom && (
                                                                 <span className="text-xs text-gray-500 ml-1">
-                                                    (from {recipe.importedFrom})
-                                                </span>
+                                                                    (from {recipe.importedFrom})
+                                                                </span>
                                                             )}
-                                        </span>
+                                                        </span>
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* NEW: Ingredient Search Match Indicator */}
+                                            {/* Ingredient Search Match Indicator */}
                                             {ingredientSearch && searchInIngredients(recipe, ingredientSearch, ingredientSearchType) && (
                                                 <div className="mb-3">
-                                                    <div
-                                                        className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                                                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
                                                         <div className="flex items-center text-xs text-yellow-800">
                                                             <svg className="w-3 h-3 mr-1" fill="currentColor"
                                                                  viewBox="0 0 20 20">
@@ -666,8 +790,7 @@ function RecipesContent() {
                                                                       d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
                                                                       clipRule="evenodd"/>
                                                             </svg>
-                                                            <span
-                                                                className="font-medium">Contains: "{ingredientSearch}"</span>
+                                                            <span className="font-medium">Contains: "{ingredientSearch}"</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -698,37 +821,36 @@ function RecipesContent() {
                                             )}
 
                                             {/* Recipe Info */}
-                                            <div
-                                                className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                                            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                                                 <div className="flex items-center space-x-4">
                                                     {recipe.servings && (
                                                         <span className="flex items-center space-x-1">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
-                                                 viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round"
-                                                      strokeWidth={2}
-                                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                            </svg>
-                                            <span>{recipe.servings}</span>
-                                        </span>
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                 viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round"
+                                                                      strokeWidth={2}
+                                                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                            </svg>
+                                                            <span>{recipe.servings}</span>
+                                                        </span>
                                                     )}
                                                     {formatCookTime(recipe.cookTime) && (
                                                         <span className="flex items-center space-x-1">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
-                                                 viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round"
-                                                      strokeWidth={2}
-                                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
-                                            <span>{formatCookTime(recipe.cookTime)}</span>
-                                        </span>
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                 viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round"
+                                                                      strokeWidth={2}
+                                                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                            </svg>
+                                                            <span>{formatCookTime(recipe.cookTime)}</span>
+                                                        </span>
                                                     )}
                                                 </div>
                                                 {recipe.difficulty && (
                                                     <span
                                                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                        {recipe.difficulty}
-                                    </span>
+                                                        {recipe.difficulty}
+                                                    </span>
                                                 )}
                                             </div>
 
@@ -740,23 +862,23 @@ function RecipesContent() {
                                                             key={index}
                                                             className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
                                                         >
-                                            {tag}
-                                        </span>
+                                                            {tag}
+                                                        </span>
                                                     ))}
                                                     {recipe.tags.length > 3 && (
                                                         <span className="text-xs text-gray-500">
-                                            +{recipe.tags.length - 3} more
-                                        </span>
+                                                            +{recipe.tags.length - 3} more
+                                                        </span>
                                                     )}
                                                 </div>
                                             )}
                                             {/* Category */}
                                             {recipe.category && (
                                                 <div className="mt-2">
-                                    <span
-                                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                                        {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
-                                    </span>
+                                                    <span
+                                                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                                        {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>
@@ -826,8 +948,6 @@ function RecipesContent() {
                         )}
                     </>
                 )}
-
-
             </div>
             <br/>
             <Footer/>
