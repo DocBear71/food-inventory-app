@@ -1,12 +1,12 @@
 'use client';
-// file: /src/components/recipes/SaveRecipeButton.js v1 - Button to save/unsave individual recipes
+// file: /src/components/recipes/SaveRecipeButton.js v2 - FIXED error handling and API calls
 
-import { useState, useEffect } from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {useState, useEffect} from 'react';
+import {useSafeSession} from '@/hooks/useSafeSession';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import { FEATURE_GATES } from '@/lib/subscription-config';
-import { getApiUrl } from '@/lib/api-config';
+import {FEATURE_GATES} from '@/lib/subscription-config';
+import {getApiUrl} from '@/lib/api-config';
 
 export default function SaveRecipeButton({
                                              recipeId,
@@ -17,7 +17,7 @@ export default function SaveRecipeButton({
                                              showText = true,
                                              size = 'medium' // 'small', 'medium', 'large'
                                          }) {
-    const { data: session } = useSafeSession();
+    const {data: session} = useSafeSession();
     const [isSaved, setIsSaved] = useState(initialSavedState);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -33,16 +33,22 @@ export default function SaveRecipeButton({
     const checkSavedStatus = async () => {
         try {
             const response = await fetch(getApiUrl('/api/saved-recipes'));
+
+            if (!response.ok) {
+                console.warn('Failed to check saved status:', response.status);
+                return;
+            }
+
             const data = await response.json();
 
-            if (data.success) {
+            if (data.success && data.savedRecipes) {
                 const savedRecipeIds = data.savedRecipes.map(saved =>
-                    saved.recipeId._id || saved.recipeId
-                );
+                    saved.recipeId?._id || saved.recipeId
+                ).filter(Boolean);
                 setIsSaved(savedRecipeIds.includes(recipeId));
             }
         } catch (error) {
-            console.error('Error checking saved status:', error);
+            console.warn('Error checking saved status:', error);
         }
     };
 
@@ -63,6 +69,10 @@ export default function SaveRecipeButton({
                     method: 'DELETE'
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
 
                 if (data.success) {
@@ -70,7 +80,7 @@ export default function SaveRecipeButton({
                     setSuccess('Recipe removed from saved recipes');
                     if (onSaveStateChange) onSaveStateChange(false);
                 } else {
-                    setError(data.error || 'Failed to unsave recipe');
+                    throw new Error(data.error || 'Failed to unsave recipe');
                 }
             } else {
                 // Save recipe
@@ -79,8 +89,12 @@ export default function SaveRecipeButton({
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ recipeId })
+                    body: JSON.stringify({recipeId})
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
 
                 const data = await response.json();
 
@@ -92,32 +106,32 @@ export default function SaveRecipeButton({
                     if (data.code === 'USAGE_LIMIT_EXCEEDED') {
                         // Handle upgrade prompt
                         if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
-                            window.location.href = data.upgradeUrl;
+                            window.location.href = data.upgradeUrl || '/pricing';
                         }
+                        return; // Don't show error message for upgrade prompts
                     } else {
-                        setError(data.error || 'Failed to save recipe');
+                        throw new Error(data.error || 'Failed to save recipe');
                     }
                 }
             }
         } catch (error) {
             console.error('Error toggling save state:', error);
-            setError('Network error occurred');
+            setError(error.message || 'An error occurred');
         } finally {
             setLoading(false);
-
-            // Clear success message after 3 seconds
-            if (success) {
-                setTimeout(() => setSuccess(''), 3000);
-            }
         }
     };
 
-    // Don't render for user's own recipes
-    if (session?.user?.id && recipeId &&
-        (window.location.pathname.includes('/recipes') &&
-            window.location.pathname.includes('edit'))) {
-        return null;
-    }
+    // Clear messages after delay
+    useEffect(() => {
+        if (success || error) {
+            const timer = setTimeout(() => {
+                setSuccess('');
+                setError('');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, error]);
 
     const getSizeClasses = () => {
         switch (size) {
@@ -150,7 +164,8 @@ export default function SaveRecipeButton({
                     className={`bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-md font-medium hover:from-blue-500 hover:to-purple-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
                 >
                     <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
                     </svg>
                     {showText && <span>Save Recipe (Gold)</span>}
                 </TouchEnhancedButton>

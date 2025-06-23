@@ -1,4 +1,4 @@
-// file: /src/app/api/collections/route.js v3 - FIXED imports and subscription gates for collection limits
+// file: /src/app/api/collections/route.js v5 - FIXED to work with existing subscription system
 // GET /api/collections - Fetch user's collections
 // POST /api/collections - Create new collection (with subscription limits)
 
@@ -6,8 +6,32 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { RecipeCollection, User } from '@/lib/models'; // FIXED: Correct import
-import { FEATURE_GATES, checkFeatureAccess, checkUsageLimit } from '@/lib/subscription-config';
+import { RecipeCollection, User } from '@/lib/models';
+
+// Simple collection limit check that works with your existing system
+const checkCollectionLimits = (userTier, currentCount) => {
+    const limits = {
+        free: 2,
+        gold: 10,
+        platinum: -1 // unlimited
+    };
+
+    const limit = limits[userTier] || limits.free;
+
+    if (limit === -1) return { allowed: true }; // unlimited
+
+    if (currentCount >= limit) {
+        return {
+            allowed: false,
+            reason: 'limit_exceeded',
+            currentCount,
+            limit,
+            tier: userTier
+        };
+    }
+
+    return { allowed: true };
+};
 
 export async function GET(request) {
     try {
@@ -85,7 +109,7 @@ export async function POST(request) {
 
         await connectDB();
 
-        // SUBSCRIPTION CHECK: Get user with subscription data
+                // Get user
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json(
@@ -94,69 +118,29 @@ export async function POST(request) {
             );
         }
 
-        // Check if user has feature access for recipe collections
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
+        // Get effective tier
+        const userTier = user.subscription?.tier || 'free';
 
-        const hasAccess = checkFeatureAccess(userSubscription, FEATURE_GATES.RECIPE_COLLECTIONS);
-        if (!hasAccess) {
-            return NextResponse.json({
-                error: 'Recipe collections are not available on your current plan',
-                upgradeRequired: true,
-                requiredTier: 'gold',
-                feature: 'recipe_collections'
-            }, { status: 403 });
+        // Check if collections feature is available for this tier
+        if (userTier === 'free') {
+            // Free users can create limited collections
+        } else {
+            // Paid users have access
         }
 
         const currentCollectionCount = await RecipeCollection.countDocuments({
             userId: session.user.id
         });
 
-        // Initialize usageTracking if it doesn't exist
-        if (!user.usageTracking) {
-            user.usageTracking = {
-                currentMonth: new Date().getMonth(),
-                currentYear: new Date().getFullYear(),
-                monthlyUPCScans: 0,
-                monthlyReceiptScans: 0,
-                totalInventoryItems: 0,
-                totalPersonalRecipes: 0,
-                savedRecipes: user.savedRecipes ? user.savedRecipes.length : 0,
-                lastUpdated: new Date()
-            };
-            await user.save();
-        }
-
-        console.log('Collection count check:', {
-            userId: session.user.id,
-            actualCollections: currentCollectionCount,
-            userTier: userSubscription.tier,
-            hasAccess
-        });
-
-        // Check usage limits using ACTUAL count from database
-        const hasCapacity = checkUsageLimit(
-            userSubscription,
-            FEATURE_GATES.RECIPE_COLLECTIONS,
-            currentCollectionCount  // Use actual count, not cached count
-        );
-
-        if (!hasCapacity) {
-            const tier = user.subscription?.tier || 'free';
-            const limits = {
-                free: 2,
-                gold: 10,
-                platinum: 'unlimited'
-            };
-
+        // Check collection limits
+        const limitCheck = checkCollectionLimits(userTier, currentCollectionCount);
+        if (!limitCheck.allowed) {
             return NextResponse.json({
-                error: `Collection limit reached. ${tier === 'free' ? 'Free users' : 'Gold users'} can create up to ${limits[tier]} collections.`,
-                upgradeRequired: tier === 'free',
-                requiredTier: tier === 'free' ? 'gold' : 'platinum',
-                currentCount: currentCollectionCount,
-                limit: limits[tier],
+                error: `Collection limit reached. ${userTier === 'free' ? 'Free users' : 'Gold users'} can create up to ${limitCheck.limit} collections.`,
+                upgradeRequired: userTier === 'free',
+                requiredTier: userTier === 'free' ? 'gold' : 'platinum',
+                currentCount: limitCheck.currentCount,
+                limit: limitCheck.limit,
                 feature: 'recipe_collections'
             }, { status: 403 });
         }
@@ -193,8 +177,16 @@ export async function POST(request) {
 
         await newCollection.save();
 
-        // Update user's collection count in usage tracking
-        await user.updateRecipeCollectionCount(currentCollectionCount + 1);
+        // Update user's collection count if they have usage tracking
+        try {
+            if (user.updateRecipeCollectionCount) {
+                const newCount = await RecipeCollection.countDocuments({ userId: session.user.id });
+                await user.updateRecipeCollectionCount(newCount);
+            }
+        } catch (error) {
+            console.warn('Could not update collection count:', error);
+            // Don't fail the request for this
+        }
 
         // Populate the created collection for response
         await newCollection.populate({

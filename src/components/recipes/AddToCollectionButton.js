@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/AddToCollectionButton.js v1 - Button to add recipes to collections
+// file: /src/components/recipes/AddToCollectionButton.js v2 - FIXED error handling and API calls
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -20,17 +20,36 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
         }
     }, [showDropdown]);
 
+    // Clear messages after delay
+    useEffect(() => {
+        if (success || error) {
+            const timer = setTimeout(() => {
+                setSuccess('');
+                setError('');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, error]);
+
     const fetchCollections = async () => {
         try {
             setLoading(true);
             const response = await fetch(getApiUrl('/api/collections'));
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
-                setCollections(data.collections);
+                setCollections(data.collections || []);
+            } else {
+                throw new Error(data.error || 'Failed to fetch collections');
             }
         } catch (error) {
             console.error('Error fetching collections:', error);
+            setError('Failed to load collections');
         } finally {
             setLoading(false);
         }
@@ -46,6 +65,10 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                 body: JSON.stringify({ recipeId })
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -53,24 +76,37 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                 setShowDropdown(false);
 
                 // Update collections to reflect the change
-                setCollections(collections.map(collection =>
-                    collection._id === collectionId ? data.collection : collection
-                ));
-
-                setTimeout(() => setSuccess(''), 3000);
+                if (data.collection) {
+                    setCollections(collections.map(collection =>
+                        collection._id === collectionId ? data.collection : collection
+                    ));
+                }
             } else {
-                setError(data.error || 'Failed to add recipe to collection');
+                if (data.error && data.error.includes('already in this collection')) {
+                    setError('Recipe is already in this collection');
+                } else if (data.code === 'USAGE_LIMIT_EXCEEDED') {
+                    if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
+                        window.location.href = data.upgradeUrl || '/pricing';
+                    }
+                    return;
+                } else {
+                    throw new Error(data.error || 'Failed to add recipe to collection');
+                }
             }
         } catch (error) {
             console.error('Error adding recipe to collection:', error);
-            setError('Failed to add recipe to collection');
+            setError(error.message || 'Failed to add recipe to collection');
         }
     };
 
     const isRecipeInCollection = (collection) => {
-        return collection.recipes.some(recipe =>
-            recipe.recipeId?._id === recipeId || recipe.recipeId === recipeId
-        );
+        if (!collection.recipes || !Array.isArray(collection.recipes)) {
+            return false;
+        }
+        return collection.recipes.some(recipe => {
+            const id = recipe.recipeId?._id || recipe.recipeId;
+            return id === recipeId;
+        });
     };
 
     return (
@@ -108,6 +144,20 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                             {loading ? (
                                 <div className="text-center py-4">
                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto"></div>
+                                    <p className="text-sm text-gray-500 mt-2">Loading collections...</p>
+                                </div>
+                            ) : error && collections.length === 0 ? (
+                                <div className="text-center py-4">
+                                    <div className="text-red-600 text-sm mb-3">{error}</div>
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            setError('');
+                                            fetchCollections();
+                                        }}
+                                        className="text-purple-600 hover:text-purple-700 text-sm"
+                                    >
+                                        Try again
+                                    </TouchEnhancedButton>
                                 </div>
                             ) : collections.length > 0 ? (
                                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -130,7 +180,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                                             {isInCollection ? '✓ ' : '📁 '}{collection.name}
                                                         </div>
                                                         <div className="text-xs text-gray-500">
-                                                            {collection.recipes.length} recipe{collection.recipes.length !== 1 ? 's' : ''}
+                                                            {collection.recipes?.length || 0} recipe{(collection.recipes?.length || 0) !== 1 ? 's' : ''}
                                                         </div>
                                                     </div>
                                                     {isInCollection && (
@@ -195,7 +245,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                     </div>
                 )}
 
-                {error && (
+                {error && !showDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-64 bg-red-50 border border-red-200 rounded-lg p-3 z-10">
                         <div className="text-sm text-red-800">
                             ⚠️ {error}

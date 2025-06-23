@@ -1,9 +1,9 @@
-// file: /src/app/api/subscription/status/route.js v2 - Fixed error handling and data validation
+// file: /src/app/api/subscription/status/route.js v3 - FIXED to work with useSubscription hook expectations
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { User, UserInventory, Recipe } from '@/lib/models';
+import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
 export async function GET(request) {
     try {
@@ -39,9 +39,11 @@ export async function GET(request) {
         // Get current usage counts with better error handling
         let currentInventoryCount = 0;
         let personalRecipes = 0;
+        let savedRecipeCount = 0;
+        let collectionCount = 0;
 
         try {
-            const [inventory, recipeCount] = await Promise.all([
+            const [inventory, recipeCount, collections] = await Promise.all([
                 UserInventory.findOne({ userId: session.user.id }).catch(err => {
                     console.warn('Error fetching inventory:', err);
                     return null;
@@ -49,13 +51,19 @@ export async function GET(request) {
                 Recipe.countDocuments({ createdBy: session.user.id }).catch(err => {
                     console.warn('Error counting recipes:', err);
                     return 0;
+                }),
+                RecipeCollection.countDocuments({ userId: session.user.id }).catch(err => {
+                    console.warn('Error counting collections:', err);
+                    return 0;
                 })
             ]);
 
             currentInventoryCount = inventory?.items?.length || 0;
             personalRecipes = recipeCount || 0;
+            savedRecipeCount = user.savedRecipes?.length || 0;
+            collectionCount = collections || 0;
 
-            console.log('Usage counts - Inventory:', currentInventoryCount, 'Recipes:', personalRecipes);
+            console.log('Usage counts - Inventory:', currentInventoryCount, 'Recipes:', personalRecipes, 'Saved:', savedRecipeCount, 'Collections:', collectionCount);
         } catch (usageError) {
             console.error('Error fetching usage data:', usageError);
             // Continue with default values rather than failing
@@ -78,9 +86,9 @@ export async function GET(request) {
                 monthlyEmailNotifications: 0,
                 totalInventoryItems: currentInventoryCount,
                 totalPersonalRecipes: personalRecipes,
-                totalSavedRecipes: 0,
+                totalSavedRecipes: savedRecipeCount,
                 totalPublicRecipes: 0,
-                totalRecipeCollections: 0,
+                totalRecipeCollections: collectionCount,
                 lastUpdated: now
             };
         } else {
@@ -123,6 +131,8 @@ export async function GET(request) {
         // Update current counts
         user.usageTracking.totalInventoryItems = currentInventoryCount;
         user.usageTracking.totalPersonalRecipes = personalRecipes;
+        user.usageTracking.totalSavedRecipes = savedRecipeCount;
+        user.usageTracking.totalRecipeCollections = collectionCount;
         user.usageTracking.lastUpdated = now;
 
         // Save user with error handling
@@ -156,9 +166,9 @@ export async function GET(request) {
             }
         }
 
-        // Prepare subscription data with comprehensive fallbacks
+        // FIXED: Return data structure that matches what useSubscription expects
         const subscriptionData = {
-            // Subscription info
+            // Subscription info (what the subscription-config functions expect)
             tier: subscription.tier || 'free',
             status: subscription.status || 'free',
             billingCycle: subscription.billingCycle || null,
@@ -167,7 +177,7 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
-            // ENHANCED: Usage counts with monthly tracking
+            // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {
                 inventoryItems: currentInventoryCount,
                 personalRecipes: personalRecipes,
@@ -175,11 +185,11 @@ export async function GET(request) {
                 monthlyReceiptScans: user.usageTracking.monthlyReceiptScans || 0,
                 monthlyEmailShares: user.usageTracking.monthlyEmailShares || 0,
                 monthlyEmailNotifications: user.usageTracking.monthlyEmailNotifications || 0,
-                savedRecipes: user.usageTracking.totalSavedRecipes || 0,
+                savedRecipes: savedRecipeCount,
                 publicRecipes: user.usageTracking.totalPublicRecipes || 0,
-                recipeCollections: user.usageTracking.totalRecipeCollections || 0,
+                recipeCollections: collectionCount,
 
-                // ADDED: Current month/year for debugging
+                // Current month/year for debugging
                 currentMonth: user.usageTracking.currentMonth,
                 currentYear: user.usageTracking.currentYear,
                 lastUpdated: user.usageTracking.lastUpdated
@@ -201,7 +211,9 @@ export async function GET(request) {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
             isActive: subscriptionData.isActive,
-            inventoryItems: subscriptionData.usage.inventoryItems
+            inventoryItems: subscriptionData.usage.inventoryItems,
+            savedRecipes: subscriptionData.usage.savedRecipes,
+            collections: subscriptionData.usage.recipeCollections
         });
 
         return Response.json(subscriptionData);

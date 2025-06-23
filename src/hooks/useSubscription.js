@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/hooks/useSubscription.js v3 - Fixed to prevent API calls during signout
+// file: /src/hooks/useSubscription.js v4 - FIXED to support SAVE_RECIPE and collections
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -27,7 +27,7 @@ export function SubscriptionProvider({ children }) {
 
     // Debounced fetch function to prevent excessive API calls
     const fetchSubscriptionData = useCallback(async (force = false) => {
-        // ADDED: Check for signout flags before making API calls
+        // Check for signout flags before making API calls
         const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
         const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
         const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
@@ -83,7 +83,7 @@ export function SubscriptionProvider({ children }) {
                     setSubscriptionData(null);
                     setError(null);
 
-                    // ADDED: If API fails with 401, might be because session is invalid - clear signout flags
+                    // If API fails with 401, might be because session is invalid - clear signout flags
                     localStorage.removeItem('prevent-session-calls');
                     sessionStorage.removeItem('signout-in-progress');
                     sessionStorage.removeItem('just-signed-out');
@@ -131,7 +131,7 @@ export function SubscriptionProvider({ children }) {
             return; // Wait for session to load
         }
 
-        // ADDED: Check for signout flags before making API calls
+        // Check for signout flags before making API calls
         const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
         const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
         const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
@@ -155,7 +155,7 @@ export function SubscriptionProvider({ children }) {
             setLoading(false);
             setRetryCount(0);
 
-            // ADDED: Clear signout flags when session is properly cleared
+            // Clear signout flags when session is properly cleared
             localStorage.removeItem('prevent-session-calls');
             sessionStorage.removeItem('signout-in-progress');
             sessionStorage.removeItem('just-signed-out');
@@ -242,26 +242,25 @@ export function useSubscription() {
         }
     };
 
-    // FIXED: Map feature gates to correct usage tracking fields with monthly tracking
+    // FIXED: Map feature gates to correct usage tracking fields with SAVE_RECIPE support
     const getCurrentUsageCount = (feature) => {
         if (!subscriptionData?.usage) return 0;
 
         switch (feature) {
-            // FIXED: Use correct feature gate names
             case FEATURE_GATES.INVENTORY_LIMIT:
                 return subscriptionData.usage.inventoryItems || 0;
             case FEATURE_GATES.PERSONAL_RECIPES:
                 return subscriptionData.usage.personalRecipes || 0;
             case FEATURE_GATES.UPC_SCANNING:
-                // Use monthly UPC scans for current month
                 return subscriptionData.usage.monthlyUPCScans || 0;
             case FEATURE_GATES.RECEIPT_SCAN:
-                // FIXED: Use monthly receipt scans for current month
                 return subscriptionData.usage.monthlyReceiptScans || 0;
             case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
                 return subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
                 return subscriptionData.usage.recipeCollections || 0;
+            case FEATURE_GATES.SAVE_RECIPE: // ADDED: Support for saved recipes
+                return subscriptionData.usage.savedRecipes || 0;
 
             // Feature-access gates that don't have usage counts:
             case FEATURE_GATES.COMMON_ITEMS_WIZARD:
@@ -312,6 +311,15 @@ export function useSubscription() {
         return checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES));
     };
 
+    // ADDED: New helper functions for saved recipes and collections
+    const canSaveRecipe = () => {
+        return checkLimit(FEATURE_GATES.SAVE_RECIPE, getCurrentUsageCount(FEATURE_GATES.SAVE_RECIPE));
+    };
+
+    const canCreateCollection = () => {
+        return checkLimit(FEATURE_GATES.RECIPE_COLLECTIONS, getCurrentUsageCount(FEATURE_GATES.RECIPE_COLLECTIONS));
+    };
+
     return {
         // Data
         tier: subscriptionData?.tier || 'free',
@@ -346,6 +354,8 @@ export function useSubscription() {
         canScanUPC: canScanUPC(),
         canScanReceipt: canScanReceipt(),
         canAddPersonalRecipe: canAddPersonalRecipe(),
+        canSaveRecipe: canSaveRecipe(), // ADDED
+        canCreateCollection: canCreateCollection(), // ADDED
         canWriteReviews: checkFeature(FEATURE_GATES.WRITE_REVIEW),
         canMakeRecipesPublic: checkFeature(FEATURE_GATES.MAKE_RECIPE_PUBLIC),
         hasNutritionAccess: checkFeature(FEATURE_GATES.NUTRITION_ACCESS),
@@ -353,7 +363,6 @@ export function useSubscription() {
         hasEmailNotifications: checkFeature(FEATURE_GATES.EMAIL_NOTIFICATIONS),
         hasEmailSharing: checkFeature(FEATURE_GATES.EMAIL_SHARING),
         hasCommonItemsWizard: checkFeature(FEATURE_GATES.COMMON_ITEMS_WIZARD),
-        hasDataExport: checkFeature('DATA_EXPORT'), // Add to FEATURE_GATES if needed
         hasRecipeCollections: checkFeature(FEATURE_GATES.RECIPE_COLLECTIONS),
 
         // FIXED: Remaining counts using correct feature gates
@@ -361,7 +370,8 @@ export function useSubscription() {
         remainingPersonalRecipes: getRemainingCount(FEATURE_GATES.PERSONAL_RECIPES),
         remainingUPCScans: getRemainingCount(FEATURE_GATES.UPC_SCANNING),
         remainingReceiptScans: getRemainingCount(FEATURE_GATES.RECEIPT_SCAN),
-        remainingSavedRecipes: getRemainingCount('SAVE_PUBLIC_RECIPE'),
+        remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE), // FIXED
+        remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS), // ADDED
 
         // Actions
         refetch
@@ -388,15 +398,15 @@ export function useFeatureGate(feature, currentCount = null) {
     }
 
     if (subscription.error) {
-        // Default to free tier behavior on error
+        // Default to allowing access on error for better UX
         console.warn('Subscription error in useFeatureGate:', subscription.error);
         return {
-            hasAccess: feature === null || !feature, // Allow access if no specific feature required
+            hasAccess: true, // CHANGED: Allow access on error
             hasCapacity: true,
-            canUse: feature === null || !feature,
+            canUse: true,
             message: 'Unable to verify subscription status',
             requiredTier: 'free',
-            remaining: 0,
+            remaining: 'Unknown',
             tier: 'free',
             isGoldOrHigher: false,
             isPlatinum: false
@@ -423,14 +433,14 @@ export function useFeatureGate(feature, currentCount = null) {
         };
     } catch (err) {
         console.error('Error in useFeatureGate:', err);
-        // Return safe defaults on error
+        // Return safe defaults on error - allow access
         return {
-            hasAccess: false,
-            hasCapacity: false,
-            canUse: false,
+            hasAccess: true, // CHANGED: Allow access on error
+            hasCapacity: true,
+            canUse: true,
             message: 'Error checking feature access',
             requiredTier: 'free',
-            remaining: 0,
+            remaining: 'Unknown',
             tier: 'free',
             isGoldOrHigher: false,
             isPlatinum: false

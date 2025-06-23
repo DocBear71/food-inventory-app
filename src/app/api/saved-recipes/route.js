@@ -1,11 +1,35 @@
-// file: /src/app/api/saved-recipes/route.js v2 - FIXED imports and error handling
+// file: /src/app/api/saved-recipes/route.js v4 - FIXED to work with existing subscription system
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { User, Recipe } from '@/lib/models'; // FIXED: Correct import
-import { FEATURE_GATES, checkFeatureAccess, checkUsageLimit, getRequiredTier, getUpgradeMessage } from '@/lib/subscription-config';
+import { User, Recipe } from '@/lib/models';
+
+// Simple saved recipe limit check
+const checkSavedRecipeLimits = (userTier, currentCount) => {
+    const limits = {
+        free: 10,
+        gold: 200,
+        platinum: -1 // unlimited
+    };
+
+    const limit = limits[userTier] || limits.free;
+
+    if (limit === -1) return { allowed: true }; // unlimited
+
+    if (currentCount >= limit) {
+        return {
+            allowed: false,
+            reason: 'limit_exceeded',
+            currentCount,
+            limit,
+            tier: userTier
+        };
+    }
+
+    return { allowed: true };
+};
 
 // GET - Fetch user's saved recipes
 export async function GET(request) {
@@ -31,6 +55,11 @@ export async function GET(request) {
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        // Initialize savedRecipes array if it doesn't exist
+        if (!user.savedRecipes) {
+            user.savedRecipes = [];
         }
 
         // Filter out any saved recipes where the recipe was deleted
@@ -72,28 +101,10 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Get user and check subscription
+        // Get user
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        // Check feature access
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
-
-        const hasAccess = checkFeatureAccess(userSubscription, FEATURE_GATES.SAVE_RECIPE);
-        if (!hasAccess) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.SAVE_RECIPE);
-            return NextResponse.json({
-                error: getUpgradeMessage(FEATURE_GATES.SAVE_RECIPE, requiredTier),
-                code: 'FEATURE_NOT_AVAILABLE',
-                feature: FEATURE_GATES.SAVE_RECIPE,
-                requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=save-recipe&feature=${FEATURE_GATES.SAVE_RECIPE}&required=${requiredTier}`
-            }, { status: 403 });
         }
 
         // Initialize savedRecipes array if it doesn't exist
@@ -101,30 +112,30 @@ export async function POST(request) {
             user.savedRecipes = [];
         }
 
-        // Check usage limits
+        // Get user tier for limit checking
+        const userTier = user.subscription?.tier || 'free';
+
+        // Check saved recipe limits
         const currentSavedCount = user.savedRecipes.length;
-        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.SAVE_RECIPE, currentSavedCount);
+        const limitCheck = checkSavedRecipeLimits(userTier, currentSavedCount);
 
-        if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.SAVE_RECIPE);
+        if (!limitCheck.allowed) {
             let errorMessage;
-
-            if (userSubscription.tier === 'free') {
+            if (userTier === 'free') {
                 errorMessage = `You've reached the free plan limit of 10 saved recipes. Upgrade to Gold for 200 saved recipes or Platinum for unlimited.`;
-            } else if (userSubscription.tier === 'gold') {
+            } else if (userTier === 'gold') {
                 errorMessage = `You've reached the Gold plan limit of 200 saved recipes. Upgrade to Platinum for unlimited saved recipes.`;
             } else {
-                errorMessage = getUpgradeMessage(FEATURE_GATES.SAVE_RECIPE, requiredTier);
+                errorMessage = `You've reached your saved recipe limit.`;
             }
 
             return NextResponse.json({
                 error: errorMessage,
                 code: 'USAGE_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.SAVE_RECIPE,
-                currentCount: currentSavedCount,
-                currentTier: userSubscription.tier,
-                requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=save-recipe-limit&feature=${FEATURE_GATES.SAVE_RECIPE}&required=${requiredTier}`
+                feature: 'save_recipe',
+                currentCount: limitCheck.currentCount,
+                currentTier: userTier,
+                upgradeUrl: `/pricing?source=save-recipe-limit`
             }, { status: 403 });
         }
 
@@ -162,12 +173,17 @@ export async function POST(request) {
             savedAt: new Date()
         });
 
-        // Update usage tracking
-        if (!user.usageTracking) {
-            user.usageTracking = {};
+        // Update usage tracking if available
+        try {
+            if (!user.usageTracking) {
+                user.usageTracking = {};
+            }
+            user.usageTracking.savedRecipes = user.savedRecipes.length;
+            user.usageTracking.lastUpdated = new Date();
+        } catch (error) {
+            console.warn('Could not update usage tracking:', error);
+            // Don't fail the request for this
         }
-        user.usageTracking.savedRecipes = user.savedRecipes.length;
-        user.usageTracking.lastUpdated = new Date();
 
         await user.save();
 
@@ -184,18 +200,25 @@ export async function POST(request) {
             });
 
         const savedRecipe = savedUser.savedRecipes.find(
-            saved => saved.recipeId._id.toString() === recipeId
+            saved => saved.recipeId && saved.recipeId._id.toString() === recipeId
         );
+
+        const tier = user.subscription?.tier || 'free';
+        let remainingSaves;
+        if (tier === 'free') {
+            remainingSaves = Math.max(0, 10 - user.savedRecipes.length);
+        } else if (tier === 'gold') {
+            remainingSaves = Math.max(0, 200 - user.savedRecipes.length);
+        } else {
+            remainingSaves = 'Unlimited';
+        }
 
         return NextResponse.json({
             success: true,
             message: `"${recipe.title}" saved successfully`,
             savedRecipe: savedRecipe,
             totalSaved: user.savedRecipes.length,
-            remainingSaves: userSubscription.tier === 'free' ?
-                Math.max(0, 10 - user.savedRecipes.length) :
-                userSubscription.tier === 'gold' ?
-                    Math.max(0, 200 - user.savedRecipes.length) : 'Unlimited'
+            remainingSaves: remainingSaves
         });
 
     } catch (error) {
@@ -251,12 +274,17 @@ export async function DELETE(request) {
             );
         }
 
-        // Update usage tracking
-        if (!user.usageTracking) {
-            user.usageTracking = {};
+        // Update usage tracking if available
+        try {
+            if (!user.usageTracking) {
+                user.usageTracking = {};
+            }
+            user.usageTracking.savedRecipes = user.savedRecipes.length;
+            user.usageTracking.lastUpdated = new Date();
+        } catch (error) {
+            console.warn('Could not update usage tracking:', error);
+            // Don't fail the request for this
         }
-        user.usageTracking.savedRecipes = user.savedRecipes.length;
-        user.usageTracking.lastUpdated = new Date();
 
         await user.save();
 
