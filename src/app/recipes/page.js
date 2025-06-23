@@ -88,6 +88,10 @@ function RecipesContent() {
         if (!savedRecipesGlobalLoading && globalSavedCount !== undefined) {
             console.log('📊 Updating saved recipes count from global hook:', globalSavedCount);
             setSavedRecipesCount(globalSavedCount);
+
+            // Force a re-render of the tab counts by briefly toggling loading state
+            setLoadingCounts(true);
+            setTimeout(() => setLoadingCounts(false), 10);
         }
     }, [globalSavedCount, savedRecipesGlobalLoading]);
 
@@ -152,7 +156,7 @@ function RecipesContent() {
         }
     };
 
-// Replace the existing fetchCounts function with this improved version:
+    // Replace the existing fetchCounts function with this improved version:
     const fetchCounts = async (showLoading = true, retryCount = 0) => {
         const maxRetries = 1; // Reduced retries to prevent connection spam
 
@@ -722,7 +726,7 @@ function RecipesContent() {
                 </div>
 
                 {/* Enhanced Tab Navigation with Usage Counts */}
-                <div className="mb-6">
+                <div className="mb-6" key={`tab-counts-${savedRecipesCount}-${collectionsCount}`}>
                     <div className="bg-gray-100 p-1 rounded-lg flex">
                         <TouchEnhancedButton
                             onClick={() => setActiveTab('my-recipes')}
@@ -735,8 +739,8 @@ function RecipesContent() {
                             <div className="flex items-center justify-center gap-2">
                                 <span>📝 My Recipes</span>
                                 <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
-                                    {formatCountWithLimit('my-recipes')}
-                                </span>
+                    {formatCountWithLimit('my-recipes')}
+                </span>
                             </div>
                         </TouchEnhancedButton>
 
@@ -755,8 +759,8 @@ function RecipesContent() {
                                         ? 'bg-indigo-100 text-indigo-600'
                                         : 'bg-gray-200 text-gray-600'
                                 }`}>
-                                    {tabCounts.publicRecipes}
-                                </span>
+                    {tabCounts.publicRecipes}
+                </span>
                             </div>
                         </TouchEnhancedButton>
 
@@ -771,8 +775,8 @@ function RecipesContent() {
                             <div className="flex items-center justify-center gap-2">
                                 <span>📚 Saved</span>
                                 <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`}>
-                                    {formatCountWithLimit('saved-recipes')}
-                                </span>
+                    {formatCountWithLimit('saved-recipes')}
+                </span>
                             </div>
                         </TouchEnhancedButton>
 
@@ -787,12 +791,18 @@ function RecipesContent() {
                             <div className="flex items-center justify-center gap-2">
                                 <span>📁 Collections</span>
                                 <span className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
-                                    {formatCountWithLimit('collections')}
-                                </span>
+                    {formatCountWithLimit('collections')}
+                </span>
                             </div>
                         </TouchEnhancedButton>
                     </div>
                 </div>
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+                        <strong>Debug:</strong> savedRecipesCount={savedRecipesCount}, globalSavedCount={globalSavedCount},
+                        loading={loadingCounts}, tabCounts.savedRecipes={tabCounts.savedRecipes}
+                    </div>
+                )}
 
                 {/* Enhanced Tab Content Info with Usage Details */}
                 <div className="mb-6">

@@ -108,7 +108,32 @@ export default function SaveRecipeButton({
                 });
 
                 if (!response.ok) {
-                    // Revert optimistic update on error
+                    // Handle 403 specially for usage limits
+                    if (response.status === 403) {
+                        try {
+                            const errorData = await response.json();
+                            if (errorData.code === 'USAGE_LIMIT_EXCEEDED') {
+                                // Revert optimistic update
+                                removeFromSaved(recipeId);
+                                if (onSaveStateChange) onSaveStateChange(recipeId, false);
+
+                                // Show error message
+                                setError(errorData.error || 'You have reached your saved recipe limit.');
+
+                                // Handle upgrade prompt after a short delay
+                                setTimeout(() => {
+                                    if (confirm(`${errorData.error}\n\nWould you like to upgrade now?`)) {
+                                        window.location.href = errorData.upgradeUrl || '/pricing';
+                                    }
+                                }, 100);
+                                return; // Exit early, we handled the error
+                            }
+                        } catch (parseError) {
+                            console.warn('Could not parse 403 response:', parseError);
+                        }
+                    }
+
+                    // Revert optimistic update on other errors
                     removeFromSaved(recipeId);
                     if (onSaveStateChange) onSaveStateChange(recipeId, false);
 
@@ -129,11 +154,16 @@ export default function SaveRecipeButton({
                     if (onSaveStateChange) onSaveStateChange(recipeId, false);
 
                     if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                        // Handle upgrade prompt
-                        if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
-                            window.location.href = data.upgradeUrl || '/pricing';
-                        }
-                        return; // Don't show error message for upgrade prompts
+                        // Show error message for limit exceeded
+                        setError(data.error || 'You have reached your saved recipe limit.');
+
+                        // Handle upgrade prompt after a short delay
+                        setTimeout(() => {
+                            if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
+                                window.location.href = data.upgradeUrl || '/pricing';
+                            }
+                        }, 100);
+                        return; // Don't throw error, we handled it
                     } else {
                         throw new Error(data.error || 'Failed to save recipe');
                     }
