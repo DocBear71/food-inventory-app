@@ -9,6 +9,8 @@ import { StarRating } from '@/components/reviews/RecipeRating';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
+import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
+import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 
 export default function CollectionViewPage() {
     const { data: session, status } = useSafeSession();
@@ -351,6 +353,16 @@ export default function CollectionViewPage() {
                                                 showNumber={false}
                                             />
                                         </div>
+                                        <SaveRecipeButton
+                                            recipeId={recipe._id}
+                                            recipeName={recipe.title}
+                                            size="medium"
+                                        />
+
+                                        <AddToCollectionButton
+                                            recipeId={recipe._id}
+                                            recipeName={recipe.title}
+                                        />
 
                                         {/* Description */}
                                         {recipe.description && (

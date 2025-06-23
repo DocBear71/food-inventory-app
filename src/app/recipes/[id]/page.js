@@ -13,6 +13,8 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
+import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
+import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -433,6 +435,19 @@ export default function RecipeDetailPage() {
                                     Edit Recipe
                                 </TouchEnhancedButton>
                             )}
+
+                            {/* ADD THESE NEW BUTTONS HERE: */}
+                            <SaveRecipeButton
+                                recipeId={recipe._id}
+                                recipeName={recipe.title}
+                                size="medium"
+                            />
+
+                            <AddToCollectionButton
+                                recipeId={recipe._id}
+                                recipeName={recipe.title}
+                            />
+
                             {hasNutritionData && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowNutrition(!showNutrition)}

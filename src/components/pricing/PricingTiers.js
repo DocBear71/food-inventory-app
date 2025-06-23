@@ -37,7 +37,7 @@ const PricingTiers = ({
                 { name: 'Simple shopping lists from individual recipes', included: true },
                 { name: 'Basic profile settings', included: true },
                 { name: 'UPC scanning (10 scans/month)', included: true },
-                { name: 'Add up to 5 personal recipes (manual entry only)', included: true },
+                { name: 'Add up to 5 personal recipes (all input methods)', included: true },
                 { name: 'Receipt scanning (2 receipts/month)', included: true },
                 { name: 'Save up to 10 public recipes to collection', included: true },
                 { name: 'Read recipe reviews', included: true },
