@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v12 - FIXED with RecipeCollection model and proper exports
+// file: /src/lib/models.js - v12 - FIXED with RecipeCollection model and proper exports - Updated for saved recipes fix
 
 import mongoose from 'mongoose';
 const crypto = require('crypto');
