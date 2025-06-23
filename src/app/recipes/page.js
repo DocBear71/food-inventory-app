@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/page.js v6 - Enhanced with usage counts and limits for all tabs
+// file: /src/app/recipes/page.js v7 - FIXED undefined filter errors and improved error handling
 
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
@@ -30,10 +30,11 @@ function RecipesContent() {
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
 
-    // NEW: Additional state for saved recipes and collections counts
+    // Enhanced state for saved recipes and collections counts with better error handling
     const [savedRecipesCount, setSavedRecipesCount] = useState(0);
     const [collectionsCount, setCollectionsCount] = useState(0);
     const [loadingCounts, setLoadingCounts] = useState(true);
+    const [countsError, setCountsError] = useState('');
 
     // Ingredient search state
     const [ingredientSearch, setIngredientSearch] = useState('');
@@ -41,6 +42,9 @@ function RecipesContent() {
 
     // Tab state for My Recipes vs Public Recipes
     const [activeTab, setActiveTab] = useState('my-recipes');
+
+    // Error state for main recipes
+    const [recipesError, setRecipesError] = useState('');
 
     const CATEGORY_OPTIONS = [
         {value: 'seasonings', label: 'Seasonings'},
@@ -76,60 +80,124 @@ function RecipesContent() {
 
     const fetchRecipes = async () => {
         try {
+            setRecipesError('');
             const response = await fetch(getApiUrl('/api/recipes'));
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
-                setRecipes(data.recipes);
+                // FIXED: Ensure recipes is always an array
+                const recipesArray = Array.isArray(data.recipes) ? data.recipes : [];
+                setRecipes(recipesArray);
 
-                // Extract all unique tags and categories
+                // Extract all unique tags and categories with null checks
                 const tags = new Set();
                 const categories = new Set();
-                data.recipes.forEach(recipe => {
-                    if (recipe.tags) {
-                        recipe.tags.forEach(tag => tags.add(tag));
+
+                recipesArray.forEach(recipe => {
+                    // FIXED: Add null checks for recipe properties
+                    if (recipe && Array.isArray(recipe.tags)) {
+                        recipe.tags.forEach(tag => {
+                            if (tag && typeof tag === 'string') {
+                                tags.add(tag);
+                            }
+                        });
                     }
-                    if (recipe.category) {
+                    if (recipe && recipe.category && typeof recipe.category === 'string') {
                         categories.add(recipe.category);
                     }
                 });
+
                 setAllTags(Array.from(tags).sort());
                 setAllCategories(Array.from(categories).sort());
+            } else {
+                console.error('Failed to fetch recipes:', data.error || 'Unknown error');
+                setRecipesError(data.error || 'Failed to load recipes');
+                setRecipes([]); // Ensure empty array on error
             }
         } catch (error) {
             console.error('Error fetching recipes:', error);
+            setRecipesError(error.message || 'Failed to load recipes');
+            setRecipes([]); // Ensure empty array on error
         } finally {
             setLoading(false);
         }
     };
 
-    // Enhanced fetchCounts with callback support
+    // Enhanced fetchCounts with better error handling
     const fetchCounts = async (showLoading = true) => {
         try {
             if (showLoading) {
                 setLoadingCounts(true);
             }
+            setCountsError('');
 
             const [savedResponse, collectionsResponse] = await Promise.all([
-                fetch(getApiUrl('/api/saved-recipes')),
-                fetch(getApiUrl('/api/collections'))
+                fetch(getApiUrl('/api/saved-recipes')).catch(error => {
+                    console.warn('Failed to fetch saved recipes:', error);
+                    return { ok: false, status: 500, error: error.message };
+                }),
+                fetch(getApiUrl('/api/collections')).catch(error => {
+                    console.warn('Failed to fetch collections:', error);
+                    return { ok: false, status: 500, error: error.message };
+                })
             ]);
 
+            // Handle saved recipes response
             if (savedResponse.ok) {
-                const savedData = await savedResponse.json();
-                if (savedData.success) {
-                    setSavedRecipesCount(savedData.totalCount || 0);
+                try {
+                    const savedData = await savedResponse.json();
+                    if (savedData.success) {
+                        const count = savedData.totalCount || 0;
+                        setSavedRecipesCount(count);
+                        console.log('✅ Saved recipes count updated:', count);
+                    } else {
+                        console.warn('Saved recipes API returned error:', savedData.error);
+                        if (savedData.warning) {
+                            console.warn('Saved recipes warning:', savedData.warning);
+                        }
+                        // Don't set error state for API warnings, just log them
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing saved recipes response:', parseError);
+                }
+            } else {
+                console.warn('Saved recipes API failed:', savedResponse.status);
+                // Don't set error state unless it's critical
+                if (savedResponse.status < 500) {
+                    setSavedRecipesCount(0); // Set to 0 for client errors
                 }
             }
 
+            // Handle collections response
             if (collectionsResponse.ok) {
-                const collectionsData = await collectionsResponse.json();
-                if (collectionsData.success) {
-                    setCollectionsCount(collectionsData.collections?.length || 0);
+                try {
+                    const collectionsData = await collectionsResponse.json();
+                    if (collectionsData.success) {
+                        const count = Array.isArray(collectionsData.collections) ? collectionsData.collections.length : 0;
+                        setCollectionsCount(count);
+                        console.log('✅ Collections count updated:', count);
+                    } else {
+                        console.warn('Collections API returned error:', collectionsData.error);
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing collections response:', parseError);
+                    setCollectionsCount(0);
+                }
+            } else {
+                console.warn('Collections API failed:', collectionsResponse.status);
+                if (collectionsResponse.status < 500) {
+                    setCollectionsCount(0); // Set to 0 for client errors
                 }
             }
+
         } catch (error) {
             console.error('Error fetching counts:', error);
+            setCountsError('Failed to load some data');
         } finally {
             if (showLoading) {
                 setLoadingCounts(false);
@@ -137,24 +205,28 @@ function RecipesContent() {
         }
     };
 
-    // NEW: Real-time count update handlers
+    // Real-time count update handlers with better error handling
     const handleSavedRecipesCountChange = (newCount) => {
         console.log('📊 Updating saved recipes count:', newCount);
-        setSavedRecipesCount(newCount);
+        if (typeof newCount === 'number' && newCount >= 0) {
+            setSavedRecipesCount(newCount);
+        }
     };
 
     const handleCollectionsCountChange = (newCount) => {
         console.log('📊 Updating collections count:', newCount);
-        setCollectionsCount(newCount);
+        if (typeof newCount === 'number' && newCount >= 0) {
+            setCollectionsCount(newCount);
+        }
     };
 
-    // NEW: Handle recipe saves/unsaves from individual recipe cards
+    // Handle recipe saves/unsaves from individual recipe cards
     const handleRecipeSaveStateChange = (recipeId, isSaved) => {
         console.log('📊 Recipe save state changed:', recipeId, isSaved);
 
         // Update saved recipes count immediately for better UX
         if (isSaved) {
-            setSavedRecipesCount(prev => prev + 1);
+            setSavedRecipesCount(prev => Math.max(0, prev + 1));
         } else {
             setSavedRecipesCount(prev => Math.max(0, prev - 1));
         }
@@ -176,7 +248,8 @@ function RecipesContent() {
             });
 
             if (response.ok) {
-                setRecipes(prev => prev.filter(recipe => recipe._id !== recipeId));
+                // FIXED: Ensure recipes is always an array before filtering
+                setRecipes(prev => Array.isArray(prev) ? prev.filter(recipe => recipe._id !== recipeId) : []);
             } else {
                 alert('Failed to delete recipe');
             }
@@ -186,13 +259,16 @@ function RecipesContent() {
         }
     };
 
-    // Enhanced ingredient search function
+    // Enhanced ingredient search function with null checks
     const searchInIngredients = (recipe, searchTerm, searchType) => {
-        if (!recipe.ingredients || !searchTerm) return true;
+        // FIXED: Add null checks for recipe and ingredients
+        if (!recipe || !Array.isArray(recipe.ingredients) || !searchTerm) return true;
 
         const normalizedSearch = searchTerm.toLowerCase().trim();
 
         return recipe.ingredients.some(ingredient => {
+            if (!ingredient) return false;
+
             const ingredientText = typeof ingredient === 'string'
                 ? ingredient
                 : `${ingredient.amount || ''} ${ingredient.unit || ''} ${ingredient.name || ingredient.ingredient || ''}`.trim();
@@ -222,19 +298,25 @@ function RecipesContent() {
         });
     };
 
-    // Enhanced filter function with ingredient search
+    // Enhanced filter function with ingredient search and null checks
     const getFilteredAndSortedRecipes = () => {
-        let filtered = recipes.filter(recipe => {
+        // FIXED: Ensure recipes is always an array before filtering
+        const recipesArray = Array.isArray(recipes) ? recipes : [];
+
+        let filtered = recipesArray.filter(recipe => {
+            // FIXED: Add null checks for recipe properties
+            if (!recipe) return false;
+
             const matchesTab = activeTab === 'my-recipes'
-                ? recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
+                ? (recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id)
                 : recipe.isPublic === true;
 
             const matchesSearch = !searchTerm ||
-                recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                recipe.description?.toLowerCase().includes(searchTerm.toLowerCase());
+                (recipe.title && recipe.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (recipe.description && recipe.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
             const matchesTag = !selectedTag ||
-                (recipe.tags && recipe.tags.includes(selectedTag));
+                (Array.isArray(recipe.tags) && recipe.tags.includes(selectedTag));
 
             const matchesDifficulty = !selectedDifficulty ||
                 recipe.difficulty === selectedDifficulty;
@@ -249,11 +331,18 @@ function RecipesContent() {
         });
 
         return filtered.sort((a, b) => {
+            // FIXED: Add null checks for sorting properties
+            if (!a || !b) return 0;
+
             switch (sortBy) {
                 case 'newest':
-                    return new Date(b.createdAt) - new Date(a.createdAt);
+                    const aDate = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const bDate = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return bDate - aDate;
                 case 'oldest':
-                    return new Date(a.createdAt) - new Date(b.createdAt);
+                    const aDateOld = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const bDateOld = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return aDateOld - bDateOld;
                 case 'rating':
                     const aRating = a.ratingStats?.averageRating || 0;
                     const bRating = b.ratingStats?.averageRating || 0;
@@ -265,7 +354,9 @@ function RecipesContent() {
                     if (bViews !== aViews) return bViews - aViews;
                     return (b.ratingStats?.averageRating || 0) - (a.ratingStats?.averageRating || 0);
                 case 'title':
-                    return a.title.localeCompare(b.title);
+                    const aTitle = a.title || '';
+                    const bTitle = b.title || '';
+                    return aTitle.localeCompare(bTitle);
                 default:
                     return 0;
             }
@@ -289,12 +380,15 @@ function RecipesContent() {
         return colors[difficulty] || colors.medium;
     };
 
-    // Get tab-specific counts with usage limits
+    // Get tab-specific counts with usage limits and null checks
     const getTabCounts = () => {
-        const myRecipes = recipes.filter(recipe =>
-            recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id
+        // FIXED: Ensure recipes is always an array before filtering
+        const recipesArray = Array.isArray(recipes) ? recipes : [];
+
+        const myRecipes = recipesArray.filter(recipe =>
+            recipe && (recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id)
         );
-        const publicRecipes = recipes.filter(recipe => recipe.isPublic === true);
+        const publicRecipes = recipesArray.filter(recipe => recipe && recipe.isPublic === true);
 
         return {
             myRecipes: myRecipes.length,
@@ -304,7 +398,7 @@ function RecipesContent() {
         };
     };
 
-    // NEW: Get usage information for tabs
+    // Get usage information for tabs with better error handling
     const getUsageInfo = (tabType) => {
         if (!subscription || subscription.loading) {
             return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
@@ -339,7 +433,7 @@ function RecipesContent() {
         }
     };
 
-    // NEW: Format count display with usage limits
+    // Format count display with usage limits
     const formatCountWithLimit = (tabType) => {
         if (loadingCounts || subscription.loading) {
             return '...';
@@ -355,7 +449,7 @@ function RecipesContent() {
         return `${count}/${usage.limit}`;
     };
 
-    // NEW: Get count color based on usage
+    // Get count color based on usage
     const getCountColor = (tabType, isActive) => {
         if (loadingCounts || subscription.loading) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
@@ -381,7 +475,7 @@ function RecipesContent() {
 
     // Check if user can edit recipe
     const canEditRecipe = (recipe) => {
-        return recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id;
+        return recipe && (recipe.createdBy?._id === session?.user?.id || recipe.createdBy === session?.user?.id);
     };
 
     if (status === 'loading' || loading) {
@@ -401,12 +495,36 @@ function RecipesContent() {
         );
     }
 
+    // FIXED: Use safe filtering
     const filteredRecipes = getFilteredAndSortedRecipes();
     const tabCounts = getTabCounts();
 
     return (
         <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
+                {/* Error Messages */}
+                {recipesError && (
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="text-sm text-red-800">
+                            <strong>Error loading recipes:</strong> {recipesError}
+                            <button
+                                onClick={fetchRecipes}
+                                className="ml-2 text-red-600 hover:text-red-800 underline"
+                            >
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {countsError && (
+                    <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="text-sm text-yellow-800">
+                            <strong>Warning:</strong> {countsError}
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
@@ -660,7 +778,7 @@ function RecipesContent() {
                                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                         <option value="">All Tags</option>
-                                        {allTags.map(tag => (
+                                        {Array.isArray(allTags) && allTags.map(tag => (
                                             <option key={tag} value={tag}>{tag}</option>
                                         ))}
                                     </select>
@@ -709,7 +827,7 @@ function RecipesContent() {
                         {/* Results Count */}
                         <div className="flex justify-between items-center mb-6">
                             <p className="text-gray-600">
-                                Showing {filteredRecipes.length} of {getTabCounts()[activeTab === 'my-recipes' ? 'myRecipes' : 'publicRecipes']} recipe{filteredRecipes.length !== 1 ? 's' : ''}
+                                Showing {Array.isArray(filteredRecipes) ? filteredRecipes.length : 0} of {getTabCounts()[activeTab === 'my-recipes' ? 'myRecipes' : 'publicRecipes']} recipe{(Array.isArray(filteredRecipes) ? filteredRecipes.length : 0) !== 1 ? 's' : ''}
                                 <span className="text-indigo-600 font-medium ml-1">
                                     ({activeTab === 'my-recipes' ? 'My Recipes' : 'Public Recipes'})
                                 </span>
@@ -732,193 +850,198 @@ function RecipesContent() {
                         </div>
 
                         {/* Recipe Grid */}
-                        {filteredRecipes.length > 0 ? (
+                        {Array.isArray(filteredRecipes) && filteredRecipes.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredRecipes.map((recipe) => (
-                                    <div key={recipe._id}
-                                         className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="p-6">
-                                            {/* Header */}
-                                            <div className="flex justify-between items-start mb-3">
-                                                <Link
-                                                    href={`/recipes/${recipe._id}`}
-                                                    className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
-                                                >
-                                                    {recipe.title}
-                                                </Link>
-                                                {/* Show appropriate buttons based on tab */}
-                                                <div className="flex gap-1 ml-2">
-                                                    {activeTab === 'public-recipes' && (
-                                                        <SaveRecipeButton
-                                                            recipeId={recipe._id}
-                                                            recipeName={recipe.title}
-                                                            size="small"
-                                                            showText={false}
-                                                            onSaveStateChange={handleRecipeSaveStateChange}
-                                                        />
-                                                    )}
-                                                    {canEditRecipe(recipe) && (
-                                                        <div className="flex space-x-1">
-                                                            <TouchEnhancedButton
-                                                                onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
-                                                                className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
-                                                                title="Edit recipe"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none"
-                                                                     stroke="currentColor"
-                                                                     viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round"
-                                                                          strokeLinejoin="round"
-                                                                          strokeWidth={2}
-                                                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                                </svg>
-                                                            </TouchEnhancedButton>
-                                                            <TouchEnhancedButton
-                                                                onClick={() => handleDelete(recipe._id)}
-                                                                className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
-                                                                title="Delete recipe"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none"
-                                                                     stroke="currentColor"
-                                                                     viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round"
-                                                                          strokeLinejoin="round"
-                                                                          strokeWidth={2}
-                                                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                                </svg>
-                                                            </TouchEnhancedButton>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                {filteredRecipes.map((recipe) => {
+                                    // FIXED: Add null check for recipe
+                                    if (!recipe) return null;
 
-                                            {/* Recipe Author Info (for public recipes) */}
-                                            {activeTab === 'public-recipes' && recipe.createdBy && (
-                                                <div className="mb-3">
-                                                    <div className="flex items-center text-sm text-gray-600">
-                                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor"
-                                                             viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round"
-                                                                  strokeWidth={2}
-                                                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                                        </svg>
-                                                        <span>
-                                                            by {recipe.createdBy.name || recipe.createdBy.email}
-                                                            {recipe.importedFrom && (
-                                                                <span className="text-xs text-gray-500 ml-1">
-                                                                    (from {recipe.importedFrom})
-                                                                </span>
-                                                            )}
-                                                        </span>
+                                    return (
+                                        <div key={recipe._id}
+                                             className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="p-6">
+                                                {/* Header */}
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <Link
+                                                        href={`/recipes/${recipe._id}`}
+                                                        className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
+                                                    >
+                                                        {recipe.title || 'Untitled Recipe'}
+                                                    </Link>
+                                                    {/* Show appropriate buttons based on tab */}
+                                                    <div className="flex gap-1 ml-2">
+                                                        {activeTab === 'public-recipes' && (
+                                                            <SaveRecipeButton
+                                                                recipeId={recipe._id}
+                                                                recipeName={recipe.title || 'Recipe'}
+                                                                size="small"
+                                                                showText={false}
+                                                                onSaveStateChange={handleRecipeSaveStateChange}
+                                                            />
+                                                        )}
+                                                        {canEditRecipe(recipe) && (
+                                                            <div className="flex space-x-1">
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
+                                                                    className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
+                                                                    title="Edit recipe"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none"
+                                                                         stroke="currentColor"
+                                                                         viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round"
+                                                                              strokeLinejoin="round"
+                                                                              strokeWidth={2}
+                                                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                                    </svg>
+                                                                </TouchEnhancedButton>
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => handleDelete(recipe._id)}
+                                                                    className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
+                                                                    title="Delete recipe"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none"
+                                                                         stroke="currentColor"
+                                                                         viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round"
+                                                                              strokeLinejoin="round"
+                                                                              strokeWidth={2}
+                                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                                    </svg>
+                                                                </TouchEnhancedButton>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            )}
 
-                                            {/* Ingredient Search Match Indicator */}
-                                            {ingredientSearch && searchInIngredients(recipe, ingredientSearch, ingredientSearchType) && (
-                                                <div className="mb-3">
-                                                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
-                                                        <div className="flex items-center text-xs text-yellow-800">
-                                                            <svg className="w-3 h-3 mr-1" fill="currentColor"
-                                                                 viewBox="0 0 20 20">
-                                                                <path fillRule="evenodd"
-                                                                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                                                                      clipRule="evenodd"/>
-                                                            </svg>
-                                                            <span className="font-medium">Contains: "{ingredientSearch}"</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Rating and Views */}
-                                            <div className="flex items-center justify-between mb-3">
-                                                <StarRating
-                                                    rating={recipe.ratingStats?.averageRating || 0}
-                                                    size="small"
-                                                    showNumber={false}
-                                                />
-                                                <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                                    {recipe.ratingStats?.totalRatings > 0 && (
-                                                        <span>{recipe.ratingStats.totalRatings} review{recipe.ratingStats.totalRatings !== 1 ? 's' : ''}</span>
-                                                    )}
-                                                    {recipe.metrics?.viewCount > 0 && (
-                                                        <span>{recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Description */}
-                                            {recipe.description && (
-                                                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                                                    {recipe.description}
-                                                </p>
-                                            )}
-
-                                            {/* Recipe Info */}
-                                            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                                                <div className="flex items-center space-x-4">
-                                                    {recipe.servings && (
-                                                        <span className="flex items-center space-x-1">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                {/* Recipe Author Info (for public recipes) */}
+                                                {activeTab === 'public-recipes' && recipe.createdBy && (
+                                                    <div className="mb-3">
+                                                        <div className="flex items-center text-sm text-gray-600">
+                                                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor"
                                                                  viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round"
                                                                       strokeWidth={2}
-                                                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                                             </svg>
-                                                            <span>{recipe.servings}</span>
-                                                        </span>
-                                                    )}
-                                                    {formatCookTime(recipe.cookTime) && (
-                                                        <span className="flex items-center space-x-1">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
-                                                                 viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round"
-                                                                      strokeWidth={2}
-                                                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                            </svg>
-                                                            <span>{formatCookTime(recipe.cookTime)}</span>
+                                                            <span>
+                                                                by {recipe.createdBy.name || recipe.createdBy.email || 'Unknown'}
+                                                                {recipe.importedFrom && (
+                                                                    <span className="text-xs text-gray-500 ml-1">
+                                                                        (from {recipe.importedFrom})
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Ingredient Search Match Indicator */}
+                                                {ingredientSearch && searchInIngredients(recipe, ingredientSearch, ingredientSearchType) && (
+                                                    <div className="mb-3">
+                                                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                                                            <div className="flex items-center text-xs text-yellow-800">
+                                                                <svg className="w-3 h-3 mr-1" fill="currentColor"
+                                                                     viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd"
+                                                                          d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                                                                          clipRule="evenodd"/>
+                                                                </svg>
+                                                                <span className="font-medium">Contains: "{ingredientSearch}"</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Rating and Views */}
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <StarRating
+                                                        rating={recipe.ratingStats?.averageRating || 0}
+                                                        size="small"
+                                                        showNumber={false}
+                                                    />
+                                                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                                        {recipe.ratingStats?.totalRatings > 0 && (
+                                                            <span>{recipe.ratingStats.totalRatings} review{recipe.ratingStats.totalRatings !== 1 ? 's' : ''}</span>
+                                                        )}
+                                                        {recipe.metrics?.viewCount > 0 && (
+                                                            <span>{recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Description */}
+                                                {recipe.description && (
+                                                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                                                        {recipe.description}
+                                                    </p>
+                                                )}
+
+                                                {/* Recipe Info */}
+                                                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                                                    <div className="flex items-center space-x-4">
+                                                        {recipe.servings && (
+                                                            <span className="flex items-center space-x-1">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                     viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                                                          strokeWidth={2}
+                                                                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                                </svg>
+                                                                <span>{recipe.servings}</span>
+                                                            </span>
+                                                        )}
+                                                        {formatCookTime(recipe.cookTime) && (
+                                                            <span className="flex items-center space-x-1">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                                     viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                                                          strokeWidth={2}
+                                                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                                </svg>
+                                                                <span>{formatCookTime(recipe.cookTime)}</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {recipe.difficulty && (
+                                                        <span
+                                                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                                            {recipe.difficulty}
                                                         </span>
                                                     )}
                                                 </div>
-                                                {recipe.difficulty && (
-                                                    <span
-                                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                                        {recipe.difficulty}
-                                                    </span>
+
+                                                {/* Tags */}
+                                                {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {recipe.tags.slice(0, 3).map((tag, index) => (
+                                                            <span
+                                                                key={index}
+                                                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                                                            >
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                        {recipe.tags.length > 3 && (
+                                                            <span className="text-xs text-gray-500">
+                                                                +{recipe.tags.length - 3} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {/* Category */}
+                                                {recipe.category && (
+                                                    <div className="mt-2">
+                                                        <span
+                                                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                                            {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
-
-                                            {/* Tags */}
-                                            {recipe.tags && recipe.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {recipe.tags.slice(0, 3).map((tag, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
-                                                        >
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                    {recipe.tags.length > 3 && (
-                                                        <span className="text-xs text-gray-500">
-                                                            +{recipe.tags.length - 3} more
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {/* Category */}
-                                            {recipe.category && (
-                                                <div className="mt-2">
-                                                    <span
-                                                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                                                        {CATEGORY_OPTIONS.find(opt => opt.value === recipe.category)?.label || recipe.category}
-                                                    </span>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center py-12">

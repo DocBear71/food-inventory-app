@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/SavedRecipes.js v1 - Saved recipes tab component
+// file: /src/components/recipes/SavedRecipes.js v2 - FIXED with enhanced error handling and null checks
 
 import React, { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -10,7 +10,7 @@ import { FEATURE_GATES } from '@/lib/subscription-config';
 import { getApiUrl } from '@/lib/api-config';
 import SaveRecipeButton from './SaveRecipeButton';
 
-const SavedRecipes = () => {
+const SavedRecipes = ({ onCountChange }) => {
     const { data: session } = useSafeSession();
     const [savedRecipes, setSavedRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -50,17 +50,60 @@ const SavedRecipes = () => {
             setLoading(true);
             setError('');
 
-            const response = await fetch(getApiUrl('/api/saved-recipes'));
+            console.log('🔍 SavedRecipes - Fetching saved recipes...');
+
+            const response = await fetch(getApiUrl('/api/saved-recipes'), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+            });
+
+            if (!response.ok) {
+                console.error('❌ SavedRecipes - API request failed:', response.status, response.statusText);
+
+                if (response.status >= 500) {
+                    throw new Error('Server temporarily unavailable. Please try again later.');
+                } else if (response.status === 401) {
+                    throw new Error('Please sign in again to view your saved recipes.');
+                } else if (response.status === 403) {
+                    throw new Error('You don\'t have permission to view saved recipes.');
+                } else {
+                    throw new Error(`Failed to load saved recipes (${response.status})`);
+                }
+            }
+
             const data = await response.json();
 
             if (data.success) {
-                setSavedRecipes(data.savedRecipes);
+                // FIXED: Ensure savedRecipes is always an array and filter out invalid entries
+                const validSavedRecipes = Array.isArray(data.savedRecipes)
+                    ? data.savedRecipes.filter(saved => saved && saved.recipeId)
+                    : [];
+
+                setSavedRecipes(validSavedRecipes);
+
+                // Update parent component count
+                if (onCountChange) {
+                    onCountChange(validSavedRecipes.length);
+                }
+
+                console.log('✅ SavedRecipes - Successfully loaded:', validSavedRecipes.length, 'saved recipes');
+
+                if (data.warning) {
+                    console.warn('⚠️ SavedRecipes - API warning:', data.warning);
+                }
             } else {
+                console.error('❌ SavedRecipes - API returned error:', data.error);
                 setError(data.error || 'Failed to fetch saved recipes');
+                setSavedRecipes([]); // Ensure empty array on error
+                if (onCountChange) onCountChange(0);
             }
         } catch (error) {
-            console.error('Error fetching saved recipes:', error);
-            setError('Failed to fetch saved recipes');
+            console.error('❌ SavedRecipes - Error fetching saved recipes:', error);
+            setError(error.message || 'Failed to fetch saved recipes');
+            setSavedRecipes([]); // Ensure empty array on error
+            if (onCountChange) onCountChange(0);
         } finally {
             setLoading(false);
         }
@@ -68,22 +111,42 @@ const SavedRecipes = () => {
 
     const handleUnsaveRecipe = async (recipeId) => {
         try {
+            console.log('🗑️ SavedRecipes - Unsaving recipe:', recipeId);
+
             const response = await fetch(getApiUrl(`/api/saved-recipes?recipeId=${recipeId}`), {
                 method: 'DELETE'
             });
 
+            if (!response.ok) {
+                console.error('❌ SavedRecipes - Failed to unsave recipe:', response.status);
+                throw new Error(`Failed to unsave recipe (${response.status})`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
-                setSavedRecipes(prev => prev.filter(saved =>
-                    saved.recipeId._id !== recipeId
-                ));
+                // FIXED: Use safe filtering with null checks
+                const updatedSavedRecipes = Array.isArray(savedRecipes)
+                    ? savedRecipes.filter(saved =>
+                        saved && saved.recipeId && saved.recipeId._id !== recipeId
+                    )
+                    : [];
+
+                setSavedRecipes(updatedSavedRecipes);
+
+                // Update parent component count
+                if (onCountChange) {
+                    onCountChange(updatedSavedRecipes.length);
+                }
+
+                console.log('✅ SavedRecipes - Recipe successfully unsaved');
             } else {
+                console.error('❌ SavedRecipes - API returned error:', data.error);
                 setError(data.error || 'Failed to unsave recipe');
             }
         } catch (error) {
-            console.error('Error unsaving recipe:', error);
-            setError('Failed to unsave recipe');
+            console.error('❌ SavedRecipes - Error unsaving recipe:', error);
+            setError(error.message || 'Failed to unsave recipe');
         }
     };
 
@@ -105,13 +168,19 @@ const SavedRecipes = () => {
     };
 
     const getFilteredAndSortedRecipes = () => {
-        let filtered = savedRecipes.filter(saved => {
+        // FIXED: Ensure savedRecipes is always an array before filtering
+        const recipesArray = Array.isArray(savedRecipes) ? savedRecipes : [];
+
+        let filtered = recipesArray.filter(saved => {
+            // FIXED: Add comprehensive null checks
+            if (!saved || !saved.recipeId) return false;
+
             const recipe = saved.recipeId;
             if (!recipe) return false;
 
             const matchesSearch = !searchTerm ||
-                recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                recipe.description?.toLowerCase().includes(searchTerm.toLowerCase());
+                (recipe.title && recipe.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (recipe.description && recipe.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
             const matchesCategory = !selectedCategory ||
                 recipe.category === selectedCategory;
@@ -122,23 +191,32 @@ const SavedRecipes = () => {
             return matchesSearch && matchesCategory && matchesDifficulty;
         });
 
-        // Sort recipes
+        // Sort recipes with null checks
         return filtered.sort((a, b) => {
+            // FIXED: Add null checks for sorting
+            if (!a || !b || !a.recipeId || !b.recipeId) return 0;
+
             const recipeA = a.recipeId;
             const recipeB = b.recipeId;
 
             switch (sortBy) {
                 case 'newest':
-                    return new Date(b.savedAt) - new Date(a.savedAt);
+                    const aDate = a.savedAt ? new Date(a.savedAt) : new Date(0);
+                    const bDate = b.savedAt ? new Date(b.savedAt) : new Date(0);
+                    return bDate - aDate;
                 case 'oldest':
-                    return new Date(a.savedAt) - new Date(b.savedAt);
+                    const aDateOld = a.savedAt ? new Date(a.savedAt) : new Date(0);
+                    const bDateOld = b.savedAt ? new Date(b.savedAt) : new Date(0);
+                    return aDateOld - bDateOld;
                 case 'rating':
                     const aRating = recipeA.ratingStats?.averageRating || 0;
                     const bRating = recipeB.ratingStats?.averageRating || 0;
                     if (bRating !== aRating) return bRating - aRating;
                     return (recipeB.ratingStats?.totalRatings || 0) - (recipeA.ratingStats?.totalRatings || 0);
                 case 'title':
-                    return recipeA.title.localeCompare(recipeB.title);
+                    const aTitle = recipeA.title || '';
+                    const bTitle = recipeB.title || '';
+                    return aTitle.localeCompare(bTitle);
                 default:
                     return 0;
             }
@@ -203,8 +281,16 @@ const SavedRecipes = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        📚 Saved Recipes ({savedRecipes.length})
+                        📚 Saved Recipes ({Array.isArray(savedRecipes) ? savedRecipes.length : 0})
                     </h2>
+                    {error && (
+                        <TouchEnhancedButton
+                            onClick={fetchSavedRecipes}
+                            className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-md hover:bg-indigo-200"
+                        >
+                            Retry
+                        </TouchEnhancedButton>
+                    )}
                 </div>
 
                 {/* Error Message */}
@@ -217,7 +303,7 @@ const SavedRecipes = () => {
                 )}
 
                 {/* Filters */}
-                {savedRecipes.length > 0 && (
+                {Array.isArray(savedRecipes) && savedRecipes.length > 0 && (
                     <div className="bg-white rounded-lg border p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Search */}
@@ -311,18 +397,21 @@ const SavedRecipes = () => {
                 )}
 
                 {/* Results Count */}
-                {savedRecipes.length > 0 && (
+                {Array.isArray(savedRecipes) && savedRecipes.length > 0 && (
                     <div className="flex justify-between items-center">
                         <p className="text-gray-600">
-                            Showing {filteredRecipes.length} of {savedRecipes.length} saved recipe{filteredRecipes.length !== 1 ? 's' : ''}
+                            Showing {Array.isArray(filteredRecipes) ? filteredRecipes.length : 0} of {savedRecipes.length} saved recipe{filteredRecipes.length !== 1 ? 's' : ''}
                         </p>
                     </div>
                 )}
 
                 {/* Saved Recipes Grid */}
-                {filteredRecipes.length > 0 ? (
+                {Array.isArray(filteredRecipes) && filteredRecipes.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredRecipes.map((saved) => {
+                            // FIXED: Add comprehensive null checks
+                            if (!saved || !saved.recipeId) return null;
+
                             const recipe = saved.recipeId;
                             if (!recipe) return null;
 
@@ -335,7 +424,7 @@ const SavedRecipes = () => {
                                                 href={`/recipes/${recipe._id}`}
                                                 className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
                                             >
-                                                {recipe.title}
+                                                {recipe.title || 'Untitled Recipe'}
                                             </a>
                                             <TouchEnhancedButton
                                                 onClick={() => handleUnsaveRecipe(recipe._id)}
@@ -355,7 +444,7 @@ const SavedRecipes = () => {
                                                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                                     </svg>
-                                                    <span>by {recipe.createdBy.name || recipe.createdBy.email}</span>
+                                                    <span>by {recipe.createdBy.name || recipe.createdBy.email || 'Unknown'}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -410,14 +499,14 @@ const SavedRecipes = () => {
 
                                         {/* Saved Date */}
                                         <div className="text-xs text-gray-400">
-                                            Saved {new Date(saved.savedAt).toLocaleDateString()}
+                                            Saved {saved.savedAt ? new Date(saved.savedAt).toLocaleDateString() : 'recently'}
                                         </div>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
-                ) : savedRecipes.length > 0 ? (
+                ) : Array.isArray(savedRecipes) && savedRecipes.length > 0 ? (
                     <div className="text-center py-8">
                         <div className="text-gray-500 mb-4">
                             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">

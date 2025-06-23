@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/SaveRecipeButton.js v2 - FIXED error handling and API calls
+// file: /src/components/recipes/SaveRecipeButton.js v3 - FIXED enhanced error handling and better fallback behavior
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -22,6 +22,7 @@ export default function SaveRecipeButton({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [statusCheckFailed, setStatusCheckFailed] = useState(false);
 
     // Check if recipe is saved on component mount
     useEffect(() => {
@@ -33,18 +34,31 @@ export default function SaveRecipeButton({
     const checkSavedStatus = async () => {
         try {
             console.log('🔍 SaveRecipeButton - Checking saved status for recipe:', recipeId);
+            setStatusCheckFailed(false);
 
-            const response = await fetch(getApiUrl('/api/saved-recipes'));
+            const response = await fetch(getApiUrl('/api/saved-recipes'), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+            });
 
             if (!response.ok) {
                 console.warn('⚠️ SaveRecipeButton - Failed to check saved status:', response.status, response.statusText);
 
-                // Don't set error state for failed status checks - just log and continue
+                // Handle different error types gracefully
                 if (response.status === 401) {
                     console.log('🔐 SaveRecipeButton - User not authenticated');
+                    setStatusCheckFailed(true);
                     return;
                 } else if (response.status >= 500) {
                     console.warn('🚨 SaveRecipeButton - Server error checking saved status, will skip status check');
+                    setStatusCheckFailed(true);
+                    // Don't show error to user, just use default state
+                    return;
+                } else if (response.status >= 400) {
+                    console.warn('⚠️ SaveRecipeButton - Client error checking saved status:', response.status);
+                    setStatusCheckFailed(true);
                     return;
                 }
                 return;
@@ -52,10 +66,10 @@ export default function SaveRecipeButton({
 
             const data = await response.json();
 
-            if (data.success && data.savedRecipes) {
-                const savedRecipeIds = data.savedRecipes.map(saved =>
-                    saved.recipeId?._id || saved.recipeId
-                ).filter(Boolean);
+            if (data.success && Array.isArray(data.savedRecipes)) {
+                const savedRecipeIds = data.savedRecipes
+                    .map(saved => saved.recipeId?._id || saved.recipeId)
+                    .filter(id => id); // Filter out any null/undefined values
 
                 const isCurrentlySaved = savedRecipeIds.includes(recipeId);
                 setIsSaved(isCurrentlySaved);
@@ -63,10 +77,15 @@ export default function SaveRecipeButton({
                 console.log('✅ SaveRecipeButton - Status check complete. Recipe saved:', isCurrentlySaved);
             } else if (data.warning) {
                 console.warn('⚠️ SaveRecipeButton - API returned warning:', data.warning);
+                setStatusCheckFailed(true);
                 // Continue with default state if there's a warning
+            } else {
+                console.warn('⚠️ SaveRecipeButton - Unexpected API response format:', data);
+                setStatusCheckFailed(true);
             }
         } catch (error) {
             console.warn('⚠️ SaveRecipeButton - Error checking saved status:', error.message);
+            setStatusCheckFailed(true);
             // Don't set error state for network issues during status check
             // Just log and continue with default state
         }
@@ -86,11 +105,15 @@ export default function SaveRecipeButton({
             if (isSaved) {
                 // Unsave recipe
                 const response = await fetch(getApiUrl(`/api/saved-recipes?recipeId=${recipeId}`), {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
                 }
 
                 const data = await response.json();
@@ -98,7 +121,7 @@ export default function SaveRecipeButton({
                 if (data.success) {
                     setIsSaved(false);
                     setSuccess('Recipe removed from saved recipes');
-                    if (onSaveStateChange) onSaveStateChange(recipe._id, false);
+                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
                 } else {
                     throw new Error(data.error || 'Failed to unsave recipe');
                 }
@@ -113,7 +136,8 @@ export default function SaveRecipeButton({
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
                 }
 
                 const data = await response.json();
@@ -136,7 +160,24 @@ export default function SaveRecipeButton({
             }
         } catch (error) {
             console.error('Error toggling save state:', error);
-            setError(error.message || 'An error occurred');
+
+            // Provide more user-friendly error messages
+            let userMessage = 'An error occurred';
+            if (error.message.includes('500')) {
+                userMessage = 'Server temporarily unavailable. Please try again later.';
+            } else if (error.message.includes('401')) {
+                userMessage = 'Please sign in again to save recipes.';
+            } else if (error.message.includes('403')) {
+                userMessage = 'You have reached your saved recipe limit.';
+            } else if (error.message.includes('404')) {
+                userMessage = 'Recipe not found or no longer available.';
+            } else if (error.message.includes('Network')) {
+                userMessage = 'Network error. Please check your connection.';
+            } else {
+                userMessage = error.message || 'An error occurred';
+            }
+
+            setError(userMessage);
         } finally {
             setLoading(false);
         }
@@ -199,7 +240,10 @@ export default function SaveRecipeButton({
                         isSaved
                             ? 'bg-green-600 hover:bg-green-700 text-white'
                             : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
-                    } rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className}`}
+                    } rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className} ${
+                        statusCheckFailed ? 'opacity-90' : ''
+                    }`}
+                    title={statusCheckFailed ? 'Save status could not be verified' : ''}
                 >
                     {loading ? (
                         <div className={`animate-spin rounded-full border-b-2 ${
@@ -223,13 +267,16 @@ export default function SaveRecipeButton({
                     {showText && (
                         <span>
                             {loading ? 'Saving...' : isSaved ? 'Saved' : 'Save Recipe'}
+                            {statusCheckFailed && !loading && (
+                                <span className="text-xs opacity-75"> (?)</span>
+                            )}
                         </span>
                     )}
                 </TouchEnhancedButton>
 
                 {/* Success/Error Messages */}
                 {(success || error) && (
-                    <div className={`absolute top-full left-0 mt-2 w-64 rounded-lg p-3 z-10 ${
+                    <div className={`absolute top-full left-0 mt-2 w-64 rounded-lg p-3 z-10 shadow-lg ${
                         success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
                     }`}>
                         <div className={`text-sm ${
@@ -237,6 +284,13 @@ export default function SaveRecipeButton({
                         }`}>
                             {success ? `✓ ${success}` : `⚠️ ${error}`}
                         </div>
+                    </div>
+                )}
+
+                {/* Status Check Failed Warning (only show if user hovers and check failed) */}
+                {statusCheckFailed && !loading && !success && !error && (
+                    <div className="absolute top-full left-0 mt-1 w-48 text-xs text-gray-500 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                        Save status could not be verified
                     </div>
                 )}
             </div>
