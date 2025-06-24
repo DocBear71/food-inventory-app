@@ -1,6 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/page.js v9 - Fixed scaling bug and improved user tracking
-
+// file: /src/app/recipes/[id]/page.js v10 - Updated with moved buttons, meal planning feature gate, and improved modal
 
 import { useEffect, useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -15,6 +14,8 @@ import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -29,6 +30,8 @@ export default function RecipeDetailPage() {
     const params = useParams();
     const router = useRouter();
     const recipeId = params.id;
+    const subscription = useSubscription();
+    const mealPlanFeatureGate = useFeatureGate(FEATURE_GATES.CREATE_MEAL_PLAN);
 
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -37,11 +40,8 @@ export default function RecipeDetailPage() {
     const [servings, setServings] = useState(1);
     const [showQuickShoppingList, setShowQuickShoppingList] = useState(false);
     const [showMealPlanModal, setShowMealPlanModal] = useState(false);
-    const [showCollectionsModal, setShowCollectionsModal] = useState(false);
     const [mealPlans, setMealPlans] = useState([]);
-    const [collections, setCollections] = useState([]);
     const [loadingMealPlans, setLoadingMealPlans] = useState(false);
-    const [loadingCollections, setLoadingCollections] = useState(false);
 
     useEffect(() => {
         if (recipeId) {
@@ -87,76 +87,6 @@ export default function RecipeDetailPage() {
             console.error('Error fetching meal plans:', error);
         } finally {
             setLoadingMealPlans(false);
-        }
-    };
-
-    // NEW: Fetch user's recipe collections
-    const fetchCollections = async () => {
-        setLoadingCollections(true);
-        try {
-            const response = await fetch(getApiUrl('/api/collections'));
-            const data = await response.json();
-            if (data.success) {
-                setCollections(data.collections);
-            }
-        } catch (error) {
-            console.error('Error fetching collections:', error);
-        } finally {
-            setLoadingCollections(false);
-        }
-    };
-
-    // NEW: Add recipe to collection
-    const addToCollection = async (collectionId) => {
-        try {
-            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipeId: recipe._id
-                })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                alert(`Added "${recipe.title}" to your collection!`);
-                setShowCollectionsModal(false);
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (error) {
-            console.error('Error adding to collection:', error);
-            alert('Failed to add recipe to collection');
-        }
-    };
-
-    // NEW: Create new collection and add recipe
-    const createCollectionAndAdd = async (name, description = '') => {
-        try {
-            const response = await fetch(getApiUrl('/api/collections'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name,
-                    description,
-                    recipes: [{ recipeId: recipe._id }]
-                })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                alert(`Created collection "${name}" and added "${recipe.title}"!`);
-                setShowCollectionsModal(false);
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (error) {
-            console.error('Error creating collection:', error);
-            alert('Failed to create collection');
         }
     };
 
@@ -348,6 +278,18 @@ export default function RecipeDetailPage() {
         };
     };
 
+    // Handle meal planning feature gate
+    const handleMealPlanClick = () => {
+        if (!mealPlanFeatureGate.canUse) {
+            // Redirect to pricing page for free users
+            window.location.href = `/pricing?source=meal-planning&feature=${FEATURE_GATES.CREATE_MEAL_PLAN}&required=${mealPlanFeatureGate.requiredTier}`;
+            return;
+        }
+
+        fetchMealPlans();
+        setShowMealPlanModal(true);
+    };
+
     if (loading) {
         return (
             <MobileOptimizedLayout>
@@ -424,19 +366,18 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex space-x-2 ml-4">
+                        {/* UPDATED: Action Buttons - All moved to top */}
+                        <div className="flex flex-wrap gap-2 ml-4">
                             {/* Show edit button if user owns the recipe */}
                             {session?.user?.id === recipe.createdBy?._id && (
                                 <TouchEnhancedButton
                                     onClick={() => router.push(`/recipes/${recipeId}/edit`)}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
                                 >
                                     Edit Recipe
                                 </TouchEnhancedButton>
                             )}
 
-                            {/* ADD THESE NEW BUTTONS HERE: */}
                             <SaveRecipeButton
                                 recipeId={recipe._id}
                                 recipeName={recipe.title}
@@ -448,17 +389,50 @@ export default function RecipeDetailPage() {
                                 recipeName={recipe.title}
                             />
 
+                            {/* UPDATED: Meal Planning Button with Feature Gate */}
+                            <TouchEnhancedButton
+                                onClick={handleMealPlanClick}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                                    mealPlanFeatureGate.canUse
+                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                        : 'border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+                                }`}
+                                title={mealPlanFeatureGate.canUse ? 'Add to meal plan' : 'Upgrade to add to meal plans'}
+                            >
+                                {mealPlanFeatureGate.canUse ? (
+                                    <>
+                                        <span className="hidden sm:inline">📅 Add to Meal Plan</span>
+                                        <span className="sm:hidden">📅 Meal Plan</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="hidden sm:inline">🔒 Meal Planning (Gold)</span>
+                                        <span className="sm:hidden">🔒 Meal Plan</span>
+                                    </>
+                                )}
+                            </TouchEnhancedButton>
+
+                            {/* Shopping List Button */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowQuickShoppingList(true)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                            >
+                                <span className="hidden sm:inline">🛒 Generate Shopping List</span>
+                                <span className="sm:hidden">🛒 Shopping</span>
+                            </TouchEnhancedButton>
+
                             {hasNutritionData && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowNutrition(!showNutrition)}
-                                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                                    className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
                                 >
                                     {showNutrition ? 'Hide' : 'Show'} Nutrition
                                 </TouchEnhancedButton>
                             )}
+
                             <TouchEnhancedButton
                                 onClick={() => window.print()}
-                                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+                                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
                             >
                                 Print
                             </TouchEnhancedButton>
@@ -624,25 +598,25 @@ export default function RecipeDetailPage() {
                                 <div>
                                     <span className="text-gray-500">Added by:</span>
                                     <span className="ml-2 text-gray-900">
-                {recipe.createdBy ? (
-                    <span className="flex items-center gap-1">
-                        <span>{recipe.createdBy.name || recipe.createdBy.email}</span>
-                        {recipe.importedFrom && (
-                            <span className="text-xs text-gray-400">(imported)</span>
-                        )}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">Unknown</span>
-                )}
-            </span>
+                                        {recipe.createdBy ? (
+                                            <span className="flex items-center gap-1">
+                                                <span>{recipe.createdBy.name || recipe.createdBy.email}</span>
+                                                {recipe.importedFrom && (
+                                                    <span className="text-xs text-gray-400">(imported)</span>
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">Unknown</span>
+                                        )}
+                                    </span>
                                 </div>
 
                                 {/* Created Date */}
                                 <div>
                                     <span className="text-gray-500">Created:</span>
                                     <span className="ml-2 text-gray-900">
-                {new Date(recipe.createdAt).toLocaleDateString()}
-            </span>
+                                        {new Date(recipe.createdAt).toLocaleDateString()}
+                                    </span>
                                 </div>
 
                                 {/* Last Edited (only show if different from created) */}
@@ -651,22 +625,22 @@ export default function RecipeDetailPage() {
                                         <div>
                                             <span className="text-gray-500">Last edited by:</span>
                                             <span className="ml-2 text-gray-900">
-                        {recipe.lastEditedBy ? (
-                            recipe.lastEditedBy.name || recipe.lastEditedBy.email
-                        ) : (
-                            recipe.createdBy ? (
-                                recipe.createdBy.name || recipe.createdBy.email
-                            ) : (
-                                <span className="text-gray-400">Unknown</span>
-                            )
-                        )}
-                    </span>
+                                                {recipe.lastEditedBy ? (
+                                                    recipe.lastEditedBy.name || recipe.lastEditedBy.email
+                                                ) : (
+                                                    recipe.createdBy ? (
+                                                        recipe.createdBy.name || recipe.createdBy.email
+                                                    ) : (
+                                                        <span className="text-gray-400">Unknown</span>
+                                                    )
+                                                )}
+                                            </span>
                                         </div>
                                         <div>
                                             <span className="text-gray-500">Updated:</span>
                                             <span className="ml-2 text-gray-900">
-                        {new Date(recipe.updatedAt).toLocaleDateString()}
-                    </span>
+                                                {new Date(recipe.updatedAt).toLocaleDateString()}
+                                            </span>
                                         </div>
                                     </>
                                 )}
@@ -676,8 +650,8 @@ export default function RecipeDetailPage() {
                                     <div>
                                         <span className="text-gray-500">Category:</span>
                                         <span className="ml-2 text-gray-900 capitalize">
-                    {recipe.category.replace(/-/g, ' ')}
-                </span>
+                                            {recipe.category.replace(/-/g, ' ')}
+                                        </span>
                                     </div>
                                 )}
 
@@ -689,8 +663,8 @@ export default function RecipeDetailPage() {
                                             ? 'bg-green-100 text-green-800'
                                             : 'bg-gray-100 text-gray-800'
                                     }`}>
-                {recipe.isPublic ? 'Public' : 'Private'}
-            </span>
+                                        {recipe.isPublic ? 'Public' : 'Private'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -713,38 +687,6 @@ export default function RecipeDetailPage() {
                                 </TouchEnhancedButton>
                             </div>
                         )}
-
-                        {/* Quick Actions */}
-                        <div className="bg-white rounded-lg border p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                            <div className="space-y-3">
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        fetchMealPlans();
-                                        setShowMealPlanModal(true);
-                                    }}
-                                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-                                >
-                                    Add to Meal Plan
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => setShowQuickShoppingList(true)}
-                                    className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-                                >
-                                    Generate Shopping List
-                                </TouchEnhancedButton>
-                                {/* UPDATED: Collections TouchEnhancedButton now functional */}
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        fetchCollections();
-                                        setShowCollectionsModal(true);
-                                    }}
-                                    className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors shadow-sm"
-                                >
-                                    📚 Save to Collection
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -758,196 +700,119 @@ export default function RecipeDetailPage() {
                 />
             )}
 
-            {/* Add to Meal Plan Modal */}
+            {/* UPDATED: Improved Add to Meal Plan Modal */}
             {showMealPlanModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
-                        <div className="p-4 border-b border-gray-200">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-200 flex-shrink-0">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-900">
+                                <h3 className="text-xl font-semibold text-gray-900">
                                     Add "{recipe.title}" to Meal Plan
                                 </h3>
                                 <TouchEnhancedButton
                                     onClick={() => setShowMealPlanModal(false)}
-                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                    className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
                                 >
                                     ×
                                 </TouchEnhancedButton>
                             </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                                Select a meal plan and choose when you'd like to add this recipe.
+                            </p>
                         </div>
 
-                        <div className="p-4 max-h-80 overflow-y-auto">
+                        <div className="flex-1 overflow-y-auto p-6">
                             {loadingMealPlans ? (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                    <p className="mt-2 text-gray-600">Loading meal plans...</p>
+                                <div className="text-center py-12">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <p className="mt-4 text-gray-600">Loading meal plans...</p>
                                 </div>
                             ) : mealPlans.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500 mb-4">No meal plans found. Create one first!</p>
+                                <div className="text-center py-12">
+                                    <div className="text-6xl mb-4">📅</div>
+                                    <h4 className="text-lg font-medium text-gray-900 mb-2">No meal plans found</h4>
+                                    <p className="text-gray-500 mb-6">Create your first meal plan to get started!</p>
                                     <TouchEnhancedButton
                                         onClick={() => {
                                             setShowMealPlanModal(false);
                                             router.push('/meal-planning');
                                         }}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                        className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
                                     >
                                         Go to Meal Planning
                                     </TouchEnhancedButton>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-600 mb-4">
-                                        Select a meal plan and specify when you'd like to add this recipe:
-                                    </p>
-
+                                <div className="space-y-6">
                                     {mealPlans.map(mealPlan => (
-                                        <div key={mealPlan._id} className="border border-gray-200 rounded-lg p-4">
-                                            <h4 className="font-medium text-gray-900 mb-2">{mealPlan.name}</h4>
-                                            <p className="text-sm text-gray-600 mb-3">
-                                                Week of {new Date(mealPlan.weekStartDate).toLocaleDateString()}
-                                            </p>
+                                        <div key={mealPlan._id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                                <h4 className="font-semibold text-gray-900 text-lg">{mealPlan.name}</h4>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    Week of {new Date(mealPlan.weekStartDate).toLocaleDateString('en-US', {
+                                                    month: 'long',
+                                                    day: 'numeric',
+                                                    year: 'numeric'
+                                                })}
+                                                </p>
+                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {/* Days and Meal Types */}
-                                                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                                                    <div key={day} className="space-y-1">
-                                                        <div className="text-xs font-medium text-gray-700 capitalize">
-                                                            {day}
+                                            <div className="p-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+                                                    {/* Days and Meal Types */}
+                                                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                                                        <div key={day} className="space-y-3">
+                                                            <div className="font-medium text-gray-700 capitalize text-center">
+                                                                {day}
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'].map(mealType => (
+                                                                    <TouchEnhancedButton
+                                                                        key={`${day}-${mealType}`}
+                                                                        onClick={() => addToMealPlan(mealPlan._id, day, mealType)}
+                                                                        className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-gray-200 rounded-md transition-colors"
+                                                                    >
+                                                                        {mealType}
+                                                                    </TouchEnhancedButton>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                        <div className="space-y-1">
-                                                            {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => (
-                                                                <TouchEnhancedButton
-                                                                    key={`${day}-${mealType}`}
-                                                                    onClick={() => addToMealPlan(mealPlan._id, day, mealType)}
-                                                                    className="w-full text-left px-2 py-1 text-xs bg-gray-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
-                                                                >
-                                                                    {mealType}
-                                                                </TouchEnhancedButton>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
 
-            {/* NEW: Add to Collection Modal */}
-            {showCollectionsModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-lg w-full max-h-96 overflow-hidden">
-                        <div className="p-4 border-b border-gray-200">
+                        {/* Modal Footer */}
+                        <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    📚 Save "{recipe.title}" to Collection
-                                </h3>
+                                <p className="text-sm text-gray-600">
+                                    💡 Tip: You can create and manage meal plans in the
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            setShowMealPlanModal(false);
+                                            router.push('/meal-planning');
+                                        }}
+                                        className="ml-1 text-indigo-600 hover:text-indigo-700 underline"
+                                    >
+                                        Meal Planning
+                                    </TouchEnhancedButton> section
+                                </p>
                                 <TouchEnhancedButton
-                                    onClick={() => setShowCollectionsModal(false)}
-                                    className="text-gray-400 hover:text-gray-600 text-xl"
+                                    onClick={() => setShowMealPlanModal(false)}
+                                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
                                 >
-                                    ×
+                                    Cancel
                                 </TouchEnhancedButton>
                             </div>
                         </div>
-
-                        <div className="p-4 max-h-80 overflow-y-auto">
-                            {loadingCollections ? (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                                    <p className="mt-2 text-gray-600">Loading collections...</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {/* Existing Collections */}
-                                    {collections.length > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-medium text-gray-900 mb-3">Add to existing collection:</h4>
-                                            <div className="space-y-2">
-                                                {collections.map(collection => (
-                                                    <TouchEnhancedButton
-                                                        key={collection._id}
-                                                        onClick={() => addToCollection(collection._id)}
-                                                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors"
-                                                    >
-                                                        <div className="font-medium text-gray-900">{collection.name}</div>
-                                                        {collection.description && (
-                                                            <div className="text-sm text-gray-600 mt-1">{collection.description}</div>
-                                                        )}
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            {collection.recipes?.length || 0} recipe{(collection.recipes?.length || 0) !== 1 ? 's' : ''}
-                                                        </div>
-                                                    </TouchEnhancedButton>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Create New Collection */}
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-3">
-                                            {collections.length > 0 ? 'Or create a new collection:' : 'Create your first collection:'}
-                                        </h4>
-                                        <form
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                const formData = new FormData(e.target);
-                                                const name = formData.get('name');
-                                                const description = formData.get('description');
-                                                if (name.trim()) {
-                                                    createCollectionAndAdd(name.trim(), description.trim());
-                                                }
-                                            }}
-                                            className="space-y-3"
-                                        >
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Collection Name *
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    name="name"
-                                                    required
-                                                    placeholder="e.g., Favorite Desserts, Quick Weeknight Meals"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Description (Optional)
-                                                </label>
-                                                <textarea
-                                                    name="description"
-                                                    rows={2}
-                                                    placeholder="Brief description of this collection..."
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                                                />
-                                            </div>
-                                            <TouchEnhancedButton
-                                                type="submit"
-                                                className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
-                                            >
-                                                ✨ Create Collection & Add Recipe
-                                            </TouchEnhancedButton>
-                                        </form>
-                                    </div>
-
-                                    {collections.length === 0 && (
-                                        <div className="text-center py-4 text-gray-500 text-sm">
-                                            Collections help you organize your favorite recipes by theme, occasion, or dietary preferences.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
             )}
+
             <Footer />
         </MobileOptimizedLayout>
     );
