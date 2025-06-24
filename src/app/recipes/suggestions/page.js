@@ -313,27 +313,34 @@ export default function RecipeSuggestions() {
     };
 
     // Comprehensive ingredient variations - covers real scanning/entry variations
+    // 4. COMPREHENSIVE INGREDIENT VARIATIONS
     const INGREDIENT_VARIATIONS = {
-        // BASIC INGREDIENTS - Most common variations
+        // WATER - Basic household ingredient
+        'water': [
+            'tap water', 'filtered water', 'distilled water', 'spring water',
+            'cold water', 'warm water', 'hot water', 'boiling water'
+        ],
+
+        // EGGS
         'eggs': [
             'egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs',
             'fresh eggs', 'whole eggs', 'large white eggs', 'brown eggs', 'white eggs',
             'eggs (extra large)', 'eggs (large)', 'eggs (jumbo)', 'grade a eggs',
             'cage free eggs', 'free range eggs', 'organic eggs', 'pasture raised eggs'
         ],
-        'egg': [
-            'eggs', 'large egg', 'extra large egg', 'fresh egg', 'whole egg'
-        ],
+        'egg': ['eggs', 'large egg', 'extra large egg', 'fresh egg', 'whole egg'],
 
+        // FLOUR - ONLY basic all-purpose flour variations (specialty flours in NEVER_MATCH)
         'flour': [
             'all purpose flour', 'all-purpose flour', 'plain flour', 'white flour',
             'unbleached flour', 'bleached flour', 'enriched flour', 'wheat flour',
             'flour (all purpose)', 'ap flour', 'general purpose flour', 'regular flour',
-            'enriched wheat flour', 'unbleached all purpose flour'
+            'enriched wheat flour', 'unbleached all purpose flour', 'king arthur flour'
         ],
         'all purpose flour': ['flour', 'all-purpose flour', 'plain flour', 'ap flour'],
         'all-purpose flour': ['flour', 'all purpose flour', 'plain flour'],
 
+        // SUGAR - ONLY white/granulated sugar (brown sugar in NEVER_MATCH)
         'sugar': [
             'white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar',
             'sugar (granulated)', 'granulated white sugar', 'table sugar',
@@ -342,6 +349,15 @@ export default function RecipeSuggestions() {
         'white sugar': ['sugar', 'granulated sugar', 'cane sugar'],
         'granulated sugar': ['sugar', 'white sugar', 'sugar (granulated)'],
 
+        // BROWN SUGAR - Specific variations only
+        'brown sugar': [
+            'light brown sugar', 'dark brown sugar', 'packed brown sugar',
+            'brown sugar (light)', 'brown sugar (dark)'
+        ],
+        'light brown sugar': ['brown sugar'],
+        'dark brown sugar': ['brown sugar'],
+
+        // MILK - ONLY dairy milk (plant milks in NEVER_MATCH)
         'milk': [
             'whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk',
             'vitamin d milk', 'reduced fat milk', 'low fat milk', 'nonfat milk',
@@ -350,7 +366,7 @@ export default function RecipeSuggestions() {
         'whole milk': ['milk', 'vitamin d milk', 'milk (whole)'],
         '2% milk': ['milk', 'reduced fat milk', 'milk (2%)'],
 
-        // REGULAR BUTTER (NO VEGAN CROSSOVER)
+        // BUTTER - ONLY dairy butter (nut butters in NEVER_CROSS_MATCH)
         'butter': [
             'unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter',
             'butter (unsalted)', 'butter (salted)', 'real butter', 'churned butter'
@@ -358,19 +374,17 @@ export default function RecipeSuggestions() {
         'unsalted butter': ['butter', 'sweet cream butter'],
         'salted butter': ['butter'],
 
-        // REGULAR BEEF (NO VEGAN CROSSOVER)
-        'beef': [
-            'ground beef', 'beef chuck', 'beef sirloin', 'lean beef', 'beef roast',
-            'beef steak', 'hamburger', 'ground chuck', 'lean ground beef'
+        // WINE VARIATIONS
+        'marsala wine': [
+            'marsala cooking wine', 'cooking marsala', 'dry marsala', 'sweet marsala'
         ],
-        'ground beef': ['beef', 'hamburger', 'ground chuck', 'lean ground beef'],
-
-        // REGULAR SAUSAGE (NO VEGAN CROSSOVER)
-        'breakfast sausage': [
-            'sausage', 'pork sausage', 'italian sausage', 'breakfast links',
-            'sausage links', 'ground sausage'
+        'marsala cooking wine': ['marsala wine', 'cooking marsala'],
+        'white wine': [
+            'dry white wine', 'cooking white wine', 'white cooking wine'
         ],
-        'sausage': ['breakfast sausage', 'pork sausage', 'italian sausage'],
+        'red wine': [
+            'dry red wine', 'cooking red wine', 'red cooking wine'
+        ],
 
         // HONEY
         'honey': [
@@ -387,22 +401,29 @@ export default function RecipeSuggestions() {
         'white pepper powder': ['white pepper', 'ground white pepper'],
         'ground white pepper': ['white pepper', 'white pepper powder'],
 
-        // SEASONINGS
+        // GARLIC
         'garlic': [
             'garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic',
             'chopped garlic', 'garlic (fresh)', 'whole garlic', 'garlic head'
         ],
         'garlic cloves': ['garlic', 'fresh garlic', 'garlic bulb'],
 
+        // ONIONS - Regular onions only (green onions in NEVER_CROSS_MATCH)
         'onion': [
             'onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion',
             'small onion', 'large onion', 'medium onion', 'onion (yellow)', 'onion (white)',
             'spanish onion', 'storage onion'
         ],
         'yellow onion': ['onion', 'onions', 'cooking onion'],
+        'white onion': ['onion', 'onions'],
 
+        // SALT AND PEPPER
         'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'iodized salt'],
         'pepper': ['black pepper', 'ground pepper', 'ground black pepper'],
+
+        // OILS - Basic cooking oils only
+        'vegetable oil': ['canola oil', 'soybean oil', 'corn oil'],
+        'olive oil': ['extra virgin olive oil', 'virgin olive oil'],
 
         // BAKING INGREDIENTS
         'baking powder': [
@@ -448,143 +469,19 @@ export default function RecipeSuggestions() {
             .trim()
             // Remove parentheses and their contents FIRST
             .replace(/\([^)]*\)/g, '')
-            // Remove brand names and common descriptors
-            .replace(/\b(brand|organic|natural|pure|fresh|raw|whole|fine|coarse|ground|minced|chopped|sliced|diced|crushed|grated|shredded)\b/g, '')
+            // Remove measurements and numbers
+            .replace(/\d+(\.\d+)?\s*(cups?|tbsp|tsp|lbs?|oz|ml|g|kg)\b/gi, '')
+            // Remove common descriptors but keep important ones
+            .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|minced|chopped|sliced|diced|crushed|grated|shredded)\b/g, '')
             // Remove size descriptors
             .replace(/\b(small|medium|large|extra large|jumbo|mini)\b/g, '')
             // Remove packaging descriptors
-            .replace(/\b(can|jar|bottle|bag|box|package|container|lb|oz|cups?|tbsp|tsp)\b/g, '')
+            .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
             // Replace punctuation and hyphens with spaces
             .replace(/[^\w\s]/g, ' ')
             // Normalize multiple spaces
             .replace(/\s+/g, ' ')
             .trim();
-    }
-
-// 4. DIETARY RESTRICTION CHECKER:
-    function isDietaryConflict(recipeIngredient, inventoryItem) {
-        const recipeNorm = normalizeIngredientName(recipeIngredient);
-        const inventoryNorm = normalizeIngredientName(inventoryItem);
-
-        // Check if recipe asks for vegan but inventory is non-vegan
-        const isRecipeVegan = DIETARY_RESTRICTED_INGREDIENTS.vegan.some(vegan =>
-            recipeNorm.includes(normalizeIngredientName(vegan))
-        );
-        const isInventoryNonVegan = DIETARY_RESTRICTED_INGREDIENTS.nonVegan.some(nonVegan =>
-            inventoryNorm.includes(normalizeIngredientName(nonVegan))
-        );
-
-        if (isRecipeVegan && isInventoryNonVegan) {
-            console.log(`🚫 DIETARY CONFLICT: Recipe wants vegan "${recipeIngredient}" but inventory has non-vegan "${inventoryItem}"`);
-            return true;
-        }
-
-        // Check if recipe asks for non-vegan but inventory is vegan
-        const isRecipeNonVegan = DIETARY_RESTRICTED_INGREDIENTS.nonVegan.some(nonVegan =>
-            recipeNorm.includes(normalizeIngredientName(nonVegan))
-        );
-        const isInventoryVegan = DIETARY_RESTRICTED_INGREDIENTS.vegan.some(vegan =>
-            inventoryNorm.includes(normalizeIngredientName(vegan))
-        );
-
-        if (isRecipeNonVegan && isInventoryVegan) {
-            console.log(`🚫 DIETARY CONFLICT: Recipe wants non-vegan "${recipeIngredient}" but inventory has vegan "${inventoryItem}"`);
-            return true;
-        }
-
-        return false;
-    }
-
-// 5. IMPROVED MATCHING FUNCTION WITH DIETARY RESTRICTIONS:
-    function findBestIngredientMatch(recipeIngredient, inventory) {
-        const recipeName = recipeIngredient.name || recipeIngredient;
-        const recipeNormalized = normalizeIngredientName(recipeName);
-
-        console.log(`\n🔍 Looking for recipe ingredient: "${recipeName}"`);
-        console.log(`📝 Normalized to: "${recipeNormalized}"`);
-
-        // Step 1: Try exact match first
-        for (const item of inventory) {
-            const itemNormalized = normalizeIngredientName(item.name);
-
-            // Check for dietary conflicts FIRST
-            if (isDietaryConflict(recipeName, item.name)) {
-                console.log(`🚫 SKIPPING: Dietary conflict between "${recipeName}" and "${item.name}"`);
-                continue;
-            }
-
-            if (itemNormalized === recipeNormalized) {
-                console.log(`✅ EXACT MATCH: "${item.name}" = "${recipeName}"`);
-                return {
-                    found: true,
-                    inventoryItem: item,
-                    matchType: 'exact',
-                    confidence: 1.0
-                };
-            }
-        }
-
-        // Step 2: Try variation matching
-        const recipeVariations = getIngredientVariations(recipeName);
-        console.log(`🔄 Recipe variations:`, recipeVariations);
-
-        for (const item of inventory) {
-            // Check for dietary conflicts FIRST
-            if (isDietaryConflict(recipeName, item.name)) {
-                console.log(`🚫 SKIPPING: Dietary conflict between "${recipeName}" and "${item.name}"`);
-                continue;
-            }
-
-            const itemVariations = getIngredientVariations(item.name);
-            console.log(`🔄 Checking "${item.name}" variations:`, itemVariations);
-
-            // Check if any recipe variation matches any inventory variation
-            for (const recipeVar of recipeVariations) {
-                for (const itemVar of itemVariations) {
-                    if (recipeVar === itemVar && recipeVar.length > 2) {
-                        console.log(`✅ VARIATION MATCH: "${item.name}" ↔ "${recipeName}" via "${recipeVar}"`);
-                        return {
-                            found: true,
-                            inventoryItem: item,
-                            matchType: 'variation',
-                            confidence: 0.9
-                        };
-                    }
-                }
-            }
-        }
-
-        // Step 3: Try partial matching (contains) - with stricter validation
-        for (const item of inventory) {
-            // Check for dietary conflicts FIRST
-            if (isDietaryConflict(recipeName, item.name)) {
-                console.log(`🚫 SKIPPING: Dietary conflict between "${recipeName}" and "${item.name}"`);
-                continue;
-            }
-
-            const itemNormalized = normalizeIngredientName(item.name);
-
-            if (itemNormalized.includes(recipeNormalized) || recipeNormalized.includes(itemNormalized)) {
-                // Make sure it's not a false positive AND not a dietary conflict
-                if (isValidPartialMatch(recipeName, item.name)) {
-                    console.log(`✅ PARTIAL MATCH: "${item.name}" ↔ "${recipeName}"`);
-                    return {
-                        found: true,
-                        inventoryItem: item,
-                        matchType: 'partial',
-                        confidence: 0.7
-                    };
-                }
-            }
-        }
-
-        console.log(`❌ NO MATCH found for: "${recipeName}"`);
-        return {
-            found: false,
-            inventoryItem: null,
-            matchType: null,
-            confidence: 0
-        };
     }
 
 // 6. ENHANCED PARTIAL MATCH VALIDATION:
@@ -622,77 +519,6 @@ export default function RecipeSuggestions() {
         }
 
         return true;
-    }
-
-// 7. KEEP EXISTING getIngredientVariations FUNCTION (unchanged):
-    function getIngredientVariations(ingredient) {
-        const normalized = normalizeIngredientName(ingredient);
-        const variations = new Set([normalized]);
-
-        // Add the original (for exact brand matches)
-        variations.add(ingredient.toLowerCase().trim());
-
-        // Check if this ingredient has defined variations
-        if (INGREDIENT_VARIATIONS[normalized]) {
-            INGREDIENT_VARIATIONS[normalized].forEach(variation => {
-                variations.add(normalizeIngredientName(variation));
-            });
-        }
-
-        // Check if this ingredient is a variation of something else
-        for (const [base, variationList] of Object.entries(INGREDIENT_VARIATIONS)) {
-            const normalizedVariations = variationList.map(v => normalizeIngredientName(v));
-            if (normalizedVariations.includes(normalized)) {
-                variations.add(base);
-                normalizedVariations.forEach(v => variations.add(v));
-                break;
-            }
-        }
-
-        return Array.from(variations);
-    }
-
-// 8. ENHANCED DEBUG FUNCTION:
-    function debugSpecificIngredient(recipeIngredientName, inventory) {
-        console.log(`\n🔧 === DEBUGGING SPECIFIC INGREDIENT: "${recipeIngredientName}" ===`);
-
-        const result = findBestIngredientMatch(recipeIngredientName, inventory);
-
-        // Check what inventory items might conflict
-        const conflictingItems = inventory.filter(item =>
-            isDietaryConflict(recipeIngredientName, item.name)
-        );
-
-        const debugInfo = {
-            recipeIngredient: recipeIngredientName,
-            normalized: normalizeIngredientName(recipeIngredientName),
-            variations: getIngredientVariations(recipeIngredientName),
-            result: result,
-            conflictingItems: conflictingItems.map(item => item.name),
-            potentialMatches: inventory.filter(item => {
-                const itemNorm = normalizeIngredientName(item.name);
-                const recipeNorm = normalizeIngredientName(recipeIngredientName);
-                return itemNorm.includes(recipeNorm) || recipeNorm.includes(itemNorm);
-            }).map(item => ({
-                name: item.name,
-                normalized: normalizeIngredientName(item.name),
-                hasConflict: isDietaryConflict(recipeIngredientName, item.name)
-            }))
-        };
-
-        console.log('🔧 Debug info:', debugInfo);
-
-        if (result.found) {
-            console.log(`✅ MATCH FOUND: "${result.inventoryItem.name}" (${result.matchType}, confidence: ${result.confidence})`);
-        } else {
-            console.log(`❌ NO MATCH FOUND`);
-            if (conflictingItems.length > 0) {
-                console.log(`🚫 Conflicting items found:`, conflictingItems.map(item => item.name));
-            }
-            console.log(`🔍 Potential matches:`, debugInfo.potentialMatches);
-        }
-
-        return debugInfo;
     }
 
 // 9. COMPREHENSIVE TEST FUNCTION TO ADD TO YOUR COMPONENT:
@@ -761,45 +587,329 @@ export default function RecipeSuggestions() {
 
     // Items that should NEVER match with anything else (specialty ingredients)
     const NEVER_MATCH_INGREDIENTS = [
-        // Specialty flours
+        // Specialty flours (these are different ingredients, not variations)
         'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
         'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
+        'buckwheat flour', 'spelt flour', 'rye flour',
 
-        // Specialty sugars
+        // Specialty sugars (these are different ingredients)
         'brown sugar', 'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
-        'swerve', 'swerve brown sugar', 'stevia', 'erythritol',
+        'turbinado sugar', 'demerara sugar', 'muscovado sugar', 'palm sugar',
+        'swerve', 'swerve brown sugar', 'stevia', 'erythritol', 'monk fruit', 'xylitol',
 
-        // Specialty milks
+        // Alternative milks (these are different from dairy milk)
         'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
+        'hemp milk', 'pea milk', 'macadamia milk',
 
-        // Compound ingredients that need exact matches
+        // Compound dairy products (need exact matches)
         'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
+        'whipping cream', 'clotted cream',
 
-        // Dietary-specific ingredients
+        // Vegan/diet-specific ingredients
         'vegan butter', 'vegan cheese', 'vegan milk', 'vegan vanilla extract', 'vegan sausage',
-        'plant butter', 'dairy free', 'gluten free', 'sugar free', 'no sugar added',
+        'vegan beef', 'vegan chicken', 'plant butter', 'plant milk', 'plant beef',
+        'dairy free', 'dairy-free', 'lactose free', 'gluten free', 'sugar free', 'no sugar added',
 
         // Specialty extracts and seasonings
-        'vanilla extract', 'almond extract', 'lemon extract', 'garlic powder', 'onion powder',
+        'vanilla extract', 'almond extract', 'lemon extract', 'rum extract',
+        'garlic powder', 'onion powder', 'seasoning salt', 'herb seasoning',
 
         // Specialty baking ingredients
-        'baking powder', 'baking soda', 'gluten-free baking powder', 'aluminum free baking powder',
+        'baking powder', 'baking soda', 'cream of tartar', 'xanthan gum',
+        'gluten-free baking powder', 'aluminum free baking powder',
 
         // Specialty nut butters
-        'almond butter', 'cashew butter', 'no sugar added peanut butter', 'natural peanut butter'
+        'almond butter', 'cashew butter', 'sunflower seed butter', 'peanut butter',
+        'natural peanut butter', 'organic peanut butter', 'no stir peanut butter',
+        'no sugar added peanut butter',
+
+        // Specialty vinegars
+        'apple cider vinegar', 'balsamic vinegar', 'rice vinegar', 'white wine vinegar',
+        'red wine vinegar',
+
+        // Specialty oils
+        'coconut oil', 'avocado oil', 'sesame oil', 'walnut oil'
+    ];
+
+    const NEVER_CROSS_MATCH = {
+        // Nut/seed butters should not match regular butter
+        'peanut butter': ['butter'],
+        'almond butter': ['butter'],
+        'cashew butter': ['butter'],
+        'sunflower seed butter': ['butter'],
+        'apple butter': ['butter'],
+
+        // Green onions/scallions should not match regular onions
+        'green onions': ['onion', 'onions'],
+        'scallions': ['onion', 'onions'],
+        'spring onions': ['onion', 'onions'],
+
+        // Bell peppers should not match ground pepper
+        'red bell pepper': ['pepper'],
+        'green bell pepper': ['pepper'],
+        'yellow bell pepper': ['pepper'],
+        'bell pepper': ['pepper'],
+        'red pepper': ['pepper'], // unless it's red pepper flakes
+        'green pepper': ['pepper'],
+
+        // Compound dairy products
+        'buttermilk': ['milk', 'butter'],
+        'heavy cream': ['milk'],
+        'sour cream': ['cream', 'milk'],
+        'cream cheese': ['cheese', 'cream'],
+
+        // Alternative milks should not match dairy milk
+        'coconut milk': ['milk'],
+        'almond milk': ['milk'],
+        'soy milk': ['milk'],
+        'oat milk': ['milk'],
+        'rice milk': ['milk'],
+
+        // Specialty sugars should not match regular sugar
+        'brown sugar': ['sugar'],
+        'powdered sugar': ['sugar'],
+        'confectioners sugar': ['sugar'],
+
+        // Specialty flours should not match regular flour
+        'almond flour': ['flour'],
+        'coconut flour': ['flour'],
+        'cake flour': ['flour'],
+        'bread flour': ['flour'],
+        'self rising flour': ['flour'],
+        'whole wheat flour': ['flour']
+    };
+
+    // 3. ITEMS THAT ARE RECIPES/PREPARED FOODS, NOT BASIC INGREDIENTS
+    const RECIPE_INGREDIENTS_NOT_INVENTORY = [
+        'vegan honey mustard marinade',
+        'honey mustard marinade',
+        'teriyaki marinade',
+        'bbq sauce',
+        'pizza dough',
+        'bread dough',
+        'seasoning mix',
+        'spice blend',
+        'marinade',
+        'sauce blend',
+        'salad dressing',
+        'compound butter'
     ];
 
     // Check if ingredient is a specialty item that shouldn't cross-match
     function isSpecialtyIngredient(ingredient) {
         const normalized = normalizeIngredientName(ingredient);
-
-        return SPECIALTY_INGREDIENTS.some(specialty => {
+        return NEVER_MATCH_INGREDIENTS.some(specialty => {
             const specialtyNorm = normalizeIngredientName(specialty);
-            // Use exact matching for specialty ingredients to avoid false positives
-            return normalized === specialtyNorm ||
-                normalized.includes(specialtyNorm) ||
-                specialtyNorm.includes(normalized);
+            return normalized === specialtyNorm || normalized.includes(specialtyNorm);
         });
+    }
+
+    function hasProblematicCrossMatch(recipeIngredient, inventoryItem) {
+        const recipeNorm = normalizeIngredientName(recipeIngredient);
+        const inventoryNorm = normalizeIngredientName(inventoryItem);
+
+        for (const [compound, simpleList] of Object.entries(NEVER_CROSS_MATCH)) {
+            const compoundNorm = normalizeIngredientName(compound);
+
+            // If recipe asks for compound ingredient but inventory has simple ingredient
+            if (recipeNorm.includes(compoundNorm)) {
+                for (const simple of simpleList) {
+                    const simpleNorm = normalizeIngredientName(simple);
+                    if (inventoryNorm === simpleNorm) {
+                        console.log(`🚫 CROSS-MATCH BLOCKED: Recipe "${recipeIngredient}" should not match inventory "${inventoryItem}"`);
+                        return true;
+                    }
+                }
+            }
+
+            // If recipe asks for simple ingredient but inventory has compound ingredient
+            for (const simple of simpleList) {
+                const simpleNorm = normalizeIngredientName(simple);
+                if (recipeNorm === simpleNorm && inventoryNorm.includes(compoundNorm)) {
+                    console.log(`🚫 CROSS-MATCH BLOCKED: Recipe "${recipeIngredient}" should not match inventory "${inventoryItem}"`);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function isDietaryConflict(recipeIngredient, inventoryItem) {
+        const recipeNorm = normalizeIngredientName(recipeIngredient);
+        const inventoryNorm = normalizeIngredientName(inventoryItem);
+
+        const veganKeywords = ['vegan', 'plant', 'dairy free', 'dairy-free'];
+        const isRecipeVegan = veganKeywords.some(keyword => recipeNorm.includes(keyword));
+        const isInventoryVegan = veganKeywords.some(keyword => inventoryNorm.includes(keyword));
+
+        if (isRecipeVegan !== isInventoryVegan) {
+            const baseIngredients = ['butter', 'milk', 'cheese', 'beef', 'chicken', 'sausage'];
+            const hasCommonBase = baseIngredients.some(base =>
+                recipeNorm.includes(base) && inventoryNorm.includes(base)
+            );
+
+            if (hasCommonBase) {
+                console.log(`🚫 DIETARY CONFLICT: Recipe "${recipeIngredient}" vs inventory "${inventoryItem}"`);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+// 9. CHECK IF ITEM IS A RECIPE/PREPARED INGREDIENT
+    function isRecipeIngredient(itemName) {
+        const normalized = normalizeIngredientName(itemName);
+        return RECIPE_INGREDIENTS_NOT_INVENTORY.some(recipe =>
+            normalized.includes(normalizeIngredientName(recipe))
+        );
+    }
+
+// 10. GET INGREDIENT VARIATIONS (WITH SPECIALTY CHECK)
+    function getIngredientVariations(ingredient) {
+        const normalized = normalizeIngredientName(ingredient);
+
+        // If it's a specialty ingredient, only return itself for exact matching
+        if (isSpecialtyIngredient(ingredient)) {
+            console.log(`🔒 SPECIALTY INGREDIENT: "${ingredient}" requires exact match only`);
+            return [normalized, ingredient.toLowerCase().trim()];
+        }
+
+        const variations = new Set([normalized]);
+        variations.add(ingredient.toLowerCase().trim());
+
+        // Check if this ingredient has defined variations
+        if (INGREDIENT_VARIATIONS[normalized]) {
+            INGREDIENT_VARIATIONS[normalized].forEach(variation => {
+                variations.add(normalizeIngredientName(variation));
+            });
+        }
+
+        // Check if this ingredient is a variation of something else
+        for (const [base, variationList] of Object.entries(INGREDIENT_VARIATIONS)) {
+            const normalizedVariations = variationList.map(v => normalizeIngredientName(v));
+            if (normalizedVariations.includes(normalized)) {
+                variations.add(base);
+                normalizedVariations.forEach(v => variations.add(v));
+                break;
+            }
+        }
+
+        return Array.from(variations);
+    }
+
+// 11. MAIN MATCHING FUNCTION - COMPREHENSIVE
+    function findBestIngredientMatch(recipeIngredient, inventory) {
+        const recipeName = recipeIngredient.name || recipeIngredient;
+        const recipeNormalized = normalizeIngredientName(recipeName);
+
+        console.log(`\n🔍 Looking for recipe ingredient: "${recipeName}"`);
+        console.log(`📝 Normalized to: "${recipeNormalized}"`);
+
+        // Filter out recipe ingredients from inventory
+        const validInventory = inventory.filter(item => !isRecipeIngredient(item.name));
+
+        // Check if this is a specialty ingredient that needs exact matching
+        const isSpecialty = isSpecialtyIngredient(recipeName);
+        if (isSpecialty) {
+            console.log(`🔒 SPECIALTY INGREDIENT: "${recipeName}" - exact match only`);
+        }
+
+        // Step 1: Exact match (highest priority)
+        for (const item of validInventory) {
+            const itemNormalized = normalizeIngredientName(item.name);
+
+            // Skip if there are conflicts
+            if (isDietaryConflict(recipeName, item.name) ||
+                hasProblematicCrossMatch(recipeName, item.name)) {
+                continue;
+            }
+
+            if (itemNormalized === recipeNormalized) {
+                console.log(`✅ EXACT MATCH: "${item.name}" = "${recipeName}"`);
+                return {
+                    found: true,
+                    inventoryItem: item,
+                    matchType: 'exact',
+                    confidence: 1.0
+                };
+            }
+        }
+
+        // Step 2: Variation matching (skip for specialty ingredients)
+        if (!isSpecialty) {
+            const recipeVariations = getIngredientVariations(recipeName);
+            console.log(`🔄 Recipe variations for "${recipeName}":`, recipeVariations);
+
+            for (const item of validInventory) {
+                // Skip if there are conflicts
+                if (isDietaryConflict(recipeName, item.name) ||
+                    hasProblematicCrossMatch(recipeName, item.name)) {
+                    continue;
+                }
+
+                const itemVariations = getIngredientVariations(item.name);
+
+                // Check if any recipe variation matches any inventory variation
+                for (const recipeVar of recipeVariations) {
+                    for (const itemVar of itemVariations) {
+                        if (recipeVar === itemVar && recipeVar.length > 2) {
+                            console.log(`✅ VARIATION MATCH: "${item.name}" ↔ "${recipeName}" via "${recipeVar}"`);
+                            return {
+                                found: true,
+                                inventoryItem: item,
+                                matchType: 'variation',
+                                confidence: 0.9
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(`❌ NO MATCH found for: "${recipeName}"`);
+        return {
+            found: false,
+            inventoryItem: null,
+            matchType: null,
+            confidence: 0
+        };
+    }
+
+// 12. ENHANCED DEBUG FUNCTION
+    function debugSpecificIngredient(recipeIngredientName, inventory) {
+        console.log(`\n🔧 === DEBUGGING: "${recipeIngredientName}" ===`);
+
+        const result = findBestIngredientMatch(recipeIngredientName, inventory);
+        const recipeNorm = normalizeIngredientName(recipeIngredientName);
+        const isSpecialty = isSpecialtyIngredient(recipeIngredientName);
+
+        console.log(`Is specialty ingredient: ${isSpecialty}`);
+        console.log(`Normalized: "${recipeNorm}"`);
+        console.log(`Variations:`, getIngredientVariations(recipeIngredientName));
+
+        if (result.found) {
+            console.log(`✅ MATCH: "${result.inventoryItem.name}" (${result.matchType})`);
+        } else {
+            console.log(`❌ NO MATCH`);
+
+            // Show potential matches that were rejected
+            const potentialMatches = inventory.filter(item => {
+                const itemNorm = normalizeIngredientName(item.name);
+                return itemNorm.includes(recipeNorm) || recipeNorm.includes(itemNorm);
+            }).map(item => ({
+                name: item.name,
+                normalized: normalizeIngredientName(item.name),
+                isRecipe: isRecipeIngredient(item.name),
+                dietaryConflict: isDietaryConflict(recipeIngredientName, item.name),
+                crossMatch: hasProblematicCrossMatch(recipeIngredientName, item.name)
+            }));
+
+            console.log(`Potential matches (rejected):`, potentialMatches);
+        }
+
+        return result;
     }
 
     // Get bidirectional variations for an ingredient
