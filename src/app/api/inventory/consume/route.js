@@ -303,3 +303,157 @@ export async function GET(request) {
         );
     }
 }
+
+// Add this to your existing /src/app/api/inventory/consume/route.js file
+
+// DELETE - Reverse/undo a consumption (un-consume)
+export async function DELETE(request) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const consumptionId = searchParams.get('consumptionId');
+
+        if (!consumptionId) {
+            return NextResponse.json({ error: 'Consumption ID required' }, { status: 400 });
+        }
+
+        await connectDB();
+
+        const inventory = await UserInventory.findOne({ userId: session.user.id });
+
+        if (!inventory) {
+            return NextResponse.json({ error: 'Inventory not found' }, { status: 404 });
+        }
+
+        // Find the consumption record
+        const consumptionIndex = inventory.consumptionHistory.findIndex(
+            log => log._id.toString() === consumptionId
+        );
+
+        if (consumptionIndex === -1) {
+            return NextResponse.json({ error: 'Consumption record not found' }, { status: 404 });
+        }
+
+        const consumptionRecord = inventory.consumptionHistory[consumptionIndex];
+
+        // Check if it's too old to undo (optional - you can set a time limit)
+        const consumptionDate = new Date(consumptionRecord.dateConsumed);
+        const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceConsumption > 24) { // 24 hour limit for undo
+            return NextResponse.json({
+                error: 'Cannot undo consumptions older than 24 hours'
+            }, { status: 400 });
+        }
+
+        // Check if this consumption was already reversed
+        if (consumptionRecord.isReversed) {
+            return NextResponse.json({
+                error: 'This consumption has already been reversed'
+            }, { status: 400 });
+        }
+
+        // Find the item in inventory or create it if it was completely removed
+        let itemIndex = inventory.items.findIndex(
+            item => item._id.toString() === consumptionRecord.itemId.toString()
+        );
+
+        let item;
+        let wasCompletelyRemoved = false;
+
+        if (itemIndex === -1) {
+            // Item was completely removed, need to recreate it
+            wasCompletelyRemoved = true;
+            const newItem = {
+                name: consumptionRecord.itemName,
+                quantity: 0,
+                unit: consumptionRecord.unitConsumed,
+                location: 'pantry', // Default location
+                addedDate: new Date(),
+                // Try to restore other properties if available
+                secondaryQuantity: 0,
+                secondaryUnit: consumptionRecord.originalSecondaryUnit || null
+            };
+
+            inventory.items.push(newItem);
+            itemIndex = inventory.items.length - 1;
+            item = inventory.items[itemIndex];
+        } else {
+            item = inventory.items[itemIndex];
+        }
+
+        // Restore the quantities
+        if (consumptionRecord.isDualUnitConsumption) {
+            // Handle dual unit restoration
+            if (consumptionRecord.useSecondaryUnit) {
+                // Was consumed by secondary unit, restore secondary quantity
+                item.secondaryQuantity = (item.secondaryQuantity || 0) + consumptionRecord.quantityConsumed;
+
+                // If item was completely removed, also restore primary quantity
+                if (wasCompletelyRemoved && consumptionRecord.originalPrimaryQuantity) {
+                    item.quantity = consumptionRecord.originalPrimaryQuantity;
+                }
+            } else {
+                // Was consumed by primary unit, restore primary quantity
+                item.quantity = item.quantity + consumptionRecord.quantityConsumed;
+
+                // If secondary quantity was also affected, restore it
+                if (consumptionRecord.originalSecondaryQuantity && wasCompletelyRemoved) {
+                    item.secondaryQuantity = consumptionRecord.originalSecondaryQuantity;
+                }
+            }
+        } else {
+            // Standard single unit restoration
+            item.quantity = item.quantity + consumptionRecord.quantityConsumed;
+        }
+
+        // Mark the consumption as reversed instead of deleting it (for audit trail)
+        inventory.consumptionHistory[consumptionIndex].isReversed = true;
+        inventory.consumptionHistory[consumptionIndex].reversedDate = new Date();
+        inventory.consumptionHistory[consumptionIndex].reversedBy = session.user.id;
+
+        // Add a reversal record to the history
+        const reversalRecord = {
+            itemId: item._id,
+            itemName: consumptionRecord.itemName,
+            quantityConsumed: -consumptionRecord.quantityConsumed, // Negative to indicate restoration
+            unitConsumed: consumptionRecord.unitConsumed,
+            reason: 'undo',
+            notes: `Reversed consumption: ${consumptionRecord.reason}`,
+            dateConsumed: new Date(),
+            isReversal: true,
+            originalConsumptionId: consumptionRecord._id,
+            remainingQuantity: item.quantity,
+            remainingSecondaryQuantity: item.secondaryQuantity || null
+        };
+
+        inventory.consumptionHistory.push(reversalRecord);
+        inventory.lastUpdated = new Date();
+        inventory.markModified('consumptionHistory');
+
+        await inventory.save();
+
+        return NextResponse.json({
+            success: true,
+            message: `Successfully restored ${consumptionRecord.quantityConsumed} ${consumptionRecord.unitConsumed} of ${consumptionRecord.itemName}`,
+            restoredItem: {
+                name: item.name,
+                newQuantity: item.quantity,
+                newSecondaryQuantity: item.secondaryQuantity,
+                wasRecreated: wasCompletelyRemoved
+            }
+        });
+
+    } catch (error) {
+        console.error('Un-consume inventory error:', error);
+        return NextResponse.json(
+            { error: 'Failed to reverse consumption: ' + error.message },
+            { status: 500 }
+        );
+    }
+}

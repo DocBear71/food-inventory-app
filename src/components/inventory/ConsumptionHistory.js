@@ -170,6 +170,69 @@ export default function ConsumptionHistory({ onClose }) {
     const sortedHistory = getSortedHistory();
     const reasonStats = getReasonStats();
 
+    // Add this function after your existing functions in ConsumptionHistory.js
+
+    const handleUndoConsumption = async (consumptionRecord) => {
+        // Check if it can be undone
+        const consumptionDate = new Date(consumptionRecord.dateConsumed);
+        const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceConsumption > 24) {
+            alert('Cannot undo consumptions older than 24 hours');
+            return;
+        }
+
+        if (consumptionRecord.isReversed) {
+            alert('This consumption has already been reversed');
+            return;
+        }
+
+        if (consumptionRecord.isReversal) {
+            alert('Cannot undo a reversal record');
+            return;
+        }
+
+        const confirmMessage = `Are you sure you want to undo this consumption?\n\n` +
+            `This will restore ${consumptionRecord.quantityConsumed} ${consumptionRecord.unitConsumed} of ${consumptionRecord.itemName} back to your inventory.`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(getApiUrl(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`), {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                // Refresh the history and trigger inventory refresh in parent
+                await fetchHistory();
+
+                // If there's a way to refresh the main inventory, call it
+                if (window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+                }
+            } else {
+                alert(result.error || 'Failed to undo consumption');
+            }
+        } catch (error) {
+            console.error('Error undoing consumption:', error);
+            alert('Error undoing consumption');
+        }
+    };
+
+    const canUndo = (record) => {
+        if (record.isReversed || record.isReversal) return false;
+
+        const consumptionDate = new Date(record.dateConsumed);
+        const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
+
+        return hoursSinceConsumption <= 24; // 24 hour limit
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -362,6 +425,29 @@ export default function ConsumptionHistory({ onClose }) {
                                                 <div className="text-xs text-gray-400">
                                                     {new Date(record.dateConsumed).toLocaleDateString()}
                                                 </div>
+                                                {/* Add Undo Button */}
+                                                {canUndo(record) && (
+                                                    <TouchEnhancedButton
+                                                        onClick={() => handleUndoConsumption(record)}
+                                                        className="mt-2 px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 border border-orange-300"
+                                                        title="Undo this consumption (restore to inventory)"
+                                                    >
+                                                        ↶ Undo
+                                                    </TouchEnhancedButton>
+                                                )}
+
+                                                {record.isReversed && (
+                                                    <div className="text-xs text-orange-500 font-medium mt-1">
+                                                        ↶ Reversed
+                                                    </div>
+                                                )}
+
+                                                {record.isReversal && (
+                                                    <div className="text-xs text-blue-500 font-medium mt-1">
+                                                        ↶ Undo Action
+                                                    </div>
+                                                )}
+
                                                 {((record.remainingQuantity || 0) === 0 && (record.remainingSecondaryQuantity || 0) === 0) && (
                                                     <div className="text-xs text-red-500 font-medium mt-1">
                                                         Item Removed

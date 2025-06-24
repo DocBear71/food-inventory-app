@@ -77,6 +77,19 @@ function InventoryContent() {
         }
     }, [searchParams]);
 
+    // Add this useEffect to listen for inventory updates
+    useEffect(() => {
+        const handleInventoryUpdate = () => {
+            fetchInventory();
+        };
+
+        window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+
+        return () => {
+            window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+        };
+    }, []);
+
     const fetchInventory = async () => {
         try {
             const response = await fetch(getApiUrl('/api/inventory'));
