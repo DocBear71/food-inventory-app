@@ -14,6 +14,9 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
+import { useSubscription } from '@/hooks/useSubscription';
+import { FEATURE_GATES } from '@/lib/subscription-config';
+import FeatureGate from '@/components/subscription/FeatureGate';
 
 // Import smart display utilities
 import {
@@ -89,6 +92,40 @@ function InventoryContent() {
             window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
         };
     }, []);
+
+    const getUsageInfo = () => {
+        if (!subscription || subscription.loading) {
+            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+        }
+
+        const tier = subscription.tier || 'free';
+        return {
+            current: inventory.length,
+            limit: tier === 'free' ? 50 : tier === 'gold' ? 250 : 'Unlimited',
+            isUnlimited: tier === 'platinum',
+            tier
+        };
+    };
+
+    // Add limit checking functions
+    const getUsageColor = (isActive = false) => {
+        if (subscription.loading) {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
+        const usage = getUsageInfo();
+        const percentage = usage.isUnlimited ? 0 : (usage.current / (typeof usage.limit === 'number' ? usage.limit : 999999)) * 100;
+
+        if (isActive) {
+            if (percentage >= 100) return 'bg-red-100 text-red-600'; // At limit
+            if (percentage >= 80) return 'bg-orange-100 text-orange-600'; // Near limit
+            return 'bg-indigo-100 text-indigo-600'; // Normal
+        } else {
+            if (percentage >= 100) return 'bg-red-200 text-red-700'; // At limit
+            if (percentage >= 80) return 'bg-orange-200 text-orange-700'; // Near limit
+            return 'bg-gray-200 text-gray-600'; // Normal
+        }
+    };
 
     const fetchInventory = async () => {
         try {
@@ -569,6 +606,102 @@ function InventoryContent() {
                         <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
                     </div>
 
+                    {/* Usage Info Header */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-semibold text-gray-900">
+                                📦 Inventory ({getUsageInfo().current}/{getUsageInfo().limit})
+                            </h2>
+                            {!subscription.loading && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {(() => {
+                                        const usage = getUsageInfo();
+                                        return usage.isUnlimited ? (
+                                            'Unlimited items on Platinum plan'
+                                        ) : usage.current >= usage.limit ? (
+                                            <span className="text-red-600 font-medium">
+                                You've reached your {usage.tier} plan limit
+                            </span>
+                                        ) : usage.current >= (usage.limit * 0.8) ? (
+                                            <span className="text-orange-600">
+                                {usage.limit - usage.current} item{usage.limit - usage.current !== 1 ? 's' : ''} remaining
+                            </span>
+                                        ) : (
+                                            `${usage.limit - usage.current} item${usage.limit - usage.current !== 1 ? 's' : ''} remaining on ${usage.tier} plan`
+                                        );
+                                    })()}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Usage Warning for Near Limit */}
+                    {(() => {
+                        const usage = getUsageInfo();
+                        const isAtLimit = !usage.isUnlimited && usage.current >= usage.limit;
+                        const isNearLimit = !usage.isUnlimited && usage.current >= (usage.limit * 0.8);
+
+                        if (isAtLimit) {
+                            return (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <div className="text-red-500 mr-3 mt-0.5">
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-sm font-medium text-red-800">
+                                                Inventory Limit Reached
+                                            </h3>
+                                            <p className="text-sm text-red-700 mt-1">
+                                                You've reached your {usage.tier} plan limit of {usage.limit} inventory items.
+                                                {usage.tier === 'free' && ' Upgrade to Gold for 250 items or Platinum for unlimited.'}
+                                                {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
+                                            </p>
+                                            <TouchEnhancedButton
+                                                onClick={() => window.location.href = `/pricing?source=inventory-limit&tier=${usage.tier}`}
+                                                className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
+                                            >
+                                                🚀 Upgrade Now
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        } else if (isNearLimit) {
+                            return (
+                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <div className="text-orange-500 mr-3 mt-0.5">
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-sm font-medium text-orange-800">
+                                                Approaching Inventory Limit
+                                            </h3>
+                                            <p className="text-sm text-orange-700 mt-1">
+                                                You have {usage.limit - usage.current} inventory item slots remaining on your {usage.tier} plan.
+                                                {usage.tier === 'free' && ' Consider upgrading to Gold for 250 items or Platinum for unlimited.'}
+                                                {usage.tier === 'gold' && ' Consider upgrading to Platinum for unlimited inventory items.'}
+                                            </p>
+                                            <TouchEnhancedButton
+                                                onClick={() => window.location.href = `/pricing?source=inventory-warning&tier=${usage.tier}`}
+                                                className="mt-2 text-orange-600 hover:text-orange-800 underline text-sm"
+                                            >
+                                                View Upgrade Options
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+
+
                     {/* Action Buttons Row - Mobile Responsive */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         {/* Left side buttons */}
@@ -615,12 +748,53 @@ function InventoryContent() {
                         </div>
 
                         {/* Add/Cancel button - Always visible */}
-                        <TouchEnhancedButton
-                            onClick={() => setShowAddForm(!showAddForm)}
-                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        <FeatureGate
+                            feature={FEATURE_GATES.INVENTORY_LIMIT}
+                            currentCount={inventory.length}
+                            fallback={
+                                <TouchEnhancedButton
+                                    onClick={() => window.location.href = `/pricing?source=inventory-add-item&tier=${getUsageInfo().tier}`}
+                                    className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                >
+                                    🔒 Upgrade to Add More
+                                </TouchEnhancedButton>
+                            }
                         >
-                            {showAddForm ? 'Cancel' : 'Add Item'}
-                        </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setShowAddForm(!showAddForm)}
+                                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                {showAddForm ? 'Cancel' : 'Add Item'}
+                            </TouchEnhancedButton>
+                        </FeatureGate>
+                    </div>
+                </div>
+
+                {/* Inventory Info Box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                        <div className="text-blue-600 mr-3 mt-0.5">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clipRule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-medium text-blue-800">Your Kitchen Inventory</h3>
+                            <p className="text-sm text-blue-700 mt-1">
+                                Track your food and ingredients to reduce waste and always know what you have on hand.
+                            </p>
+                            {!subscription.loading && (
+                                <div className="mt-2 text-xs text-blue-600">
+                                    {(() => {
+                                        const usage = getUsageInfo();
+                                        const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                        return `${usage.current} items stored • ${remaining} ${usage.isUnlimited ? '' : `slots remaining on ${usage.tier} plan`}`;
+                                    })()}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -1051,13 +1225,50 @@ function InventoryContent() {
                                 <div className="text-gray-500 mb-4">
                                     {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
                                 </div>
+                                {/* In the empty inventory section, replace the existing content with: */}
                                 {inventory.length === 0 && (
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowAddForm(true)}
-                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                    >
-                                        Add your first item
-                                    </TouchEnhancedButton>
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500 mb-4">
+                                            {getUsageInfo().tier === 'free' ? (
+                                                <>
+                                                    <div className="text-gray-500 mb-4">No items in your inventory yet</div>
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                                        <div className="text-sm text-blue-800">
+                                                            <strong>📦 Inventory Limits:</strong>
+                                                            <ul className="mt-2 space-y-1 text-left">
+                                                                <li>• <strong>Free:</strong> Store up to 50 items</li>
+                                                                <li>• <strong>Gold:</strong> Store up to 250 items</li>
+                                                                <li>• <strong>Platinum:</strong> Unlimited inventory</li>
+                                                                <li>• Track expiration dates</li>
+                                                                <li>• Monitor food waste</li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                'No items in your inventory yet'
+                                            )}
+                                        </div>
+                                        <FeatureGate
+                                            feature={FEATURE_GATES.INVENTORY_LIMIT}
+                                            currentCount={0}
+                                            fallback={
+                                                <TouchEnhancedButton
+                                                    onClick={() => window.location.href = '/pricing?source=inventory-empty'}
+                                                    className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
+                                                >
+                                                    🚀 Upgrade to Add Items
+                                                </TouchEnhancedButton>
+                                            }
+                                        >
+                                            <TouchEnhancedButton
+                                                onClick={() => setShowAddForm(true)}
+                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                            >
+                                                Add your first item
+                                            </TouchEnhancedButton>
+                                        </FeatureGate>
+                                    </div>
                                 )}
                             </div>
                         ) : (
