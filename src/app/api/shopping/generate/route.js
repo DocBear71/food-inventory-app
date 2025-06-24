@@ -27,6 +27,8 @@ const INGREDIENT_VARIATIONS = {
     'shredded mozzarella': ['shredded mozzarella cheese', 'grated mozzarella'],
     'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
     'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
+    'egg': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'egg substitute', 'eggs'],
+
 
     // FIXED: Enhanced pasta variations to match your 12 pasta types
     'pasta': [
@@ -59,7 +61,7 @@ const INGREDIENT_VARIATIONS = {
     'sugar': ['white sugar', 'granulated sugar', 'cane sugar'],
     'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
     'butter': ['unsalted butter', 'salted butter', 'sweet cream butter'],
-    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk'],
+    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk', 'Vitamin D milk'],
     'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'coarse salt'],
     'pepper': ['black pepper', 'ground pepper', 'cracked pepper', 'white pepper'],
     'sesame seeds': ['toasted sesame seeds', 'white sesame seeds', 'black sesame seeds'],
