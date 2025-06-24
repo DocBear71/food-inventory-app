@@ -170,9 +170,18 @@ export default function ConsumptionHistory({ onClose }) {
     const sortedHistory = getSortedHistory();
     const reasonStats = getReasonStats();
 
-    // Add this function after your existing functions in ConsumptionHistory.js
-
     const handleUndoConsumption = async (consumptionRecord) => {
+        // Debug: Check what we have in the record
+        console.log('Consumption record for undo:', consumptionRecord);
+        console.log('Record _id:', consumptionRecord._id);
+        console.log('Record keys:', Object.keys(consumptionRecord));
+
+        // Check if we have a valid ID
+        if (!consumptionRecord._id) {
+            alert('Cannot undo this consumption - missing record ID. This may be an older record from before the undo feature was implemented.');
+            return;
+        }
+
         // Check if it can be undone
         const consumptionDate = new Date(consumptionRecord.dateConsumed);
         const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
@@ -200,11 +209,14 @@ export default function ConsumptionHistory({ onClose }) {
         }
 
         try {
+            console.log('Making undo request with ID:', consumptionRecord._id);
+
             const response = await fetch(getApiUrl(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`), {
                 method: 'DELETE'
             });
 
             const result = await response.json();
+            console.log('Undo response:', result);
 
             if (result.success) {
                 alert(result.message);
@@ -220,11 +232,14 @@ export default function ConsumptionHistory({ onClose }) {
             }
         } catch (error) {
             console.error('Error undoing consumption:', error);
-            alert('Error undoing consumption');
+            alert('Error undoing consumption: ' + error.message);
         }
     };
 
     const canUndo = (record) => {
+        // Can't undo if no ID (older records)
+        if (!record._id) return false;
+
         if (record.isReversed || record.isReversal) return false;
 
         const consumptionDate = new Date(record.dateConsumed);

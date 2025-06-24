@@ -304,7 +304,7 @@ export async function GET(request) {
     }
 }
 
-// Add this to your existing /src/app/api/inventory/consume/route.js file
+// UPDATE the DELETE function in your consume route.js file:
 
 // DELETE - Reverse/undo a consumption (un-consume)
 export async function DELETE(request) {
@@ -318,8 +318,12 @@ export async function DELETE(request) {
         const { searchParams } = new URL(request.url);
         const consumptionId = searchParams.get('consumptionId');
 
-        if (!consumptionId) {
-            return NextResponse.json({ error: 'Consumption ID required' }, { status: 400 });
+        console.log('DELETE request - consumptionId:', consumptionId);
+
+        if (!consumptionId || consumptionId === 'undefined') {
+            return NextResponse.json({
+                error: 'Invalid consumption ID. This record may be from before the undo feature was implemented.'
+            }, { status: 400 });
         }
 
         await connectDB();
@@ -330,16 +334,43 @@ export async function DELETE(request) {
             return NextResponse.json({ error: 'Inventory not found' }, { status: 404 });
         }
 
-        // Find the consumption record
-        const consumptionIndex = inventory.consumptionHistory.findIndex(
-            log => log._id.toString() === consumptionId
+        console.log('Total consumption history records:', inventory.consumptionHistory?.length || 0);
+
+        // Find the consumption record - try multiple methods
+        let consumptionIndex = -1;
+        let consumptionRecord = null;
+
+        // Method 1: Try direct string comparison
+        consumptionIndex = inventory.consumptionHistory.findIndex(
+            log => log._id && log._id.toString() === consumptionId
         );
 
         if (consumptionIndex === -1) {
-            return NextResponse.json({ error: 'Consumption record not found' }, { status: 404 });
+            // Method 2: Try ObjectId comparison if the first method fails
+            try {
+                const { ObjectId } = require('mongodb');
+                consumptionIndex = inventory.consumptionHistory.findIndex(
+                    log => log._id && log._id.equals(new ObjectId(consumptionId))
+                );
+            } catch (objectIdError) {
+                console.log('ObjectId comparison failed:', objectIdError.message);
+            }
         }
 
-        const consumptionRecord = inventory.consumptionHistory[consumptionIndex];
+        if (consumptionIndex === -1) {
+            // Method 3: Search by other criteria as fallback
+            console.log('Could not find record by ID, available record IDs:');
+            inventory.consumptionHistory.forEach((log, index) => {
+                console.log(`Record ${index}: ID = ${log._id}, itemName = ${log.itemName}, date = ${log.dateConsumed}`);
+            });
+
+            return NextResponse.json({
+                error: 'Consumption record not found. It may have been from before the undo feature was implemented.'
+            }, { status: 404 });
+        }
+
+        consumptionRecord = inventory.consumptionHistory[consumptionIndex];
+        console.log('Found consumption record:', JSON.stringify(consumptionRecord, null, 2));
 
         // Check if it's too old to undo (optional - you can set a time limit)
         const consumptionDate = new Date(consumptionRecord.dateConsumed);
@@ -357,6 +388,9 @@ export async function DELETE(request) {
                 error: 'This consumption has already been reversed'
             }, { status: 400 });
         }
+
+        // Rest of the function remains the same...
+        // [Continue with the existing logic for restoring the item]
 
         // Find the item in inventory or create it if it was completely removed
         let itemIndex = inventory.items.findIndex(
@@ -391,18 +425,12 @@ export async function DELETE(request) {
         if (consumptionRecord.isDualUnitConsumption) {
             // Handle dual unit restoration
             if (consumptionRecord.useSecondaryUnit) {
-                // Was consumed by secondary unit, restore secondary quantity
                 item.secondaryQuantity = (item.secondaryQuantity || 0) + consumptionRecord.quantityConsumed;
-
-                // If item was completely removed, also restore primary quantity
                 if (wasCompletelyRemoved && consumptionRecord.originalPrimaryQuantity) {
                     item.quantity = consumptionRecord.originalPrimaryQuantity;
                 }
             } else {
-                // Was consumed by primary unit, restore primary quantity
                 item.quantity = item.quantity + consumptionRecord.quantityConsumed;
-
-                // If secondary quantity was also affected, restore it
                 if (consumptionRecord.originalSecondaryQuantity && wasCompletelyRemoved) {
                     item.secondaryQuantity = consumptionRecord.originalSecondaryQuantity;
                 }
