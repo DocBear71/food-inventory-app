@@ -242,6 +242,11 @@ span[role="img"],
 .space-x-1 > * + * { margin-left: 0.25rem !important; }
 .space-x-2 > * + * { margin-left: 0.5rem !important; }
 .space-x-4 > * + * { margin-left: 1rem !important; }
+.space-x-3 > * + * { margin-left: 0.75rem !important; }
+.space-x-6 > * + * { margin-left: 1.5rem !important; }
+.space-x-8 > * + * { margin-left: 2rem !important; }
+.space-x-10 > * + * { margin-left: 2.5rem !important; }
+.space-x-12 > * + * { margin-left: 3rem !important; }
 .space-y-2 > * + * { margin-top: 0.5rem !important; }
 .space-y-3 > * + * { margin-top: 0.75rem !important; }
 .space-y-4 > * + * { margin-top: 1rem !important; }
