@@ -264,6 +264,7 @@ export function useSubscription() {
 
             // Feature-access gates that don't have usage counts:
             case FEATURE_GATES.COMMON_ITEMS_WIZARD:
+            case FEATURE_GATES.CONSUMPTION_HISTORY:
             case FEATURE_GATES.CREATE_MEAL_PLAN:
             case FEATURE_GATES.EMAIL_SHARING:
             case FEATURE_GATES.EMAIL_NOTIFICATIONS:
@@ -363,6 +364,7 @@ export function useSubscription() {
         hasEmailNotifications: checkFeature(FEATURE_GATES.EMAIL_NOTIFICATIONS),
         hasEmailSharing: checkFeature(FEATURE_GATES.EMAIL_SHARING),
         hasCommonItemsWizard: checkFeature(FEATURE_GATES.COMMON_ITEMS_WIZARD),
+        hasConsumptionHistory: checkFeature(FEATURE_GATES.CONSUMPTION_HISTORY),
         hasRecipeCollections: checkFeature(FEATURE_GATES.RECIPE_COLLECTIONS),
 
         // FIXED: Remaining counts using correct feature gates

@@ -39,9 +39,6 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         setSelectedItems(newSelectedItems);
     };
 
-    // Rest of your existing methods (updateQuantity, handleQuantityBlur, etc.)
-    // ... keeping all the existing logic the same ...
-
     // FIXED: Handle quantity change with flexible validation - allows 0 in either field
     const updateQuantity = (itemId, value, isSecondary = false) => {
         if (!selectedItems.has(itemId)) return;

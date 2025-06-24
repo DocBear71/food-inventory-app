@@ -21,6 +21,7 @@ export const FEATURE_GATES = {
 
     // Premium features
     COMMON_ITEMS_WIZARD: 'common_items_wizard',
+    CONSUMPTION_HISTORY: 'CONSUMPTION_HISTORY',
     CREATE_MEAL_PLAN: 'create_meal_plan',
     EMAIL_SHARING: 'email_sharing',
     EMAIL_NOTIFICATIONS: 'email_notifications',
@@ -87,6 +88,7 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PERSONAL_RECIPES]: true,
         [FEATURE_GATES.WRITE_REVIEW]: false,
         [FEATURE_GATES.COMMON_ITEMS_WIZARD]: false,
+        [FEATURE_GATES.CONSUMPTION_HISTORY]: false,
         [FEATURE_GATES.CREATE_MEAL_PLAN]: false,
         [FEATURE_GATES.EMAIL_SHARING]: false,
         [FEATURE_GATES.EMAIL_NOTIFICATIONS]: false,
@@ -106,6 +108,7 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PERSONAL_RECIPES]: true,
         [FEATURE_GATES.WRITE_REVIEW]: true,
         [FEATURE_GATES.COMMON_ITEMS_WIZARD]: true,
+        [FEATURE_GATES.CONSUMPTION_HISTORY]: true,
         [FEATURE_GATES.CREATE_MEAL_PLAN]: true,
         [FEATURE_GATES.EMAIL_SHARING]: true,
         [FEATURE_GATES.EMAIL_NOTIFICATIONS]: true,
@@ -125,6 +128,7 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PERSONAL_RECIPES]: true,
         [FEATURE_GATES.WRITE_REVIEW]: true,
         [FEATURE_GATES.COMMON_ITEMS_WIZARD]: true,
+        [FEATURE_GATES.CONSUMPTION_HISTORY]: true,
         [FEATURE_GATES.CREATE_MEAL_PLAN]: true,
         [FEATURE_GATES.EMAIL_SHARING]: true,
         [FEATURE_GATES.EMAIL_NOTIFICATIONS]: true,

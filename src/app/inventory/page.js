@@ -718,33 +718,72 @@ function InventoryContent() {
                         <div className="flex gap-2 flex-1">
                             {/* Common Items Wizard Button - Priority placement for new users */}
                             {inventory.length === 0 && (
-                                <TouchEnhancedButton
-                                    onClick={() => setShowCommonItemsWizard(true)}
-                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                <FeatureGate
+                                    feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
+                                    fallback={
+                                        <TouchEnhancedButton
+                                            onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                            className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                        >
+                                            <span className="hidden sm:inline">🔒 Quick Start (Gold)</span>
+                                            <span className="sm:hidden">🔒 Start</span>
+                                        </TouchEnhancedButton>
+                                    }
                                 >
-                                    <span className="hidden sm:inline">🏠 Quick Start</span>
-                                    <span className="sm:hidden">🏠 Start</span>
-                                </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowCommonItemsWizard(true)}
+                                        className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        <span className="hidden sm:inline">🏠 Quick Start</span>
+                                        <span className="sm:hidden">🏠 Start</span>
+                                    </TouchEnhancedButton>
+                                </FeatureGate>
                             )}
 
                             {/* Common Items Wizard Button - For existing users */}
                             {inventory.length > 0 && (
-                                <TouchEnhancedButton
-                                    onClick={() => setShowCommonItemsWizard(true)}
-                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                <FeatureGate
+                                    feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
+                                    fallback={
+                                        <TouchEnhancedButton
+                                            onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                            className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                        >
+                                            <span className="hidden sm:inline">🔒 Common Items (Gold)</span>
+                                            <span className="sm:hidden">🔒 Common</span>
+                                        </TouchEnhancedButton>
+                                    }
                                 >
-                                    <span className="hidden sm:inline">🏠 Add Common Items</span>
-                                    <span className="sm:hidden">🏠 Common</span>
-                                </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowCommonItemsWizard(true)}
+                                        className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                    >
+                                        <span className="hidden sm:inline">🏠 Add Common Items</span>
+                                        <span className="sm:hidden">🏠 Common</span>
+                                    </TouchEnhancedButton>
+                                </FeatureGate>
                             )}
 
-                            <TouchEnhancedButton
-                                onClick={() => setShowConsumptionHistory(true)}
-                                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            <FeatureGate
+                                feature={FEATURE_GATES.CONSUMPTION_HISTORY}
+                                fallback={
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=consumption-history'}
+                                        className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    >
+                                        <span className="hidden sm:inline">🔒 History (Gold)</span>
+                                        <span className="sm:hidden">🔒 History</span>
+                                    </TouchEnhancedButton>
+                                }
                             >
-                                <span className="hidden sm:inline">📊 View History</span>
-                                <span className="sm:hidden">📊 History</span>
-                            </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowConsumptionHistory(true)}
+                                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    <span className="hidden sm:inline">📊 View History</span>
+                                    <span className="sm:hidden">📊 History</span>
+                                </TouchEnhancedButton>
+                            </FeatureGate>
 
                             {expiredCount > 0 && (
                                 <TouchEnhancedButton
