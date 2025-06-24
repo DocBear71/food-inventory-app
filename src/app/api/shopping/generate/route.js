@@ -27,7 +27,7 @@ const INGREDIENT_VARIATIONS = {
     'shredded mozzarella': ['shredded mozzarella cheese', 'grated mozzarella'],
     'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
     'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
-    'egg': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'egg substitute', 'eggs'],
+    'egg': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'liquid eggs', 'eggs'],
 
 
     // FIXED: Enhanced pasta variations to match your 12 pasta types
@@ -58,7 +58,7 @@ const INGREDIENT_VARIATIONS = {
     'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil'],
     'vegetable oil': ['canola oil', 'sunflower oil', 'corn oil'],
     'flour': ['all purpose flour', 'whole wheat flour', 'bread flour', 'cake flour', 'self rising flour'],
-    'sugar': ['white sugar', 'granulated sugar', 'cane sugar'],
+    'sugar': ['white sugar', 'granulated sugar', 'cane sugar', 'sugar (granulated)'],
     'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
     'butter': ['unsalted butter', 'salted butter', 'sweet cream butter'],
     'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk', 'Vitamin D milk'],
@@ -68,7 +68,8 @@ const INGREDIENT_VARIATIONS = {
     'white wine': ['dry white wine', 'cooking wine', 'white cooking wine'],
     'cornstarch': ['corn starch', 'potato starch'],
     'red pepper flakes': ['crushed red pepper', 'red chili flakes'],
-    'chives': ['fresh chives', 'chopped chives']
+    'chives': ['fresh chives', 'chopped chives'],
+    'Marsala wine': ['marsala cooking wine']
 };
 
 // Enhanced ingredient normalization with better pasta handling

@@ -887,11 +887,11 @@ export default function RecipeSuggestions() {
             'apple cider vinegar': ['white vinegar', 'rice vinegar'],
 
             // Sugars
-            'white sugar': ['granulated sugar', 'cane sugar'],
-            'brown sugar': ['coconut sugar', 'raw sugar'],
+            'white sugar': ['granulated sugar', 'cane sugar', 'sugar', 'sugar (Granulated)'],
+            'brown sugar': ['coconut sugar', 'raw sugar', 'dark brown sugar', 'light brown sugar'],
 
             // Flours (basic)
-            'all purpose flour': ['plain flour', 'white flour'],
+            'all purpose flour': ['plain flour', 'white flour', 'flour'],
             'plain flour': ['all purpose flour'],
 
             // Spices and seasonings
@@ -899,7 +899,7 @@ export default function RecipeSuggestions() {
             'onion powder': ['granulated onion'],
 
             // Only safe dairy substitutions (within same category)
-            'whole milk': ['2% milk', 'skim milk'],
+            'whole milk': ['2% milk', 'skim milk', 'vitamin d milk'],
             '2% milk': ['whole milk', 'skim milk'],
             'skim milk': ['2% milk', 'whole milk']
         };
