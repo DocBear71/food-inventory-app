@@ -2,7 +2,7 @@
 // file: /src/app/inventory/page.js - v12
 
 
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
 import UPCLookup from '@/components/inventory/UPCLookup';
@@ -13,9 +13,9 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
-import { useSubscription } from '@/hooks/useSubscription';
-import { FEATURE_GATES } from '@/lib/subscription-config';
+import {getApiUrl} from '@/lib/api-config';
+import {useSubscription} from '@/hooks/useSubscription';
+import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 
 // Import smart display utilities
@@ -60,6 +60,7 @@ function InventoryContent() {
         expirationDate: '',
         upc: ''
     });
+    const subscription = useSubscription();
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -95,7 +96,7 @@ function InventoryContent() {
 
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {
-            return { current: 0, limit: '...', isUnlimited: false, tier: 'free' };
+            return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
         const tier = subscription.tier || 'free';
@@ -157,7 +158,7 @@ function InventoryContent() {
     // Enhanced consumption handler with dual unit support
     const handleConsumption = async (consumptionData, mode = 'single') => {
         try {
-            console.log('Handling consumption:', { consumptionData, mode });
+            console.log('Handling consumption:', {consumptionData, mode});
 
             const response = await fetch(getApiUrl('/api/inventory/consume'), {
                 method: 'POST',
@@ -609,8 +610,11 @@ function InventoryContent() {
                     {/* Usage Info Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                📦 Inventory ({getUsageInfo().current}/{getUsageInfo().limit})
+                            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                                📦 Inventory
+                                <span className={`text-xs px-3 py-1 rounded-full font-medium ${getUsageColor(true)}`}>
+                {getUsageInfo().current}/{getUsageInfo().limit}
+            </span>
                             </h2>
                             {!subscription.loading && (
                                 <p className="text-sm text-gray-600 mt-1">
@@ -647,7 +651,9 @@ function InventoryContent() {
                                     <div className="flex items-start">
                                         <div className="text-red-500 mr-3 mt-0.5">
                                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                                <path fillRule="evenodd"
+                                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                                      clipRule="evenodd"/>
                                             </svg>
                                         </div>
                                         <div className="flex-1">
@@ -655,7 +661,8 @@ function InventoryContent() {
                                                 Inventory Limit Reached
                                             </h3>
                                             <p className="text-sm text-red-700 mt-1">
-                                                You've reached your {usage.tier} plan limit of {usage.limit} inventory items.
+                                                You've reached your {usage.tier} plan limit of {usage.limit} inventory
+                                                items.
                                                 {usage.tier === 'free' && ' Upgrade to Gold for 250 items or Platinum for unlimited.'}
                                                 {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
                                             </p>
@@ -675,7 +682,9 @@ function InventoryContent() {
                                     <div className="flex items-start">
                                         <div className="text-orange-500 mr-3 mt-0.5">
                                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                                                <path fillRule="evenodd"
+                                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                      clipRule="evenodd"/>
                                             </svg>
                                         </div>
                                         <div className="flex-1">
@@ -683,7 +692,8 @@ function InventoryContent() {
                                                 Approaching Inventory Limit
                                             </h3>
                                             <p className="text-sm text-orange-700 mt-1">
-                                                You have {usage.limit - usage.current} inventory item slots remaining on your {usage.tier} plan.
+                                                You have {usage.limit - usage.current} inventory item slots remaining on
+                                                your {usage.tier} plan.
                                                 {usage.tier === 'free' && ' Consider upgrading to Gold for 250 items or Platinum for unlimited.'}
                                                 {usage.tier === 'gold' && ' Consider upgrading to Platinum for unlimited inventory items.'}
                                             </p>
@@ -1018,7 +1028,8 @@ function InventoryContent() {
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         >
                                             <option value="">Select category</option>
-                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
+                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients
+                                            </option>
                                             <option value="Beans">Beans</option>
                                             <option value="Beverages">Beverages</option>
                                             <option value="Bouillon">Bouillon</option>
@@ -1039,7 +1050,8 @@ function InventoryContent() {
                                             <option value="Fresh Spices">Fresh Spices</option>
                                             <option value="Fresh Vegetables">Fresh Vegetables</option>
                                             <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood
+                                            </option>
                                             <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
                                             <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
                                             <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
@@ -1086,7 +1098,8 @@ function InventoryContent() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {/* Primary Quantity */}
                                         <div>
-                                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                                            <label htmlFor="quantity"
+                                                   className="block text-sm font-medium text-gray-700">
                                                 Primary Quantity *
                                             </label>
                                             <div className="mt-1 flex rounded-md shadow-sm">
@@ -1126,7 +1139,8 @@ function InventoryContent() {
 
                                         {/* Secondary Quantity (Optional) */}
                                         <div>
-                                            <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
+                                            <label htmlFor="secondaryQuantity"
+                                                   className="block text-sm font-medium text-gray-700">
                                                 Secondary Quantity <span className="text-gray-500">(Optional)</span>
                                             </label>
                                             <div className="mt-1 flex rounded-md shadow-sm">
@@ -1173,7 +1187,8 @@ function InventoryContent() {
                                 <div>
                                     <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
                                         Expiration Date
-                                        <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
+                                        <span
+                                            className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
                                     </label>
                                     <input
                                         type="date"
@@ -1231,14 +1246,17 @@ function InventoryContent() {
                                         <div className="text-gray-500 mb-4">
                                             {getUsageInfo().tier === 'free' ? (
                                                 <>
-                                                    <div className="text-gray-500 mb-4">No items in your inventory yet</div>
-                                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                                    <div className="text-gray-500 mb-4">No items in your inventory yet
+                                                    </div>
+                                                    <div
+                                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                                                         <div className="text-sm text-blue-800">
                                                             <strong>📦 Inventory Limits:</strong>
                                                             <ul className="mt-2 space-y-1 text-left">
                                                                 <li>• <strong>Free:</strong> Store up to 50 items</li>
                                                                 <li>• <strong>Gold:</strong> Store up to 250 items</li>
-                                                                <li>• <strong>Platinum:</strong> Unlimited inventory</li>
+                                                                <li>• <strong>Platinum:</strong> Unlimited inventory
+                                                                </li>
                                                                 <li>• Track expiration dates</li>
                                                                 <li>• Monitor food waste</li>
                                                             </ul>
@@ -1308,7 +1326,8 @@ function InventoryContent() {
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {formatInventoryDisplayText(item)}
                                                 </div>
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                                                <span
+                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
                                                     {item.location}
                                                 </span>
                                             </div>
@@ -1383,7 +1402,7 @@ function InventoryContent() {
                         onClose={() => setShowConsumptionHistory(false)}
                     />
                 )}
-                <Footer />
+                <Footer/>
             </div>
         </MobileOptimizedLayout>
     );
