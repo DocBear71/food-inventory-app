@@ -393,7 +393,7 @@ export default function RecipeDetailPage() {
                         {/* UPDATED: Meal Planning Button with Feature Gate */}
                         <TouchEnhancedButton
                             onClick={handleMealPlanClick}
-                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                 mealPlanFeatureGate.canUse
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                                     : 'border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
@@ -402,13 +402,13 @@ export default function RecipeDetailPage() {
                         >
                             {mealPlanFeatureGate.canUse ? (
                                 <>
-                                    <span className="hidden lg:inline">📅 Add to Meal Plan</span>
-                                    <span className="lg:hidden">📅 Meal Plan</span>
+                                    <span className="hidden sm:inline">📅 Add to Meal Plan</span>
+                                    <span className="sm:hidden">📅 Meal Plan</span>
                                 </>
                             ) : (
                                 <>
-                                    <span className="hidden lg:inline">🔒 Meal Planning (Gold)</span>
-                                    <span className="lg:hidden">🔒 Meal Plan</span>
+                                    <span className="hidden sm:inline">🔒 Meal Planning (Gold)</span>
+                                    <span className="sm:hidden">🔒 Meal Plan</span>
                                 </>
                             )}
                         </TouchEnhancedButton>
@@ -418,8 +418,8 @@ export default function RecipeDetailPage() {
                             onClick={() => setShowQuickShoppingList(true)}
                             className="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
                         >
-                            <span className="hidden lg:inline">🛒 Generate Shopping List</span>
-                            <span className="lg:hidden">🛒 Shopping</span>
+                            <span className="hidden sm:inline">🛒 Generate Shopping List</span>
+                            <span className="sm:hidden">🛒 Shopping</span>
                         </TouchEnhancedButton>
 
                         {hasNutritionData && (
@@ -427,8 +427,8 @@ export default function RecipeDetailPage() {
                                 onClick={() => setShowNutrition(!showNutrition)}
                                 className="bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
                             >
-                                <span className="hidden lg:inline">{showNutrition ? 'Hide' : 'Show'} Nutrition</span>
-                                <span className="lg:hidden">Nutrition</span>
+                                <span className="hidden sm:inline">{showNutrition ? 'Hide' : 'Show'} Nutrition</span>
+                                <span className="sm:hidden">Nutrition</span>
                             </TouchEnhancedButton>
                         )}
 
