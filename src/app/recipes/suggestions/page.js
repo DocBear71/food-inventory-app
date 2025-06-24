@@ -312,73 +312,148 @@ export default function RecipeSuggestions() {
         }
     };
 
-    // Enhanced ingredient variations from your shopping API
+    // Conservative ingredient variations - only TRUE equivalents
     const INGREDIENT_VARIATIONS = {
-        'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'garlic powder', 'fresh garlic', 'chopped garlic'],
-        'onion': ['onions', 'yellow onion', 'white onion', 'red onion', 'sweet onion', 'vidalia onion', 'small onion', 'large onion', 'medium onion'],
+        // Garlic (all forms are equivalent)
+        'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic'],
+        'garlic cloves': ['garlic', 'fresh garlic', 'garlic bulb'],
+        'minced garlic': ['garlic', 'chopped garlic', 'fresh garlic'],
+
+        // Onions (same type, different sizes)
+        'onion': ['onions', 'yellow onion', 'white onion', 'small onion', 'large onion', 'medium onion'],
+        'onions': ['onion', 'yellow onion', 'white onion'],
+        'yellow onion': ['onion', 'onions'],
+        'white onion': ['onion', 'onions'],
+
+        // Green onions (all are equivalent)
         'green onion': ['green onions', 'scallions', 'scallion', 'spring onions'],
-        'bell pepper': ['bell peppers', 'red bell pepper', 'green bell pepper', 'yellow bell pepper', 'orange bell pepper'],
+        'green onions': ['green onion', 'scallions', 'spring onions'],
+        'scallions': ['green onion', 'green onions', 'scallion'],
+        'scallion': ['green onion', 'green onions', 'scallions'],
+
+        // Bell peppers (only same color)
         'red bell pepper': ['red bell peppers', 'red pepper'],
+        'red bell peppers': ['red bell pepper'],
         'green bell pepper': ['green bell peppers', 'green pepper'],
-        'tomato': ['tomatoes', 'cherry tomatoes', 'grape tomatoes', 'roma tomatoes', 'beefsteak tomatoes'],
-        'diced tomatoes': ['diced tomato', 'chopped tomatoes', 'crushed tomatoes'],
-        'tomato sauce': ['marinara sauce', 'pasta sauce', 'pizza sauce', 'tomato pasta sauce'],
-        'mushroom': ['mushrooms', 'button mushrooms', 'cremini mushrooms', 'portobello mushrooms', 'shiitake mushrooms'],
-        'chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings', 'whole chicken'],
+        'green bell peppers': ['green bell pepper'],
+        // NOTE: Different colored peppers should NOT match each other
+
+        // Tomatoes (similar varieties only)
+        'tomato': ['tomatoes', 'fresh tomato', 'fresh tomatoes'],
+        'tomatoes': ['tomato', 'fresh tomatoes'],
+
+        // Chicken (same cuts)
         'chicken breast': ['chicken breasts', 'boneless chicken breast', 'skinless chicken breast'],
-        'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef'],
-        'beef sirloin': ['sirloin steak', 'beef sirloin steak', 'sirloin'],
-        'italian sausage': ['italian turkey sausage', 'sweet italian sausage', 'spicy italian sausage'],
-        'mozzarella': ['mozzarella cheese', 'fresh mozzarella', 'part skim mozzarella'],
-        'shredded mozzarella': ['shredded mozzarella cheese', 'grated mozzarella'],
-        'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
-        'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
+        'chicken breasts': ['chicken breast'],
 
-        // CRITICAL: Enhanced egg variations
-        'eggs': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'liquid eggs', 'egg', 'fresh eggs', 'whole eggs'],
-        'egg': ['eggs', 'large egg', 'extra large egg', 'jumbo egg', 'medium egg', 'small egg', 'fresh egg', 'whole egg'],
+        // BASIC eggs (NO specialty eggs)
+        'eggs': ['large eggs', 'fresh eggs', 'whole eggs'],
+        'large eggs': ['eggs', 'fresh eggs'],
 
-        // CRITICAL: Enhanced flour variations
-        'flour': ['all purpose flour', 'whole wheat flour', 'bread flour', 'cake flour', 'self rising flour', 'plain flour', 'white flour', 'unbleached flour', 'bleached flour'],
-        'all purpose flour': ['flour', 'plain flour', 'white flour', 'unbleached flour'],
-        'whole wheat flour': ['wheat flour', 'whole grain flour'],
+        // BASIC flour (NO specialty flours - they are different ingredients)
+        'flour': ['all purpose flour', 'plain flour', 'white flour'],
+        'all purpose flour': ['flour', 'plain flour'],
+        'plain flour': ['flour', 'all purpose flour'],
+        // NOTE: cake flour, almond flour, coconut flour are DIFFERENT ingredients
 
-        // Enhanced pasta variations to match your 12 pasta types
-        'pasta': [
-            'spaghetti', 'penne', 'fusilli', 'rigatoni', 'linguine', 'fettuccine', 'angel hair',
-            'penne pasta', 'spaghetti pasta', 'fusilli pasta', 'rigatoni pasta', 'linguine pasta',
-            'fettuccine pasta', 'angel hair pasta', 'bow tie pasta', 'rotini pasta', 'macaroni',
-            'macaroni pasta', 'shells', 'shell pasta', 'farfalle', 'gemelli', 'cavatappi',
-            'orzo', 'ditalini', 'conchiglie', 'radiatori', 'rotelle', 'campanelle',
-            'whole wheat pasta', 'wheat pasta', 'gluten free pasta'
-        ],
-        'spaghetti': ['spaghetti pasta', 'thin spaghetti', 'whole wheat spaghetti'],
-        'penne': ['penne pasta', 'penne rigate', 'whole wheat penne'],
-        'fettuccine': ['fettuccine pasta', 'fresh fettuccine', 'whole wheat fettuccine'],
-        'fusilli': ['fusilli pasta', 'rotini', 'spiral pasta'],
-        'rigatoni': ['rigatoni pasta', 'large rigatoni'],
-        'linguine': ['linguine pasta', 'thin linguine'],
-        'angel hair': ['angel hair pasta', 'capellini', 'thin pasta'],
-        'bow tie': ['bow tie pasta', 'farfalle', 'farfalle pasta'],
-        'macaroni': ['macaroni pasta', 'elbow macaroni', 'elbow pasta'],
-        'shells': ['shell pasta', 'conchiglie', 'pasta shells'],
+        // BASIC sugar (NO specialty sugars)
+        'sugar': ['white sugar', 'granulated sugar', 'cane sugar'],
+        'white sugar': ['sugar', 'granulated sugar'],
+        'granulated sugar': ['sugar', 'white sugar'],
+        // NOTE: brown sugar, powdered sugar, coconut sugar are DIFFERENT
 
-        'rice': ['white rice', 'brown rice', 'jasmine rice', 'basmati rice', 'wild rice', 'arborio rice'],
-        'olive oil': ['extra virgin olive oil', 'virgin olive oil', 'light olive oil'],
-        'vegetable oil': ['canola oil', 'sunflower oil', 'corn oil'],
-        'sugar': ['white sugar', 'granulated sugar', 'cane sugar', 'sugar (granulated)'],
-        'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
-        'butter': ['unsalted butter', 'salted butter', 'sweet cream butter'],
-        'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk', 'vitamin d milk'],
-        'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'coarse salt'],
-        'pepper': ['black pepper', 'ground pepper', 'cracked pepper', 'white pepper'],
-        'sesame seeds': ['toasted sesame seeds', 'white sesame seeds', 'black sesame seeds'],
-        'white wine': ['dry white wine', 'cooking wine', 'white cooking wine'],
-        'cornstarch': ['corn starch', 'potato starch'],
-        'red pepper flakes': ['crushed red pepper', 'red chili flakes'],
-        'chives': ['fresh chives', 'chopped chives'],
-        'marsala wine': ['marsala cooking wine']
+        // Basic pasta (only if recipe just says "pasta")
+        'pasta': ['spaghetti', 'penne', 'fusilli', 'rigatoni', 'linguine', 'fettuccine'],
+        // NOTE: Specific pasta shapes should only match themselves
+
+        // Milk (same fat content)
+        'milk': ['whole milk', 'vitamin d milk'],
+        'whole milk': ['milk', 'vitamin d milk'],
+
+        // Butter (basic forms)
+        'butter': ['unsalted butter', 'salted butter'],
+        'unsalted butter': ['butter'],
+        'salted butter': ['butter'],
+
+        // Oils (similar cooking oils only)
+        'vegetable oil': ['canola oil'],
+        'canola oil': ['vegetable oil'],
+        'olive oil': ['extra virgin olive oil'],
+
+        // Salt and pepper (basic forms)
+        'salt': ['table salt', 'fine salt'],
+        'pepper': ['black pepper', 'ground pepper'],
+
+        // Rice (basic white rice)
+        'rice': ['white rice'],
+        'white rice': ['rice']
     };
+
+// Items that should NEVER match with anything else (specialty ingredients)
+    const NEVER_MATCH_INGREDIENTS = [
+        // Specialty flours
+        'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
+        'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
+
+        // Specialty sugars
+        'brown sugar', 'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
+        'swerve', 'swerve brown sugar', 'stevia', 'erythritol',
+
+        // Specialty milks
+        'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
+
+        // Compound ingredients that need exact matches
+        'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
+
+        // Dietary-specific ingredients
+        'vegan butter', 'vegan cheese', 'vegan milk', 'vegan vanilla extract', 'vegan sausage',
+        'plant butter', 'dairy free', 'gluten free', 'sugar free', 'no sugar added',
+
+        // Specialty extracts and seasonings
+        'vanilla extract', 'almond extract', 'lemon extract', 'garlic powder', 'onion powder',
+
+        // Specialty baking ingredients
+        'baking powder', 'baking soda', 'gluten-free baking powder', 'aluminum free baking powder',
+
+        // Specialty nut butters
+        'almond butter', 'cashew butter', 'no sugar added peanut butter', 'natural peanut butter'
+    ];
+
+    // Check if an ingredient should never be matched with variations
+    function isSpecialtyIngredient(ingredient) {
+        const normalized = normalizeIngredientName(ingredient);
+
+        return NEVER_MATCH_INGREDIENTS.some(specialty => {
+            const specialtyNorm = normalizeIngredientName(specialty);
+            return normalized.includes(specialtyNorm) || specialtyNorm.includes(normalized);
+        });
+    }
+
+    // Get ONLY explicitly defined variations for common ingredients
+    function getExactVariations(ingredient) {
+        const normalized = normalizeIngredientName(ingredient);
+
+        // If it's a specialty ingredient, return only itself
+        if (isSpecialtyIngredient(ingredient)) {
+            return [normalized];
+        }
+
+        // Find exact variations only
+        if (INGREDIENT_VARIATIONS[normalized]) {
+            return [normalized, ...INGREDIENT_VARIATIONS[normalized].map(v => normalizeIngredientName(v))];
+        }
+
+        // Check if this ingredient is a variation of something else
+        for (const [base, variations] of Object.entries(INGREDIENT_VARIATIONS)) {
+            const normalizedVariations = variations.map(v => normalizeIngredientName(v));
+            if (normalizedVariations.includes(normalized)) {
+                return [base, ...normalizedVariations, normalized];
+            }
+        }
+
+        // If no variations found, return only itself
+        return [normalized];
+    }
 
     // New function to generate all suggestions
     const generateAllSuggestions = async () => {
@@ -930,72 +1005,42 @@ export default function RecipeSuggestions() {
         return animalKeywords.some(keyword => normalizedName.includes(keyword));
     }
 
-    // ENHANCED: Main ingredient matching function (replaces findIngredientInInventory)
+    // CONSERVATIVE ingredient matching - only exact matches and proven equivalents
     function findIngredientInInventory(recipeIngredient, inventory) {
         const recipeName = normalizeIngredientName(recipeIngredient.name);
-        const recipeKey = createIngredientKey(recipeIngredient.name);
-        const recipeIsVegan = isVeganOrPlantBased(recipeIngredient.name);
-        const recipeIsAnimal = isAnimalProduct(recipeIngredient.name);
 
         console.log(`\n--- Looking for recipe ingredient: "${recipeIngredient.name}" ---`);
-        console.log(`Normalized: "${recipeName}", Key: "${recipeKey}"`);
-        console.log(`Is vegan: ${recipeIsVegan}, Is animal: ${recipeIsAnimal}`);
+        console.log(`Normalized: "${recipeName}"`);
+
+        // Get only exact variations for this ingredient
+        const allowedVariations = getExactVariations(recipeIngredient.name);
+        console.log(`Allowed variations:`, allowedVariations);
 
         for (const item of inventory) {
             const itemName = normalizeIngredientName(item.name);
-            const itemKey = createIngredientKey(item.name);
-            const itemIsVegan = isVeganOrPlantBased(item.name);
-            const itemIsAnimal = isAnimalProduct(item.name);
-
-            // STRICT RULE: Vegan ingredients can NEVER match animal products
-            if (recipeIsVegan && itemIsAnimal) {
-                console.log(`❌ BLOCKED: Vegan recipe ingredient "${recipeIngredient.name}" cannot match animal product "${item.name}"`);
-                continue;
-            }
-
-            // STRICT RULE: Animal ingredients can NEVER match vegan products
-            if (recipeIsAnimal && itemIsVegan) {
-                console.log(`❌ BLOCKED: Animal recipe ingredient "${recipeIngredient.name}" cannot match vegan product "${item.name}"`);
-                continue;
-            }
 
             // 1. EXACT MATCH (highest priority)
-            if (itemName === recipeName && recipeName.length > 2) {
+            if (itemName === recipeName) {
                 console.log(`✅ EXACT MATCH: "${item.name}" matches "${recipeIngredient.name}"`);
                 return { found: true, inventoryItem: item, matchType: 'exact' };
             }
 
-            // 2. INGREDIENT KEY MATCH
-            if (itemKey === recipeKey && recipeKey.length > 3) {
-                console.log(`✅ KEY MATCH: "${item.name}" matches "${recipeIngredient.name}" (key: ${recipeKey})`);
-                return { found: true, inventoryItem: item, matchType: 'key' };
+            // 2. ALLOWED VARIATION MATCH (only for pre-approved equivalents)
+            if (allowedVariations.includes(itemName)) {
+                console.log(`✅ VARIATION MATCH: "${item.name}" is approved variation of "${recipeIngredient.name}"`);
+                return { found: true, inventoryItem: item, matchType: 'variation' };
             }
 
-            // 3. VARIATION MATCH (using the same variations as shopping API)
-            const ingredientVariations = getIngredientVariations(recipeIngredient.name);
-            for (const variation of ingredientVariations) {
-                if (itemName === variation) {
-                    console.log(`✅ VARIATION MATCH: "${item.name}" matches variation "${variation}"`);
-                    return { found: true, inventoryItem: item, matchType: 'variation' };
-                }
-            }
+            // 3. VERY CONSERVATIVE PARTIAL MATCH (only for longer, specific ingredient names)
+            if (recipeName.length >= 8 && itemName.length >= 8) {
+                // Only if one completely contains the other AND they're both long enough to be specific
+                if ((itemName.includes(recipeName) || recipeName.includes(itemName)) &&
+                    !isSpecialtyIngredient(recipeIngredient.name) &&
+                    !isSpecialtyIngredient(item.name)) {
 
-            // 4. CONTAINS MATCH (with additional safety checks)
-            if (itemName.includes(recipeName) || recipeName.includes(itemName)) {
-                // Additional validation for common problematic cases
-                if (isValidIngredientMatch(recipeIngredient.name, item.name)) {
-                    console.log(`✅ CONTAINS MATCH: "${item.name}" matches "${recipeIngredient.name}"`);
+                    console.log(`✅ CONSERVATIVE PARTIAL MATCH: "${item.name}" <-> "${recipeIngredient.name}"`);
                     return { found: true, inventoryItem: item, matchType: 'partial' };
-                } else {
-                    console.log(`❌ REJECTED: "${item.name}" contains "${recipeIngredient.name}" but failed validation`);
                 }
-            }
-
-            // 5. SMART SUBSTITUTION MATCHING
-            const substitutionMatch = findSmartSubstitution(recipeIngredient.name, item.name);
-            if (substitutionMatch) {
-                console.log(`✅ SUBSTITUTION MATCH: "${item.name}" can substitute for "${recipeIngredient.name}"`);
-                return { found: true, inventoryItem: item, matchType: 'substitution' };
             }
         }
 
@@ -1110,7 +1155,7 @@ export default function RecipeSuggestions() {
     }
 
 
-    // UPDATED: Replace the existing analyzeRecipe function with this enhanced version
+    // Updated analyzeRecipe function using conservative matching
     function analyzeRecipe(recipe, inventory) {
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
             return {
@@ -1125,6 +1170,7 @@ export default function RecipeSuggestions() {
         const missingIngredients = [];
 
         console.log(`\n=== ANALYZING RECIPE: ${recipe.title} ===`);
+        console.log(`Recipe has ${recipe.ingredients.length} ingredients`);
 
         recipe.ingredients.forEach(recipeIngredient => {
             const matchResult = findIngredientInInventory(recipeIngredient, inventory);
@@ -1145,6 +1191,8 @@ export default function RecipeSuggestions() {
         const canMake = availableIngredients.length >= Math.ceil(recipe.ingredients.length * 0.8);
 
         console.log(`Recipe Analysis Complete: ${availableIngredients.length}/${recipe.ingredients.length} ingredients (${Math.round(matchPercentage * 100)}%)`);
+        console.log(`Available:`, availableIngredients.map(ing => `"${ing.name}" -> "${ing.inventoryItem.name}"`));
+        console.log(`Missing:`, missingIngredients.map(ing => `"${ing.name}"`));
 
         return {
             matchPercentage,
@@ -1152,6 +1200,25 @@ export default function RecipeSuggestions() {
             missingIngredients,
             canMake
         };
+    }
+
+// Helper function to debug matching issues
+    function debugIngredientMatching(recipeIngredients, inventory) {
+        console.log('\n=== DEBUGGING INGREDIENT MATCHING ===');
+
+        recipeIngredients.forEach(ingredient => {
+            console.log(`\n--- Checking: "${ingredient.name}" ---`);
+            const variations = getExactVariations(ingredient.name);
+            console.log(`Variations allowed:`, variations);
+            console.log(`Is specialty ingredient:`, isSpecialtyIngredient(ingredient.name));
+
+            const match = findIngredientInInventory(ingredient, inventory);
+            if (match.found) {
+                console.log(`✅ MATCHED with: "${match.inventoryItem.name}" (${match.matchType})`);
+            } else {
+                console.log(`❌ NO MATCH found`);
+            }
+        });
     }
 
     // Keep existing utility functions
