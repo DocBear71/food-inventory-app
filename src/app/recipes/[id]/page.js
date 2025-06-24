@@ -348,95 +348,96 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
-                            {recipe.description && (
-                                <p className="text-gray-600 text-lg mb-4">{recipe.description}</p>
-                            )}
+                    {/* Title and Description */}
+                    <div className="mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
+                        {recipe.description && (
+                            <p className="text-gray-600 text-lg mb-4">{recipe.description}</p>
+                        )}
 
-                            {/* Rating and Stats */}
-                            <div className="flex items-center space-x-6 mb-4">
-                                <RatingStats ratingStats={recipe.ratingStats} compact={true} />
-                                {recipe.metrics?.viewCount > 0 && (
-                                    <span className="text-sm text-gray-500">
-                                        {recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}
-                                    </span>
-                                )}
-                            </div>
+                        {/* Rating and Stats */}
+                        <div className="flex items-center space-x-6 mb-4">
+                            <RatingStats ratingStats={recipe.ratingStats} compact={true} />
+                            {recipe.metrics?.viewCount > 0 && (
+                                <span className="text-sm text-gray-500">
+                                    {recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}
+                                </span>
+                            )}
                         </div>
+                    </div>
 
-                        {/* UPDATED: Action Buttons - All moved to top */}
-                        <div className="flex flex-wrap gap-2 ml-4">
-                            {/* Show edit button if user owns the recipe */}
-                            {session?.user?.id === recipe.createdBy?._id && (
-                                <TouchEnhancedButton
-                                    onClick={() => router.push(`/recipes/${recipeId}/edit`)}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                                >
-                                    Edit Recipe
-                                </TouchEnhancedButton>
+                    {/* UPDATED: Action Buttons - Separate row with better wrapping */}
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {/* Show edit button if user owns the recipe */}
+                        {session?.user?.id === recipe.createdBy?._id && (
+                            <TouchEnhancedButton
+                                onClick={() => router.push(`/recipes/${recipeId}/edit`)}
+                                className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                            >
+                                <span className="hidden sm:inline">Edit Recipe</span>
+                                <span className="sm:hidden">Edit</span>
+                            </TouchEnhancedButton>
+                        )}
+
+                        <SaveRecipeButton
+                            recipeId={recipe._id}
+                            recipeName={recipe.title}
+                            size="medium"
+                        />
+
+                        <AddToCollectionButton
+                            recipeId={recipe._id}
+                            recipeName={recipe.title}
+                        />
+
+                        {/* UPDATED: Meal Planning Button with Feature Gate */}
+                        <TouchEnhancedButton
+                            onClick={handleMealPlanClick}
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+                                mealPlanFeatureGate.canUse
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+                            }`}
+                            title={mealPlanFeatureGate.canUse ? 'Add to meal plan' : 'Upgrade to add to meal plans'}
+                        >
+                            {mealPlanFeatureGate.canUse ? (
+                                <>
+                                    <span className="hidden lg:inline">📅 Add to Meal Plan</span>
+                                    <span className="lg:hidden">📅 Meal Plan</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="hidden lg:inline">🔒 Meal Planning (Gold)</span>
+                                    <span className="lg:hidden">🔒 Meal Plan</span>
+                                </>
                             )}
+                        </TouchEnhancedButton>
 
-                            <SaveRecipeButton
-                                recipeId={recipe._id}
-                                recipeName={recipe.title}
-                                size="medium"
-                            />
+                        {/* Shopping List Button */}
+                        <TouchEnhancedButton
+                            onClick={() => setShowQuickShoppingList(true)}
+                            className="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                        >
+                            <span className="hidden lg:inline">🛒 Generate Shopping List</span>
+                            <span className="lg:hidden">🛒 Shopping</span>
+                        </TouchEnhancedButton>
 
-                            <AddToCollectionButton
-                                recipeId={recipe._id}
-                                recipeName={recipe.title}
-                            />
-
-                            {/* UPDATED: Meal Planning Button with Feature Gate */}
+                        {hasNutritionData && (
                             <TouchEnhancedButton
-                                onClick={handleMealPlanClick}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                                    mealPlanFeatureGate.canUse
-                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                        : 'border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
-                                }`}
-                                title={mealPlanFeatureGate.canUse ? 'Add to meal plan' : 'Upgrade to add to meal plans'}
+                                onClick={() => setShowNutrition(!showNutrition)}
+                                className="bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
                             >
-                                {mealPlanFeatureGate.canUse ? (
-                                    <>
-                                        <span className="hidden sm:inline">📅 Add to Meal Plan</span>
-                                        <span className="sm:hidden">📅 Meal Plan</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="hidden sm:inline">🔒 Meal Planning (Gold)</span>
-                                        <span className="sm:hidden">🔒 Meal Plan</span>
-                                    </>
-                                )}
+                                <span className="hidden lg:inline">{showNutrition ? 'Hide' : 'Show'} Nutrition</span>
+                                <span className="lg:hidden">Nutrition</span>
                             </TouchEnhancedButton>
+                        )}
 
-                            {/* Shopping List Button */}
-                            <TouchEnhancedButton
-                                onClick={() => setShowQuickShoppingList(true)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                            >
-                                <span className="hidden sm:inline">🛒 Generate Shopping List</span>
-                                <span className="sm:hidden">🛒 Shopping</span>
-                            </TouchEnhancedButton>
-
-                            {hasNutritionData && (
-                                <TouchEnhancedButton
-                                    onClick={() => setShowNutrition(!showNutrition)}
-                                    className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
-                                >
-                                    {showNutrition ? 'Hide' : 'Show'} Nutrition
-                                </TouchEnhancedButton>
-                            )}
-
-                            <TouchEnhancedButton
-                                onClick={() => window.print()}
-                                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
-                            >
-                                Print
-                            </TouchEnhancedButton>
-                        </div>
+                        <TouchEnhancedButton
+                            onClick={() => window.print()}
+                            className="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
+                        >
+                            Print
+                        </TouchEnhancedButton>
                     </div>
 
                     {/* Recipe Meta */}
