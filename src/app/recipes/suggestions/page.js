@@ -315,124 +315,141 @@ export default function RecipeSuggestions() {
     // Comprehensive ingredient variations - covers real scanning/entry variations
     // 4. COMPREHENSIVE INGREDIENT VARIATIONS
     const INGREDIENT_VARIATIONS = {
-        // WATER - Basic household ingredient
+        // WATER
         'water': [
             'tap water', 'filtered water', 'distilled water', 'spring water',
-            'cold water', 'warm water', 'hot water', 'boiling water'
+            'cold water', 'warm water', 'hot water', 'boiling water', 'soda water'
         ],
+        'cold water': ['water', 'soda water'],
+        'soda water': ['water', 'cold water'],
 
-        // EGGS
+        // GROUND BEEF - Handle all variations
+        'ground beef': [
+            'beef', 'hamburger', 'ground chuck', 'lean ground beef',
+            'extra lean ground beef', 'ground beef (80/20)', 'ground beef (70/30)',
+            'ground beef (85/15)', 'ground beef (90/10)'
+        ],
+        'beef': ['ground beef', 'hamburger', 'ground chuck'],
+
+        // BREAKFAST SAUSAGE
+        'breakfast sausage': [
+            'sausage', 'pork sausage', 'italian sausage', 'breakfast links',
+            'sausage links', 'ground sausage', 'breakfast patties'
+        ],
+        'sausage': ['breakfast sausage', 'pork sausage', 'italian sausage'],
+
+        // EGGS - Handle "large eggs beaten" etc.
         'eggs': [
             'egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs',
             'fresh eggs', 'whole eggs', 'large white eggs', 'brown eggs', 'white eggs',
-            'eggs (extra large)', 'eggs (large)', 'eggs (jumbo)', 'grade a eggs',
-            'cage free eggs', 'free range eggs', 'organic eggs', 'pasture raised eggs'
+            'eggs beaten', 'beaten eggs', 'eggs (beaten)', 'large eggs beaten'
         ],
         'egg': ['eggs', 'large egg', 'extra large egg', 'fresh egg', 'whole egg'],
 
-        // FLOUR - ONLY basic all-purpose flour variations (specialty flours in NEVER_MATCH)
+        // FLOUR
         'flour': [
             'all purpose flour', 'all-purpose flour', 'plain flour', 'white flour',
             'unbleached flour', 'bleached flour', 'enriched flour', 'wheat flour',
-            'flour (all purpose)', 'ap flour', 'general purpose flour', 'regular flour',
-            'enriched wheat flour', 'unbleached all purpose flour', 'king arthur flour'
+            'flour (all purpose)', 'ap flour', 'general purpose flour', 'regular flour'
         ],
-        'all purpose flour': ['flour', 'all-purpose flour', 'plain flour', 'ap flour'],
-        'all-purpose flour': ['flour', 'all purpose flour', 'plain flour'],
 
-        // SUGAR - ONLY white/granulated sugar (brown sugar in NEVER_MATCH)
+        // SUGAR
         'sugar': [
             'white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar',
             'sugar (granulated)', 'granulated white sugar', 'table sugar',
             'refined sugar', 'crystalline sugar', 'regular sugar'
         ],
-        'white sugar': ['sugar', 'granulated sugar', 'cane sugar'],
-        'granulated sugar': ['sugar', 'white sugar', 'sugar (granulated)'],
 
-        // BROWN SUGAR - Specific variations only
+        // BROWN SUGAR - Handle "packed brown sugar"
         'brown sugar': [
             'light brown sugar', 'dark brown sugar', 'packed brown sugar',
-            'brown sugar (light)', 'brown sugar (dark)'
+            'brown sugar (light)', 'brown sugar (dark)', 'brown sugar packed'
         ],
-        'light brown sugar': ['brown sugar'],
-        'dark brown sugar': ['brown sugar'],
+        'packed brown sugar': ['brown sugar', 'light brown sugar', 'dark brown sugar'],
 
-        // MILK - ONLY dairy milk (plant milks in NEVER_MATCH)
+        // MILK - Handle "pt. milk" and "whole milk"
         'milk': [
             'whole milk', '2% milk', '1% milk', 'skim milk', 'fat free milk',
             'vitamin d milk', 'reduced fat milk', 'low fat milk', 'nonfat milk',
             'milk (whole)', 'milk (2%)', 'fresh milk', 'dairy milk'
         ],
         'whole milk': ['milk', 'vitamin d milk', 'milk (whole)'],
-        '2% milk': ['milk', 'reduced fat milk', 'milk (2%)'],
 
-        // BUTTER - ONLY dairy butter (nut butters in NEVER_CROSS_MATCH)
+        // BUTTER - Handle "butter melted", "butter softened"
         'butter': [
             'unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter',
-            'butter (unsalted)', 'butter (salted)', 'real butter', 'churned butter'
+            'butter (unsalted)', 'butter (salted)', 'real butter', 'churned butter',
+            'butter melted', 'melted butter', 'butter softened', 'softened butter'
         ],
-        'unsalted butter': ['butter', 'sweet cream butter'],
-        'salted butter': ['butter'],
-
-        // WINE VARIATIONS
-        'marsala wine': [
-            'marsala cooking wine', 'cooking marsala', 'dry marsala', 'sweet marsala'
-        ],
-        'marsala cooking wine': ['marsala wine', 'cooking marsala'],
-        'white wine': [
-            'dry white wine', 'cooking white wine', 'white cooking wine'
-        ],
-        'red wine': [
-            'dry red wine', 'cooking red wine', 'red cooking wine'
-        ],
-
-        // HONEY
-        'honey': [
-            'raw honey', 'pure honey', 'natural honey', 'wildflower honey',
-            'clover honey', 'organic honey', 'local honey', 'unfiltered honey'
-        ],
-        'raw honey': ['honey', 'pure honey', 'natural honey'],
-
-        // WHITE PEPPER
-        'white pepper': [
-            'white pepper powder', 'ground white pepper', 'white peppercorns',
-            'white pepper (ground)', 'powdered white pepper'
-        ],
-        'white pepper powder': ['white pepper', 'ground white pepper'],
-        'ground white pepper': ['white pepper', 'white pepper powder'],
-
-        // GARLIC
-        'garlic': [
-            'garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic',
-            'chopped garlic', 'garlic (fresh)', 'whole garlic', 'garlic head'
-        ],
-        'garlic cloves': ['garlic', 'fresh garlic', 'garlic bulb'],
-
-        // ONIONS - Regular onions only (green onions in NEVER_CROSS_MATCH)
-        'onion': [
-            'onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion',
-            'small onion', 'large onion', 'medium onion', 'onion (yellow)', 'onion (white)',
-            'spanish onion', 'storage onion'
-        ],
-        'yellow onion': ['onion', 'onions', 'cooking onion'],
-        'white onion': ['onion', 'onions'],
-
-        // SALT AND PEPPER
-        'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'iodized salt'],
-        'pepper': ['black pepper', 'ground pepper', 'ground black pepper'],
-
-        // OILS - Basic cooking oils only
-        'vegetable oil': ['canola oil', 'soybean oil', 'corn oil'],
-        'olive oil': ['extra virgin olive oil', 'virgin olive oil'],
+        'melted butter': ['butter', 'unsalted butter', 'salted butter'],
+        'softened butter': ['butter', 'unsalted butter', 'salted butter'],
 
         // BAKING INGREDIENTS
         'baking powder': [
             'double acting baking powder', 'aluminum free baking powder'
         ],
+        'baking soda': [
+            'sodium bicarbonate', 'bicarbonate of soda'
+        ],
+
+        // CORNSTARCH
+        'corn starch': [
+            'cornstarch', 'corn flour'
+        ],
+        'cornstarch': ['corn starch'],
+
+        // GARLIC - Handle "cloves garlic minced"
+        'garlic': [
+            'garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic',
+            'chopped garlic', 'garlic (fresh)', 'whole garlic', 'garlic head',
+            'cloves garlic', 'garlic minced'
+        ],
+        'garlic cloves': ['garlic', 'fresh garlic', 'cloves garlic'],
+        'cloves garlic': ['garlic', 'garlic cloves'],
+
+        // PASTA - Handle "elbow macaroni uncooked"
+        'elbow macaroni': [
+            'macaroni', 'pasta', 'elbow pasta'
+        ],
+        'macaroni': ['elbow macaroni', 'pasta'],
+
+        // PAPRIKA
+        'paprika': [
+            'sweet paprika', 'smoked paprika', 'hungarian paprika'
+        ],
+
+        // SALT
+        'salt': [
+            'table salt', 'sea salt', 'kosher salt', 'fine salt', 'iodized salt'
+        ],
+
+        // Keep existing variations for other ingredients...
+        'honey': [
+            'raw honey', 'pure honey', 'natural honey', 'wildflower honey',
+            'clover honey', 'organic honey', 'local honey', 'unfiltered honey'
+        ],
+
+        'white pepper': [
+            'white pepper powder', 'ground white pepper', 'white peppercorns',
+            'white pepper (ground)', 'powdered white pepper'
+        ],
+
+        'onion': [
+            'onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion',
+            'small onion', 'large onion', 'medium onion', 'onion (yellow)', 'onion (white)',
+            'spanish onion', 'storage onion'
+        ],
+
+        'pepper': ['black pepper', 'ground pepper', 'ground black pepper'],
+
+        'vegetable oil': ['canola oil', 'soybean oil', 'corn oil'],
+        'olive oil': ['extra virgin olive oil', 'virgin olive oil'],
+
         'vanilla extract': [
             'pure vanilla extract', 'vanilla essence', 'vanilla flavoring'
         ]
     };
+
 
 // 2. NEVER CROSS-MATCH ITEMS (CRITICAL FOR DIETARY RESTRICTIONS):
     const DIETARY_RESTRICTED_INGREDIENTS = {
@@ -464,24 +481,80 @@ export default function RecipeSuggestions() {
             return '';
         }
 
-        return name
+        let normalized = name
             .toLowerCase()
             .trim()
-            // Remove parentheses and their contents FIRST
+            // Remove parentheses and their contents FIRST (handles "(70/30)", "(minced)", etc.)
             .replace(/\([^)]*\)/g, '')
-            // Remove measurements and numbers
-            .replace(/\d+(\.\d+)?\s*(cups?|tbsp|tsp|lbs?|oz|ml|g|kg)\b/gi, '')
-            // Remove common descriptors but keep important ones
-            .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|minced|chopped|sliced|diced|crushed|grated|shredded)\b/g, '')
-            // Remove size descriptors
-            .replace(/\b(small|medium|large|extra large|jumbo|mini)\b/g, '')
-            // Remove packaging descriptors
+            // Remove leading numbers that are measurement counts (handles "1 1½ Cups flour")
+            .replace(/^\d+\s+/, '')
+            // Remove complex fractions and measurements
+            .replace(/\d+\s*[\/\-]\s*\d+/g, '') // Remove "70/30", "1/2", etc.
+            .replace(/\d+\.\d+/g, '') // Remove decimals like "0.5", "1.5"
+            .replace(/\d+\s*½/g, '') // Remove "1½", "2½"
+            .replace(/\d+\s*¼/g, '') // Remove "1¼", "2¼"
+            .replace(/\d+\s*¾/g, '') // Remove "1¾", "2¾"
+            .replace(/½|¼|¾/g, '') // Remove standalone fractions
+            // Remove all measurement units and abbreviations
+            .replace(/\b\d*\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|grams?|kg|kilograms?|pt|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?)\b/gi, '')
+            // Remove remaining standalone numbers
+            .replace(/\b\d+\b/g, '')
+            // Remove cooking method descriptors that should be kept separate
+            .replace(/\b(beaten|melted|softened|minced|chopped|sliced|diced|crushed|grated|shredded|packed|cold|hot|warm)\b/g, '')
+            // Remove quality descriptors
+            .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|large|small|medium|extra|jumbo|mini)\b/g, '')
+            // Remove packaging/container descriptors
             .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
-            // Replace punctuation and hyphens with spaces
+            // Remove "optional", "to taste", "dash", etc.
+            .replace(/\b(optional|to\s+taste|dash|pinch)\b/gi, '')
+            // Clean up punctuation
             .replace(/[^\w\s]/g, ' ')
             // Normalize multiple spaces
             .replace(/\s+/g, ' ')
             .trim();
+
+        return normalized;
+    }
+
+    function extractIngredientName(ingredientString) {
+        if (!ingredientString || typeof ingredientString !== 'string') {
+            return '';
+        }
+
+        // Handle the ingredient object format vs string format
+        const nameString = ingredientString.name || ingredientString;
+
+        console.log(`🔍 Extracting from: "${nameString}"`);
+
+        // Step 1: Remove parenthetical information first
+        let cleaned = nameString.replace(/\([^)]*\)/g, '');
+
+        // Step 2: Handle the "1 1½ Cups flour" pattern specifically
+        // Remove leading count numbers (the "1" in "1 1½ Cups flour")
+        cleaned = cleaned.replace(/^\d+\s+/, '');
+
+        // Step 3: Remove measurements - be more aggressive
+        cleaned = cleaned
+            // Remove fraction measurements (1½, 1¼, 1¾, etc.)
+            .replace(/\d+\s*[½¼¾]/g, '')
+            .replace(/[½¼¾]/g, '')
+            // Remove decimal measurements (0.5, 1.5, etc.)
+            .replace(/\d*\.\d+/g, '')
+            // Remove whole number measurements
+            .replace(/\b\d+\b/g, '')
+            // Remove measurement units (comprehensive list)
+            .replace(/\b(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|l|grams?|g|kg|kilograms?|pt|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?)\b/gi, '')
+            // Remove cooking states/methods
+            .replace(/\b(beaten|melted|softened|minced|chopped|sliced|diced|crushed|grated|shredded|packed|cold|hot|warm|uncooked|cooked)\b/gi, '')
+            // Remove "optional" and taste descriptors
+            .replace(/\b(optional|to\s+taste|dash|pinch)\b/gi, '')
+            // Clean up
+            .replace(/[^\w\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        console.log(`📝 Extracted: "${cleaned}"`);
+        return cleaned;
     }
 
 // 6. ENHANCED PARTIAL MATCH VALIDATION:
@@ -801,22 +874,25 @@ export default function RecipeSuggestions() {
 
 // 11. MAIN MATCHING FUNCTION - COMPREHENSIVE
     function findBestIngredientMatch(recipeIngredient, inventory) {
-        const recipeName = recipeIngredient.name || recipeIngredient;
+        // Extract the actual ingredient name from complex strings
+        const extractedName = extractIngredientName(recipeIngredient);
+        const recipeName = extractedName || recipeIngredient.name || recipeIngredient;
         const recipeNormalized = normalizeIngredientName(recipeName);
 
-        console.log(`\n🔍 Looking for recipe ingredient: "${recipeName}"`);
+        console.log(`\n🔍 Looking for recipe ingredient: "${recipeIngredient}"`);
+        console.log(`📝 Extracted name: "${recipeName}"`);
         console.log(`📝 Normalized to: "${recipeNormalized}"`);
 
         // Filter out recipe ingredients from inventory
         const validInventory = inventory.filter(item => !isRecipeIngredient(item.name));
 
-        // Check if this is a specialty ingredient that needs exact matching
+        // Check if this is a specialty ingredient
         const isSpecialty = isSpecialtyIngredient(recipeName);
         if (isSpecialty) {
             console.log(`🔒 SPECIALTY INGREDIENT: "${recipeName}" - exact match only`);
         }
 
-        // Step 1: Exact match (highest priority)
+        // Step 1: Exact match
         for (const item of validInventory) {
             const itemNormalized = normalizeIngredientName(item.name);
 
@@ -866,6 +942,29 @@ export default function RecipeSuggestions() {
                     }
                 }
             }
+
+            // Step 3: Partial matching for non-specialty ingredients
+            for (const item of validInventory) {
+                // Skip if there are conflicts
+                if (isDietaryConflict(recipeName, item.name) ||
+                    hasProblematicCrossMatch(recipeName, item.name)) {
+                    continue;
+                }
+
+                const itemNormalized = normalizeIngredientName(item.name);
+
+                if (itemNormalized.includes(recipeNormalized) || recipeNormalized.includes(itemNormalized)) {
+                    if (isValidPartialMatch(recipeName, item.name, recipeNormalized, itemNormalized)) {
+                        console.log(`✅ PARTIAL MATCH: "${item.name}" ↔ "${recipeName}"`);
+                        return {
+                            found: true,
+                            inventoryItem: item,
+                            matchType: 'partial',
+                            confidence: 0.7
+                        };
+                    }
+                }
+            }
         }
 
         console.log(`❌ NO MATCH found for: "${recipeName}"`);
@@ -875,6 +974,70 @@ export default function RecipeSuggestions() {
             matchType: null,
             confidence: 0
         };
+    }
+
+    function debugComplexMeasurements() {
+        const testIngredients = [
+            'ground beef (70/30)',
+            'breakfast sausage',
+            '1 1½ Cups flour',
+            '1 2¼ Cups flour',
+            '1 1¾ Cup flour',
+            '1 pt. milk',
+            '1 Cup butter, melted',
+            '2 large eggs beaten',
+            '1 cup cold water or soda water',
+            'Optional: 1 egg (adds richness and color)',
+            '1 ½ Cups flour',
+            '1 ¾ tsp baking powder',
+            '1 1½ tsp baking soda',
+            '1 1¼ Cups water',
+            '1 1¼ Cups sugar',
+            '1 1¼ Cups whole milk',
+            '1 To taste Paprika',
+            '0.5 Cup corn starch',
+            '8 cloves garlic (minced)',
+            '2 cups elbow macaroni (uncooked)',
+            '4 eggs, beaten',
+            '1 Dash salt',
+            '0.5 Cup butter, softened',
+            '0.67 Cup packed brown sugar',
+            '0.66 Cup packed brown sugar'
+        ];
+
+        console.log('\n🔧 === TESTING COMPLEX MEASUREMENTS ===');
+
+        testIngredients.forEach(ingredient => {
+            const extracted = extractIngredientName(ingredient);
+            const normalized = normalizeIngredientName(extracted);
+            console.log(`"${ingredient}" → "${extracted}" → "${normalized}"`);
+        });
+    }
+
+// 6. COMPREHENSIVE TEST FUNCTION
+    function runComprehensiveMeasurementTest(inventory) {
+        console.log('\n🔧 === COMPREHENSIVE MEASUREMENT TEST ===');
+
+        const testIngredients = [
+            'ground beef (70/30)',
+            'breakfast sausage',
+            '1 1½ Cups flour',
+            '1 Cup butter, melted',
+            '2 large eggs beaten',
+            '0.67 Cup packed brown sugar',
+            '8 cloves garlic (minced)',
+            '1 cup cold water or soda water'
+        ];
+
+        testIngredients.forEach(ingredient => {
+            console.log(`\n--- Testing: "${ingredient}" ---`);
+            const result = findBestIngredientMatch(ingredient, inventory);
+            if (result.found) {
+                console.log(`✅ FOUND: "${result.inventoryItem.name}" (${result.matchType})`);
+            } else {
+                console.log(`❌ NOT FOUND`);
+            }
+        });
     }
 
 // 12. ENHANCED DEBUG FUNCTION
