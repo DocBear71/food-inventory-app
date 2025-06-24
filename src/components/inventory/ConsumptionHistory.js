@@ -8,7 +8,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl} from "@/lib/api-config";
 
 export default function ConsumptionHistory({ onClose }) {
-    const { data: session } = useSafeSession();
+    const {data: session} = useSafeSession();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -48,13 +48,13 @@ export default function ConsumptionHistory({ onClose }) {
     };
 
     const reasonOptions = [
-        { value: 'all', label: 'All Reasons', icon: '📊', color: 'gray' },
-        { value: 'consumed', label: 'Consumed/Used', icon: '🍽️', color: 'green' },
-        { value: 'recipe', label: 'Used in Recipe', icon: '👨‍🍳', color: 'blue' },
-        { value: 'expired', label: 'Expired/Bad', icon: '🗑️', color: 'red' },
-        { value: 'donated', label: 'Donated/Gifted', icon: '❤️', color: 'purple' },
-        { value: 'spilled', label: 'Spilled/Wasted', icon: '💧', color: 'orange' },
-        { value: 'other', label: 'Other Reason', icon: '📝', color: 'gray' }
+        {value: 'all', label: 'All Reasons', icon: '📊', color: 'gray'},
+        {value: 'consumed', label: 'Consumed/Used', icon: '🍽️', color: 'green'},
+        {value: 'recipe', label: 'Used in Recipe', icon: '👨‍🍳', color: 'blue'},
+        {value: 'expired', label: 'Expired/Bad', icon: '🗑️', color: 'red'},
+        {value: 'donated', label: 'Donated/Gifted', icon: '❤️', color: 'purple'},
+        {value: 'spilled', label: 'Spilled/Wasted', icon: '💧', color: 'orange'},
+        {value: 'other', label: 'Other Reason', icon: '📝', color: 'gray'}
     ];
 
     const getReasonInfo = (reason) => {
@@ -91,9 +91,9 @@ export default function ConsumptionHistory({ onClose }) {
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays === 0) {
-            return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            return `Today at ${date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
         } else if (diffDays === 1) {
-            return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            return `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
         } else if (diffDays < 7) {
             return `${diffDays} days ago`;
         } else {
@@ -237,22 +237,47 @@ export default function ConsumptionHistory({ onClose }) {
     };
 
     const canUndo = (record) => {
-        // Can't undo if no ID (older records)
-        if (!record._id) return false;
+        // Debug: Log what we're checking
+        console.log('Checking canUndo for record:', {
+            hasId: !!record._id,
+            id: record._id,
+            isReversed: record.isReversed,
+            isReversal: record.isReversal,
+            itemName: record.itemName,
+            dateConsumed: record.dateConsumed
+        });
 
-        if (record.isReversed || record.isReversal) return false;
+        // For now, let's be more permissive and see what happens
+        if (record.isReversed || record.isReversal) {
+            console.log('Cannot undo: already reversed or is a reversal');
+            return false;
+        }
 
         const consumptionDate = new Date(record.dateConsumed);
         const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
 
-        return hoursSinceConsumption <= 24; // 24 hour limit
+        if (hoursSinceConsumption > 24) {
+            console.log('Cannot undo: too old (', hoursSinceConsumption, 'hours)');
+            return false;
+        }
+
+        // Temporarily allow records without _id for debugging
+        if (!record._id) {
+            console.log('Record has no _id - this is an older record');
+            return true; // Allow for now, but show different message
+        }
+
+        console.log('Can undo this record');
+        return true;
     };
+
+    // Replace the existing modal structure with this fixed version:
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col">
+                {/* Header - Fixed */}
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex-shrink-0">
                     <div className="flex justify-between items-center">
                         <div>
                             <h2 className="text-xl font-semibold text-gray-900">
@@ -271,8 +296,8 @@ export default function ConsumptionHistory({ onClose }) {
                     </div>
                 </div>
 
-                {/* Stats Overview */}
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                {/* Stats Overview - Fixed */}
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                         {reasonOptions.slice(1).map((option) => {
                             const count = reasonStats[option.value] || 0;
@@ -287,8 +312,8 @@ export default function ConsumptionHistory({ onClose }) {
                     </div>
                 </div>
 
-                {/* Filters and Controls */}
-                <div className="px-6 py-4 border-b border-gray-200">
+                {/* Filters and Controls - Fixed */}
+                <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
                     <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div>
@@ -331,11 +356,12 @@ export default function ConsumptionHistory({ onClose }) {
                     </div>
                 </div>
 
-                {/* History List */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* History List - Scrollable */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
                     {loading ? (
                         <div className="text-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                            <div
+                                className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                             <div className="text-gray-500">Loading consumption history...</div>
                         </div>
                     ) : error ? (
@@ -362,53 +388,63 @@ export default function ConsumptionHistory({ onClose }) {
                                 const reasonInfo = getReasonInfo(record.reason);
 
                                 return (
-                                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <div key={index}
+                                         className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                                         <div className="flex items-start justify-between">
-                                            <div className="flex items-start space-x-3">
+                                            <div className="flex items-start space-x-3 flex-1">
                                                 <div className="text-2xl">{reasonInfo.icon}</div>
-                                                <div className="flex-1">
+                                                <div className="flex-1 min-w-0">
+                                                    {/* Existing content structure */}
                                                     <div className="flex items-center space-x-2">
                                                         <h4 className="font-medium text-gray-900">
                                                             {record.itemName}
                                                         </h4>
                                                         {record.ingredient && record.ingredient !== record.itemName && (
                                                             <span className="text-sm text-gray-500">
-                                                                (used as {record.ingredient})
-                                                            </span>
+                                                            (used as {record.ingredient})
+                                                        </span>
                                                         )}
                                                         {record.isDualUnitConsumption && (
-                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                                Dual Unit
-                                                            </span>
+                                                            <span
+                                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                            Dual Unit
+                                                        </span>
                                                         )}
                                                     </div>
 
                                                     <div className="mt-1 space-y-1">
                                                         {/* Enhanced consumption display */}
                                                         <div className="text-sm text-gray-600">
-                                                            <span className="font-medium">Consumed:</span> {formatConsumptionText(record)}
+                                                            <span
+                                                                className="font-medium">Consumed:</span> {formatConsumptionText(record)}
                                                         </div>
 
                                                         {/* Enhanced remaining display */}
                                                         <div className="text-sm text-gray-600">
-                                                            <span className="font-medium">Status:</span> {formatRemainingText(record)}
+                                                            <span
+                                                                className="font-medium">Status:</span> {formatRemainingText(record)}
                                                         </div>
 
                                                         {/* Dual unit breakdown for detailed view */}
                                                         {record.isDualUnitConsumption && (record.primaryQuantityChange || record.secondaryQuantityChange) && (
-                                                            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                                            <div
+                                                                className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
                                                                 <strong>Detailed Changes:</strong>
                                                                 {record.primaryQuantityChange > 0 && (
-                                                                    <div>• Primary: -{record.primaryQuantityChange} {record.unitConsumed}</div>
+                                                                    <div>• Primary:
+                                                                        -{record.primaryQuantityChange} {record.unitConsumed}</div>
                                                                 )}
                                                                 {record.secondaryQuantityChange > 0 && (
-                                                                    <div>• Secondary: -{record.secondaryQuantityChange} {record.originalSecondaryUnit || 'items'}</div>
+                                                                    <div>• Secondary:
+                                                                        -{record.secondaryQuantityChange} {record.originalSecondaryUnit || 'items'}</div>
                                                                 )}
                                                             </div>
                                                         )}
 
-                                                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                        <div
+                                                            className="flex items-center space-x-4 text-sm text-gray-500">
+                                                        <span
+                                                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                                                 reasonInfo.color === 'green' ? 'bg-green-100 text-green-800' :
                                                                     reasonInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
                                                                         reasonInfo.color === 'red' ? 'bg-red-100 text-red-800' :
@@ -416,8 +452,8 @@ export default function ConsumptionHistory({ onClose }) {
                                                                                 reasonInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
                                                                                     'bg-gray-100 text-gray-800'
                                                             }`}>
-                                                                {reasonInfo.label}
-                                                            </span>
+                                                            {reasonInfo.label}
+                                                        </span>
                                                             <span>{formatDate(record.dateConsumed)}</span>
                                                         </div>
 
@@ -436,18 +472,24 @@ export default function ConsumptionHistory({ onClose }) {
                                                 </div>
                                             </div>
 
-                                            <div className="text-right">
+                                            <div className="text-right flex flex-col items-end ml-4">
                                                 <div className="text-xs text-gray-400">
                                                     {new Date(record.dateConsumed).toLocaleDateString()}
                                                 </div>
+
+                                                {/* Debug info */}
+                                                <div className="text-xs text-gray-400 mt-1">
+                                                    ID: {record._id ? 'Yes' : 'No'}
+                                                </div>
+
                                                 {/* Add Undo Button */}
                                                 {canUndo(record) && (
                                                     <TouchEnhancedButton
                                                         onClick={() => handleUndoConsumption(record)}
                                                         className="mt-2 px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 border border-orange-300"
-                                                        title="Undo this consumption (restore to inventory)"
+                                                        title={!record._id ? "This is an older record - undo may not work" : "Undo this consumption (restore to inventory)"}
                                                     >
-                                                        ↶ Undo
+                                                        {!record._id ? '⚠️ Try Undo' : '↶ Undo'}
                                                     </TouchEnhancedButton>
                                                 )}
 
@@ -482,15 +524,15 @@ export default function ConsumptionHistory({ onClose }) {
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                {/* Footer - Fixed */}
+                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex-shrink-0">
                     <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
                             Total records: {history.length}
                             {history.filter(r => r.isDualUnitConsumption).length > 0 && (
                                 <span className="ml-2 text-blue-600">
-                                    • {history.filter(r => r.isDualUnitConsumption).length} dual-unit records
-                                </span>
+                                • {history.filter(r => r.isDualUnitConsumption).length} dual-unit records
+                            </span>
                             )}
                         </div>
                         <div className="flex gap-2">
