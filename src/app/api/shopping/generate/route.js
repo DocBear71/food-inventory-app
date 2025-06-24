@@ -27,7 +27,7 @@ const INGREDIENT_VARIATIONS = {
     'shredded mozzarella': ['shredded mozzarella cheese', 'grated mozzarella'],
     'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
     'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
-    'egg': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'liquid eggs', 'eggs'],
+    'eggs': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs', 'liquid eggs'],
 
 
     // FIXED: Enhanced pasta variations to match your 12 pasta types
