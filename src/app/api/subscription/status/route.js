@@ -1,4 +1,4 @@
-// file: /src/app/api/subscription/status/route.js v4 - Added admin support
+// file: /src/app/api/subscription/status/route.js v5 - FIXED admin detection
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -24,8 +24,8 @@ export async function GET(request) {
         await connectDB();
         console.log('Database connected');
 
-        // NEW: Include isAdmin field in the query
-        const user = await User.findById(session.user.id).select('+isAdmin').lean();
+        // FIXED: Include isAdmin field in the query and get the fresh user data
+        const user = await User.findById(session.user.id).select('+isAdmin');
 
         if (!user) {
             console.log('User not found in database');
@@ -35,24 +35,40 @@ export async function GET(request) {
             );
         }
 
-        let isUserAdmin = user.isAdmin;
-        if (isUserAdmin === undefined) {
-            // Check if this user should be admin based on email (migration logic)
+        // FIXED: Admin detection logic
+        let isUserAdmin = user.isAdmin === true;
+
+        // Double-check with email if isAdmin field is not set correctly
+        if (!isUserAdmin) {
             const adminEmails = [
-                'your-email@gmail.com',              // Replace with your actual email
+                'e.g.mckeown@gmail.com',              // Your email
                 'admin@docbearscomfortkitchen.com',
                 // Add more admin emails as needed
             ];
 
-            isUserAdmin = adminEmails.includes(user.email.toLowerCase());
+            if (adminEmails.includes(user.email.toLowerCase())) {
+                console.log('🔧 User email matches admin list, setting admin status:', user.email);
+                isUserAdmin = true;
 
-            if (isUserAdmin) {
-                console.log('🔧 User should be admin, will be updated on next save:', user.email);
+                // Update the user record to have correct admin status
+                user.isAdmin = true;
+                if (!user.subscription) {
+                    user.subscription = {};
+                }
+                user.subscription.tier = 'admin';
+                user.subscription.status = 'active';
+
+                try {
+                    await user.save();
+                    console.log('✅ User admin status updated in database');
+                } catch (saveError) {
+                    console.error('❌ Error saving admin status:', saveError);
+                }
             }
         }
 
         if (isUserAdmin) {
-            console.log('Admin user detected:', user.email);
+            console.log('✅ Admin user confirmed:', user.email);
         }
 
         console.log('User found, fetching usage data...');
@@ -139,14 +155,6 @@ export async function GET(request) {
             user.usageTracking.monthlyEmailShares = 0;
             user.usageTracking.monthlyEmailNotifications = 0;
             user.usageTracking.lastUpdated = now;
-
-            // Mark for saving since we changed monthly data
-            try {
-                await user.save();
-                console.log('Monthly usage counters reset and saved');
-            } catch (saveError) {
-                console.error('Error saving monthly reset:', saveError);
-            }
         }
 
         // Update current counts
@@ -156,79 +164,12 @@ export async function GET(request) {
         user.usageTracking.totalRecipeCollections = collectionCount;
         user.usageTracking.lastUpdated = now;
 
-        // Save user with error handling and validation fix
-        try {
-            // FIXED: Ensure required legal fields exist before saving
-            if (!user.legalAcceptance?.acceptanceDate) {
-                console.log('User missing required legal acceptance date, setting defaults');
-
-                if (!user.legalAcceptance) {
-                    user.legalAcceptance = {};
-                }
-
-                // Set required fields with defaults if missing
-                if (user.legalAcceptance.termsAccepted === undefined) {
-                    user.legalAcceptance.termsAccepted = false;
-                }
-                if (user.legalAcceptance.privacyAccepted === undefined) {
-                    user.legalAcceptance.privacyAccepted = false;
-                }
-                if (!user.legalAcceptance.acceptanceDate) {
-                    user.legalAcceptance.acceptanceDate = user.createdAt || new Date();
-                }
-
-                // Set version defaults if missing
-                if (!user.legalVersion) {
-                    user.legalVersion = {
-                        termsVersion: '1.0',
-                        privacyVersion: '1.0'
-                    };
-                }
-            }
-
-            await user.save();
-            console.log('User usage tracking updated successfully');
-        } catch (saveError) {
-            console.error('Error saving user usage tracking:', saveError);
-
-            // If it's a validation error, log the specific validation issues
-            if (saveError.name === 'ValidationError') {
-                console.error('Validation errors:', saveError.errors);
-
-                // Try to fix validation errors and save again
-                try {
-                    // Ensure all required fields have values
-                    if (!user.legalAcceptance) {
-                        user.legalAcceptance = {
-                            termsAccepted: false,
-                            privacyAccepted: false,
-                            acceptanceDate: user.createdAt || new Date()
-                        };
-                    }
-                    if (!user.legalVersion) {
-                        user.legalVersion = {
-                            termsVersion: '1.0',
-                            privacyVersion: '1.0'
-                        };
-                    }
-
-                    await user.save();
-                    console.log('User saved after fixing validation errors');
-                } catch (retryError) {
-                    console.error('Failed to save user even after fixing validation:', retryError);
-                    // Continue without failing the request - usage tracking update is not critical
-                }
-            }
-            // Continue without failing the request - usage tracking is not critical for the API response
-        }
-
         // Initialize subscription data with safe defaults
         let subscription = user.subscription || {};
 
-        // NEW: Override subscription for admin users
-        // UPDATED: Override subscription for admin users
+        // FIXED: Override subscription for admin users - set BOTH tier and isAdmin correctly
         if (isUserAdmin) {
-            console.log('Overriding subscription for admin user');
+            console.log('🔧 Overriding subscription for admin user');
             subscription = {
                 ...subscription,
                 tier: 'admin',
@@ -243,7 +184,8 @@ export async function GET(request) {
         let isTrialActive = false;
         let daysUntilTrialEnd = null;
 
-        if (subscription.status === 'trial' && subscription.trialEndDate) {
+        // FIXED: Admin users don't have trials
+        if (!isUserAdmin && subscription.status === 'trial' && subscription.trialEndDate) {
             try {
                 const trialEndDate = new Date(subscription.trialEndDate);
                 const now = new Date();
@@ -258,6 +200,36 @@ export async function GET(request) {
             }
         }
 
+        // Save user with error handling and validation fix
+        try {
+            // FIXED: Ensure required legal fields exist before saving
+            if (!user.legalAcceptance?.acceptanceDate) {
+                if (!user.legalAcceptance) {
+                    user.legalAcceptance = {};
+                }
+                if (user.legalAcceptance.termsAccepted === undefined) {
+                    user.legalAcceptance.termsAccepted = false;
+                }
+                if (user.legalAcceptance.privacyAccepted === undefined) {
+                    user.legalAcceptance.privacyAccepted = false;
+                }
+                if (!user.legalAcceptance.acceptanceDate) {
+                    user.legalAcceptance.acceptanceDate = user.createdAt || new Date();
+                }
+                if (!user.legalVersion) {
+                    user.legalVersion = {
+                        termsVersion: '1.0',
+                        privacyVersion: '1.0'
+                    };
+                }
+            }
+
+            await user.save();
+            console.log('✅ User usage tracking updated successfully');
+        } catch (saveError) {
+            console.error('❌ Error saving user usage tracking:', saveError);
+        }
+
         // FIXED: Return data structure that matches what useSubscription expects
         const subscriptionData = {
             // Subscription info (what the subscription-config functions expect)
@@ -269,8 +241,8 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
-            // NEW: Admin status
-            isAdmin: isUserAdmin || false,
+            // FIXED: Admin status - make sure this is set correctly
+            isAdmin: isUserAdmin,
 
             // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {
@@ -294,20 +266,20 @@ export async function GET(request) {
             isActive: subscription.status === 'active' ||
                 subscription.status === 'trial' ||
                 subscription.tier === 'free' ||
-                subscription.tier === 'admin' || // NEW: Admin is always active
+                subscription.tier === 'admin' || // Admin is always active
                 !subscription.status, // Default to active for users without subscription data
-            isTrialActive: isTrialActive && !user.isAdmin, // NEW: Admin users don't need trials
-            daysUntilTrialEnd: user.isAdmin ? null : daysUntilTrialEnd, // NEW: Admin users don't have trial limits
+            isTrialActive: isTrialActive && !isUserAdmin, // Admin users don't need trials
+            daysUntilTrialEnd: isUserAdmin ? null : daysUntilTrialEnd, // Admin users don't have trial limits
 
             // Additional metadata
             lastUpdated: now.toISOString()
         };
 
-        console.log('Subscription data prepared successfully:', {
+        console.log('✅ Subscription data prepared successfully:', {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
             isActive: subscriptionData.isActive,
-            isAdmin: subscriptionData.isAdmin, // NEW
+            isAdmin: subscriptionData.isAdmin,
             inventoryItems: subscriptionData.usage.inventoryItems,
             savedRecipes: subscriptionData.usage.savedRecipes,
             collections: subscriptionData.usage.recipeCollections
@@ -316,7 +288,7 @@ export async function GET(request) {
         return Response.json(subscriptionData);
 
     } catch (error) {
-        console.error('Subscription status error:', error);
+        console.error('❌ Subscription status error:', error);
         console.error('Error stack:', error.stack);
 
         // Return more detailed error information in development

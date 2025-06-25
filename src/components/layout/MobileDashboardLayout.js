@@ -81,6 +81,16 @@ export default function MobileDashboardLayout({children}) {
         }
     ];
 
+    const handleNavigation = (href) => {
+        MobileHaptics.light();
+        router.push(href);
+    };
+
+    const toggleMobileMenu = () => {
+        MobileHaptics.medium();
+        setMobileMenuOpen(!mobileMenuOpen);
+    };
+
     // Add this to your mobile layout or create a settings page
     const clearPWACache = async () => {
         try {
@@ -101,16 +111,6 @@ export default function MobileDashboardLayout({children}) {
         } catch (error) {
             console.error('Error clearing PWA cache:', error);
         }
-    };
-
-    const handleNavigation = (href) => {
-        MobileHaptics.light();
-        router.push(href);
-    };
-
-    const toggleMobileMenu = () => {
-        MobileHaptics.medium();
-        setMobileMenuOpen(!mobileMenuOpen);
     };
 
     // FIXED: Enhanced mobile sign-out that properly handles PWA environments
