@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import MobileDashboardLayout from './MobileDashboardLayout';
+import AdminDebug from "@/components/debug/AdminDebug";
 
 export default function MobileOptimizedLayout({ children }) {
     const [isMobile, setIsMobile] = useState(false);
@@ -34,8 +35,14 @@ export default function MobileOptimizedLayout({ children }) {
     }
 
     return isMobile ? (
-        <MobileDashboardLayout>{children}</MobileDashboardLayout>
+        <MobileDashboardLayout>
+            {children}
+            <AdminDebug />
+        </MobileDashboardLayout>
     ) : (
-        <DashboardLayout>{children}</DashboardLayout>
+        <DashboardLayout>
+            {children}
+            <AdminDebug />
+        </DashboardLayout>
     );
 }

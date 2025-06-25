@@ -81,6 +81,28 @@ export default function MobileDashboardLayout({children}) {
         }
     ];
 
+    // Add this to your mobile layout or create a settings page
+    const clearPWACache = async () => {
+        try {
+            // Clear service worker caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+            }
+
+            // Clear localStorage and sessionStorage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Force reload
+            window.location.reload();
+        } catch (error) {
+            console.error('Error clearing PWA cache:', error);
+        }
+    };
+
     const handleNavigation = (href) => {
         MobileHaptics.light();
         router.push(href);

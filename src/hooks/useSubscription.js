@@ -59,10 +59,15 @@ export function SubscriptionProvider({ children }) {
             lastFetchRef.current = now;
 
             console.log('Fetching subscription data...');
-            const response = await fetch('/api/subscription/status', {
+            const response = await fetch('/api/subscription/status?' + new URLSearchParams({
+                t: Date.now(), // Cache buster
+                force: 'true'
+            }), {
                 method: 'GET',
                 headers: {
-                    'Cache-Control': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
                 },
             });
 
@@ -213,6 +218,21 @@ export function useSubscription() {
             console.warn('Error checking feature access:', err);
             return false;
         }
+    };
+
+    // In your PWA, you can force refresh the subscription data
+    const forceRefreshSubscription = async () => {
+        // Clear any cached subscription data
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) {
+                const cache = await caches.open(cacheName);
+                await cache.delete('/api/subscription/status');
+            }
+        }
+
+        // Force refetch
+        subscription.refetch();
     };
 
     const checkLimit = (feature, currentCount) => {
