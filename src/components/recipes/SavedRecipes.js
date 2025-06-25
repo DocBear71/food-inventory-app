@@ -32,16 +32,18 @@ const SavedRecipes = ({ onCountChange }) => {
         const tier = subscription.tier || 'free';
         return {
             current: globalTotalCount || 0,
-            limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
-            isUnlimited: tier === 'platinum',
+            limit: tier === 'free' ? 10 :
+                tier === 'gold' ? 200 :
+                    tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin
+            isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
             tier
         };
     };
 
     const subscription = useSubscription();
     const usageInfo = getUsageInfo();
-    const isAtLimit = !usageInfo.isUnlimited && globalTotalCount >= usageInfo.limit;
-    const isNearLimit = !usageInfo.isUnlimited && globalTotalCount >= (usageInfo.limit * 0.8);
+    const isAtLimit = !usageInfo.isUnlimited && !(usageInfo.tier === 'admin') && globalTotalCount >= (typeof usageInfo.limit === 'number' ? usageInfo.limit : 999999);
+    const isNearLimit = !usageInfo.isUnlimited && !(usageInfo.tier === 'admin') && globalTotalCount >= ((typeof usageInfo.limit === 'number' ? usageInfo.limit : 999999) * 0.8);
 
     usageInfo.isAtLimit = isAtLimit;
     usageInfo.isNearLimit = isNearLimit;
@@ -348,23 +350,34 @@ const SavedRecipes = ({ onCountChange }) => {
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900">
-                            📚 Saved Recipes ({usageInfo.current}/{usageInfo.limit})
+                            📚 Saved Recipes ({(() => {
+                            if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
+                                return `${usageInfo.current}`;
+                            }
+                            return `${usageInfo.current}/${usageInfo.limit}`;
+                        })()})
                         </h2>
                         {!subscription.loading && (
                             <p className="text-sm text-gray-600 mt-1">
-                                {usageInfo.isUnlimited ? (
-                                    'Unlimited saved recipes on Platinum plan'
-                                ) : usageInfo.isAtLimit ? (
-                                    <span className="text-red-600 font-medium">
-                        You've reached your {usageInfo.tier} plan limit
-                    </span>
-                                ) : usageInfo.isNearLimit ? (
-                                    <span className="text-orange-600">
-                        {usageInfo.limit - usageInfo.current} saved recipe{usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining
-                    </span>
-                                ) : (
-                                    `${usageInfo.limit - usageInfo.current} saved recipe${usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`
-                                )}
+                                {(() => {
+                                    if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
+                                        return `Unlimited saved recipes on ${usageInfo.tier} plan`;
+                                    } else if (usageInfo.isAtLimit) {
+                                        return (
+                                            <span className="text-red-600 font-medium">
+                                You've reached your {usageInfo.tier} plan limit
+                            </span>
+                                        );
+                                    } else if (usageInfo.isNearLimit) {
+                                        return (
+                                            <span className="text-orange-600">
+                                {typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} saved recipe{(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining
+                            </span>
+                                        );
+                                    } else {
+                                        return `${typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} saved recipe${(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`;
+                                    }
+                                })()}
                             </p>
                         )}
                     </div>
@@ -380,6 +393,7 @@ const SavedRecipes = ({ onCountChange }) => {
                         </TouchEnhancedButton>
                     )}
                 </div>
+
 
                 {/* Usage Limit Warning - Add this after the header */}
                 {(() => {

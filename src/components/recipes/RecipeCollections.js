@@ -37,12 +37,13 @@ const RecipeCollections = ({
         const limits = {
             free: 2,
             gold: 10,
-            platinum: -1 // unlimited
+            platinum: -1, // unlimited
+            admin: -1     // NEW: Admin unlimited
         };
 
         const limit = limits[userTier] || limits.free;
 
-        if (limit === -1) return { allowed: true }; // unlimited
+        if (limit === -1 || userTier === 'admin') return { allowed: true }; // NEW: Admin always allowed
 
         if (currentCount >= limit) {
             return {
@@ -236,7 +237,8 @@ const RecipeCollections = ({
         const limits = {
             free: 2,
             gold: 10,
-            platinum: -1
+            platinum: -1,
+            admin: -1  // NEW: Admin has unlimited collections
         };
 
         const limit = limits[tier] || limits.free;
@@ -245,9 +247,9 @@ const RecipeCollections = ({
             current: collections.length,
             limit: limit === -1 ? 'Unlimited' : limit,
             tier,
-            isUnlimited: limit === -1,
-            isAtLimit: limit !== -1 && collections.length >= limit,
-            isNearLimit: limit !== -1 && collections.length >= (limit * 0.8)
+            isUnlimited: limit === -1 || tier === 'admin',  // NEW: Admin is unlimited
+            isAtLimit: (limit !== -1 && tier !== 'admin') && collections.length >= limit,  // NEW: Admin never at limit
+            isNearLimit: (limit !== -1 && tier !== 'admin') && collections.length >= (limit * 0.8)  // NEW: Admin never near limit
         };
     };
 
@@ -274,23 +276,34 @@ const RecipeCollections = ({
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-semibold text-gray-900">
-                        Recipe Collections ({usageInfo.current}/{usageInfo.limit})
+                        Recipe Collections ({(() => {
+                        if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
+                            return `${usageInfo.current}`;
+                        }
+                        return `${usageInfo.current}/${usageInfo.limit}`;
+                    })()})
                     </h2>
                     {!subscription.loading && (
                         <p className="text-sm text-gray-600 mt-1">
-                            {usageInfo.isUnlimited ? (
-                                'Unlimited collections on Platinum plan'
-                            ) : usageInfo.isAtLimit ? (
-                                <span className="text-red-600 font-medium">
-                                    You've reached your {usageInfo.tier} plan limit
-                                </span>
-                            ) : usageInfo.isNearLimit ? (
-                                <span className="text-orange-600">
-                                    {usageInfo.limit - usageInfo.current} collection{usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining
-                                </span>
-                            ) : (
-                                `${usageInfo.limit - usageInfo.current} collection${usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`
-                            )}
+                            {(() => {
+                                if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
+                                    return `Unlimited collections on ${usageInfo.tier} plan`;
+                                } else if (usageInfo.isAtLimit) {
+                                    return (
+                                        <span className="text-red-600 font-medium">
+                                You've reached your {usageInfo.tier} plan limit
+                            </span>
+                                    );
+                                } else if (usageInfo.isNearLimit) {
+                                    return (
+                                        <span className="text-orange-600">
+                                {typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} collection{(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining
+                            </span>
+                                    );
+                                } else {
+                                    return `${typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} collection${(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`;
+                                }
+                            })()}
                         </p>
                     )}
                 </div>

@@ -564,10 +564,16 @@ function RecipesContent() {
 
         const usage = getUsageInfo(tabType);
         const count = getTabCounts()[tabType] || usage.current;
+
+        // NEW: Handle admin and unlimited tiers
+        if (usage.isUnlimited || usage.tier === 'admin') {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
         const limit = typeof usage.limit === 'number' ? usage.limit : 999999;
 
         // Calculate usage percentage
-        const percentage = usage.isUnlimited ? 0 : (count / limit) * 100;
+        const percentage = (count / limit) * 100;
 
         if (isActive) {
             if (percentage >= 100) return 'bg-red-100 text-red-600'; // At limit
