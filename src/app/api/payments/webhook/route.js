@@ -108,7 +108,28 @@ async function handleCheckoutCompleted(session) {
 
         // Update user subscription
         const now = new Date();
-        const subscriptionEndDate = new Date(stripeSubscription.current_period_end * 1000);
+
+        // FIXED: Safe date conversion with proper null checking
+        let subscriptionEndDate = null;
+        if (stripeSubscription && stripeSubscription.current_period_end) {
+            try {
+                subscriptionEndDate = new Date(stripeSubscription.current_period_end * 1000);
+                // Validate the date is actually valid
+                if (isNaN(subscriptionEndDate.getTime())) {
+                    throw new Error('Invalid date created');
+                }
+            } catch (error) {
+                console.warn('Error creating subscription end date:', error);
+                // Fallback: 1 year from now for annual, 1 month for monthly
+                const fallbackPeriod = billingCycle === 'annual' ? 365 : 30;
+                subscriptionEndDate = new Date(now.getTime() + (fallbackPeriod * 24 * 60 * 60 * 1000));
+            }
+        } else {
+            console.warn('No current_period_end found, using fallback date');
+            // Fallback based on billing cycle
+            const fallbackPeriod = billingCycle === 'annual' ? 365 : 30;
+            subscriptionEndDate = new Date(now.getTime() + (fallbackPeriod * 24 * 60 * 60 * 1000));
+        }
 
         user.subscription = {
             ...user.subscription,
@@ -166,7 +187,28 @@ async function handleSubscriptionCreated(subscription) {
         const billingCycle = subscription.metadata?.billingCycle || 'monthly';
 
         const now = new Date();
-        const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+
+        // FIXED: Safe date conversion with proper null checking
+        let subscriptionEndDate = null;
+        if (subscription && subscription.current_period_end) {
+            try {
+                subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+                // Validate the date is actually valid
+                if (isNaN(subscriptionEndDate.getTime())) {
+                    throw new Error('Invalid date created');
+                }
+            } catch (error) {
+                console.warn('Error creating subscription end date:', error);
+                // Fallback: 1 year from now for annual, 1 month for monthly
+                const fallbackPeriod = billingCycle === 'annual' ? 365 : 30;
+                subscriptionEndDate = new Date(now.getTime() + (fallbackPeriod * 24 * 60 * 60 * 1000));
+            }
+        } else {
+            console.warn('No current_period_end found, using fallback date');
+            // Fallback based on billing cycle
+            const fallbackPeriod = billingCycle === 'annual' ? 365 : 30;
+            subscriptionEndDate = new Date(now.getTime() + (fallbackPeriod * 24 * 60 * 60 * 1000));
+        }
 
         user.subscription = {
             ...user.subscription,
@@ -208,8 +250,25 @@ async function handleSubscriptionUpdated(subscription) {
             return;
         }
 
-        // Update subscription details
-        const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+        // Update subscription details with safe date handling
+        let subscriptionEndDate = null;
+        if (subscription && subscription.current_period_end) {
+            try {
+                subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+                // Validate the date is actually valid
+                if (isNaN(subscriptionEndDate.getTime())) {
+                    throw new Error('Invalid date created');
+                }
+            } catch (error) {
+                console.warn('Error creating subscription end date:', error);
+                // Fallback: 1 month from now (most subscriptions are monthly)
+                subscriptionEndDate = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
+            }
+        } else {
+            console.warn('No current_period_end found, using fallback date');
+            // Fallback: 1 month from now
+            subscriptionEndDate = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
+        }
 
         user.subscription = {
             ...user.subscription,
