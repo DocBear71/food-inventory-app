@@ -296,7 +296,7 @@ function BillingContent() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-gray-600">Next billing date:</span>
-                                    <span className="ml-2 font-medium">{formatDate(subscription.nextBillingDate)}</span>
+                                    <span className="ml-2 font-medium">{formatDate(subscription.endDate)}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Started:</span>
