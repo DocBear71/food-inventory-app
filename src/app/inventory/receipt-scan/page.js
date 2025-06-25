@@ -15,22 +15,17 @@ import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 
 export default function ReceiptScan() {
-    // const {data: session, status} = useSafeSession();
     const router = useRouter();
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
-    const cameraContainerRef = useRef(null); // NEW: Ref for auto-scroll
+    const cameraContainerRef = useRef(null);
 
-    // State management - ALL HOOKS FIRST (Fixed order)
+    // State management - ALL HOOKS FIRST
     const {data: session, status} = useSafeSession();
     // NEW: Use subscription hook instead of manual usage checking
     const subscription = useSubscription();
-
-    // REMOVED: Manual usage state management
-    // const [receiptScanUsage, setReceiptScanUsage] = useState(null);
-    // const [usageLoading, setUsageLoading] = useState(true);
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
@@ -41,7 +36,7 @@ export default function ReceiptScan() {
     const [processingStatus, setProcessingStatus] = useState('');
     const [cameraError, setCameraError] = useState(null);
     const [showReportModal, setShowReportModal] = useState(false);
-    const [showIOSPWAModal, setShowIOSPWAModal] = useState(false); // FIXED: Moved before usage
+    const [showIOSPWAModal, setShowIOSPWAModal] = useState(false);
     const [reportData, setReportData] = useState({
         issue: '',
         description: '',
@@ -102,16 +97,6 @@ export default function ReceiptScan() {
             }
         };
     }, []);
-
-    // REMOVED: Manual usage checking effect
-    // useEffect(() => {
-    //     if (session?.user?.id && status === 'authenticated') {
-    //         checkReceiptScanUsage();
-    //     }
-    // }, [session?.user?.id, status]);
-
-    // REMOVED: Manual usage checking function
-    // async function checkReceiptScanUsage() { ... }
 
     // NEW: Get usage info from subscription hook
     const getReceiptScanUsage = () => {
@@ -197,7 +182,7 @@ export default function ReceiptScan() {
         return true;
     }
 
-    // NEW: Auto-scroll function
+    // Auto-scroll function
     function scrollToCameraView() {
         setTimeout(() => {
             if (cameraContainerRef.current) {
@@ -206,7 +191,7 @@ export default function ReceiptScan() {
                     block: 'center'
                 });
             }
-        }, 100); // Small delay to ensure DOM is updated
+        }, 100);
     }
 
     // Early returns AFTER all hooks are defined
@@ -225,7 +210,7 @@ export default function ReceiptScan() {
         );
     }
 
-    // iOS PWA Camera Modal Component - Enhanced with better UX
+    // iOS PWA Camera Modal Component
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
@@ -238,16 +223,13 @@ export default function ReceiptScan() {
                         <div className="bg-white shadow rounded-lg">
                             <div className="px-4 py-5 sm:p-6">
                                 <div className="text-center py-12">
-                                    <div
-                                        className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                                        <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor"
-                                             viewBox="0 0 24 24">
+                                    <div className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                                        <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"/>
                                         </svg>
                                     </div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit
-                                        Reached</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit Reached</h3>
                                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
                                         You've used all {usage.monthlyLimit} of your receipt scans this month.
                                         Your scans will reset on the 1st of next month.
@@ -260,10 +242,8 @@ export default function ReceiptScan() {
                                             Upgrade for More Scans
                                         </TouchEnhancedButton>
 
-                                        <div
-                                            className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                                            <h4 className="text-sm font-medium text-blue-900 mb-2">📱 Upgrade
-                                                Benefits:</h4>
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                                            <h4 className="text-sm font-medium text-blue-900 mb-2">📱 Upgrade Benefits:</h4>
                                             <ul className="text-sm text-blue-800 space-y-1 text-left">
                                                 <li>• <strong>Gold:</strong> 20 receipt scans per month</li>
                                                 <li>• <strong>Platinum:</strong> Unlimited receipt scanning</li>
@@ -282,14 +262,375 @@ export default function ReceiptScan() {
         }
     }
 
-    // [Keep all your existing camera and OCR functions unchanged]
-    // ... (all the camera initialization, OCR processing functions stay the same)
+    // OPTIMIZED Camera Access and OCR Configuration
+    function getOptimizedCameraConstraints(deviceInfo) {
+        const standardConstraints = {
+            video: {
+                facingMode: {ideal: "environment"},
+                width: {ideal: 1920, min: 1280, max: 3840},
+                height: {ideal: 1080, min: 720, max: 2160},
+                aspectRatio: {ideal: 16 / 9},
+                focusMode: {ideal: "continuous"},
+                exposureMode: {ideal: "continuous"},
+                whiteBalanceMode: {ideal: "continuous"},
+                torch: false
+            },
+            audio: false
+        };
 
-    // Just showing the key ones that need usage updates:
+        const iosPWAConstraints = [
+            {
+                video: {
+                    facingMode: {exact: "environment"},
+                    width: {ideal: 1280, max: 1920},
+                    height: {ideal: 720, max: 1080}
+                },
+                audio: false
+            },
+            {
+                video: {
+                    facingMode: "environment",
+                    width: {ideal: 1280},
+                    height: {ideal: 720}
+                },
+                audio: false
+            },
+            {
+                video: {
+                    width: {ideal: 640, min: 480},
+                    height: {ideal: 480, min: 360}
+                },
+                audio: false
+            }
+        ];
 
-    // ENHANCED: Enhanced camera start function with usage gating and auto-scroll
+        const mobileConstraints = {
+            video: {
+                facingMode: {ideal: "environment"},
+                width: {ideal: 1920, min: 1280},
+                height: {ideal: 1080, min: 720},
+                frameRate: {ideal: 30, max: 30}
+            },
+            audio: false
+        };
+
+        if (deviceInfo.isIOSPWA) {
+            return iosPWAConstraints;
+        } else if (deviceInfo.isMobile) {
+            return [mobileConstraints];
+        } else {
+            return [standardConstraints];
+        }
+    }
+
+    async function initializeOptimizedCamera(deviceInfo) {
+        console.log('🎥 Initializing optimized camera for receipt scanning...');
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Camera API not supported on this device');
+        }
+
+        let devices = [];
+        try {
+            devices = await navigator.mediaDevices.enumerateDevices();
+            console.log('📷 Available cameras:', devices.filter(d => d.kind === 'videoinput').length);
+        } catch (e) {
+            console.log('Could not enumerate devices, proceeding with basic constraints');
+        }
+
+        const constraintSets = getOptimizedCameraConstraints(deviceInfo);
+        let stream = null;
+        let lastError = null;
+
+        for (let i = 0; i < constraintSets.length; i++) {
+            const constraints = constraintSets[i];
+            console.log(`📷 Attempting camera with constraints ${i + 1}/${constraintSets.length}`);
+
+            try {
+                const timeout = deviceInfo.isMobile ? 10000 : 5000;
+                const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Camera timeout')), timeout)
+                );
+
+                stream = await Promise.race([streamPromise, timeoutPromise]);
+
+                if (stream?.getVideoTracks().length > 0) {
+                    console.log('✅ Camera stream obtained successfully');
+
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    console.log('📹 Camera settings:', {
+                        width: settings.width,
+                        height: settings.height,
+                        frameRate: settings.frameRate,
+                        facingMode: settings.facingMode
+                    });
+
+                    return stream;
+                }
+            } catch (error) {
+                console.log(`❌ Constraint set ${i + 1} failed:`, error.message);
+                lastError = error;
+
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            }
+        }
+
+        throw lastError || new Error('All camera initialization attempts failed');
+    }
+
+    async function setupOptimizedVideo(videoElement, stream, deviceInfo) {
+        console.log('🎬 Setting up optimized video element...');
+
+        if (!videoElement) {
+            throw new Error('Video element is null or undefined');
+        }
+
+        if (!stream) {
+            throw new Error('Stream is null or undefined');
+        }
+
+        if (deviceInfo.isIOS) {
+            videoElement.setAttribute('playsinline', 'true');
+            videoElement.setAttribute('webkit-playsinline', 'true');
+            videoElement.muted = true;
+            videoElement.autoplay = true;
+            videoElement.controls = false;
+        }
+
+        if (videoElement.style) {
+            videoElement.style.objectFit = 'cover';
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+        }
+
+        videoElement.srcObject = stream;
+
+        return new Promise((resolve, reject) => {
+            const timeout = deviceInfo.isIOSPWA ? 15000 : 8000;
+            let resolved = false;
+
+            const cleanup = () => {
+                videoElement.removeEventListener('loadedmetadata', onReady);
+                videoElement.removeEventListener('canplay', onReady);
+                videoElement.removeEventListener('error', onError);
+                clearTimeout(timeoutId);
+            };
+
+            const onReady = () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                console.log(`✅ Video ready: ${videoElement.videoWidth}x${videoElement.videoHeight}`);
+                resolve();
+            };
+
+            const onError = (e) => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                reject(new Error(`Video setup error: ${e.message}`));
+            };
+
+            const timeoutId = setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+
+                if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                    console.log('✅ Video ready via timeout check');
+                    resolve();
+                } else {
+                    reject(new Error('Video setup timeout'));
+                }
+            }, timeout);
+
+            videoElement.addEventListener('loadedmetadata', onReady);
+            videoElement.addEventListener('canplay', onReady);
+            videoElement.addEventListener('error', onError);
+
+            if (deviceInfo.isIOS) {
+                videoElement.play().catch(e => console.log('Video autoplay prevented:', e));
+            }
+        });
+    }
+
+    function captureOptimizedImage(videoElement, canvasElement) {
+        console.log('📸 Capturing optimized image for OCR...');
+
+        if (!videoElement) {
+            throw new Error('Video element is null');
+        }
+
+        if (!canvasElement) {
+            throw new Error('Canvas element is null');
+        }
+
+        const video = videoElement;
+        const canvas = canvasElement;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+            throw new Error('Could not get canvas context');
+        }
+
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+
+        if (width === 0 || height === 0) {
+            throw new Error('Video not ready for capture - no dimensions');
+        }
+
+        console.log(`📹 Capturing at ${width}x${height}`);
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.imageSmoothingEnabled = false;
+        ctx.imageSmoothingQuality = 'high';
+
+        ctx.drawImage(video, 0, 0, width, height);
+
+        try {
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const processedImageData = optimizeImageForOCR(imageData);
+            ctx.putImageData(processedImageData, 0, 0);
+        } catch (error) {
+            console.warn('⚠️ Image processing failed, using original image:', error);
+        }
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Failed to create image blob'));
+                }
+            }, 'image/jpeg', 0.98);
+        });
+    }
+
+    function optimizeImageForOCR(imageData) {
+        console.log('🔧 Applying OCR-optimized image processing...');
+
+        if (!imageData || !imageData.data) {
+            throw new Error('Invalid image data');
+        }
+
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+
+        if (data.length === 0) {
+            throw new Error('Empty image data');
+        }
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            const contrast = 1.3;
+            const brightness = 15;
+            const enhanced = Math.min(255, Math.max(0,
+                contrast * (gray - 128) + 128 + brightness
+            ));
+
+            const sharp = applySharpening(data, i, width, height);
+
+            data[i] = enhanced + sharp;
+            data[i + 1] = enhanced + sharp;
+            data[i + 2] = enhanced + sharp;
+        }
+
+        return imageData;
+    }
+
+    function applySharpening(data, index, width, height) {
+        const kernelSize = 3;
+        const kernel = [
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0
+        ];
+
+        return Math.min(15, Math.max(-15,
+            (data[index] * kernel[4]) -
+            (data[index - 4] || 0) -
+            (data[index + 4] || 0)
+        ));
+    }
+
+    function getOptimizedOCRConfig(deviceInfo) {
+        console.log('⚙️ Configuring optimized OCR settings...');
+
+        const baseConfig = {
+            tessedit_pageseg_mode: '6',
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+            preserve_interword_spaces: '1',
+            tessedit_do_invert: '0',
+            tessedit_create_hocr: '0',
+            tessedit_create_pdf: '0',
+            tessedit_create_txt: '1',
+        };
+
+        if (deviceInfo.isMobile) {
+            return {
+                ...baseConfig,
+                user_defined_dpi: '200',
+                tessedit_parallelize: '0',
+            };
+        }
+
+        return {
+            ...baseConfig,
+            user_defined_dpi: '300',
+            tessedit_parallelize: '1',
+        };
+    }
+
+    async function processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback) {
+        console.log('🔍 Starting optimized OCR processing...');
+
+        try {
+            const Tesseract = (await import('tesseract.js')).default;
+
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: (m) => {
+                    if (m.status === 'recognizing text' && progressCallback) {
+                        const progress = Math.round(m.progress * 100);
+                        console.log(`OCR Progress: ${progress}%`);
+                        progressCallback(progress);
+                    }
+                }
+            });
+
+            const ocrConfig = getOptimizedOCRConfig(deviceInfo);
+
+            console.log('📄 Recognizing text...');
+            const {data: {text, confidence}} = await worker.recognize(imageBlob, ocrConfig);
+
+            console.log(`✅ OCR completed with ${confidence}% confidence`);
+            console.log(`📝 Extracted text length: ${text.length} characters`);
+
+            await worker.terminate();
+
+            return text;
+
+        } catch (error) {
+            console.error('❌ OCR processing failed:', error);
+            throw error;
+        }
+    }
+
+    // Enhanced camera start function
     async function startCamera() {
-        // NEW: Check usage limits BEFORE starting camera
         if (!checkUsageLimitsBeforeScan()) {
             return;
         }
@@ -297,29 +638,25 @@ export default function ReceiptScan() {
         setCameraError(null);
 
         try {
-            // Use the optimized camera initialization
             const stream = await initializeOptimizedCamera(deviceInfo);
             streamRef.current = stream;
 
-            // FIXED: Add null check before video setup
             if (!videoRef.current) {
                 console.warn('Video ref is null, waiting for DOM to be ready...');
                 setShowCamera(true);
 
-                // Wait for the video element to be available
                 setTimeout(async () => {
                     if (videoRef.current) {
                         await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
-                        scrollToCameraView(); // NEW: Auto-scroll after camera is ready
+                        scrollToCameraView();
                     } else {
                         throw new Error('Video element not available after timeout');
                     }
                 }, 200);
             } else {
-                // Use the optimized video setup
                 await setupOptimizedVideo(videoRef.current, stream, deviceInfo);
                 setShowCamera(true);
-                scrollToCameraView(); // NEW: Auto-scroll immediately
+                scrollToCameraView();
             }
 
             console.log('🎉 Optimized camera setup completed successfully!');
@@ -327,7 +664,6 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('❌ Optimized camera setup failed:', error);
 
-            // Your existing error handling...
             if (deviceInfo.isIOSPWA) {
                 setCameraError('iOS PWA Camera Failed After All Attempts');
                 setShowIOSPWAModal(true);
@@ -338,10 +674,624 @@ export default function ReceiptScan() {
         }
     }
 
-    // [Include all your other existing functions - they don't need changes]
-    // ... stopCamera, capturePhoto, processImage, etc.
+    function stopCamera() {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
 
-    // Main render with feature gating
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+
+        setShowCamera(false);
+        setCameraError(null);
+    }
+
+    function capturePhoto() {
+        if (!videoRef.current || !canvasRef.current || !streamRef.current) {
+            alert('Camera not ready');
+            return;
+        }
+
+        try {
+            captureOptimizedImage(videoRef.current, canvasRef.current).then(blob => {
+                if (blob) {
+                    const imageUrl = URL.createObjectURL(blob);
+                    setCapturedImage(imageUrl);
+                    stopCamera();
+                    processImage(blob);
+                }
+            });
+        } catch (error) {
+            console.error('❌ Optimized capture failed:', error);
+            alert('Failed to capture image. Please try again.');
+        }
+    }
+
+    async function processImage(imageFile) {
+        setIsProcessing(true);
+        setStep('processing');
+        setOcrProgress(0);
+        setProcessingStatus('Initializing OCR...');
+
+        try {
+            const text = await processImageWithOptimizedOCR(
+                imageFile,
+                deviceInfo,
+                (progress) => {
+                    setOcrProgress(progress);
+                    setProcessingStatus(`Extracting text... ${progress}%`);
+                }
+            );
+
+            setProcessingStatus('Analyzing receipt...');
+
+            const items = parseReceiptText(text);
+
+            if (items.length === 0) {
+                setProcessingStatus('Recording scan attempt...');
+                await recordReceiptScanUsage(0, 'no-items-found');
+
+                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image.');
+                setStep('upload');
+                return;
+            }
+
+            setProcessingStatus('Recording successful scan...');
+
+            try {
+                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scanType: 'receipt',
+                        itemsExtracted: items.length
+                    })
+                });
+
+                if (!recordResponse.ok) {
+                    console.error('Failed to record receipt scan usage');
+                } else {
+                    const recordData = await recordResponse.json();
+                    console.log('Receipt scan usage recorded:', recordData);
+
+                    if (recordData.usage.remaining !== 'unlimited') {
+                        setProcessingStatus(`Scan successful! ${recordData.usage.remaining} scans remaining this month.`);
+                    }
+                }
+            } catch (recordError) {
+                console.error('Error recording receipt scan usage:', recordError);
+            }
+
+            setExtractedItems(items);
+            setProcessingStatus('Complete!');
+            setStep('review');
+
+        } catch (error) {
+            console.error('OCR processing error:', error);
+
+            try {
+                await recordReceiptScanUsage(0, 'processing-failed');
+            } catch (recordError) {
+                console.error('Failed to record failed scan:', recordError);
+            }
+
+            alert('❌ Error processing receipt. This scan has been counted towards your monthly limit. Please try again with a clearer image.');
+            setStep('upload');
+        } finally {
+            setIsProcessing(false);
+            setOcrProgress(0);
+        }
+    }
+
+    async function recordReceiptScanUsage(itemsExtracted, scanType = 'receipt') {
+        try {
+            const response = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    scanType,
+                    itemsExtracted
+                })
+            });
+
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error(`Failed to record usage: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error recording receipt scan usage:', error);
+            throw error;
+        }
+    }
+
+    function handleUploadButtonClick() {
+        if (!checkUsageLimitsBeforeScan()) {
+            return;
+        }
+
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    }
+
+    function handleReceiptFileUpload(event) {
+        const file = event.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const imageUrl = URL.createObjectURL(file);
+            setCapturedImage(imageUrl);
+            processImage(file);
+        } else {
+            alert('Please select a valid image file.');
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    }
+
+    function parseReceiptText(text) {
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        const items = [];
+
+        const pricePattern = /\$?(\d+\.\d{2})/;
+        const upcPattern = /\b\d{12,14}\b/;
+        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
+
+        const skipPatterns = [
+            /^walmart$/i, /^target$/i, /^kroger$/i, /^publix$/i, /^safeway$/i,
+            /^hy-vee$/i, /^hyvee$/i, /^sam's club$/i, /^sams club$/i, /^costco$/i,
+            /^trader joe's$/i, /^trader joes$/i, /^smith's$/i, /^smiths$/i,
+            /^save money live better$/i, /^supercenter$/i,
+            /^neighborhood\s+grocery\s+store$/i, /^your\s+neighborhood$/i,
+            /^(thank you|receipt|store|phone|address)$/i,
+            /^\d{2}\/\d{2}\/\d{4}$/, /^[\d\s\-\(\)]+$/,
+            /^(debit|credit|card|cash|tend|tender)$/i,
+            /^(debit tend|credit tend|cash tend)$/i,
+            /^(payment|transaction|approval)$/i,
+            /^(ref|reference|auth|authorization)$/i,
+            /^(visa|mastercard|amex|discover|american express)$/i,
+            /^(visa credit|visa debit|mastercard credit)$/i,
+            /^total\s+purchase$/i,
+            /^total\s+amount$/i, /^grand\s+total$/i, /^final\s+total$/i,
+            /^order\s+total$/i, /^(sub-total|subtotal|sub total)$/i,
+            /^(net amount|netamount|net)$/i, /^(total|amount)$/i,
+            /^subtotal\s*\[\d+\]$/i, /^regular\s+price$/i, /^reg\s+price$/i,
+            /^was\s+\$?\d+\.\d{2}$/i, /^sale\s+price$/i, /^compare\s+at$/i,
+            /^retail\s+price$/i, /^t\s+s\s+ia\s+tax\s+.*$/i,
+            /^[a-z]\s+s\s+[a-z]{2}\s+tax\s+.*$/i, /^tax\s+[\d\s]+$/i,
+            /^tex\s+[\d\s]+$/i, /^t\s+[\d\s]+$/i,
+            /^\d+\.\d+\s+on\s+\$?\d+\.\d{2}$/i,
+            /^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
+            /^[a-z]\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
+            /^t\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
+            /^\d+\.\d+\s+@\s+\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[a-z]\s+x\s+\d+\.\d+\s+@\s+\d+\s+\d+\s+\d+$/i,
+            /^[a-z]\s+x\s+\d+\s+\d+\s+\d+\s+\d+$/i,
+            /^[a-z]\s+[a-z]\s+\d+\s+\d+\s+\d+$/i,
+            /^[\d\s]{15,}$/, /^\d{10,}$/,
+            /^\d+\s+ea\s+\d+$/i, /^\d+\s+each\s+\d+$/i,
+            /^\d+\s+@\s+\$?\d+\.\d{2}\s+ea$/i, /^\d+\s+@\s+\$?\d+\.\d{2}$/i,
+            /^\d+\s+ea$/i, /^ea$/i, /^\d+%?\s*(off|discount|save)$/i,
+            /^\(\$\d+\.\d{2}\)$/i, /^-\$?\d+\.\d{2}$/i,
+            /^\d+\.\d{2}-[nt]$/i, /^.*-\$?\d+\.\d{2}$/i,
+        ];
+
+        console.log(`📄 Processing ${lines.length} lines from receipt...`);
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+            const next2Line = i < lines.length - 2 ? lines[i + 2] : '';
+            const prevLine = i > 0 ? lines[i - 1] : '';
+
+            if (skipPatterns.some(pattern => pattern.test(line))) {
+                console.log(`📋 Skipping pattern match: ${line}`);
+                continue;
+            }
+
+            const priceMatch = line.match(pricePattern);
+            if (priceMatch) {
+                const price = parseFloat(priceMatch[1]);
+
+                if (price > 100) {
+                    console.log(`📋 Skipping high price line (likely total): ${line}`);
+                    continue;
+                }
+
+                if (price < 0.10) {
+                    console.log(`📋 Skipping very low price (likely fee): ${line}`);
+                    continue;
+                }
+
+                let nameMatch = line;
+                let itemPrice = price;
+                let quantity = 1;
+                let unitPrice = price;
+
+                if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = price / quantity;
+                        itemPrice = price;
+                        console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
+                    }
+                }
+
+                nameMatch = line.replace(pricePattern, '').trim();
+                nameMatch = cleanItemName(nameMatch);
+
+                if (nameMatch && nameMatch.length > 2 &&
+                    !nameMatch.match(/^\d+\.?\d*$/) &&
+                    !nameMatch.match(/^[tx]\s*\d/i) &&
+                    !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i)) {
+
+                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice.toFixed(2)} = ${itemPrice.toFixed(2)}`);
+
+                    const item = {
+                        id: Date.now() + Math.random(),
+                        name: nameMatch,
+                        price: itemPrice,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
+                        upc: '',
+                        category: guessCategory(nameMatch),
+                        location: guessLocation(nameMatch),
+                        rawText: line + (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i) ? ` + ${nextLine}` : ''),
+                        selected: true,
+                        needsReview: false
+                    };
+
+                    items.push(item);
+
+                    if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
+                        i++;
+                        console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
+                    }
+                } else {
+                    console.log(`📋 Skipping line with insufficient name: "${nameMatch}" from "${line}"`);
+                }
+            }
+        }
+
+        console.log(`📋 Extracted ${items.length} items from receipt`);
+        return combineDuplicateItems(items);
+    }
+
+    function combineDuplicateItems(items) {
+        const upcGroups = {};
+        const nameGroups = {};
+
+        items.forEach(item => {
+            if (item.upc && item.upc.length >= 11) {
+                const cleanUPC = item.upc.replace(/\D/g, '');
+                if (!upcGroups[cleanUPC]) {
+                    upcGroups[cleanUPC] = [];
+                }
+                upcGroups[cleanUPC].push(item);
+            } else {
+                const cleanName = item.name.toLowerCase().trim();
+                if (!nameGroups[cleanName]) {
+                    nameGroups[cleanName] = [];
+                }
+                nameGroups[cleanName].push(item);
+            }
+        });
+
+        const combinedItems = [];
+
+        Object.values(upcGroups).forEach(group => {
+            if (group.length === 1) {
+                combinedItems.push(group[0]);
+            } else {
+                const firstItem = group[0];
+                const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
+                const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
+                const unitPrice = totalPrice / totalQuantity;
+
+                const combinedItem = {
+                    ...firstItem,
+                    quantity: totalQuantity,
+                    price: totalPrice,
+                    unitPrice: unitPrice,
+                    rawText: `${group.length} identical items combined (UPC): ${firstItem.rawText}`,
+                    id: Date.now() + Math.random()
+                };
+
+                combinedItems.push(combinedItem);
+                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name}`);
+            }
+        });
+
+        Object.values(nameGroups).forEach(group => {
+            if (group.length === 1) {
+                combinedItems.push(group[0]);
+            } else {
+                const firstItem = group[0];
+                const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
+                const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
+                const unitPrice = totalPrice / totalQuantity;
+
+                const combinedItem = {
+                    ...firstItem,
+                    quantity: totalQuantity,
+                    price: totalPrice,
+                    unitPrice: unitPrice,
+                    rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
+                    id: Date.now() + Math.random()
+                };
+
+                combinedItems.push(combinedItem);
+                console.log(`Combined ${group.length} items by name: ${firstItem.name}`);
+            }
+        });
+
+        return combinedItems;
+    }
+
+    function cleanItemName(name) {
+        name = name.replace(/\s+NF\s*$/i, '');
+        name = name.replace(/\s+T\s*$/i, '');
+        name = name.replace(/\s+HOME\s*$/i, '');
+        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
+        name = name.replace(/^\d{10,}/, '').trim();
+        name = name.replace(/\d+%:?/, '').trim();
+        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim();
+        name = name.replace(/[-\s]*[nt]$/i, '').trim();
+        name = name.replace(/\s*-\s*$/, '').trim();
+        name = name.replace(/[^\w\s\-&']/g, ' ');
+        name = name.replace(/\s+/g, ' ');
+        name = name.trim();
+
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    function guessCategory(name) {
+        const nameLower = name.toLowerCase();
+
+        if (nameLower.includes('milk') || nameLower.includes('yogurt')) {
+            return 'Dairy';
+        }
+        if (nameLower.includes('bread') || nameLower.includes('bagel')) {
+            return 'Breads';
+        }
+        if (nameLower.includes('apple') || nameLower.includes('banana')) {
+            return 'Fresh Fruits';
+        }
+        if (nameLower.includes('chicken') || nameLower.includes('beef')) {
+            return 'Fresh/Frozen Meat';
+        }
+
+        return 'Other';
+    }
+
+    function guessLocation(name) {
+        const nameLower = name.toLowerCase();
+
+        if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
+            return 'freezer';
+        }
+        if (nameLower.includes('milk') || nameLower.includes('yogurt')) {
+            return 'fridge';
+        }
+
+        return 'pantry';
+    }
+
+    function updateItem(itemId, field, value) {
+        setExtractedItems(prev => prev.map(item =>
+            item.id === itemId ? {...item, [field]: value} : item
+        ));
+    }
+
+    function toggleItemSelection(itemId) {
+        setExtractedItems(prev => prev.map(item =>
+            item.id === itemId ? {...item, selected: !item.selected} : item
+        ));
+    }
+
+    function calculateUPCCheckDigit(upc12) {
+        if (upc12.length !== 12) return null;
+
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            const digit = parseInt(upc12[i]);
+            if (i % 2 === 0) {
+                sum += digit * 1;
+            } else {
+                sum += digit * 3;
+            }
+        }
+
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return checkDigit;
+    }
+
+    async function lookupByUPC(item) {
+        if (!item.upc) return;
+
+        try {
+            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${item.upc}`));
+            if (!response.ok) {
+                throw new Error('UPC lookup failed');
+            }
+            const data = await response.json();
+
+            if (data && data.success && data.product && data.product.found) {
+                if (data.product.name && data.product.name !== 'Unknown Product') {
+                    updateItem(item.id, 'name', data.product.name);
+                }
+                if (data.product.category && data.product.category !== 'Other') {
+                    updateItem(item.id, 'category', data.product.category);
+                }
+                if (data.product.brand) {
+                    updateItem(item.id, 'brand', data.product.brand);
+                }
+                updateItem(item.id, 'needsReview', false);
+                alert(`✅ Product found: ${data.product.name}`);
+            } else {
+                alert(`❌ Product not found for UPC ${item.upc}`);
+            }
+        } catch (error) {
+            console.error('UPC lookup error:', error);
+            alert('❌ Network error during UPC lookup.');
+        }
+    }
+
+    async function addItemsToInventory() {
+        const selectedItems = extractedItems.filter(item => item.selected);
+
+        if (selectedItems.length === 0) {
+            alert('Please select at least one item to add.');
+            return;
+        }
+
+        setStep('adding');
+        setProcessingStatus('Adding items to inventory...');
+
+        try {
+            const promises = selectedItems.map(item =>
+                fetch(getApiUrl('/api/inventory'), {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: item.name,
+                        brand: item.brand || '',
+                        category: item.category,
+                        quantity: item.quantity,
+                        unit: 'item',
+                        location: item.location,
+                        upc: item.upc,
+                        expirationDate: null
+                    })
+                })
+            );
+
+            await Promise.all(promises);
+            setProcessingStatus('Complete!');
+            alert(`✅ Successfully added ${selectedItems.length} items to your inventory!`);
+            router.push('/inventory');
+
+        } catch (error) {
+            console.error('Error adding items:', error);
+            alert('Error adding some items. Please try again.');
+            setStep('review');
+        }
+    }
+
+    function openReportModal() {
+        setReportData({
+            issue: '',
+            description: '',
+            email: session?.user?.email || '',
+            receiptImage: capturedImage,
+            additionalFiles: []
+        });
+        setShowReportModal(true);
+    }
+
+    function handleReportFileUpload(event) {
+        const files = Array.from(event.target.files);
+        const validFiles = files.filter(file => {
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+
+            if (!validTypes.includes(file.type)) {
+                alert(`File ${file.name} is not a supported image type.`);
+                return false;
+            }
+
+            if (file.size > maxSize) {
+                alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+                return false;
+            }
+
+            return true;
+        });
+
+        setReportData(prev => ({
+            ...prev,
+            additionalFiles: [...prev.additionalFiles, ...validFiles]
+        }));
+    }
+
+    function removeFile(index) {
+        setReportData(prev => ({
+            ...prev,
+            additionalFiles: prev.additionalFiles.filter((_, i) => i !== index)
+        }));
+    }
+
+    async function submitIssueReport() {
+        if (!reportData.issue || !reportData.description) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('issue', reportData.issue);
+            formData.append('description', reportData.description);
+            formData.append('email', reportData.email);
+            formData.append('deviceInfo', JSON.stringify(deviceInfo));
+
+            if (reportData.receiptImage) {
+                const response = await fetch(reportData.receiptImage);
+                const blob = await response.blob();
+                formData.append('receiptImage', blob, 'receipt.jpg');
+            }
+
+            reportData.additionalFiles.forEach((file, index) => {
+                formData.append(`additionalFile_${index}`, file, file.name);
+            });
+
+            const response = await fetch(getApiUrl('/api/receipt-issue-report'), {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('✅ Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.');
+                setShowReportModal(false);
+            } else {
+                throw new Error('Failed to send report');
+            }
+        } catch (error) {
+            console.error('Error sending issue report:', error);
+            alert('❌ Failed to send issue report. Please try again.');
+        }
+    }
+
+    function resetScan() {
+        stopCamera();
+
+        setStep('upload');
+        setCapturedImage(prevImage => {
+            if (prevImage) {
+                URL.revokeObjectURL(prevImage);
+            }
+            return null;
+        });
+        setExtractedItems([]);
+        setIsProcessing(false);
+        setOcrProgress(0);
+        setProcessingStatus('');
+        setCameraError(null);
+        setShowIOSPWAModal(false);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+
     return (
         <MobileOptimizedLayout>
             {/* NEW: Wrap the entire receipt scanner in a feature gate */}
@@ -366,16 +1316,14 @@ export default function ReceiptScan() {
                         </div>
 
                         {/* Premium Feature Showcase */}
-                        <div
-                            className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
+                        <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
                             <div className="text-center mb-6">
                                 <div className="text-6xl mb-4">📄✨</div>
                                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                                     Receipt Scanning is a Gold Feature
                                 </h2>
                                 <p className="text-gray-700 max-w-2xl mx-auto">
-                                    Save time by scanning grocery receipts to automatically add multiple items to your
-                                    inventory at once.
+                                    Save time by scanning grocery receipts to automatically add multiple items to your inventory at once.
                                     Advanced OCR technology extracts item names, quantities, and prices.
                                 </p>
                             </div>
@@ -385,8 +1333,7 @@ export default function ReceiptScan() {
                                 <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                                     <div className="text-2xl mb-2">🔍</div>
                                     <h3 className="font-semibold text-gray-900 mb-1">Smart OCR</h3>
-                                    <p className="text-sm text-gray-600">Advanced text recognition extracts items
-                                        automatically</p>
+                                    <p className="text-sm text-gray-600">Advanced text recognition extracts items automatically</p>
                                 </div>
                                 <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                                     <div className="text-2xl mb-2">⚡</div>
@@ -402,8 +1349,7 @@ export default function ReceiptScan() {
 
                             {/* Usage Limits */}
                             <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Scan Limits by
-                                    Plan</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Scan Limits by Plan</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="text-center">
                                         <div className="text-2xl mb-2">🆓</div>
@@ -516,8 +1462,7 @@ export default function ReceiptScan() {
                                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                                                     <div className="flex items-center">
                                                         <div className="flex-shrink-0">
-                                                            <svg className="w-5 h-5 text-blue-400" fill="currentColor"
-                                                                 viewBox="0 0 20 20">
+                                                            <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                                                                 <path fillRule="evenodd"
                                                                       d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                                                                       clipRule="evenodd"/>
@@ -525,8 +1470,7 @@ export default function ReceiptScan() {
                                                         </div>
                                                         <div className="ml-3">
                                                             <p className="text-sm text-blue-700">
-                                                                <strong>📊 {usage.remaining} receipt scans remaining this
-                                                                    month</strong>
+                                                                <strong>📊 {usage.remaining} receipt scans remaining this month</strong>
                                                             </p>
                                                             <p className="text-xs text-blue-600 mt-1">
                                                                 Used: {usage.currentMonth}/{usage.monthlyLimit}
