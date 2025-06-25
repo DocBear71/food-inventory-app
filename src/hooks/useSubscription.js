@@ -60,8 +60,8 @@ export function SubscriptionProvider({ children }) {
 
             console.log('Fetching subscription data...');
             const response = await fetch('/api/subscription/status?' + new URLSearchParams({
-                t: Date.now(), // Cache buster
-                force: 'true'
+                t: Date.now(), // Always add timestamp to prevent caching
+                force: force ? 'true' : 'false'
             }), {
                 method: 'GET',
                 headers: {
@@ -73,10 +73,19 @@ export function SubscriptionProvider({ children }) {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Subscription data fetched successfully:', data.tier);
+                console.log('📊 Raw subscription data received:', data);
+
+                // FIXED: Make sure we're using the fresh data immediately
                 setSubscriptionData(data);
                 setError(null);
                 setRetryCount(0);
+
+                // ADDED: Log the data we're setting
+                console.log('✅ Subscription data set in hook:', {
+                    tier: data.tier,
+                    isAdmin: data.isAdmin,
+                    isActive: data.isActive
+                });
             } else {
                 const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                 const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
@@ -220,19 +229,65 @@ export function useSubscription() {
         }
     };
 
-    // In your PWA, you can force refresh the subscription data
-    const forceRefreshSubscription = async () => {
-        // Clear any cached subscription data
-        if ('caches' in window) {
-            const cacheNames = await caches.keys();
-            for (const cacheName of cacheNames) {
-                const cache = await caches.open(cacheName);
-                await cache.delete('/api/subscription/status');
-            }
-        }
+    const forceSubscriptionRefresh = async () => {
+        try {
+            console.log('🔄 Forcing complete subscription refresh...');
 
-        // Force refetch
-        subscription.refetch();
+            // 1. Clear any cached data in the subscription provider
+            if (window.subscriptionCache) {
+                delete window.subscriptionCache;
+            }
+
+            // 2. Clear relevant localStorage/sessionStorage
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('subscription') || key.includes('admin') || key.includes('tier'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+
+            // 3. Clear session storage too
+            const sessionKeysToRemove = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && (key.includes('subscription') || key.includes('admin') || key.includes('tier'))) {
+                    sessionKeysToRemove.push(key);
+                }
+            }
+            sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+
+            // 4. Force a direct API call with cache busting
+            const response = await fetch('/api/subscription/status?' + new URLSearchParams({
+                t: Date.now(),
+                force: 'true',
+                refresh: 'complete'
+            }), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
+            });
+
+            if (response.ok) {
+                const newData = await response.json();
+                console.log('✅ Fresh subscription data:', newData);
+
+                // 5. Force the page to reload to completely reset React state
+                console.log('🔄 Reloading page to reset React state...');
+                window.location.reload();
+            } else {
+                console.error('❌ Failed to fetch fresh subscription data');
+            }
+
+        } catch (error) {
+            console.error('❌ Error forcing subscription refresh:', error);
+            // Fallback - just reload the page
+            window.location.reload();
+        }
     };
 
     const checkLimit = (feature, currentCount) => {
@@ -276,12 +331,20 @@ export function useSubscription() {
 
     // NEW: Admin status checks
     const isAdmin = () => {
-        return subscriptionData?.isAdmin === true;
+        const adminStatus = subscriptionData?.isAdmin === true;
+        console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
+        return adminStatus;
     };
 
     const getEffectiveTier = () => {
-        if (subscriptionData?.isAdmin) return 'admin';
-        return subscriptionData?.tier || 'free';
+        console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
+        if (subscriptionData?.isAdmin) {
+            console.log('✅ User is admin, returning admin tier');
+            return 'admin';
+        }
+        const tier = subscriptionData?.tier || 'free';
+        console.log('📊 Returning tier:', tier);
+        return tier;
     };
 
     // Rest of your existing functions...
