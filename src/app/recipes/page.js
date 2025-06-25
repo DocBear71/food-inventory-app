@@ -488,28 +488,35 @@ function RecipesContent() {
             case 'my-recipes':
                 return {
                     current: subscription.usage?.personalRecipes || 0,
-                    limit: tier === 'free' ? 5 : tier === 'gold' ? 100 : 'Unlimited',
-                    isUnlimited: tier === 'platinum',
+                    limit: tier === 'free' ? 5 :
+                        tier === 'gold' ? 100 :
+                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
+                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
                     tier
                 };
             case 'saved-recipes':
                 return {
-                    current: globalSavedCount || 0, // Use global count directly
-                    limit: tier === 'free' ? 10 : tier === 'gold' ? 200 : 'Unlimited',
-                    isUnlimited: tier === 'platinum',
+                    current: globalSavedCount || 0,
+                    limit: tier === 'free' ? 10 :
+                        tier === 'gold' ? 200 :
+                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
+                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
                     tier
                 };
             case 'collections':
                 return {
                     current: collectionsCount,
-                    limit: tier === 'free' ? 2 : tier === 'gold' ? 10 : 'Unlimited',
-                    isUnlimited: tier === 'platinum',
+                    limit: tier === 'free' ? 2 :
+                        tier === 'gold' ? 10 :
+                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
+                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
                     tier
                 };
             default:
                 return {current: 0, limit: 'N/A', isUnlimited: false, tier};
         }
     };
+
 
     // Update formatCountWithLimit to handle loading states better:
     const formatCountWithLimit = (tabType) => {
@@ -530,12 +537,14 @@ function RecipesContent() {
         const usage = getUsageInfo(tabType);
         const count = getTabCounts()[tabType] || usage.current;
 
-        if (usage.isUnlimited) {
+        // Handle admin and unlimited tiers properly
+        if (usage.isUnlimited || usage.tier === 'admin') {
             return `${count}`;
         }
 
         return `${count}/${usage.limit}`;
     };
+
 
     // Update getCountColor to use proper loading states:
     const getCountColor = (tabType, isActive) => {
@@ -805,14 +814,18 @@ function RecipesContent() {
                                             <div className="mt-2 text-xs text-blue-600">
                                                 {(() => {
                                                     const usage = getUsageInfo('my-recipes');
-                                                    const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                                    return `${usage.current} used • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                                    if (usage.isUnlimited || usage.tier === 'admin') {
+                                                        return `${usage.current} used • Unlimited on ${usage.tier} plan`;
+                                                    }
+                                                    const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                    return `${usage.current} used • ${remaining} remaining on ${usage.tier} plan`;
                                                 })()}
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
+                            <br/>
                             {/* Header with Usage Info - MOVED OUTSIDE THE BLUE BOX */}
                             <div className="flex items-center justify-between my-6">
                                 <div>
@@ -824,19 +837,23 @@ function RecipesContent() {
                                         <p className="text-sm text-gray-600 mt-1">
                                             {(() => {
                                                 const usage = getUsageInfo('my-recipes');
-                                                return usage.isUnlimited ? (
-                                                    'Unlimited recipes on Platinum plan'
-                                                ) : usage.current >= usage.limit ? (
-                                                    <span className="text-red-600 font-medium">
-                                    You've reached your {usage.tier} plan limit
-                                </span>
-                                                ) : usage.current >= (usage.limit * 0.8) ? (
-                                                    <span className="text-orange-600">
-                                    {usage.limit - usage.current} recipe{usage.limit - usage.current !== 1 ? 's' : ''} remaining
-                                </span>
-                                                ) : (
-                                                    `${usage.limit - usage.current} recipe${usage.limit - usage.current !== 1 ? 's' : ''} remaining on ${usage.tier} plan`
-                                                );
+                                                if (usage.isUnlimited || usage.tier === 'admin') {
+                                                    return `Unlimited recipes on ${usage.tier} plan`;
+                                                } else if (usage.current >= usage.limit) {
+                                                    return (
+                                                        <span className="text-red-600 font-medium">
+                        You've reached your {usage.tier} plan limit
+                    </span>
+                                                    );
+                                                } else if (usage.current >= (usage.limit * 0.8)) {
+                                                    return (
+                                                        <span className="text-orange-600">
+                        {usage.limit - usage.current} recipe{usage.limit - usage.current !== 1 ? 's' : ''} remaining
+                    </span>
+                                                    );
+                                                } else {
+                                                    return `${usage.limit - usage.current} recipe${usage.limit - usage.current !== 1 ? 's' : ''} remaining on ${usage.tier} plan`;
+                                                }
                                             })()}
                                         </p>
                                     )}
@@ -881,8 +898,11 @@ function RecipesContent() {
                                         <div className="mt-2 text-xs text-purple-600">
                                             {(() => {
                                                 const usage = getUsageInfo('saved-recipes');
-                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                                return `${usage.current} saved • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                                if (usage.isUnlimited || usage.tier === 'admin') {
+                                                    return `${usage.current} saved • Unlimited on ${usage.tier} plan`;
+                                                }
+                                                const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                return `${usage.current} saved • ${remaining} remaining on ${usage.tier} plan`;
                                             })()}
                                         </div>
                                     )}
@@ -909,8 +929,11 @@ function RecipesContent() {
                                         <div className="mt-2 text-xs text-orange-600">
                                             {(() => {
                                                 const usage = getUsageInfo('collections');
-                                                const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                                return `${usage.current} created • ${remaining} ${usage.isUnlimited ? '' : `remaining on ${usage.tier} plan`}`;
+                                                if (usage.isUnlimited || usage.tier === 'admin') {
+                                                    return `${usage.current} created • Unlimited on ${usage.tier} plan`;
+                                                }
+                                                const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                                return `${usage.current} created • ${remaining} remaining on ${usage.tier} plan`;
                                             })()}
                                         </div>
                                     )}
