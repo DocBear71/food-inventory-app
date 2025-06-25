@@ -1,3 +1,5 @@
+'use client';
+
 // file: /src/hooks/useSubscription.js v5 - FIXED mobile caching and admin support
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
