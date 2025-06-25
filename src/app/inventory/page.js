@@ -600,6 +600,13 @@ function InventoryContent() {
     const filteredInventory = getFilteredAndSortedInventory();
     const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
 
+    const usageInfo = getUsageInfo();
+    const isAtLimit = !usageInfo.isUnlimited && usageInfo.tier !== 'admin' && (typeof usageInfo.limit === 'number' ? usageInfo.limit : 999999);
+    const isNearLimit = !usageInfo.isUnlimited && usageInfo.tier !== 'admin' && ((typeof usageInfo.limit === 'number' ? usageInfo.limit : 999999) * 0.8);
+
+    usageInfo.isAtLimit = isAtLimit;
+    usageInfo.isNearLimit = isNearLimit;
+
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
