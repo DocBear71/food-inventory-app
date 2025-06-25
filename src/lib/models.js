@@ -392,6 +392,11 @@ const UserSchema = new mongoose.Schema({
     name: {type: String, required: true},
     email: {type: String, required: true, unique: true},
     password: {type: String, required: true},
+    isAdmin: {
+        type: Boolean,
+        default: false,
+        select: false // Don't include in regular queries for security
+    },
     avatar: {
         type: String,
         default: '',
@@ -610,6 +615,35 @@ const UserSchema = new mongoose.Schema({
         lastUpdated: {type: Date, default: Date.now}
     },
 });
+
+UserSchema.pre('save', function(next) {
+    // Define your admin email addresses here
+    const adminEmails = [
+        'e.g.mckeown@gmail.com',
+        'admin@docbearscomfortkitchen.com',
+    ];
+
+    // Auto-assign admin status based on email
+    if (adminEmails.includes(this.email.toLowerCase())) {
+        this.isAdmin = true;
+
+        // Override subscription to admin tier
+        if (!this.subscription) {
+            this.subscription = {};
+        }
+        this.subscription.tier = 'admin';
+        this.subscription.status = 'active';
+        this.subscription.startDate = new Date();
+        this.subscription.endDate = null; // Never expires
+    }
+
+    next();
+});
+
+// NEW: Method to check if user is admin
+UserSchema.methods.isAdminUser = function() {
+    return this.isAdmin === true;
+};
 
 // UPDATED: MealPlanEntrySchema with new meal types
 const MealPlanEntrySchema = new mongoose.Schema({
@@ -1924,6 +1958,11 @@ UserSchema.methods.hasActiveSubscription = function() {
 // FIXED: Get effective tier with better error handling
 UserSchema.methods.getEffectiveTier = function() {
     try {
+        // Admin check first
+        if (this.isAdmin) {
+            return 'admin';
+        }
+
         if (!this.hasActiveSubscription()) {
             return 'free';
         }
@@ -1931,7 +1970,7 @@ UserSchema.methods.getEffectiveTier = function() {
         return this.subscription?.tier || 'free';
     } catch (error) {
         console.error('❌ Error getting effective tier:', error);
-        return 'free'; // Default to free if error
+        return 'free';
     }
 };
 
@@ -1968,9 +2007,14 @@ UserSchema.methods.updateRecipeCollectionCount = function(count) {
 // FIXED: Enhanced canPerformAction method with better error handling
 UserSchema.methods.canPerformAction = function(feature, currentCount = null) {
     try {
+        // Admin always has access to everything
+        if (this.isAdmin) {
+            return { allowed: true, reason: 'admin_access' };
+        }
+
         const subscription = this.subscription || { tier: 'free', status: 'free' };
 
-        // Import the functions (you'll need to import these at the top of your models file)
+        // Import the functions
         const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
 
         // First check if feature is available for their tier

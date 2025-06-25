@@ -1,4 +1,4 @@
-// file: /src/app/api/subscription/status/route.js v3 - FIXED to work with useSubscription hook expectations
+// file: /src/app/api/subscription/status/route.js v4 - Added admin support
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -24,7 +24,8 @@ export async function GET(request) {
         await connectDB();
         console.log('Database connected');
 
-        const user = await User.findById(session.user.id);
+        // NEW: Include isAdmin field in the query
+        const user = await User.findById(session.user.id).select('+isAdmin');
 
         if (!user) {
             console.log('User not found in database');
@@ -32,6 +33,11 @@ export async function GET(request) {
                 { error: 'User not found' },
                 { status: 404 }
             );
+        }
+
+        // NEW: Check if user is admin and log it
+        if (user.isAdmin) {
+            console.log('Admin user detected:', user.email);
         }
 
         console.log('User found, fetching usage data...');
@@ -202,7 +208,20 @@ export async function GET(request) {
         }
 
         // Initialize subscription data with safe defaults
-        const subscription = user.subscription || {};
+        let subscription = user.subscription || {};
+
+        // NEW: Override subscription for admin users
+        if (user.isAdmin) {
+            console.log('Overriding subscription for admin user');
+            subscription = {
+                ...subscription,
+                tier: 'admin',
+                status: 'active',
+                startDate: subscription.startDate || user.createdAt,
+                endDate: null, // Never expires
+                billingCycle: null // No billing for admin
+            };
+        }
 
         // Calculate trial status more safely
         let isTrialActive = false;
@@ -234,6 +253,9 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
+            // NEW: Admin status
+            isAdmin: user.isAdmin || false,
+
             // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {
                 inventoryItems: currentInventoryCount,
@@ -256,9 +278,10 @@ export async function GET(request) {
             isActive: subscription.status === 'active' ||
                 subscription.status === 'trial' ||
                 subscription.tier === 'free' ||
+                subscription.tier === 'admin' || // NEW: Admin is always active
                 !subscription.status, // Default to active for users without subscription data
-            isTrialActive: isTrialActive,
-            daysUntilTrialEnd: daysUntilTrialEnd,
+            isTrialActive: isTrialActive && !user.isAdmin, // NEW: Admin users don't need trials
+            daysUntilTrialEnd: user.isAdmin ? null : daysUntilTrialEnd, // NEW: Admin users don't have trial limits
 
             // Additional metadata
             lastUpdated: now.toISOString()
@@ -268,6 +291,7 @@ export async function GET(request) {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
             isActive: subscriptionData.isActive,
+            isAdmin: subscriptionData.isAdmin, // NEW
             inventoryItems: subscriptionData.usage.inventoryItems,
             savedRecipes: subscriptionData.usage.savedRecipes,
             collections: subscriptionData.usage.recipeCollections

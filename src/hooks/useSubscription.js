@@ -203,6 +203,10 @@ export function useSubscription() {
     // Helper functions with better error handling
     const checkFeature = (feature) => {
         if (!subscriptionData) return false;
+
+        // NEW: Admin always has access to all features
+        if (subscriptionData.isAdmin) return true;
+
         try {
             return checkFeatureAccess(subscriptionData, feature);
         } catch (err) {
@@ -213,6 +217,10 @@ export function useSubscription() {
 
     const checkLimit = (feature, currentCount) => {
         if (!subscriptionData) return false;
+
+        // NEW: Admin always passes limit checks
+        if (subscriptionData.isAdmin) return true;
+
         try {
             return checkUsageLimit(subscriptionData, feature, currentCount);
         } catch (err) {
@@ -233,6 +241,10 @@ export function useSubscription() {
 
     const getRemainingCount = (feature) => {
         if (!subscriptionData) return 0;
+
+        // NEW: Admin always has unlimited
+        if (subscriptionData.isAdmin) return 'Unlimited';
+
         try {
             const currentCount = getCurrentUsageCount(feature);
             return getRemainingUsage(subscriptionData, feature, currentCount);
@@ -240,6 +252,28 @@ export function useSubscription() {
             console.warn('Error getting remaining count:', err);
             return 0;
         }
+    };
+
+    // NEW: Admin status checks
+    const isAdmin = () => {
+        return subscriptionData?.isAdmin === true;
+    };
+
+    const getEffectiveTier = () => {
+        if (subscriptionData?.isAdmin) return 'admin';
+        return subscriptionData?.tier || 'free';
+    };
+
+    // Rest of your existing functions...
+    const isGoldOrHigher = () => {
+        if (subscriptionData?.isAdmin) return true; // Admin is higher than gold
+        const tier = subscriptionData?.tier || 'free';
+        return tier === 'gold' || tier === 'platinum';
+    };
+
+    const isPlatinum = () => {
+        if (subscriptionData?.isAdmin) return true; // Admin is higher than platinum
+        return subscriptionData?.tier === 'platinum';
     };
 
     // FIXED: Map feature gates to correct usage tracking fields with SAVE_RECIPE support
@@ -282,53 +316,17 @@ export function useSubscription() {
         }
     };
 
-    const isGoldOrHigher = () => {
-        const tier = subscriptionData?.tier || 'free';
-        return tier === 'gold' || tier === 'platinum';
-    };
-
-    const isPlatinum = () => {
-        return subscriptionData?.tier === 'platinum';
-    };
-
-    const isTrialActive = () => {
-        return subscriptionData?.isTrialActive || false;
-    };
-
-    // FIXED: Feature-specific helpers using correct feature gates
-    const canAddInventoryItem = () => {
-        return checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT));
-    };
-
-    const canScanUPC = () => {
-        return checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING));
-    };
-
-    const canScanReceipt = () => {
-        return checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN));
-    };
-
-    const canAddPersonalRecipe = () => {
-        return checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES));
-    };
-
-    // ADDED: New helper functions for saved recipes and collections
-    const canSaveRecipe = () => {
-        return checkLimit(FEATURE_GATES.SAVE_RECIPE, getCurrentUsageCount(FEATURE_GATES.SAVE_RECIPE));
-    };
-
-    const canCreateCollection = () => {
-        return checkLimit(FEATURE_GATES.RECIPE_COLLECTIONS, getCurrentUsageCount(FEATURE_GATES.RECIPE_COLLECTIONS));
-    };
-
     return {
         // Data
-        tier: subscriptionData?.tier || 'free',
+        tier: getEffectiveTier(),
         status: subscriptionData?.status || 'free',
         billingCycle: subscriptionData?.billingCycle,
-        isActive: subscriptionData?.isActive !== false, // Default to true if undefined
-        isTrialActive: isTrialActive(),
+        isActive: subscriptionData?.isActive !== false,
+        isTrialActive: subscriptionData?.isTrialActive || false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
+
+        // NEW: Admin status
+        isAdmin: isAdmin(),
 
         // Usage counts
         usage: subscriptionData?.usage || {},
@@ -337,26 +335,26 @@ export function useSubscription() {
         loading,
         error,
 
-        // Tier checks
-        isFree: (subscriptionData?.tier || 'free') === 'free',
-        isGold: (subscriptionData?.tier || 'free') === 'gold',
+        // Tier checks (updated with admin support)
+        isFree: getEffectiveTier() === 'free',
+        isGold: getEffectiveTier() === 'gold',
         isPlatinum: isPlatinum(),
         isGoldOrHigher: isGoldOrHigher(),
 
-        // Feature checks
+        // Feature checks (all now admin-aware)
         checkFeature,
         checkLimit,
         getFeatureMessage,
         getRemainingCount,
         getCurrentUsageCount,
 
-        // FIXED: Specific feature helpers using correct feature gates
-        canAddInventoryItem: canAddInventoryItem(),
-        canScanUPC: canScanUPC(),
-        canScanReceipt: canScanReceipt(),
-        canAddPersonalRecipe: canAddPersonalRecipe(),
-        canSaveRecipe: canSaveRecipe(), // ADDED
-        canCreateCollection: canCreateCollection(), // ADDED
+        // All your existing feature helpers will now work with admin
+        canAddInventoryItem: checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
+        canScanUPC: checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
+        canScanReceipt: checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
+        canAddPersonalRecipe: checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES)),
+        canSaveRecipe: checkLimit(FEATURE_GATES.SAVE_RECIPE, getCurrentUsageCount(FEATURE_GATES.SAVE_RECIPE)),
+        canCreateCollection: checkLimit(FEATURE_GATES.RECIPE_COLLECTIONS, getCurrentUsageCount(FEATURE_GATES.RECIPE_COLLECTIONS)),
         canWriteReviews: checkFeature(FEATURE_GATES.WRITE_REVIEW),
         canMakeRecipesPublic: checkFeature(FEATURE_GATES.MAKE_RECIPE_PUBLIC),
         hasNutritionAccess: checkFeature(FEATURE_GATES.NUTRITION_ACCESS),
@@ -367,13 +365,13 @@ export function useSubscription() {
         hasConsumptionHistory: checkFeature(FEATURE_GATES.CONSUMPTION_HISTORY),
         hasRecipeCollections: checkFeature(FEATURE_GATES.RECIPE_COLLECTIONS),
 
-        // FIXED: Remaining counts using correct feature gates
+        // Remaining counts (all now show unlimited for admin)
         remainingInventoryItems: getRemainingCount(FEATURE_GATES.INVENTORY_LIMIT),
         remainingPersonalRecipes: getRemainingCount(FEATURE_GATES.PERSONAL_RECIPES),
         remainingUPCScans: getRemainingCount(FEATURE_GATES.UPC_SCANNING),
         remainingReceiptScans: getRemainingCount(FEATURE_GATES.RECEIPT_SCAN),
-        remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE), // FIXED
-        remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS), // ADDED
+        remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE),
+        remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
 
         // Actions
         refetch
@@ -395,7 +393,8 @@ export function useFeatureGate(feature, currentCount = null) {
             remaining: 0,
             tier: 'free',
             isGoldOrHigher: false,
-            isPlatinum: false
+            isPlatinum: false,
+            isAdmin: false // NEW
         };
     }
 
@@ -403,7 +402,7 @@ export function useFeatureGate(feature, currentCount = null) {
         // Default to allowing access on error for better UX
         console.warn('Subscription error in useFeatureGate:', subscription.error);
         return {
-            hasAccess: true, // CHANGED: Allow access on error
+            hasAccess: true,
             hasCapacity: true,
             canUse: true,
             message: 'Unable to verify subscription status',
@@ -411,11 +410,28 @@ export function useFeatureGate(feature, currentCount = null) {
             remaining: 'Unknown',
             tier: 'free',
             isGoldOrHigher: false,
-            isPlatinum: false
+            isPlatinum: false,
+            isAdmin: false // NEW
         };
     }
 
     try {
+        // NEW: Admin users always have full access
+        if (subscription.isAdmin) {
+            return {
+                hasAccess: true,
+                hasCapacity: true,
+                canUse: true,
+                message: 'Admin access - unlimited',
+                requiredTier: 'admin',
+                remaining: 'Unlimited',
+                tier: 'admin',
+                isGoldOrHigher: true,
+                isPlatinum: true,
+                isAdmin: true
+            };
+        }
+
         const hasAccess = subscription.checkFeature(feature);
         const hasCapacity = currentCount !== null ? subscription.checkLimit(feature, currentCount) : true;
         const message = subscription.getFeatureMessage(feature);
@@ -431,13 +447,14 @@ export function useFeatureGate(feature, currentCount = null) {
             remaining,
             tier: subscription.tier,
             isGoldOrHigher: subscription.isGoldOrHigher,
-            isPlatinum: subscription.isPlatinum
+            isPlatinum: subscription.isPlatinum,
+            isAdmin: subscription.isAdmin // NEW
         };
     } catch (err) {
         console.error('Error in useFeatureGate:', err);
         // Return safe defaults on error - allow access
         return {
-            hasAccess: true, // CHANGED: Allow access on error
+            hasAccess: true,
             hasCapacity: true,
             canUse: true,
             message: 'Error checking feature access',
@@ -445,7 +462,8 @@ export function useFeatureGate(feature, currentCount = null) {
             remaining: 'Unknown',
             tier: 'free',
             isGoldOrHigher: false,
-            isPlatinum: false
+            isPlatinum: false,
+            isAdmin: false // NEW
         };
     }
 }

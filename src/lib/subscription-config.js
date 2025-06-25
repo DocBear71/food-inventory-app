@@ -1,13 +1,14 @@
-// file: /src/lib/subscription-config.js v9 - Added SAVE_RECIPE feature gate and limits
+// file: /src/lib/subscription-config.js v10 - Added ADMIN tier support
 
 // Subscription tier definitions
 export const SUBSCRIPTION_TIERS = {
     FREE: 'free',
     GOLD: 'gold',
-    PLATINUM: 'platinum'
+    PLATINUM: 'platinum',
+    ADMIN: 'admin' // NEW: Admin tier
 };
 
-// Feature gate definitions
+// Feature gate definitions (unchanged)
 export const FEATURE_GATES = {
     // Inventory limits
     INVENTORY_LIMIT: 'inventory_limit',
@@ -34,7 +35,7 @@ export const FEATURE_GATES = {
 
     // Recipe collections and public recipes
     RECIPE_COLLECTIONS: 'recipe_collections',
-    SAVE_RECIPE: 'save_recipe', // NEW: Individual recipe saving
+    SAVE_RECIPE: 'save_recipe',
     PUBLIC_RECIPES: 'public_recipes',
     MAKE_RECIPE_PUBLIC: 'make_recipe_public'
 };
@@ -46,9 +47,9 @@ export const USAGE_LIMITS = {
         upcScansPerMonth: 10,
         monthlyReceiptScans: 2,
         personalRecipes: 5,
-        savedRecipes: 10, // NEW: Free users can save 10 individual recipes
+        savedRecipes: 10,
         publicRecipes: 0,
-        recipeCollections: 2, // Free: 2 collections
+        recipeCollections: 2,
         mealPlansActive: 0,
         emailSharesPerMonth: 0,
         emailNotificationsPerMonth: 0
@@ -58,9 +59,9 @@ export const USAGE_LIMITS = {
         upcScansPerMonth: -1, // unlimited
         monthlyReceiptScans: 20,
         personalRecipes: 100,
-        savedRecipes: 200, // NEW: Gold users can save 200 individual recipes
+        savedRecipes: 200,
         publicRecipes: 25,
-        recipeCollections: 10, // Gold: 10 collections
+        recipeCollections: 10,
         mealPlansActive: 3,
         emailSharesPerMonth: 50,
         emailNotificationsPerMonth: 100
@@ -70,12 +71,25 @@ export const USAGE_LIMITS = {
         upcScansPerMonth: -1, // unlimited
         monthlyReceiptScans: -1, // unlimited
         personalRecipes: -1, // unlimited
-        savedRecipes: -1, // NEW: Unlimited individual recipe saves
+        savedRecipes: -1, // unlimited
         publicRecipes: -1,
-        recipeCollections: -1, // Unlimited collections
+        recipeCollections: -1, // unlimited
         mealPlansActive: -1, // unlimited
         emailSharesPerMonth: -1, // unlimited
         emailNotificationsPerMonth: -1
+    },
+    // NEW: Admin tier - unlimited everything
+    [SUBSCRIPTION_TIERS.ADMIN]: {
+        inventoryItems: -1, // unlimited
+        upcScansPerMonth: -1, // unlimited
+        monthlyReceiptScans: -1, // unlimited
+        personalRecipes: -1, // unlimited
+        savedRecipes: -1, // unlimited
+        publicRecipes: -1, // unlimited
+        recipeCollections: -1, // unlimited
+        mealPlansActive: -1, // unlimited
+        emailSharesPerMonth: -1, // unlimited
+        emailNotificationsPerMonth: -1 // unlimited
     }
 };
 
@@ -97,7 +111,7 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.NUTRITION_ANALYSIS]: false,
         [FEATURE_GATES.NUTRITION_GOALS]: false,
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true, // limited by usage
-        [FEATURE_GATES.SAVE_RECIPE]: true, // NEW: Free users can save recipes (limited)
+        [FEATURE_GATES.SAVE_RECIPE]: true, // limited
         [FEATURE_GATES.PUBLIC_RECIPES]: false,
         [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: false
     },
@@ -117,7 +131,7 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.NUTRITION_ANALYSIS]: true,
         [FEATURE_GATES.NUTRITION_GOALS]: true,
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
-        [FEATURE_GATES.SAVE_RECIPE]: true, // Gold users can save recipes
+        [FEATURE_GATES.SAVE_RECIPE]: true,
         [FEATURE_GATES.PUBLIC_RECIPES]: true,
         [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
     },
@@ -137,16 +151,42 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.NUTRITION_ANALYSIS]: true,
         [FEATURE_GATES.NUTRITION_GOALS]: true,
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
-        [FEATURE_GATES.SAVE_RECIPE]: true, // Platinum users can save recipes
+        [FEATURE_GATES.SAVE_RECIPE]: true,
+        [FEATURE_GATES.PUBLIC_RECIPES]: true,
+        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
+    },
+    // NEW: Admin tier - access to everything
+    [SUBSCRIPTION_TIERS.ADMIN]: {
+        [FEATURE_GATES.INVENTORY_LIMIT]: true,
+        [FEATURE_GATES.UPC_SCANNING]: true,
+        [FEATURE_GATES.BULK_INVENTORY_ADD]: true,
+        [FEATURE_GATES.PERSONAL_RECIPES]: true,
+        [FEATURE_GATES.WRITE_REVIEW]: true,
+        [FEATURE_GATES.COMMON_ITEMS_WIZARD]: true,
+        [FEATURE_GATES.CONSUMPTION_HISTORY]: true,
+        [FEATURE_GATES.CREATE_MEAL_PLAN]: true,
+        [FEATURE_GATES.EMAIL_SHARING]: true,
+        [FEATURE_GATES.EMAIL_NOTIFICATIONS]: true,
+        [FEATURE_GATES.NUTRITION_ACCESS]: true,
+        [FEATURE_GATES.NUTRITION_SEARCH]: true,
+        [FEATURE_GATES.NUTRITION_ANALYSIS]: true,
+        [FEATURE_GATES.NUTRITION_GOALS]: true,
+        [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
+        [FEATURE_GATES.SAVE_RECIPE]: true,
         [FEATURE_GATES.PUBLIC_RECIPES]: true,
         [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
     }
 };
 
-// Helper functions (keeping existing ones and adding new)
+// Helper functions (updated to handle admin tier)
 export function getSubscriptionTier(subscription) {
     if (!subscription || subscription.status === 'free') {
         return SUBSCRIPTION_TIERS.FREE;
+    }
+
+    // NEW: Check for admin status first
+    if (subscription.tier === 'admin') {
+        return SUBSCRIPTION_TIERS.ADMIN;
     }
 
     if (subscription.status === 'trial' || subscription.status === 'active') {
@@ -161,9 +201,13 @@ export function checkFeatureAccess(subscription, feature) {
     return FEATURE_ACCESS[tier]?.[feature] || false;
 }
 
-// ENHANCED: Updated checkUsageLimit to handle saved recipes
 export function checkUsageLimit(subscription, feature, currentUsage) {
     const tier = getSubscriptionTier(subscription);
+
+    // NEW: Admin always has unlimited access
+    if (tier === SUBSCRIPTION_TIERS.ADMIN) {
+        return true;
+    }
 
     // Map feature gates to usage limit keys
     let limitKey;
@@ -180,7 +224,7 @@ export function checkUsageLimit(subscription, feature, currentUsage) {
         case FEATURE_GATES.PERSONAL_RECIPES:
             limitKey = 'personalRecipes';
             break;
-        case FEATURE_GATES.SAVE_RECIPE: // NEW: Handle saved recipe limits
+        case FEATURE_GATES.SAVE_RECIPE:
             limitKey = 'savedRecipes';
             break;
         case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
@@ -208,9 +252,13 @@ export function getUsageLimit(subscription, limitType) {
     return USAGE_LIMITS[tier]?.[limitType] || 0;
 }
 
-// ENHANCED: Updated getRemainingUsage to handle saved recipes
 export function getRemainingUsage(subscription, feature, currentUsage) {
     const tier = getSubscriptionTier(subscription);
+
+    // NEW: Admin always has unlimited
+    if (tier === SUBSCRIPTION_TIERS.ADMIN) {
+        return 'Unlimited';
+    }
 
     // Map feature gates to usage limit keys
     let limitKey;
@@ -227,7 +275,7 @@ export function getRemainingUsage(subscription, feature, currentUsage) {
         case FEATURE_GATES.PERSONAL_RECIPES:
             limitKey = 'personalRecipes';
             break;
-        case FEATURE_GATES.SAVE_RECIPE: // NEW: Handle saved recipe remaining count
+        case FEATURE_GATES.SAVE_RECIPE:
             limitKey = 'savedRecipes';
             break;
         case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
@@ -268,7 +316,7 @@ export function getUpgradeMessage(feature, requiredTier) {
     return `${featureDescription} requires a ${tierName} subscription. Upgrade to unlock this feature.`;
 }
 
-// Feature descriptions for UI
+// Feature descriptions for UI (unchanged, no need to show admin features to users)
 export const FEATURE_DESCRIPTIONS = {
     [FEATURE_GATES.INVENTORY_LIMIT]: 'Track your food inventory',
     [FEATURE_GATES.UPC_SCANNING]: 'Scan product barcodes',
@@ -285,7 +333,7 @@ export const FEATURE_DESCRIPTIONS = {
     [FEATURE_GATES.NUTRITION_ANALYSIS]: 'Analyze meal plan nutrition',
     [FEATURE_GATES.NUTRITION_GOALS]: 'Set and track nutrition goals',
     [FEATURE_GATES.RECIPE_COLLECTIONS]: 'Organize recipes in collections',
-    [FEATURE_GATES.SAVE_RECIPE]: 'Save individual recipes for quick access', // NEW
+    [FEATURE_GATES.SAVE_RECIPE]: 'Save individual recipes for quick access',
     [FEATURE_GATES.PUBLIC_RECIPES]: 'Share recipes with the community',
     [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: 'Make individual recipes public'
 };
