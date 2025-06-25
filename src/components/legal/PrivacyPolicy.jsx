@@ -30,7 +30,7 @@ const PrivacyPolicy = () => {
                         <li>Engage with us in other related ways, including any sales, marketing, or events</li>
                     </ul>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        <strong>Questions or concerns?</strong> Reading this Privacy Notice will help you understand your privacy rights and choices. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at <strong>privacy@docbear-ent.com</strong>.
+                        <strong>Questions or concerns?</strong> Reading this Privacy Notice will help you understand your privacy rights and choices. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at <strong>privacy@docbearscomfort.kitchen</strong>.
                     </p>
                 </div>
 
@@ -213,7 +213,7 @@ const PrivacyPolicy = () => {
                     </p>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        We do not knowingly collect, solicit data from, or market to children under 18 years of age, nor do we knowingly sell such personal information. By using the Services, you represent that you are at least 18 or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If we learn that personal information from users less than 18 years of age has been collected, we will deactivate the account and take reasonable measures to promptly delete such data from our records. If you become aware of any data we may have collected from children under age 18, please contact us at <strong>privacy@docbear-ent.com</strong>.
+                        We do not knowingly collect, solicit data from, or market to children under 18 years of age, nor do we knowingly sell such personal information. By using the Services, you represent that you are at least 18 or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If we learn that personal information from users less than 18 years of age has been collected, we will deactivate the account and take reasonable measures to promptly delete such data from our records. If you become aware of any data we may have collected from children under age 18, please contact us at <strong>privacy@docbearscomfort.kitchen</strong>.
                     </p>
                 </div>
 
@@ -250,21 +250,21 @@ const PrivacyPolicy = () => {
                     </p>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        If you have questions or comments about your privacy rights, you may email us at <strong>privacy@docbear-ent.com</strong>.
+                        If you have questions or comments about your privacy rights, you may email us at <strong>privacy@docbearscomfort.kitchen</strong>.
                     </p>
                 </div>
 
                 <div id="contact" style={{ marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '19px', color: '#000000' }}>9. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        If you have questions or comments about this notice, you may email us at <strong>privacy@docbear-ent.com</strong> or contact us by post at:
+                        If you have questions or comments about this notice, you may email us at <strong>privacy@docbearscomfort.kitchen</strong> or contact us by post at:
                     </p>
                     <div style={{ color: '#595959', fontSize: '15px', marginTop: '1rem' }}>
                         <div><strong>Doc Bear Enterprises, LLC.</strong></div>
                         <div></div>
                         <div>Cedar Rapids, IA </div>
                         <div>United States</div>
-                        <div>privacy@docbear-ent.com</div>
+                        <div>privacy@docbearscomfort.kitchen</div>
                     </div>
                 </div>
 

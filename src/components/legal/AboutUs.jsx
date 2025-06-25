@@ -280,7 +280,7 @@ const AboutUs = () => {
                         <p><strong>Doc Bear Enterprises, LLC.</strong></p>
                         <p><br/>Cedar Rapids, IA </p>
                         <p>
-                            Email: <a href="mailto:privacy@docbear-ent.com" style={{ color: '#e74c3c', textDecoration: 'none' }}>privacy@docbear-ent.com</a><br/>
+                            Email: <a href="mailto:privacy@docbearscomfort.kitchen" style={{ color: '#e74c3c', textDecoration: 'none' }}>privacy@docbearscomfort.kitchen</a><br/>
                             Website: <a href="https://docbearscomfort.kitchen" target="_blank" rel="noopener noreferrer" style={{ color: '#e74c3c', textDecoration: 'none' }}>docbearscomfort.kitchen</a>
                         </p>
                     </div>

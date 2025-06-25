@@ -93,7 +93,7 @@ const TermsOfUse = () => {
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         If you wish to make any use of the Services, Content, or Marks other than as set out in this
                         section or elsewhere in our Legal Terms, please address your request to:
-                        privacy@docbear-ent.com. If we ever grant you the permission to post, reproduce, or publicly
+                        privacy@docbearscomfort.kitchen. If we ever grant you the permission to post, reproduce, or publicly
                         display any part of our Services or Content, you must identify us as the owners or licensors of
                         the Services, Content, or Marks and ensure that any copyright or proprietary notice appears or
                         is visible on posting, reproducing, or displaying our Content.
@@ -499,7 +499,7 @@ const TermsOfUse = () => {
                         <div></div>
                         <div>Cedar Rapids, IA </div>
                         <div>United States</div>
-                        <div>privacy@docbear-ent.com</div>
+                        <div>privacy@docbearscomfort.kitchen</div>
                     </div>
                 </div>
 

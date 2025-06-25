@@ -639,7 +639,7 @@ export default function ShoppingPage() {
                                         Upgrade to Gold - Start Shopping Smarter!
                                     </TouchEnhancedButton>
                                     <p className="text-sm text-gray-600 mt-3">
-                                        7-day free trial • $4.99/month • Cancel anytime
+                                        7-day free trial • $4.99/month Gold, $9.99/month Platinum • Cancel anytime
                                     </p>
                                 </div>
                             </div>

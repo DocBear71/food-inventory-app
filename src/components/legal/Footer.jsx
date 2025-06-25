@@ -211,10 +211,10 @@ const Footer = () => {
                                     </p>
                                     <p style={{ margin: '0' }}>
                                         <a
-                                                href="mailto:privacy@docbear-ent.com"
+                                                href="mailto:privacy@docbearscomfort.kitchen"
                                                 style={{ color: '#e74c3c', textDecoration: 'none' }}
                                         >
-                                            privacy@docbear-ent.com
+                                            privacy@docbearscomfort.kitchen
                                         </a>
                                     </p>
                                 </div>
