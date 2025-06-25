@@ -3076,3 +3076,59 @@ body.modal-open {
         background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
     }
 }
+
+/* MISSING GREEN GRADIENT UTILITIES FOR SHOPPING PAGE */
+
+/* FROM GREEN COLORS */
+.from-green-600 {
+    --tw-gradient-from: #16a34a !important;
+    --tw-gradient-to: rgba(22, 163, 74, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-green-700 {
+    --tw-gradient-from: #15803d !important;
+    --tw-gradient-to: rgba(21, 128, 61, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+/* TO GREEN COLORS */
+.to-emerald-600 {
+    --tw-gradient-to: #059669 !important;
+}
+
+.to-emerald-700 {
+    --tw-gradient-to: #047857 !important;
+}
+
+/* HOVER GREEN GRADIENTS */
+.hover\:from-green-600:hover {
+    --tw-gradient-from: #16a34a !important;
+    --tw-gradient-to: rgba(22, 163, 74, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:from-green-700:hover {
+    --tw-gradient-from: #15803d !important;
+    --tw-gradient-to: rgba(21, 128, 61, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.hover\:to-emerald-600:hover {
+    --tw-gradient-to: #059669 !important;
+}
+
+.hover\:to-emerald-700:hover {
+    --tw-gradient-to: #047857 !important;
+}
+
+/* FALLBACK FOR BROWSERS THAT DON'T SUPPORT CSS CUSTOM PROPERTIES */
+@supports not (background: color(display-p3 1 1 1)) {
+    .bg-gradient-to-r.from-green-600.to-emerald-600 {
+        background: linear-gradient(to right, #16a34a, #059669) !important;
+    }
+
+    .bg-gradient-to-r.from-green-700.to-emerald-700 {
+        background: linear-gradient(to right, #15803d, #047857) !important;
+    }
+}
