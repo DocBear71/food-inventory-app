@@ -71,6 +71,15 @@ function RecipesContent() {
         {value: 'breakfast', label: 'Breakfast'}
     ];
 
+    // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
+    const DECIMAL_PRESETS = [
+        { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
+        { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
+        { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
+        { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
+        { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
+    ];
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             redirect('/auth/signin');
@@ -424,6 +433,12 @@ function RecipesContent() {
                     return 0;
             }
         });
+    };
+
+    // COMMENTED OUT: Quick preset handler for decimal cleanup
+    const handleDecimalPreset = (preset) => {
+        setIngredientSearch(preset.value);
+        setIngredientSearchType(preset.type);
     };
 
     const formatCookTime = (minutes) => {
@@ -842,7 +857,7 @@ function RecipesContent() {
                                     <h3 className="text-sm font-medium text-green-800">Community Recipe Collection</h3>
                                     <p className="text-sm text-green-700 mt-1">
                                         Discover recipes shared by the community, including Doc Bear's Comfort Food
-                                        collection. Save favorites to your personal collection!
+                                        Survival Guides. Save favorites to your personal collection!
                                     </p>
                                 </div>
                             </div>
@@ -960,8 +975,86 @@ function RecipesContent() {
                             </div>
                         )}
 
+                        {/* COMMENTED OUT: Decimal Issues Quick Search (for future import cleanup needs)*/}
+                {activeTab === 'my-recipes' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                        <div className="flex items-start">
+                            <div className="text-orange-600 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-medium text-orange-800 mb-2">🔧 Import Cleanup Tools</h3>
+                                <p className="text-sm text-orange-700 mb-3">
+                                    Quick search for common decimal conversion issues from cookbook imports:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {DECIMAL_PRESETS.map((preset, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            onClick={() => handleDecimalPreset(preset)}
+                                            className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 rounded-full transition-colors"
+                                        >
+                                            {preset.label}
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
+
                         {/* Enhanced Filters and Search */}
                         <div className="bg-white rounded-lg border p-6 mb-8">
+
+                            {/* NEW: Ingredient Search Section */}
+                            {/* Blocked out while not needed..*/}
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">🔍 Ingredient Search</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2">
+                                <label htmlFor="ingredient-search" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Search in Ingredients
+                                </label>
+                                <input
+                                    type="text"
+                                    id="ingredient-search"
+                                    value={ingredientSearch}
+                                    onChange={(e) => setIngredientSearch(e.target.value)}
+                                    placeholder="e.g., 0.33333333333, flour, 2 cups..."
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="search-type" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Search Type
+                                </label>
+                                <select
+                                    id="search-type"
+                                    value={ingredientSearchType}
+                                    onChange={(e) => setIngredientSearchType(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    <option value="any">Any Match</option>
+                                    <option value="exact">Exact Text</option>
+                                    <option value="amount">Amount/Quantity</option>
+                                    <option value="regex">Regex Pattern</option>
+                                </select>
+                            </div>
+                        </div>
+                        {ingredientSearch && (
+                            <div className="mt-2 text-xs text-gray-600">
+                                <span className="font-medium">Active search:</span> Looking for "{ingredientSearch}" in ingredient {ingredientSearchType === 'amount' ? 'amounts' : ingredientSearchType === 'regex' ? 'using regex pattern' : 'text'}
+                            </div>
+                        )}
+                    </div>
+
+
+                            {/* Existing Filters */}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                                 {/* Search - spans 2 columns */}
                                 <div className="lg:col-span-2">
