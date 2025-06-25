@@ -629,10 +629,11 @@ function InventoryContent() {
 
                             })})
                             </h2>
+
                             {!subscription.loading && (
                                 <p className="text-sm text-gray-600 mt-1">
                                     {(() => {
-                                        const usageInfo = getUsageInfo();
+
                                         if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
                                             return `Unlimited Inventory on ${usageInfo.tier} plan`;
                                         } else if (usageInfo.isAtLimit) {
