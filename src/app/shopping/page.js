@@ -652,27 +652,37 @@ export default function ShoppingPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-3">
                                         <div className="flex items-center space-x-3">
-                                            <div
-                                                className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                            </div>
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                                            <span className="text-sm">Meal planning (up to 2 weeks)</span>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                                            <span className="text-sm">250 inventory items (vs 50 free)</span>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                                            <span className="text-sm">Unlimited UPC scanning</span>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                                            <span className="text-sm">Common Items Wizard</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
                                             <span className="text-sm">Recipe reviews & ratings</span>
                                         </div>
                                         <div className="flex items-center space-x-3">
-                                            <div
-                                                className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                            </div>
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
                                             <span className="text-sm">Email notifications</span>
                                         </div>
                                         <div className="flex items-center space-x-3">
-                                            <div
-                                                className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                            </div>
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
                                             <span className="text-sm">Nutritional information</span>
                                         </div>
                                         <div className="flex items-center space-x-3">
-                                            <div
-                                                className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                            </div>
+                                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
                                             <span className="text-sm">100 personal recipes (vs 5 free)</span>
                                         </div>
                                     </div>
@@ -1239,56 +1249,6 @@ export default function ShoppingPage() {
                                                                 )}
                                                             </div>
                                                         )}
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Smart shopping list generation</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Meal planning (up to 2 weeks)</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span
-                                                            className="text-sm">250 inventory items (vs 50 free)</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Unlimited UPC scanning</span>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Recipe reviews & ratings</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Email notifications</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span className="text-sm">Nutritional information</span>
-                                                    </div>
-                                                    <div className="flex items-center space-x-3">
-                                                        <div
-                                                            className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓
-                                                        </div>
-                                                        <span
-                                                            className="text-sm">100 personal recipes (vs 5 free)</span>
                                                     </div>
                                                 </div>
 
