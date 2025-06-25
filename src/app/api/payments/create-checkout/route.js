@@ -92,6 +92,17 @@ export async function POST(request) {
         // Create or retrieve Stripe customer
         let stripeCustomerId = user.subscription?.stripeCustomerId;
 
+        // Check if existing customer ID is valid (handles test/live mode switches)
+        if (stripeCustomerId) {
+            try {
+                await stripe.customers.retrieve(stripeCustomerId);
+                console.log('✅ Existing Stripe customer found:', stripeCustomerId);
+            } catch (error) {
+                console.log('❌ Existing customer ID invalid (likely test/live mode switch), creating new customer');
+                stripeCustomerId = null;
+            }
+        }
+
         if (!stripeCustomerId) {
             console.log('🆕 Creating new Stripe customer...');
             const customer = await stripe.customers.create({
