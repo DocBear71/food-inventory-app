@@ -102,8 +102,11 @@ function InventoryContent() {
         const tier = subscription.tier || 'free';
         return {
             current: inventory.length,
-            limit: tier === 'free' ? 50 : tier === 'gold' ? 250 : 'Unlimited',
-            isUnlimited: tier === 'platinum',
+            limit: tier === 'free' ? 50 :
+                   tier === 'gold' ? 250 :
+                   tier === 'admin' ? 'unlimited' :
+                   'unlimited',
+            isUnlimited: tier === 'platinum' || tier === 'admin',
             tier
         };
     };
@@ -611,28 +614,35 @@ function InventoryContent() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                                📦 Inventory
-                                <span className={`text-xs px-3 py-1 rounded-full font-medium ${getUsageColor(true)}`}>
-                {getUsageInfo().current}/{getUsageInfo().limit}
-            </span>
+                                📦 Inventory ({(() => {
+                                    if (getUsageInfo.isUnlimited || getUsageInfo.tier === 'admin') {
+                                    return `${getUsageInfo.current}`;
+                                }
+                return `${getUsageInfo().current}/{getUsageInfo().limit}`;
+
+                            })})
                             </h2>
                             {!subscription.loading && (
                                 <p className="text-sm text-gray-600 mt-1">
                                     {(() => {
-                                        const usage = getUsageInfo();
-                                        return usage.isUnlimited ? (
-                                            'Unlimited items on Platinum plan'
-                                        ) : usage.current >= usage.limit ? (
-                                            <span className="text-red-600 font-medium">
-                                You've reached your {usage.tier} plan limit
+                                        const usageInfo = getUsageInfo();
+                                        if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
+                                            return `Unlimited Inventory on ${usageInfo.tier} plan`;
+                                        } else if (usageInfo.isAtLimit) {
+                                            return (
+                                                <span className="text-red-600 font-medium">
+                                You've reached your {usageInfo.tier} plan limit
                             </span>
-                                        ) : usage.current >= (usage.limit * 0.8) ? (
-                                            <span className="text-orange-600">
-                                {usage.limit - usage.current} item{usage.limit - usage.current !== 1 ? 's' : ''} remaining
+                                            );
+                                        } else if (usageInfo.isNearLimit) {
+                                            return (
+                                                <span className="text-orange-600">
+                                {typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} Inventory{(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining
                             </span>
-                                        ) : (
-                                            `${usage.limit - usage.current} item${usage.limit - usage.current !== 1 ? 's' : ''} remaining on ${usage.tier} plan`
-                                        );
+                                            );
+                                        } else {
+                                            return `${typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} Item${(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`;
+                                        }
                                     })()}
                                 </p>
                             )}
@@ -835,11 +845,14 @@ function InventoryContent() {
                                 Track your food and ingredients to reduce waste and always know what you have on hand.
                             </p>
                             {!subscription.loading && (
-                                <div className="mt-2 text-xs text-blue-600">
+                                <div className="mt-2 text-xs text-purple-600">
                                     {(() => {
-                                        const usage = getUsageInfo();
-                                        const remaining = usage.isUnlimited ? 'Unlimited' : Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                        return `${usage.current} items stored • ${remaining} ${usage.isUnlimited ? '' : `slots remaining on ${usage.tier} plan`}`;
+                                        const usage = getUsageInfo('inventory');
+                                        if (usage.isUnlimited || usage.tier === 'admin') {
+                                            return `${usage.current} saved • Unlimited on ${usage.tier} plan`;
+                                        }
+                                        const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
+                                        return `${usage.current} items stored • ${remaining} remaining on ${usage.tier} plan`;
                                     })()}
                                 </div>
                             )}
