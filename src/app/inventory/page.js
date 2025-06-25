@@ -622,34 +622,34 @@ function InventoryContent() {
                         <div>
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
                                 📦 Inventory ({(() => {
-                                    if (getUsageInfo.isUnlimited || getUsageInfo.tier === 'admin') {
-                                    return `${getUsageInfo.current}`;
+                                const usage = getUsageInfo(); // Call the function to get the object
+                                if (usage.isUnlimited || usage.tier === 'admin') {
+                                    return `${usage.current}`;
                                 }
-                return `${getUsageInfo().current}/{getUsageInfo().limit}`;
-
-                            })})
+                                return `${usage.current}/${usage.limit}`; // Fixed the syntax here
+                            })()})
                             </h2>
 
                             {!subscription.loading && (
                                 <p className="text-sm text-gray-600 mt-1">
                                     {(() => {
-
-                                        if (usageInfo.isUnlimited || usageInfo.tier === 'admin') {
-                                            return `Unlimited Inventory on ${usageInfo.tier} plan`;
-                                        } else if (usageInfo.isAtLimit) {
+                                        const usage = getUsageInfo(); // Get usage info consistently
+                                        if (usage.isUnlimited || usage.tier === 'admin') {
+                                            return `Unlimited inventory on ${usage.tier} plan`;
+                                        } else if (usage.current >= usage.limit) {
                                             return (
                                                 <span className="text-red-600 font-medium">
-                                You've reached your {usageInfo.tier} plan limit
-                            </span>
+                        You've reached your {usage.tier} plan limit
+                    </span>
                                             );
-                                        } else if (usageInfo.isNearLimit) {
+                                        } else if (usage.current >= (usage.limit * 0.8)) {
                                             return (
                                                 <span className="text-orange-600">
-                                {typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} Inventory{(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining
-                            </span>
+                        {usage.limit - usage.current} item{(usage.limit - usage.current) !== 1 ? 's' : ''} remaining
+                    </span>
                                             );
                                         } else {
-                                            return `${typeof usageInfo.limit === 'number' ? usageInfo.limit - usageInfo.current : 0} Item${(usageInfo.limit - usageInfo.current) !== 1 ? 's' : ''} remaining on ${usageInfo.tier} plan`;
+                                            return `${usage.limit - usage.current} item${(usage.limit - usage.current) !== 1 ? 's' : ''} remaining on ${usage.tier} plan`;
                                         }
                                     })()}
                                 </p>

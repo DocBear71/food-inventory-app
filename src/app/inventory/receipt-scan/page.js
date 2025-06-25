@@ -154,6 +154,58 @@ export default function ReceiptScan() {
         };
     };
 
+    const getReceiptScanUsageDisplay = () => {
+        if (subscription.loading) {
+            return {
+                current: '...',
+                limit: '...',
+                isUnlimited: false,
+                tier: 'free',
+                remaining: '...'
+            };
+        }
+
+        // Admin always has unlimited access
+        if (subscription.isAdmin) {
+            return {
+                current: subscription.usage.monthlyReceiptScans || 0,
+                limit: 'unlimited',
+                isUnlimited: true,
+                tier: 'admin',
+                remaining: 'unlimited'
+            };
+        }
+
+        const currentScans = subscription.usage.monthlyReceiptScans || 0;
+        let monthlyLimit;
+        let isUnlimited = false;
+
+        switch (subscription.tier) {
+            case 'free':
+                monthlyLimit = 2;
+                break;
+            case 'gold':
+                monthlyLimit = 20;
+                break;
+            case 'platinum':
+                monthlyLimit = 'unlimited';
+                isUnlimited = true;
+                break;
+            default:
+                monthlyLimit = 2;
+        }
+
+        const remaining = isUnlimited ? 'unlimited' : Math.max(0, monthlyLimit - currentScans);
+
+        return {
+            current: currentScans,
+            limit: monthlyLimit,
+            isUnlimited,
+            tier: subscription.tier || 'free',
+            remaining
+        };
+    };
+
     // UPDATED: Simplified usage check using subscription hook
     function checkUsageLimitsBeforeScan() {
         if (subscription.loading) {
@@ -1314,6 +1366,54 @@ export default function ReceiptScan() {
                                 </TouchEnhancedButton>
                             </div>
                         </div>
+
+                        {/* Usage Info Display */}
+                        {(() => {
+                            const usageDisplay = getReceiptScanUsageDisplay();
+
+                            return (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <div className="text-blue-600 mr-3 mt-0.5">
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-sm font-medium text-blue-800">
+                                                📄 Receipt Scanning ({(() => {
+                                                if (usageDisplay.isUnlimited || usageDisplay.tier === 'admin') {
+                                                    return `${usageDisplay.current}`;
+                                                }
+                                                return `${usageDisplay.current}/${usageDisplay.limit}`;
+                                            })()})
+                                            </h3>
+                                            <p className="text-sm text-blue-700 mt-1">
+                                                {(() => {
+                                                    if (usageDisplay.isUnlimited || usageDisplay.tier === 'admin') {
+                                                        return `Unlimited receipt scans on ${usageDisplay.tier} plan`;
+                                                    } else if (usageDisplay.current >= usageDisplay.limit) {
+                                                        return (
+                                                            <span className="text-red-600 font-medium">
+                                        You've reached your {usageDisplay.tier} plan limit of {usageDisplay.limit} scans this month
+                                    </span>
+                                                        );
+                                                    } else if (usageDisplay.current >= (usageDisplay.limit * 0.8)) {
+                                                        return (
+                                                            <span className="text-orange-600">
+                                        {usageDisplay.remaining} scan{usageDisplay.remaining !== 1 ? 's' : ''} remaining this month
+                                    </span>
+                                                        );
+                                                    } else {
+                                                        return `${usageDisplay.remaining} scan${usageDisplay.remaining !== 1 ? 's' : ''} remaining this month on ${usageDisplay.tier} plan`;
+                                                    }
+                                                })()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Premium Feature Showcase */}
                         <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
