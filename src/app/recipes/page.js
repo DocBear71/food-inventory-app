@@ -72,13 +72,13 @@ function RecipesContent() {
     ];
 
     // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
-    const DECIMAL_PRESETS = [
-        { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
-        { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
-        { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
-        { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
-        { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
-    ];
+    // const DECIMAL_PRESETS = [
+    //     { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
+    //     { label: '2/3 issues (0.666...)', value: '0.6666666666', type: 'amount' },
+    //     { label: '1/6 issues (0.166...)', value: '0.16666666666', type: 'amount' },
+    //     { label: '5/6 issues (0.833...)', value: '0.83333333333', type: 'amount' },
+    //     { label: 'All decimal issues', value: '\\d+\\.\\d{5,}', type: 'regex' }
+    // ];
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -436,10 +436,10 @@ function RecipesContent() {
     };
 
     // COMMENTED OUT: Quick preset handler for decimal cleanup
-    const handleDecimalPreset = (preset) => {
-        setIngredientSearch(preset.value);
-        setIngredientSearchType(preset.type);
-    };
+    // const handleDecimalPreset = (preset) => {
+    //     setIngredientSearch(preset.value);
+    //     setIngredientSearchType(preset.type);
+    // };
 
     const formatCookTime = (minutes) => {
         if (!minutes) return null;
@@ -975,7 +975,7 @@ function RecipesContent() {
                             </div>
                         )}
 
-                        {/* COMMENTED OUT: Decimal Issues Quick Search (for future import cleanup needs)*/}
+                        {/* COMMENTED OUT: Decimal Issues Quick Search (for future import cleanup needs)
                 {activeTab === 'my-recipes' && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
                         <div className="flex items-start">
@@ -1004,14 +1004,14 @@ function RecipesContent() {
                         </div>
                     </div>
                 )}
-
+                */}
 
 
                         {/* Enhanced Filters and Search */}
                         <div className="bg-white rounded-lg border p-6 mb-8">
 
                             {/* NEW: Ingredient Search Section */}
-                            {/* Blocked out while not needed..*/}
+                            {/* Blocked out while not needed..
                     <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                         <h3 className="text-sm font-medium text-gray-700 mb-3">🔍 Ingredient Search</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1051,6 +1051,7 @@ function RecipesContent() {
                             </div>
                         )}
                     </div>
+                    */}
 
 
                             {/* Existing Filters */}

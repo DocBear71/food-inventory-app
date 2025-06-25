@@ -25,7 +25,7 @@ export async function GET(request) {
         console.log('Database connected');
 
         // NEW: Include isAdmin field in the query
-        const user = await User.findById(session.user.id).select('+isAdmin');
+        const user = await User.findById(session.user.id).select('+isAdmin').lean();
 
         if (!user) {
             console.log('User not found in database');
@@ -35,8 +35,23 @@ export async function GET(request) {
             );
         }
 
-        // NEW: Check if user is admin and log it
-        if (user.isAdmin) {
+        let isUserAdmin = user.isAdmin;
+        if (isUserAdmin === undefined) {
+            // Check if this user should be admin based on email (migration logic)
+            const adminEmails = [
+                'your-email@gmail.com',              // Replace with your actual email
+                'admin@docbearscomfortkitchen.com',
+                // Add more admin emails as needed
+            ];
+
+            isUserAdmin = adminEmails.includes(user.email.toLowerCase());
+
+            if (isUserAdmin) {
+                console.log('🔧 User should be admin, will be updated on next save:', user.email);
+            }
+        }
+
+        if (isUserAdmin) {
             console.log('Admin user detected:', user.email);
         }
 
@@ -211,7 +226,8 @@ export async function GET(request) {
         let subscription = user.subscription || {};
 
         // NEW: Override subscription for admin users
-        if (user.isAdmin) {
+        // UPDATED: Override subscription for admin users
+        if (isUserAdmin) {
             console.log('Overriding subscription for admin user');
             subscription = {
                 ...subscription,
@@ -254,7 +270,7 @@ export async function GET(request) {
             trialEndDate: subscription.trialEndDate || null,
 
             // NEW: Admin status
-            isAdmin: user.isAdmin || false,
+            isAdmin: isUserAdmin || false,
 
             // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {

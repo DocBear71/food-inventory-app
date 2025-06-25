@@ -624,17 +624,21 @@ UserSchema.pre('save', function(next) {
     ];
 
     // Auto-assign admin status based on email
-    if (adminEmails.includes(this.email.toLowerCase())) {
-        this.isAdmin = true;
+    if (this.isNew || this.isModified('email')) {
+        // Auto-assign admin status based on email
+        if (adminEmails.includes(this.email.toLowerCase())) {
+            console.log('🔧 Admin email detected, setting admin status for:', this.email);
+            this.isAdmin = true;
 
-        // Override subscription to admin tier
-        if (!this.subscription) {
-            this.subscription = {};
+            // Override subscription to admin tier
+            if (!this.subscription) {
+                this.subscription = {};
+            }
+            this.subscription.tier = 'admin';
+            this.subscription.status = 'active';
+            this.subscription.startDate = this.subscription.startDate || new Date();
+            this.subscription.endDate = null; // Never expires
         }
-        this.subscription.tier = 'admin';
-        this.subscription.status = 'active';
-        this.subscription.startDate = new Date();
-        this.subscription.endDate = null; // Never expires
     }
 
     next();
