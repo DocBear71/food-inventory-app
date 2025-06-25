@@ -1,6 +1,4 @@
-'use client';
-
-// file: /src/hooks/useSubscription.js v4 - FIXED to support SAVE_RECIPE and collections
+// file: /src/hooks/useSubscription.js v5 - FIXED mobile caching and admin support
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -25,25 +23,56 @@ export function SubscriptionProvider({ children }) {
     const fetchTimeoutRef = useRef(null);
     const lastFetchRef = useRef(0);
 
-    // Debounced fetch function to prevent excessive API calls
+    // FIXED: Clear cache function for mobile issues
+    const clearSubscriptionCache = useCallback(() => {
+        console.log('🧹 Clearing subscription cache...');
+
+        // Clear any cached data
+        if (typeof window !== 'undefined') {
+            // Clear session storage subscription cache
+            Object.keys(sessionStorage).forEach(key => {
+                if (key.includes('subscription') || key.includes('tier') || key.includes('admin')) {
+                    sessionStorage.removeItem(key);
+                }
+            });
+
+            // Clear local storage subscription cache
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes('subscription') || key.includes('tier') || key.includes('admin')) {
+                    localStorage.removeItem(key);
+                }
+            });
+
+            // Clear any global cache variables
+            if (window.subscriptionCache) {
+                delete window.subscriptionCache;
+            }
+        }
+
+        // Reset component state
+        setSubscriptionData(null);
+        setError(null);
+        setRetryCount(0);
+        lastFetchRef.current = 0;
+    }, []);
+
+    // FIXED: Enhanced fetch function with better cache busting
     const fetchSubscriptionData = useCallback(async (force = false) => {
         // Check for signout flags before making API calls
-        const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
-        const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
-        const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+        const preventCalls = typeof window !== 'undefined' && localStorage.getItem('prevent-session-calls') === 'true';
+        const signingOut = typeof window !== 'undefined' && sessionStorage.getItem('signout-in-progress') === 'true';
+        const justSignedOut = typeof window !== 'undefined' && sessionStorage.getItem('just-signed-out') === 'true';
 
         if (preventCalls || signingOut || justSignedOut) {
             console.log('Subscription: Skipping data fetch - signout in progress');
-            setSubscriptionData(null);
-            setError(null);
+            clearSubscriptionCache();
             setLoading(false);
-            setRetryCount(0);
             return;
         }
 
-        // Prevent excessive calls - only allow one call per 5 seconds unless forced
+        // Prevent excessive calls - only allow one call per 3 seconds unless forced
         const now = Date.now();
-        if (!force && (now - lastFetchRef.current) < 5000) {
+        if (!force && (now - lastFetchRef.current) < 3000) {
             console.log('Subscription fetch throttled - too soon since last call');
             return;
         }
@@ -58,55 +87,71 @@ export function SubscriptionProvider({ children }) {
             setError(null);
             lastFetchRef.current = now;
 
-            console.log('Fetching subscription data...');
-            const response = await fetch('/api/subscription/status?' + new URLSearchParams({
-                t: Date.now(), // Always add timestamp to prevent caching
-                force: force ? 'true' : 'false'
-            }), {
+            console.log('📊 Fetching subscription data...');
+
+            // FIXED: Enhanced cache busting for mobile devices
+            const cacheBreaker = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const params = new URLSearchParams({
+                t: cacheBreaker,
+                force: force ? 'true' : 'false',
+                mobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'true' : 'false'
+            });
+
+            const response = await fetch(`/api/subscription/status?${params}`, {
                 method: 'GET',
                 headers: {
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
                     'Pragma': 'no-cache',
                     'Expires': '0',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    // FIXED: Add mobile-specific headers
+                    'X-Cache-Buster': cacheBreaker
                 },
+                // FIXED: Disable all caching
+                cache: 'no-store'
             });
 
             if (response.ok) {
                 const data = await response.json();
                 console.log('📊 Raw subscription data received:', data);
 
-                // FIXED: Make sure we're using the fresh data immediately
+                // FIXED: Immediate state update and cache clear
                 setSubscriptionData(data);
                 setError(null);
                 setRetryCount(0);
 
-                // ADDED: Log the data we're setting
-                console.log('✅ Subscription data set in hook:', {
+                // FIXED: Store in sessionStorage with timestamp for debugging
+                if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('subscription-debug', JSON.stringify({
+                        data,
+                        timestamp: now,
+                        userAgent: navigator.userAgent.substring(0, 100)
+                    }));
+                }
+
+                console.log('✅ Subscription data set successfully:', {
                     tier: data.tier,
                     isAdmin: data.isAdmin,
-                    isActive: data.isActive
+                    isActive: data.isActive,
+                    isTrialActive: data.isTrialActive,
+                    timestamp: new Date(now).toISOString()
                 });
             } else {
                 const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                 const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
                 console.error('Subscription API error:', errorMessage);
 
-                // Don't set error state for auth issues - user might not be logged in
+                // Don't set error state for auth issues
                 if (response.status === 401) {
                     console.log('User not authenticated, clearing subscription data');
-                    setSubscriptionData(null);
-                    setError(null);
-
-                    // If API fails with 401, might be because session is invalid - clear signout flags
-                    localStorage.removeItem('prevent-session-calls');
-                    sessionStorage.removeItem('signout-in-progress');
-                    sessionStorage.removeItem('just-signed-out');
+                    clearSubscriptionCache();
+                    setLoading(false);
                 } else {
                     setError(errorMessage);
 
                     // Exponential backoff retry for server errors
                     if (response.status >= 500 && retryCount < 3) {
-                        const retryDelay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+                        const retryDelay = Math.pow(2, retryCount) * 2000;
                         console.log(`Retrying subscription fetch in ${retryDelay}ms (attempt ${retryCount + 1}/3)`);
 
                         fetchTimeoutRef.current = setTimeout(() => {
@@ -137,7 +182,7 @@ export function SubscriptionProvider({ children }) {
         } finally {
             setLoading(false);
         }
-    }, [session?.user?.id, retryCount]);
+    }, [session?.user?.id, retryCount, clearSubscriptionCache]);
 
     // Effect to fetch subscription data when session changes
     useEffect(() => {
@@ -146,33 +191,24 @@ export function SubscriptionProvider({ children }) {
         }
 
         // Check for signout flags before making API calls
-        const preventCalls = localStorage.getItem('prevent-session-calls') === 'true';
-        const signingOut = sessionStorage.getItem('signout-in-progress') === 'true';
-        const justSignedOut = sessionStorage.getItem('just-signed-out') === 'true';
+        const preventCalls = typeof window !== 'undefined' && localStorage.getItem('prevent-session-calls') === 'true';
+        const signingOut = typeof window !== 'undefined' && sessionStorage.getItem('signout-in-progress') === 'true';
+        const justSignedOut = typeof window !== 'undefined' && sessionStorage.getItem('just-signed-out') === 'true';
 
         if (preventCalls || signingOut || justSignedOut) {
             console.log('Subscription: Skipping data fetch - signout flags active');
-            setSubscriptionData(null);
-            setError(null);
+            clearSubscriptionCache();
             setLoading(false);
-            setRetryCount(0);
             return;
         }
 
         if (session?.user?.id) {
-            console.log('Session found, fetching subscription data');
+            console.log('📊 Session found, fetching subscription data...');
             fetchSubscriptionData(true);
         } else {
             console.log('No session, clearing subscription data');
-            setSubscriptionData(null);
-            setError(null);
+            clearSubscriptionCache();
             setLoading(false);
-            setRetryCount(0);
-
-            // Clear signout flags when session is properly cleared
-            localStorage.removeItem('prevent-session-calls');
-            sessionStorage.removeItem('signout-in-progress');
-            sessionStorage.removeItem('just-signed-out');
         }
 
         // Cleanup timeout on unmount or session change
@@ -181,7 +217,14 @@ export function SubscriptionProvider({ children }) {
                 clearTimeout(fetchTimeoutRef.current);
             }
         };
-    }, [session?.user?.id, status, fetchSubscriptionData]);
+    }, [session?.user?.id, status, fetchSubscriptionData, clearSubscriptionCache]);
+
+    // FIXED: Force refresh function for mobile cache issues
+    const forceRefresh = useCallback(async () => {
+        console.log('🔄 Force refreshing subscription data...');
+        clearSubscriptionCache();
+        await fetchSubscriptionData(true);
+    }, [clearSubscriptionCache, fetchSubscriptionData]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -196,7 +239,9 @@ export function SubscriptionProvider({ children }) {
         subscriptionData,
         loading,
         error,
-        refetch: () => fetchSubscriptionData(true)
+        refetch: () => fetchSubscriptionData(true),
+        forceRefresh, // FIXED: Add force refresh for mobile issues
+        clearCache: clearSubscriptionCache // FIXED: Add cache clear function
     };
 
     return (
@@ -212,7 +257,7 @@ export function useSubscription() {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
 
-    const { subscriptionData, loading, error, refetch } = context;
+    const { subscriptionData, loading, error, refetch, forceRefresh, clearCache } = context;
 
     // Helper functions with better error handling
     const checkFeature = (feature) => {
@@ -226,67 +271,6 @@ export function useSubscription() {
         } catch (err) {
             console.warn('Error checking feature access:', err);
             return false;
-        }
-    };
-
-    const forceSubscriptionRefresh = async () => {
-        try {
-            console.log('🔄 Forcing complete subscription refresh...');
-
-            // 1. Clear any cached data in the subscription provider
-            if (window.subscriptionCache) {
-                delete window.subscriptionCache;
-            }
-
-            // 2. Clear relevant localStorage/sessionStorage
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key.includes('subscription') || key.includes('admin') || key.includes('tier'))) {
-                    keysToRemove.push(key);
-                }
-            }
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-
-            // 3. Clear session storage too
-            const sessionKeysToRemove = [];
-            for (let i = 0; i < sessionStorage.length; i++) {
-                const key = sessionStorage.key(i);
-                if (key && (key.includes('subscription') || key.includes('admin') || key.includes('tier'))) {
-                    sessionKeysToRemove.push(key);
-                }
-            }
-            sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
-
-            // 4. Force a direct API call with cache busting
-            const response = await fetch('/api/subscription/status?' + new URLSearchParams({
-                t: Date.now(),
-                force: 'true',
-                refresh: 'complete'
-            }), {
-                method: 'GET',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                },
-            });
-
-            if (response.ok) {
-                const newData = await response.json();
-                console.log('✅ Fresh subscription data:', newData);
-
-                // 5. Force the page to reload to completely reset React state
-                console.log('🔄 Reloading page to reset React state...');
-                window.location.reload();
-            } else {
-                console.error('❌ Failed to fetch fresh subscription data');
-            }
-
-        } catch (error) {
-            console.error('❌ Error forcing subscription refresh:', error);
-            // Fallback - just reload the page
-            window.location.reload();
         }
     };
 
@@ -347,7 +331,7 @@ export function useSubscription() {
         return tier;
     };
 
-    // Rest of your existing functions...
+    // Rest of existing functions...
     const isGoldOrHigher = () => {
         if (subscriptionData?.isAdmin) return true; // Admin is higher than gold
         const tier = subscriptionData?.tier || 'free';
@@ -431,7 +415,7 @@ export function useSubscription() {
         getRemainingCount,
         getCurrentUsageCount,
 
-        // All your existing feature helpers will now work with admin
+        // All existing feature helpers will now work with admin
         canAddInventoryItem: checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
         canScanUPC: checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
         canScanReceipt: checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
@@ -456,8 +440,10 @@ export function useSubscription() {
         remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE),
         remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
 
-        // Actions
-        refetch
+        // Actions - FIXED: Add mobile-specific refresh functions
+        refetch,
+        forceRefresh, // NEW: For mobile cache issues
+        clearCache    // NEW: For debugging mobile issues
     };
 }
 
@@ -477,7 +463,7 @@ export function useFeatureGate(feature, currentCount = null) {
             tier: 'free',
             isGoldOrHigher: false,
             isPlatinum: false,
-            isAdmin: false // NEW
+            isAdmin: false
         };
     }
 
@@ -494,7 +480,7 @@ export function useFeatureGate(feature, currentCount = null) {
             tier: 'free',
             isGoldOrHigher: false,
             isPlatinum: false,
-            isAdmin: false // NEW
+            isAdmin: false
         };
     }
 
@@ -531,7 +517,7 @@ export function useFeatureGate(feature, currentCount = null) {
             tier: subscription.tier,
             isGoldOrHigher: subscription.isGoldOrHigher,
             isPlatinum: subscription.isPlatinum,
-            isAdmin: subscription.isAdmin // NEW
+            isAdmin: subscription.isAdmin
         };
     } catch (err) {
         console.error('Error in useFeatureGate:', err);
@@ -546,7 +532,7 @@ export function useFeatureGate(feature, currentCount = null) {
             tier: 'free',
             isGoldOrHigher: false,
             isPlatinum: false,
-            isAdmin: false // NEW
+            isAdmin: false
         };
     }
 }
@@ -563,8 +549,11 @@ export function useUpgradePrompt() {
             if (options.onUpgrade) {
                 options.onUpgrade(requiredTier, message);
             } else {
-                // Default behavior - could show a modal or redirect to pricing
-                window.location.href = `/pricing?source=feature-gate&feature=${feature}&required=${requiredTier}`;
+                // Default behavior - redirect to pricing or billing page
+                const targetPage = subscription.tier === 'free'
+                    ? `/pricing?source=feature-gate&feature=${feature}&required=${requiredTier}`
+                    : `/account/billing?source=feature-gate&feature=${feature}&required=${requiredTier}`;
+                window.location.href = targetPage;
             }
         } catch (err) {
             console.error('Error in promptUpgrade:', err);
@@ -577,6 +566,8 @@ export function useUpgradePrompt() {
         promptUpgrade,
         tier: subscription.tier,
         isTrialActive: subscription.isTrialActive,
-        daysUntilTrialEnd: subscription.daysUntilTrialEnd
+        daysUntilTrialEnd: subscription.daysUntilTrialEnd,
+        forceRefresh: subscription.forceRefresh, // NEW: For mobile debugging
+        clearCache: subscription.clearCache      // NEW: For mobile debugging
     };
 }
