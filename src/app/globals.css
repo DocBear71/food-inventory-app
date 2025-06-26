@@ -3489,3 +3489,511 @@ body.modal-open {
 .ring-offset-4 {
     --tw-ring-offset-width: 4px !important;
 }
+
+/* ADD THESE MISSING CSS UTILITIES TO YOUR /src/app/globals.css FILE */
+
+/* MISSING GRID UTILITIES FOR HELP CENTER CATEGORIES */
+.xl\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+/* MISSING TEXT UTILITIES */
+.text-4xl {
+    font-size: 2.25rem !important;
+    line-height: 2.5rem !important;
+}
+
+/* MISSING RESPONSIVE TEXT UTILITIES */
+@media (min-width: 1024px) {
+    .lg\:text-4xl {
+        font-size: 2.25rem !important;
+        line-height: 2.5rem !important;
+    }
+
+    .lg\:text-xl {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem !important;
+    }
+}
+
+/* MISSING BORDER UTILITIES */
+.border-t {
+    border-top-width: 1px !important;
+}
+
+.border-gray-100 {
+    border-color: #f3f4f6 !important;
+}
+
+/* MISSING FOCUS UTILITIES FOR BUTTONS */
+.focus\:outline-none:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+}
+
+.focus\:ring-2:focus {
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color) !important;
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+.focus\:ring-blue-500:focus {
+    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* MISSING BORDER FOCUS UTILITIES */
+.focus\:border-transparent:focus {
+    border-color: transparent !important;
+}
+
+/* MISSING DISABLED UTILITIES */
+.disabled\:bg-blue-400:disabled {
+    background-color: #60a5fa !important;
+}
+
+/* MISSING COLOR UTILITIES FOR CONTACT SUPPORT MODAL */
+.text-red-400 {
+    color: #f87171 !important;
+}
+
+.text-red-800 {
+    color: #991b1b !important;
+}
+
+.bg-red-50 {
+    background-color: #fef2f2 !important;
+}
+
+.border-red-200 {
+    border-color: #fecaca !important;
+}
+
+/* MISSING SPECIFIC COLOR COMBINATIONS FOR SUBSCRIPTION TIERS */
+.text-purple-800 {
+    color: #6b21a8 !important;
+}
+
+.bg-purple-100 {
+    background-color: #f3e8ff !important;
+}
+
+.border-purple-300 {
+    border-color: #d8b4fe !important;
+}
+
+.text-yellow-800 {
+    color: #92400e !important;
+}
+
+.bg-yellow-100 {
+    background-color: #fef3c7 !important;
+}
+
+.border-yellow-300 {
+    border-color: #fcd34d !important;
+}
+
+/* MISSING RESPONSIVE GRID UTILITIES FOR HELP CENTER */
+@media (min-width: 1280px) {
+    .xl\:grid-cols-5 {
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    }
+}
+
+/* MISSING CHECKBOX STYLING */
+input[type="checkbox"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: #fff !important;
+    margin: 0 !important;
+    font: inherit !important;
+    color: currentColor !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.25rem !important;
+    transform: translateY(-0.075em) !important;
+    display: grid !important;
+    place-content: center !important;
+}
+
+input[type="checkbox"]:checked {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+input[type="checkbox"]:checked::before {
+    content: "✓" !important;
+    color: white !important;
+    font-size: 0.75rem !important;
+    font-weight: bold !important;
+}
+
+input[type="checkbox"]:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+}
+
+/* MISSING RADIO BUTTON STYLING */
+input[type="radio"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: #fff !important;
+    margin: 0 !important;
+    font: inherit !important;
+    color: currentColor !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 50% !important;
+    transform: translateY(-0.075em) !important;
+    display: grid !important;
+    place-content: center !important;
+}
+
+input[type="radio"]:checked {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+input[type="radio"]:checked::before {
+    content: "" !important;
+    width: 0.5rem !important;
+    height: 0.5rem !important;
+    border-radius: 50% !important;
+    background-color: white !important;
+}
+
+input[type="radio"]:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+}
+
+/* MISSING TRANSFORM UTILITIES FOR FAQ ARROWS */
+.rotate-180 {
+    --tw-rotate: 180deg !important;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important;
+}
+
+/* MISSING TRANSITION UTILITIES FOR SMOOTH ANIMATIONS */
+.transition-transform {
+    transition-property: transform !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-duration: 150ms !important;
+}
+
+/* MISSING SR-ONLY UTILITY FOR ACCESSIBILITY */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border-width: 0 !important;
+}
+
+/* MISSING RESPONSIVE PADDING */
+@media (min-width: 1024px) {
+    .lg\:p-8 {
+        padding: 2rem !important;
+    }
+}
+
+/* MISSING SPACING UTILITIES */
+.space-x-5 > * + * {
+    margin-left: 1.25rem !important;
+}
+
+.space-y-5 > * + * {
+    margin-top: 1.25rem !important;
+}
+
+.mt-5 {
+    margin-top: 1.25rem !important;
+}
+
+.mt-10 {
+    margin-top: 2.5rem !important;
+}
+
+.mb-10 {
+    margin-bottom: 2.5rem !important;
+}
+
+.mb-8 {
+    margin-bottom: 2rem !important;
+}
+
+/* MISSING HOVER BORDER UTILITIES */
+.hover\:border-gray-300:hover {
+    border-color: #d1d5db !important;
+}
+
+.hover\:border-blue-300:hover {
+    border-color: #93c5fd !important;
+}
+
+.hover\:border-green-300:hover {
+    border-color: #86efac !important;
+}
+
+.hover\:border-purple-300:hover {
+    border-color: #d8b4fe !important;
+}
+
+/* MISSING FEEDBACK PAGE SPECIFIC UTILITIES */
+.divide-gray-200 > * + * {
+    border-top-color: #e5e7eb !important;
+}
+
+.leading-relaxed {
+    line-height: 1.625 !important;
+}
+
+/* MISSING HELP CENTER SPECIFIC UTILITIES */
+.bg-gradient-to-r {
+    background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important;
+}
+
+.from-blue-50 {
+    --tw-gradient-from: #eff6ff !important;
+    --tw-gradient-to: rgba(239, 246, 255, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-indigo-50 {
+    --tw-gradient-to: #eef2ff !important;
+}
+
+.from-green-50 {
+    --tw-gradient-from: #f0fdf4 !important;
+    --tw-gradient-to: rgba(240, 253, 244, 0) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-blue-50 {
+    --tw-gradient-to: #eff6ff !important;
+}
+
+/* MISSING CONTACT SUPPORT MODAL UTILITIES */
+.max-h-\[90vh\] {
+    max-height: 90vh !important;
+}
+
+.ring-4 {
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color) !important;
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+.ring-blue-500 {
+    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.ring-green-500 {
+    --tw-ring-color: rgba(34, 197, 94, 0.5) !important;
+}
+
+.ring-opacity-20 {
+    --tw-ring-opacity: 0.2 !important;
+}
+
+.ring-opacity-30 {
+    --tw-ring-opacity: 0.3 !important;
+}
+
+/* MISSING FEEDBACK FORM UTILITIES */
+.grid-template-columns-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+}
+
+/* MISSING SHADOW UTILITIES */
+.shadow-xl {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* MISSING RESPONSIVE UTILITIES FOR MOBILE OPTIMIZATION */
+@media (max-width: 640px) {
+    .mobile-modal-content {
+        margin: 1rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        max-height: calc(100vh - 2rem) !important;
+    }
+
+    .mobile-form-spacing {
+        gap: 1rem !important;
+    }
+
+    .mobile-touch-target {
+        min-height: 48px !important;
+        padding: 12px 16px !important;
+    }
+}
+
+/* MISSING STICKY UTILITIES */
+.sticky {
+    position: sticky !important;
+}
+
+/* MISSING SCROLLING UTILITIES FOR MODAL CONTENT */
+.overflow-y-auto {
+    overflow-y: auto !important;
+}
+
+.overscroll-contain {
+    overscroll-behavior: contain !important;
+}
+
+/* MISSING UTILITIES FOR LOADING STATES */
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1 !important;
+    }
+    50% {
+        opacity: .5 !important;
+    }
+}
+
+/* MISSING LINE HEIGHT UTILITIES */
+.leading-6 {
+    line-height: 1.5rem !important;
+}
+
+.leading-5 {
+    line-height: 1.25rem !important;
+}
+
+/* MISSING LETTER SPACING */
+.tracking-wider {
+    letter-spacing: 0.05em !important;
+}
+
+/* MISSING TEXT DECORATION */
+.line-through {
+    text-decoration-line: line-through !important;
+}
+
+/* MISSING BACKDROP UTILITIES */
+.backdrop-blur-md {
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* MISSING RESPONSIVE GRID FOR HELP CENTER */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+/* MISSING UTILITY VARIABLES */
+:root {
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    --tw-rotate: 0 !important;
+    --tw-skew-x: 0 !important;
+    --tw-skew-y: 0 !important;
+    --tw-scale-x: 1 !important;
+    --tw-scale-y: 1 !important;
+    --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/) !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-offset-color: #fff !important;
+    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-shadow: 0 0 #0000 !important;
+    --tw-shadow-colored: 0 0 #0000 !important;
+}
+
+/* ENSURE MODALS WORK PROPERLY ON ALL DEVICES */
+.modal-container {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+}
+
+.modal-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.modal-panel {
+    position: relative !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    transform: none !important;
+}
+
+/* MOBILE MODAL IMPROVEMENTS */
+@media (max-width: 767px) {
+    .modal-panel {
+        margin: 0 !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
+
+    .modal-content {
+        height: 100vh !important;
+        border-radius: 0 !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* FOCUS VISIBLE UTILITIES FOR BETTER ACCESSIBILITY */
+.focus-visible\:outline-none:focus-visible {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+}
+
+.focus-visible\:ring-2:focus-visible {
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color) !important;
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+/* SUPPORT FOR CSS GRID TEMPLATE AREAS (if needed) */
+.grid-template-areas-mobile {
+    grid-template-areas:
+        "header"
+        "content"
+        "footer" !important;
+}
+
+@media (min-width: 768px) {
+    .grid-template-areas-desktop {
+        grid-template-areas:
+            "header header header"
+            "sidebar content content"
+            "footer footer footer" !important;
+    }
+}
+
+/* MISSING PADDING RIGHT (pr) UTILITIES */
+.pr-3 { padding-right: 0.75rem !important; }
+.pr-4 { padding-right: 1rem !important; }
+.pr-6 { padding-right: 1.5rem !important; }
+.pr-8 { padding-right: 2rem !important; }
+
+/* MISSING PADDING BOTTOM (pb) UTILITIES */
+.pb-3 { padding-bottom: 0.75rem !important; }
+.pb-4 { padding-bottom: 1rem !important; }
+.pb-8 { padding-bottom: 2rem !important; }
+.pb-16 { padding-bottom: 4rem !important; }
+.pb-32 { padding-bottom: 8rem !important; }
