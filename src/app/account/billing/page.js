@@ -300,6 +300,7 @@ function BillingContent() {
                             <div>End Date: {subscription.endDate}</div>
                             <div>Formatted Start: {formatDate(subscription.startDate)}</div>
                             <div>Formatted End: {formatDate(subscription.endDate)}</div>
+                            <div>Full subscription object: {JSON.stringify(subscription, null, 2)}</div>
                         </div>
                     </div>
 
