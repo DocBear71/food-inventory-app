@@ -354,69 +354,50 @@ export default function RecipeSuggestions() {
     // NEW: Load data but don't analyze until user clicks "Analyze"
     const loadInitialData = async () => {
         setLoading(true);
-        setShowLoadingModal(true);
-        setLoadingProgress(0);
+        // REMOVED: setShowLoadingModal(true); - no modal needed for initial load
 
         try {
-            // Step 1: Load inventory
-            setCurrentLoadingTask('Loading your inventory...');
-            setLoadingProgress(10);
+            console.log('🔄 Loading initial data...');
 
+            // Step 1: Load inventory
             const inventoryResponse = await fetch(getApiUrl('/api/inventory'));
             const inventoryData = await inventoryResponse.json();
 
             if (inventoryData.success) {
                 setInventory(inventoryData.inventory);
-                console.log('Loaded inventory items:', inventoryData.inventory.length);
+                console.log('✅ Loaded inventory items:', inventoryData.inventory.length);
             }
 
-            setLoadingProgress(25);
-
             // Step 2: Create ingredient index
-            setCurrentLoadingTask('Indexing ingredients for fast lookup...');
-
+            console.log('🗂️ Creating ingredient index...');
             const index = createIngredientIndex(inventoryData.inventory || []);
             setIngredientIndex(index);
 
-            setLoadingProgress(50);
-
             // Step 3: Load curated meals
-            setCurrentLoadingTask('Loading curated meal suggestions...');
-
             const curatedResponse = await fetch(getApiUrl('/api/admin/meals?status=approved&limit=100'));
             const curatedData = await curatedResponse.json();
 
             if (curatedData.success) {
                 setCuratedMeals(curatedData.meals);
-                console.log('Loaded curated meals:', curatedData.meals.length);
+                console.log('✅ Loaded curated meals:', curatedData.meals.length);
             }
 
-            setLoadingProgress(75);
-
             // Step 4: Load recipes
-            setCurrentLoadingTask('Loading recipe database...');
-
             const recipesResponse = await fetch(getApiUrl('/api/recipes'));
             const recipesData = await recipesResponse.json();
 
             if (recipesData.success) {
                 setRecipes(recipesData.recipes);
-                console.log('Loaded recipes:', recipesData.recipes.length);
+                console.log('✅ Loaded recipes:', recipesData.recipes.length);
             }
 
-            setLoadingProgress(100);
-            setCurrentLoadingTask('Ready! Set your preferences and click "Find Recipes"');
-
             setDataLoaded(true);
+            console.log('🎉 Initial data loading complete!');
 
         } catch (error) {
-            console.error('Error loading data:', error);
-            setCurrentLoadingTask('Error loading data. Please try again.');
+            console.error('❌ Error loading data:', error);
         } finally {
-            setTimeout(() => {
-                setShowLoadingModal(false);
-                setLoading(false);
-            }, 500);
+            setLoading(false);
         }
     };
 
@@ -432,6 +413,9 @@ export default function RecipeSuggestions() {
         setCurrentLoadingTask('Starting analysis...');
 
         try {
+            // Small delay to show the modal
+            await new Promise(resolve => setTimeout(resolve, 300));
+
             // Filter recipes by category first
             let filteredRecipes = recipes;
             if (selectedCategory !== 'all') {
@@ -440,7 +424,7 @@ export default function RecipeSuggestions() {
             }
 
             setCurrentLoadingTask(`Analyzing ${filteredRecipes.length} recipes...`);
-            setLoadingProgress(10);
+            setLoadingProgress(15);
 
             // Process in batches of 25 to prevent blocking
             const batchSize = 25;
@@ -459,13 +443,21 @@ export default function RecipeSuggestions() {
                 const batchResults = await analyzeRecipeBatch(batch, ingredientIndex, i + 1, batches.length);
                 allResults.push(...batchResults);
 
-                // Update progress
-                const progress = 10 + ((i + 1) / batches.length) * 80;
+                // Update progress more granularly and add delays to make it visible
+                const progress = 15 + ((i + 1) / batches.length) * 70; // 15% to 85%
                 setLoadingProgress(progress);
+
+                // Add a small delay every few batches so users can see progress
+                if (i % 3 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
             }
 
             setCurrentLoadingTask('Filtering and sorting results...');
-            setLoadingProgress(95);
+            setLoadingProgress(90);
+
+            // Add delay before final step
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // Filter by match threshold and sort
             const suggestions = allResults
@@ -499,13 +491,16 @@ export default function RecipeSuggestions() {
 
             console.log(`Analysis complete: ${suggestions.length} matching recipes found`);
 
+            // Keep the success message visible for longer
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
         } catch (error) {
             console.error('Error during analysis:', error);
             setCurrentLoadingTask('Error during analysis. Please try again.');
+            // Keep error message visible
+            await new Promise(resolve => setTimeout(resolve, 2000));
         } finally {
-            setTimeout(() => {
-                setShowLoadingModal(false);
-            }, 1000);
+            setShowLoadingModal(false);
         }
     };
 
@@ -598,14 +593,14 @@ export default function RecipeSuggestions() {
 
     return (
         <MobileOptimizedLayout>
-            {/* Loading Modal */}
+            {/* Loading Modal
             <LoadingModal
                 isOpen={showLoadingModal}
                 progress={loadingProgress}
                 currentTask={currentLoadingTask}
                 inventory={inventory}
                 recipes={recipes}
-            />
+            />*/}
 
             <div className="space-y-6">
                 {/* Header */}
