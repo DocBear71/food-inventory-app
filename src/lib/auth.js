@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - v3 - Added aggressive signOut event handling
+// file: /src/lib/auth.js - v4 - Added emailVerified to session
 console.log('Auth config loading...');
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
@@ -36,10 +36,13 @@ export const authOptions = {
                         return null;
                     }
 
+                    // FIXED: Include emailVerified field from database
                     return {
                         id: user._id.toString(),
                         email: user.email,
                         name: user.name,
+                        emailVerified: user.emailVerified || false, // Add this field
+                        avatar: user.avatar || '', // Include avatar too for consistency
                     };
                 } catch (error) {
                     console.error('Auth error:', error);
@@ -61,12 +64,16 @@ export const authOptions = {
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
+                token.emailVerified = user.emailVerified; // ADDED: Store in JWT
+                token.avatar = user.avatar; // ADDED: Store avatar in JWT too
             }
             return token;
         },
         async session({ session, token }) {
             if (token) {
                 session.user.id = token.id;
+                session.user.emailVerified = token.emailVerified; // ADDED: Include in session
+                session.user.avatar = token.avatar; // ADDED: Include avatar in session
             }
             return session;
         },
