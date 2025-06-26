@@ -42,10 +42,23 @@ export default function HelpCenterPage() {
             id: 2,
             category: 'getting-started',
             question: 'What are the different subscription tiers?',
-            answer: 'We offer three tiers: Free (basic inventory tracking for up to 25 items), Gold ($9.99/month with unlimited inventory, meal planning, and email sharing), and Platinum ($19.99/month with all features plus priority support and advanced analytics). You can upgrade anytime from your account page.'
+            answer: 'We offer three tiers: Free (basic inventory tracking for up to 50 items), Gold ($4.99/month or $49.99/year with up to 250 items, meal planning, and email sharing), and Platinum ($9.99/month or $99.99/year with unlimited items, advanced features, and priority support). Annual plans save you 17%! You can upgrade anytime from your account page.'
         },
         {
             id: 3,
+            category: 'getting-started',
+            question: 'Do you offer free trials?',
+            answer: 'Yes! Both Gold and Platinum tiers include a 7-day free trial with full access to all features. No credit card is required to start your trial. You can cancel anytime during the trial period with no charges.'
+        },
+        {
+            id: 4,
+            category: 'getting-started',
+            question: 'Can I save money with annual billing?',
+            answer: 'Absolutely! Annual plans save you 17% compared to monthly billing. Gold is $49.99/year (vs $59.88 monthly) and Platinum is $99.99/year (vs $119.88 monthly). You can switch between monthly and annual billing in your account settings.'
+        },
+
+        {
+            id: 5,
             category: 'getting-started',
             question: 'Can I use the app on my phone?',
             answer: 'Yes! Doc Bear\'s Comfort Kitchen is a Progressive Web App (PWA) that works great on mobile devices. You can add it to your phone\'s home screen for an app-like experience. Native mobile apps for iOS and Android are coming soon!'
@@ -53,7 +66,7 @@ export default function HelpCenterPage() {
 
         // Inventory Management
         {
-            id: 4,
+            id: 6,
             category: 'inventory',
             question: 'How do I add items to my inventory?',
             answer: 'There are several ways to add items: 1) Use the UPC scanner to scan barcodes, 2) Search our UPC database by product name, 3) Use the "Common Items Wizard" for pantry staples, or 4) Manually add custom items. You can edit items after adding to include expiration dates, quantities, and storage locations.'
@@ -88,7 +101,7 @@ export default function HelpCenterPage() {
             id: 9,
             category: 'recipes',
             question: 'Can I save and organize recipes?',
-            answer: 'Yes! You can save recipes to custom collections (Gold+ feature), rate recipes, and add personal notes. Free users can save up to 10 recipes, while Gold and Platinum subscribers have unlimited recipe collections.'
+            answer: 'Yes! You can save recipes to custom collections. Free users can save up to 10 recipes total in 2 collections, Gold subscribers can save up to 200 recipes in 10 collections, and Platinum users have unlimited recipe collections with unlimited saved recipes. You can also rate recipes and add personal notes.'
         },
 
         // Meal Planning
@@ -119,10 +132,10 @@ export default function HelpCenterPage() {
             answer: 'Shopping lists can be generated from individual recipes, meal plans, or custom recipe selections. The app automatically organizes items by category (produce, pantry, etc.) and checks against your inventory to only include items you need to buy.'
         },
         {
-            id: 14,
+            id: 13,
             category: 'shopping',
             question: 'Can I share shopping lists with family?',
-            answer: 'Yes! Gold+ subscribers can email shopping lists to family members and friends. The lists include all recipe details and are formatted for easy shopping. This makes it simple for anyone to pick up ingredients while you\'re meal planning.'
+            answer: 'Yes! Gold and Platinum subscribers can email shopping lists to family members and friends. The lists include all recipe details and are formatted for easy shopping. This makes it simple for anyone to pick up ingredients while you\'re meal planning.'
         },
         {
             id: 15,
@@ -156,7 +169,7 @@ export default function HelpCenterPage() {
             id: 19,
             category: 'account',
             question: 'How do I upgrade or downgrade my subscription?',
-            answer: 'Visit your Account page and click "Manage Subscription" to change your plan. Upgrades take effect immediately, while downgrades apply at your next billing cycle. You\'ll retain access to premium features until the end of your current billing period.'
+            answer: 'Visit your Account page and click "Manage Subscription" to change your plan. Upgrades take effect immediately, while downgrades apply at your next billing cycle. You\'ll retain access to premium features until the end of your current billing period. Remember, annual plans save you 17% compared to monthly billing!'
         },
         {
             id: 20,
@@ -185,7 +198,7 @@ export default function HelpCenterPage() {
             answer: 'The UPC scanner requires camera permissions and good lighting. Make sure you\'ve allowed camera access in your browser settings. Position the barcode clearly in the scanner frame and ensure adequate lighting. If scanning fails, you can manually enter the UPC number.'
         },
         {
-            id: 24,
+            id: 26,
             category: 'technical',
             question: 'Can I export my data?',
             answer: 'Yes! You can export your inventory, recipes, and meal plans in various formats (CSV, PDF) from your account settings. This is useful for backups or if you want to use your data elsewhere. Data export is available for all subscription tiers.'
@@ -321,9 +334,9 @@ export default function HelpCenterPage() {
                         <div className="space-y-4">
                             {filteredFAQs.map(faq => (
                                 <div key={faq.id} className="border border-gray-200 rounded-lg">
-                                    <TouchEnhancedButton
+                                    <button
                                         onClick={() => toggleFAQ(faq.id)}
-                                        className="w-full p-4 text-left hover:bg-gray-50 transition-colors rounded-lg"
+                                        className="w-full p-4 text-left hover:bg-gray-50 transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-gray-900 pr-4">
@@ -342,7 +355,7 @@ export default function HelpCenterPage() {
                                                 </svg>
                                             </div>
                                         </div>
-                                    </TouchEnhancedButton>
+                                    </button>
 
                                     {expandedFAQ === faq.id && (
                                         <div className="px-4 pb-4">

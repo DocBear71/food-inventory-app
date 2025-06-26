@@ -159,7 +159,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                         </div>
                         {userSubscription?.tier && (
                                 <div className="mt-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium ${
                                     userSubscription.tier === 'platinum' ? 'bg-purple-100 text-purple-800' :
                                             userSubscription.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
                                                     'bg-gray-100 text-gray-800'
