@@ -181,17 +181,27 @@ function BillingContent() {
     const formatDate = (date) => {
         if (!date) return 'N/A';
 
-        // Handle both string and Date object inputs
-        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        try {
+            // Handle both string and Date object inputs
+            const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-        // Check if the date is valid
-        if (isNaN(dateObj.getTime())) return 'N/A';
+            // Check if the date is valid
+            if (isNaN(dateObj.getTime())) {
+                console.log('Invalid date:', date);
+                return 'N/A';
+            }
 
-        return dateObj.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+            // Manual formatting - guaranteed to work everywhere
+            const month = dateObj.getMonth() + 1; // getMonth() returns 0-11
+            const day = dateObj.getDate();
+            const year = dateObj.getFullYear();
+
+            return `${month}/${day}/${year}`;
+
+        } catch (error) {
+            console.error('Date formatting error:', error, 'for date:', date);
+            return 'N/A';
+        }
     };
 
     const getSavings = (plan) => {
@@ -303,13 +313,7 @@ function BillingContent() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-gray-600">Next billing date:</span>
-                                    <span className="ml-2 font-medium">{formatDate(subscription.endDate)}</span>
-                                </div>
-                                <div>
-                                    <span className="text-gray-600">Next billing date:</span>
-                                    <span className="ml-2 font-medium">
-        {subscription.endDate} - {formatDate(subscription.endDate)}
-    </span>
+                                    <span className="ml-2 font-medium">{formatDate(subscription.nextBillingDate)}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Started:</span>
