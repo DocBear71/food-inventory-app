@@ -1,5 +1,6 @@
 'use client';
-// file: /src/app/account/page.js v1 - Main account dashboard
+
+// file: /src/app/account/page.js v2 - Updated with Contact Support Modal
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,12 +9,14 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import ContactSupportModal from '@/components/support/ContactSupportModal';
 
 export default function AccountPage() {
     const { data: session, status } = useSafeSession();
     const router = useRouter();
     const subscription = useSubscription();
     const [loading, setLoading] = useState(false);
+    const [showContactModal, setShowContactModal] = useState(false);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -396,7 +399,7 @@ export default function AccountPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <TouchEnhancedButton
-                            onClick={() => window.open('mailto:privacy@docbearscomfort.kitchen', '_blank')}
+                            onClick={() => setShowContactModal(true)}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">📧</div>
@@ -426,6 +429,13 @@ export default function AccountPage() {
 
                 <Footer />
             </div>
+
+            {/* Contact Support Modal */}
+            <ContactSupportModal
+                isOpen={showContactModal}
+                onClose={() => setShowContactModal(false)}
+                userSubscription={subscription}
+            />
         </MobileOptimizedLayout>
     );
 }
