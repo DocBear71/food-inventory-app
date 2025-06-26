@@ -1,9 +1,11 @@
 'use client';
-// file: /src/components/recipes/SaveRecipeButton.js v5 - FIXED using global saved recipes hook to eliminate API spam
+
+// MAJOR UPDATE for /src/components/recipes/SaveRecipeButton.js
+// This component should now add recipes to collections instead of individual saves
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useSavedRecipes} from '@/hooks/useSavedRecipes';
+import {useSubscription} from '@/hooks/useSubscription';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
@@ -12,42 +14,39 @@ import {getApiUrl} from '@/lib/api-config';
 export default function SaveRecipeButton({
                                              recipeId,
                                              recipeName,
-                                             initialSavedState = false,
                                              onSaveStateChange = null,
                                              className = '',
                                              showText = true,
                                              size = 'medium' // 'small', 'medium', 'large'
                                          }) {
     const {data: session} = useSafeSession();
-    const {
-        savedRecipes,
-        loading: savedRecipesLoading,
-        error: savedRecipesError,
-        isRecipeSaved,
-        addToSaved,
-        removeFromSaved,
-        invalidateCache,
-        totalCount
-    } = useSavedRecipes();
-
+    const subscription = useSubscription();
     const [loading, setLoading] = useState(false);
+    const [collections, setCollections] = useState([]);
+    const [showCollectionModal, setShowCollectionModal] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [statusCheckFailed, setStatusCheckFailed] = useState(false);
 
-    // Determine if recipe is saved using global state
-    const isSaved = isRecipeSaved(recipeId);
-
-    // Handle initial loading state
+    // Fetch user's collections when component mounts
     useEffect(() => {
-        if (savedRecipesError) {
-            setStatusCheckFailed(true);
-        } else {
-            setStatusCheckFailed(false);
+        if (session?.user?.id) {
+            fetchCollections();
         }
-    }, [savedRecipesError]);
+    }, [session?.user?.id]);
 
-    const handleSaveToggle = async () => {
+    const fetchCollections = async () => {
+        try {
+            const response = await fetch(getApiUrl('/api/collections'));
+            const data = await response.json();
+            if (data.success) {
+                setCollections(data.collections);
+            }
+        } catch (error) {
+            console.error('Error fetching collections:', error);
+        }
+    };
+
+    const handleAddToCollection = async (collectionId) => {
         if (!session?.user?.id) {
             alert('Please sign in to save recipes');
             return;
@@ -58,156 +57,42 @@ export default function SaveRecipeButton({
         setSuccess('');
 
         try {
-            if (isSaved) {
-                // Optimistically update UI first
-                removeFromSaved(recipeId);
-                if (onSaveStateChange) onSaveStateChange(recipeId, false);
+            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ recipeId })
+            });
 
-                // Then make API call
-                const response = await fetch(getApiUrl(`/api/saved-recipes?recipeId=${recipeId}`), {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+            const data = await response.json();
 
-                if (!response.ok) {
-                    // Revert optimistic update on error
-                    addToSaved(recipeId);
-                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
-
-                    if (response.status >= 500) {
-                        throw new Error('Server temporarily unavailable. Please try again later.');
-                    }
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    setSuccess('Recipe removed from saved recipes');
-                } else {
-                    // Revert optimistic update on API error
-                    addToSaved(recipeId);
-                    if (onSaveStateChange) onSaveStateChange(recipeId, true);
-                    throw new Error(data.error || 'Failed to unsave recipe');
-                }
-            } else {
-                // Optimistically update UI first
-                addToSaved(recipeId);
+            if (response.ok && data.success) {
+                setSuccess(data.message || 'Recipe added to collection!');
+                setShowCollectionModal(false);
                 if (onSaveStateChange) onSaveStateChange(recipeId, true);
 
-                // Then make API call
-                const response = await fetch(getApiUrl('/api/saved-recipes'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({recipeId})
-                });
-
-                if (!response.ok) {
-                    // Handle 403 specially for usage limits
-                    if (response.status === 403) {
-                        try {
-                            const errorData = await response.json();
-                            if (errorData.code === 'USAGE_LIMIT_EXCEEDED') {
-                                // Revert optimistic update
-                                removeFromSaved(recipeId);
-                                if (onSaveStateChange) onSaveStateChange(recipeId, false);
-
-                                // Show error message
-                                setError(errorData.error || 'You have reached your saved recipe limit.');
-
-                                // Handle upgrade prompt after a short delay
-                                setTimeout(() => {
-                                    if (confirm(`${errorData.error}\n\nWould you like to upgrade now?`)) {
-                                        window.location.href = errorData.upgradeUrl || '/pricing';
-                                    }
-                                }, 100);
-                                return; // Exit early, we handled the error
-                            }
-                        } catch (parseError) {
-                            console.warn('Could not parse 403 response:', parseError);
+                // Refresh collections to show updated recipe count
+                fetchCollections();
+            } else {
+                if (data.code === 'USAGE_LIMIT_EXCEEDED') {
+                    setError(data.error || 'You have reached your recipe limit.');
+                    setTimeout(() => {
+                        if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
+                            window.location.href = data.upgradeUrl || '/pricing';
                         }
-                    }
-
-                    // Revert optimistic update on other errors
-                    removeFromSaved(recipeId);
-                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
-
-                    if (response.status >= 500) {
-                        throw new Error('Server temporarily unavailable. Please try again later.');
-                    }
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    setSuccess(data.message || 'Recipe saved successfully');
+                    }, 100);
                 } else {
-                    // Revert optimistic update on API error
-                    removeFromSaved(recipeId);
-                    if (onSaveStateChange) onSaveStateChange(recipeId, false);
-
-                    if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                        // Show error message for limit exceeded
-                        setError(data.error || 'You have reached your saved recipe limit.');
-
-                        // Handle upgrade prompt after a short delay
-                        setTimeout(() => {
-                            if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
-                                window.location.href = data.upgradeUrl || '/pricing';
-                            }
-                        }, 100);
-                        return; // Don't throw error, we handled it
-                    } else {
-                        throw new Error(data.error || 'Failed to save recipe');
-                    }
+                    setError(data.error || 'Failed to add recipe to collection');
                 }
             }
         } catch (error) {
-            console.error('Error toggling save state:', error);
-
-            // Provide more user-friendly error messages
-            let userMessage = 'An error occurred';
-            if (error.message.includes('Server temporarily unavailable')) {
-                userMessage = error.message;
-            } else if (error.message.includes('500')) {
-                userMessage = 'Server temporarily unavailable. Please try again later.';
-            } else if (error.message.includes('503')) {
-                userMessage = 'Service temporarily unavailable. Please try again later.';
-            } else if (error.message.includes('401')) {
-                userMessage = 'Please sign in again to save recipes.';
-            } else if (error.message.includes('403')) {
-                userMessage = 'You have reached your saved recipe limit.';
-            } else if (error.message.includes('404')) {
-                userMessage = 'Recipe not found or no longer available.';
-            } else if (error.message.includes('Network') || error.message.includes('fetch')) {
-                userMessage = 'Network error. Please check your connection.';
-            } else {
-                userMessage = error.message || 'An error occurred';
-            }
-
-            setError(userMessage);
+            console.error('Error adding to collection:', error);
+            setError(error.message || 'Failed to add recipe to collection');
         } finally {
             setLoading(false);
         }
     };
-
-    // Clear messages after delay
-    useEffect(() => {
-        if (success || error) {
-            const timer = setTimeout(() => {
-                setSuccess('');
-                setError('');
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [success, error]);
 
     const getSizeClasses = () => {
         switch (size) {
@@ -231,65 +116,151 @@ export default function SaveRecipeButton({
         }
     };
 
+    // Clear messages after delay
+    useEffect(() => {
+        if (success || error) {
+            const timer = setTimeout(() => {
+                setSuccess('');
+                setError('');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, error]);
+
     return (
         <FeatureGate
-            feature={FEATURE_GATES.SAVE_RECIPE}
+            feature={FEATURE_GATES.RECIPE_COLLECTIONS}
             fallback={
                 <TouchEnhancedButton
                     onClick={() => window.location.href = '/pricing?source=save-recipe'}
-                    className={`bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-md font-medium hover:from-blue-500 hover:to-purple-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
+                    className={`bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-md font-medium hover:from-yellow-500 hover:to-orange-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
                 >
                     <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
-                    {showText && <span>Save Recipe (Gold)</span>}
+                    {showText && <span>Add to Collection (Gold)</span>}
                 </TouchEnhancedButton>
             }
         >
             <div className="relative">
                 <TouchEnhancedButton
-                    onClick={handleSaveToggle}
-                    disabled={loading || savedRecipesLoading}
-                    className={`${
-                        isSaved
-                            ? 'bg-green-600 hover:bg-green-700 text-white'
-                            : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
-                    } rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className} ${
-                        statusCheckFailed ? 'opacity-90' : ''
-                    }`}
-                    title={statusCheckFailed ? 'Save status could not be verified' : ''}
+                    onClick={() => setShowCollectionModal(true)}
+                    disabled={loading}
+                    className={`bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className}`}
                 >
-                    {(loading || savedRecipesLoading) ? (
-                        <div className={`animate-spin rounded-full border-b-2 ${
-                            isSaved ? 'border-white' : 'border-gray-600'
-                        } ${getIconSize()}`}></div>
+                    {loading ? (
+                        <div className={`animate-spin rounded-full border-b-2 border-gray-600 ${getIconSize()}`}></div>
                     ) : (
-                        <svg
-                            className={getIconSize()}
-                            fill={isSaved ? "currentColor" : "none"}
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                            />
+                        <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
                     )}
                     {showText && (
                         <span>
-                            {loading ? 'Saving...' :
-                                savedRecipesLoading ? 'Loading...' :
-                                    isSaved ? 'Saved' : 'Save Recipe'}
-                            {statusCheckFailed && !loading && !savedRecipesLoading && (
-                                <span className="text-xs opacity-75"> (?)</span>
-                            )}
+                            {loading ? 'Adding...' : 'Add to Collection'}
                         </span>
                     )}
                 </TouchEnhancedButton>
+
+                {/* Collection Selection Modal */}
+                {showCollectionModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        Add "{recipeName}" to Collection
+                                    </h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowCollectionModal(false)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                {collections.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {collections.map((collection) => {
+                                            const isRecipeInCollection = collection.recipes.some(recipe =>
+                                                recipe.recipeId?._id === recipeId || recipe.recipeId === recipeId
+                                            );
+
+                                            return (
+                                                <TouchEnhancedButton
+                                                    key={collection._id}
+                                                    onClick={() => handleAddToCollection(collection._id)}
+                                                    disabled={isRecipeInCollection || loading}
+                                                    className={`w-full p-4 text-left border rounded-lg transition-colors ${
+                                                        isRecipeInCollection
+                                                            ? 'bg-green-50 border-green-200 text-green-800 cursor-not-allowed'
+                                                            : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <div className="font-medium">
+                                                                📁 {collection.name}
+                                                            </div>
+                                                            <div className="text-sm text-gray-500">
+                                                                {collection.recipes.length} recipes
+                                                            </div>
+                                                        </div>
+                                                        {isRecipeInCollection && (
+                                                            <span className="text-green-600 font-medium text-sm">
+                                                                ✓ Added
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </TouchEnhancedButton>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-400 mb-4">
+                                            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                            </svg>
+                                        </div>
+                                        <h4 className="text-lg font-medium text-gray-900 mb-2">
+                                            No Collections Yet
+                                        </h4>
+                                        <p className="text-gray-500 mb-4">
+                                            Create your first collection to save this recipe
+                                        </p>
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                setShowCollectionModal(false);
+                                                window.location.href = '/recipes?tab=collections';
+                                            }}
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                                        >
+                                            📁 Create Collection
+                                        </TouchEnhancedButton>
+                                    </div>
+                                )}
+
+                                <div className="mt-6 pt-4 border-t border-gray-200">
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            setShowCollectionModal(false);
+                                            window.location.href = '/recipes?tab=collections';
+                                        }}
+                                        className="w-full text-center text-indigo-600 hover:text-indigo-700 text-sm"
+                                    >
+                                        + Create New Collection
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Success/Error Messages */}
                 {(success || error) && (
@@ -301,13 +272,6 @@ export default function SaveRecipeButton({
                         }`}>
                             {success ? `✓ ${success}` : `⚠️ ${error}`}
                         </div>
-                    </div>
-                )}
-
-                {/* Status Check Failed Warning (only show if user hovers and check failed) */}
-                {statusCheckFailed && !loading && !savedRecipesLoading && !success && !error && (
-                    <div className="absolute top-full left-0 mt-1 w-48 text-xs text-gray-500 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-                        Save status could not be verified
                     </div>
                 )}
             </div>

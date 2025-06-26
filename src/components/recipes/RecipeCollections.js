@@ -311,34 +311,64 @@ const RecipeCollections = ({
                 <FeatureGate
                     feature={FEATURE_GATES.RECIPE_COLLECTIONS}
                     fallback={
-                        <TouchEnhancedButton
-                            onClick={() => window.location.href = '/pricing?source=recipe-collections'}
-                            className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-md font-medium hover:from-yellow-500 hover:to-orange-600"
-                        >
-                            🎯 Unlock Collections
-                        </TouchEnhancedButton>
+                        <div className="text-center py-8">
+                            <div className="text-gray-500 mb-4">
+                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-medium text-gray-900 mb-2">
+                                Save Recipes with Collections
+                            </h3>
+                            <p className="text-gray-500 mb-4 max-w-md mx-auto">
+                                Collections are the primary way to save and organize your favorite recipes. Create themed collections like "Comfort Food", "Quick Dinners", or "Holiday Recipes".
+                            </p>
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                <div className="text-sm text-yellow-800">
+                                    <strong>🎯 How Recipe Collections Work:</strong>
+                                    <ul className="mt-2 space-y-1 text-left">
+                                        <li>• <strong>Free:</strong> 2 collections, 10 total recipes across collections</li>
+                                        <li>• <strong>Gold:</strong> 10 collections, 200 total recipes across collections</li>
+                                        <li>• <strong>Platinum:</strong> Unlimited collections and recipes</li>
+                                        <li>• Organize recipes by theme, cuisine, or occasion</li>
+                                        <li>• Share collections publicly with others</li>
+                                        <li>• Only way to save recipes for easy access</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={() => window.location.href = '/pricing?source=recipe-collections'}
+                                className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-3 rounded-md font-medium hover:from-yellow-500 hover:to-orange-600"
+                            >
+                                🚀 Upgrade to Save Recipes
+                            </TouchEnhancedButton>
+                        </div>
                     }
                 >
-                    <TouchEnhancedButton
-                        onClick={handleCreateCollectionClick}
-                        className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                            usageInfo.isAtLimit
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : usageInfo.isNearLimit
-                                    ? 'bg-orange-500 text-white hover:bg-orange-600'
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        }`}
-                        disabled={usageInfo.isAtLimit}
-                        title={usageInfo.isAtLimit ? `You've reached your ${usageInfo.tier} plan limit` : ''}
-                    >
-                        {usageInfo.isAtLimit ? (
-                            '🔒 Limit Reached'
-                        ) : usageInfo.isNearLimit ? (
-                            '⚠️ New Collection'
-                        ) : (
-                            '📁 New Collection'
-                        )}
-                    </TouchEnhancedButton>
+                    <div className="text-center py-8">
+                        <div className="text-gray-500 mb-4">
+                            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            No Collections Yet
+                        </h3>
+                        <p className="text-gray-500 mb-4">
+                            Create your first collection to start saving and organizing recipes. Collections are the primary way to save recipes on Doc Bear's Comfort Kitchen.
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
+                            <strong>💡 Pro Tip:</strong> Start with collections like "Weekly Favorites", "Comfort Food", or "Quick Meals" to organize your recipe discoveries.
+                        </div>
+                        <TouchEnhancedButton
+                            onClick={handleCreateCollectionClick}
+                            className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700"
+                        >
+                            📁 Create Your First Collection
+                        </TouchEnhancedButton>
+                    </div>
                 </FeatureGate>
             </div>
 

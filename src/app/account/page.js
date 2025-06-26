@@ -86,7 +86,7 @@ export default function AccountPage() {
             title: 'Profile Settings',
             description: 'Update personal info, preferences, and dietary restrictions',
             icon: '⚙️',
-            action: () => router.push('/account/profile'),
+            action: () => router.push('/profile'),
             color: 'border-green-200 hover:border-green-300 hover:bg-green-50'
         },
         {
@@ -98,9 +98,9 @@ export default function AccountPage() {
         },
         {
             title: 'Recipe Collections',
-            description: 'Organize your saved recipes and create collections',
+            description: 'Save and organize your favorite recipes in custom collections',
             icon: '📚',
-            action: () => router.push('/recipes?tab=saved-recipes'),
+            action: () => router.push('/recipes?tab=collections'),
             color: 'border-purple-200 hover:border-purple-300 hover:bg-purple-50'
         }
     ];
@@ -275,12 +275,31 @@ export default function AccountPage() {
                             </div>
                         </div>
 
-                        {/* Saved Recipes */}
+                        {/* Recipe Collections - UNIFIED */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-blue-600 mb-1">
+                                {subscription.usage?.recipeCollections || 0}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">Recipe Collections</div>
+                            {subscription.remainingRecipeCollections !== 'Unlimited' && (
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0)))}`}
+                                        style={{ width: `${getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0))}%` }}
+                                    ></div>
+                                </div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1">
+                                {subscription.remainingRecipeCollections === 'Unlimited' ? 'Unlimited' : `${subscription.remainingRecipeCollections} remaining`}
+                            </div>
+                        </div>
+
+                        {/* Recipes in Collections - UPDATED */}
+                        <div className="text-center">
+                            <div className="text-3xl font-bold text-purple-600 mb-1">
                                 {subscription.usage?.savedRecipes || 0}
                             </div>
-                            <div className="text-sm text-gray-600 mb-2">Saved Recipes</div>
+                            <div className="text-sm text-gray-600 mb-2">Recipes in Collections</div>
                             {subscription.remainingSavedRecipes !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
@@ -291,25 +310,6 @@ export default function AccountPage() {
                             )}
                             <div className="text-xs text-gray-500 mt-1">
                                 {subscription.remainingSavedRecipes === 'Unlimited' ? 'Unlimited' : `${subscription.remainingSavedRecipes} remaining`}
-                            </div>
-                        </div>
-
-                        {/* Personal Recipes */}
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-purple-600 mb-1">
-                                {subscription.usage?.personalRecipes || 0}
-                            </div>
-                            <div className="text-sm text-gray-600 mb-2">Personal Recipes</div>
-                            {subscription.remainingPersonalRecipes !== 'Unlimited' && (
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.personalRecipes || 0, subscription.remainingPersonalRecipes + (subscription.usage?.personalRecipes || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.personalRecipes || 0, subscription.remainingPersonalRecipes + (subscription.usage?.personalRecipes || 0))}%` }}
-                                    ></div>
-                                </div>
-                            )}
-                            <div className="text-xs text-gray-500 mt-1">
-                                {subscription.remainingPersonalRecipes === 'Unlimited' ? 'Unlimited' : `${subscription.remainingPersonalRecipes} remaining`}
                             </div>
                         </div>
                     </div>

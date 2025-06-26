@@ -353,11 +353,11 @@ export default function MobileDashboardLayout({children}) {
                             {/* Navigation Buttons */}
                             <div className="p-4 space-y-2">
                                 <TouchEnhancedButton
-                                    onClick={() => handleNavigation('/profile')}
+                                    onClick={() => handleNavigation('/account')}
                                     className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
                                 >
                                     <span className="text-xl">⚙️</span>
-                                    <span className="font-medium">Profile Settings</span>
+                                    <span className="font-medium">Account Settings</span>
                                 </TouchEnhancedButton>
 
                                 <TouchEnhancedButton

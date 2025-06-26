@@ -13,8 +13,6 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {getApiUrl} from '@/lib/api-config';
 import RecipeCollections from '@/components/recipes/RecipeCollections';
-import SavedRecipes from "@/components/recipes/SavedRecipes";
-import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
 import {useSavedRecipes} from '@/hooks/useSavedRecipes';
 import {FEATURE_GATES} from "@/lib/subscription-config";
@@ -35,7 +33,6 @@ function RecipesContent() {
     const searchParams = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('');
     const [allCategories, setAllCategories] = useState([]);
-    const {totalCount: globalSavedCount, loading: savedRecipesGlobalLoading} = useSavedRecipes();
 
     // Enhanced state for saved recipes and collections counts with better error handling
     const [collectionsCount, setCollectionsCount] = useState(0);
@@ -460,7 +457,6 @@ function RecipesContent() {
 
     // Update the getTabCounts function to use globalSavedCount:
     const getTabCounts = () => {
-        // FIXED: Ensure recipes is always an array before filtering
         const recipesArray = Array.isArray(recipes) ? recipes : [];
 
         const myRecipes = recipesArray.filter(recipe =>
@@ -471,7 +467,6 @@ function RecipesContent() {
         return {
             myRecipes: myRecipes.length,
             publicRecipes: publicRecipes.length,
-            savedRecipes: globalSavedCount || 0, // Use global count directly
             collections: collectionsCount
         };
     };
@@ -490,17 +485,8 @@ function RecipesContent() {
                     current: subscription.usage?.personalRecipes || 0,
                     limit: tier === 'free' ? 5 :
                         tier === 'gold' ? 100 :
-                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
-                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
-                    tier
-                };
-            case 'saved-recipes':
-                return {
-                    current: globalSavedCount || 0,
-                    limit: tier === 'free' ? 10 :
-                        tier === 'gold' ? 200 :
-                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
-                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
+                            tier === 'admin' ? 'Unlimited' : 'Unlimited',
+                    isUnlimited: tier === 'platinum' || tier === 'admin',
                     tier
                 };
             case 'collections':
@@ -508,8 +494,8 @@ function RecipesContent() {
                     current: collectionsCount,
                     limit: tier === 'free' ? 2 :
                         tier === 'gold' ? 10 :
-                            tier === 'admin' ? 'Unlimited' : 'Unlimited', // Handle admin and platinum
-                    isUnlimited: tier === 'platinum' || tier === 'admin', // Admin is unlimited
+                            tier === 'admin' ? 'Unlimited' : 'Unlimited',
+                    isUnlimited: tier === 'platinum' || tier === 'admin',
                     tier
                 };
             default:
@@ -524,20 +510,13 @@ function RecipesContent() {
             return '...';
         }
 
-        // For saved recipes, show loading only if global hook is loading
-        if (tabType === 'saved-recipes' && savedRecipesGlobalLoading) {
-            return '...';
-        }
-
-        // For other tabs, use existing loading check
-        if (tabType !== 'saved-recipes' && loadingCounts) {
+        if (tabType !== 'collections' && loadingCounts) {
             return '...';
         }
 
         const usage = getUsageInfo(tabType);
         const count = getTabCounts()[tabType] || usage.current;
 
-        // Handle admin and unlimited tiers properly
         if (usage.isUnlimited || usage.tier === 'admin') {
             return `${count}`;
         }
@@ -552,37 +531,28 @@ function RecipesContent() {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
 
-        // For saved recipes, check global loading state
-        if (tabType === 'saved-recipes' && savedRecipesGlobalLoading) {
-            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
-        }
-
-        // For other tabs, use existing loading check
-        if (tabType !== 'saved-recipes' && loadingCounts) {
+        if (tabType !== 'collections' && loadingCounts) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
 
         const usage = getUsageInfo(tabType);
         const count = getTabCounts()[tabType] || usage.current;
 
-        // NEW: Handle admin and unlimited tiers
         if (usage.isUnlimited || usage.tier === 'admin') {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
 
         const limit = typeof usage.limit === 'number' ? usage.limit : 999999;
-
-        // Calculate usage percentage
         const percentage = (count / limit) * 100;
 
         if (isActive) {
-            if (percentage >= 100) return 'bg-red-100 text-red-600'; // At limit
-            if (percentage >= 80) return 'bg-orange-100 text-orange-600'; // Near limit
-            return 'bg-indigo-100 text-indigo-600'; // Normal
+            if (percentage >= 100) return 'bg-red-100 text-red-600';
+            if (percentage >= 80) return 'bg-orange-100 text-orange-600';
+            return 'bg-indigo-100 text-indigo-600';
         } else {
-            if (percentage >= 100) return 'bg-red-200 text-red-700'; // At limit
-            if (percentage >= 80) return 'bg-orange-200 text-orange-700'; // Near limit
-            return 'bg-gray-200 text-gray-600'; // Normal
+            if (percentage >= 100) return 'bg-red-200 text-red-700';
+            if (percentage >= 80) return 'bg-orange-200 text-orange-700';
+            return 'bg-gray-200 text-gray-600';
         }
     };
 
@@ -710,7 +680,7 @@ function RecipesContent() {
                 </div>
 
                 {/* Enhanced Tab Navigation with Usage Counts - Real-time Updates */}
-                <div className="mb-6" key={`tab-counts-${globalSavedCount}-${collectionsCount}-${Date.now()}`}>
+                <div className="mb-6" key={`tab-counts-${collectionsCount}-${Date.now()}`}>
                     <div className="bg-gray-100 p-1 rounded-lg flex">
                         <TouchEnhancedButton
                             onClick={() => setActiveTab('my-recipes')}
@@ -750,24 +720,6 @@ function RecipesContent() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => setActiveTab('saved-recipes')}
-                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all touch-friendly ${
-                                activeTab === 'saved-recipes'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-800'
-                            }`}
-                        >
-                            <div className="flex items-center justify-center gap-2">
-                                <span>📚 Saved</span>
-                                <span
-                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('saved-recipes', activeTab === 'saved-recipes')}`}
-                                    key={`saved-count-${globalSavedCount}`}>
-                    {formatCountWithLimit('saved-recipes')}
-                </span>
-                            </div>
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
                             onClick={() => setActiveTab('collections')}
                             className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all touch-friendly ${
                                 activeTab === 'collections'
@@ -786,15 +738,6 @@ function RecipesContent() {
                     </div>
                 </div>
 
-                {/* Enhanced debugging helper to see what's happening with the counts: */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-                        <strong>Debug:</strong> globalSavedCount={globalSavedCount},
-                        globalLoading={savedRecipesGlobalLoading},
-                        tabCounts.savedRecipes={getTabCounts().savedRecipes},
-                        formatCountWithLimit(&#39;saved-recipes&#39;)={formatCountWithLimit('saved-recipes')}
-                    </div>
-                )}
 
                 {/* Enhanced Tab Content Info with Usage Details */}
                 <div className="mb-6">
@@ -885,36 +828,6 @@ function RecipesContent() {
                                 </div>
                             </div>
                         </div>
-                    ) : activeTab === 'saved-recipes' ? (
-                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                            <div className="flex items-start">
-                                <div className="text-purple-600 mr-3 mt-0.5">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd"
-                                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                                              clipRule="evenodd"/>
-                                    </svg>
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-medium text-purple-800">Saved Recipes</h3>
-                                    <p className="text-sm text-purple-700 mt-1">
-                                        Recipes you've saved from the community for quick access and future reference.
-                                    </p>
-                                    {!loadingCounts && !subscription.loading && (
-                                        <div className="mt-2 text-xs text-purple-600">
-                                            {(() => {
-                                                const usage = getUsageInfo('saved-recipes');
-                                                if (usage.isUnlimited || usage.tier === 'admin') {
-                                                    return `${usage.current} saved • Unlimited on ${usage.tier} plan`;
-                                                }
-                                                const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
-                                                return `${usage.current} saved • ${remaining} remaining on ${usage.tier} plan`;
-                                            })()}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
                     ) : (
                         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                             <div className="flex items-start">
@@ -928,8 +841,8 @@ function RecipesContent() {
                                 <div className="flex-1">
                                     <h3 className="text-sm font-medium text-orange-800">Recipe Collections</h3>
                                     <p className="text-sm text-orange-700 mt-1">
-                                        Organize your recipes into themed collections like "Comfort Food", "Quick
-                                        Dinners", or "Holiday Recipes" for easy discovery.
+                                        Save and organize your recipes into themed collections like "Comfort Food", "Quick
+                                        Dinners", or "Holiday Recipes". This is the only way to save recipes for easy access.
                                     </p>
                                     {!loadingCounts && !subscription.loading && (
                                         <div className="mt-2 text-xs text-orange-600">
@@ -952,8 +865,6 @@ function RecipesContent() {
                 {/* Main Content - Conditional Rendering for Collections vs Recipes */}
                 {activeTab === 'collections' ? (
                     <RecipeCollections onCountChange={handleCollectionsCountChange}/>
-                ) : activeTab === 'saved-recipes' ? (
-                    <SavedRecipes/>
                 ) : (
                     <>
                         {/* Add the recipe limit check ONLY for My Recipes tab */}
