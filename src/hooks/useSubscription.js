@@ -394,6 +394,14 @@ export function useSubscription() {
         isTrialActive: subscriptionData?.isTrialActive || false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
+        // NEW: Add missing date fields
+        startDate: subscriptionData?.startDate,
+        endDate: subscriptionData?.endDate,
+        trialStartDate: subscriptionData?.trialStartDate,
+        trialEndDate: subscriptionData?.trialEndDate,
+        lastPaymentDate: subscriptionData?.lastPaymentDate,
+        nextBillingDate: subscriptionData?.nextBillingDate,
+
         // NEW: Admin status
         isAdmin: isAdmin(),
 
