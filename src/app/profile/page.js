@@ -581,10 +581,6 @@ export default function ProfilePage() {
     // UPDATED: New meal types array
     const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
 
-    console.log('Session user object:', session?.user);
-    console.log('Email verified field:', session?.user?.emailVerified);
-    console.log('All user fields:', Object.keys(session?.user || {}));
-
     return (
         <MobileOptimizedLayout>
             <div className="min-h-screen bg-gray-50 py-8">
@@ -1426,15 +1422,18 @@ export default function ProfilePage() {
 
                                                         <hr className="border-gray-200" />
 
-                                                        <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between py-3 border-b border-gray-200">
                                                             <div>
-                                                                <h5 className="text-sm font-medium text-gray-700">Current Email</h5>
-                                                                <p className="text-xs text-gray-500">{session.user.email}</p>
-
+                                                                <div className="font-medium text-gray-900">Email Address</div>
+                                                                <div className="text-sm text-gray-600">{session.user.email}</div>
                                                             </div>
-                                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                                                ✓ Verified
-                                                            </span>
+                                                            <div className="flex items-center space-x-2">
+                                                                {session.user?.emailVerified ? (
+                                                                    <span className="text-green-600 text-sm">✅ Verified</span>
+                                                                ) : (
+                                                                    <span className="text-orange-600 text-sm">⚠️ Unverified</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

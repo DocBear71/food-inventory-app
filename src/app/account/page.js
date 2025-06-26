@@ -108,10 +108,6 @@ export default function AccountPage() {
         }
     ];
 
-    console.log('Session user object:', session?.user);
-    console.log('Email verified field:', session?.user?.emailVerified);
-    console.log('All user fields:', Object.keys(session?.user || {}));
-
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
