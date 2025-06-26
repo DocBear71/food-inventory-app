@@ -593,14 +593,14 @@ export default function RecipeSuggestions() {
 
     return (
         <MobileOptimizedLayout>
-            {/* Loading Modal
+            {/* Loading Modal*/}
             <LoadingModal
                 isOpen={showLoadingModal}
                 progress={loadingProgress}
                 currentTask={currentLoadingTask}
                 inventory={inventory}
                 recipes={recipes}
-            />*/}
+            />
 
             <div className="space-y-6">
                 {/* Header */}
