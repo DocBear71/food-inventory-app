@@ -354,10 +354,10 @@ export default function AccountPage() {
                         <div className="flex items-center justify-between py-3 border-b border-gray-200">
                             <div>
                                 <div className="font-medium text-gray-900">Email Address</div>
-                                <div className="text-sm text-gray-600">{session.user?.email}</div>
+                                <div className="text-sm text-gray-600">{session.user.email}</div>
                             </div>
                             <div className="flex items-center space-x-2">
-                                {session.user?.emailVerified ? (
+                                {session.user.emailVerified ? (
                                     <span className="text-green-600 text-sm">✅ Verified</span>
                                 ) : (
                                     <span className="text-orange-600 text-sm">⚠️ Unverified</span>
