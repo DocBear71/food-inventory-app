@@ -12,9 +12,9 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {getApiUrl} from '@/lib/api-config';
-import RecipeCollections from '@/components/recipes/RecipeCollections';
 import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
-import {useSavedRecipes} from '@/hooks/useSavedRecipes';
+import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
+import RecipeCollections from '@/components/recipes/RecipeCollections';
 import {FEATURE_GATES} from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
 
