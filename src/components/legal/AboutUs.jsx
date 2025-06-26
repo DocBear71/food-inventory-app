@@ -14,7 +14,7 @@ const AboutUs = () => {
                 {/* Header Section */}
                 <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                     <h1 style={{ fontSize: '32px', color: '#2c3e50', marginBottom: '10px' }}>
-                        About Doc Bear's Comfort Food
+                        About Doc Bear's Comfort Kitchen
                     </h1>
                     <p style={{ fontSize: '18px', color: '#7f8c8d', fontStyle: 'italic' }}>
                         Your Personal Food Inventory & Recipe Management Solution
@@ -25,7 +25,7 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>About Our Application</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Doc Bear's Comfort Food is a comprehensive web application designed to revolutionize how you manage your home food inventory and discover delicious recipes. Our platform seamlessly combines inventory tracking with intelligent recipe matching, making meal planning easier and more efficient than ever before.
+                        Doc Bear's Comfort Kitchen is a comprehensive web application designed to revolutionize how you manage your home food inventory and discover delicious recipes. Our platform seamlessly combines inventory tracking with intelligent recipe matching, making meal planning easier and more efficient than ever before.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
@@ -199,7 +199,7 @@ const AboutUs = () => {
                             textAlign: 'left'
                         }}>
                             <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                                Dr. Edward McKeown, a United States Marine Corps veteran, is the founder and creator of Doc Bear's Comfort Food application. Born in Mexico, Missouri, Dr. McKeown brings over 30 years of experience in hospitality management, food safety, and business operations to this innovative platform.
+                                Dr. Edward McKeown, a United States Marine Corps veteran, is the founder and creator of Doc Bear's Comfort Kitchen application. Born in Mexico, Missouri, Dr. McKeown brings over 30 years of experience in hospitality management, food safety, and business operations to this innovative platform.
                             </p>
 
                             <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
@@ -231,7 +231,7 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Our Mission</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Doc Bear's Comfort Food was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with recipe discovery and comprehensive meal planning tools, we're helping families reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
+                        Doc Bear's Comfort Kitchen was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with recipe discovery and comprehensive meal planning tools, we're helping families reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
@@ -239,7 +239,7 @@ const AboutUs = () => {
                     </p>
 
                     <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #17a2b8' }}>
-                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Why Doc Bear's Comfort Food?</h3>
+                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Why Doc Bear's Comfort Kitchen?</h3>
                         <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Reduce food waste by tracking expiration dates and using ingredients efficiently with smart suggestions</li>
                             <li style={{ marginBottom: '0.5rem' }}>Save money by planning meals around what you already have with intelligent inventory matching</li>
@@ -274,7 +274,7 @@ const AboutUs = () => {
                 }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Get in Touch</h2>
                     <p style={{ color: '#666', fontSize: '16px', marginBottom: '1.5rem' }}>
-                        Have questions, suggestions, or feedback about Doc Bear's Comfort Food? We'd love to hear from you!
+                        Have questions, suggestions, or feedback about Doc Bear's Comfort Kitchen? We'd love to hear from you!
                     </p>
                     <div style={{ color: '#666', fontSize: '16px' }}>
                         <p><strong>Doc Bear Enterprises, LLC.</strong></p>
@@ -289,7 +289,7 @@ const AboutUs = () => {
                 {/* Footer Note */}
                 <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#e9ecef', borderRadius: '5px' }}>
                     <p style={{ color: '#6c757d', fontSize: '14px', textAlign: 'center', margin: '0' }}>
-                        Doc Bear's Comfort Food - Making home cooking easier, one recipe at a time. 🍳
+                        Doc Bear's Comfort Kitchen - Making home cooking easier, one recipe at a time. 🍳
                     </p>
                 </div>
             </div>

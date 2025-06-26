@@ -1,4 +1,4 @@
-// file: /src/app/api/payments/create-checkout/route.js v1 - Stripe checkout session creation
+// file: /src/app/api/payments/create-checkout/route.js v2 - Enhanced with Iowa sales tax collection
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -147,8 +147,8 @@ export async function POST(request) {
         const successUrl = `${baseUrl}/account/billing?success=true&tier=${tier}&billing=${billingCycle}`;
         const cancelUrl = `${baseUrl}/account/billing?cancelled=true`;
 
-        // Create checkout session
-        console.log('🔄 Creating Stripe checkout session...');
+        // Create checkout session with AUTOMATIC TAX COLLECTION
+        console.log('🔄 Creating Stripe checkout session with tax collection...');
         const checkoutSession = await stripe.checkout.sessions.create({
             customer: stripeCustomerId,
             payment_method_types: ['card'],
@@ -156,6 +156,14 @@ export async function POST(request) {
             mode: 'subscription',
             success_url: successUrl,
             cancel_url: cancelUrl,
+
+            // ✅ ENABLE AUTOMATIC TAX COLLECTION
+            automatic_tax: {
+                enabled: true,
+            },
+
+            // ✅ COLLECT CUSTOMER ADDRESS FOR TAX CALCULATION
+            billing_address_collection: 'required',
 
             // Subscription configuration
             subscription_data: {
@@ -185,7 +193,7 @@ export async function POST(request) {
             // Allow promotional codes
             allow_promotion_codes: true,
 
-            // Custom fields for additional info
+            // Custom fields for additional info (including business use for tax exemptions)
             custom_fields: [
                 {
                     key: 'business_use',
@@ -216,7 +224,7 @@ export async function POST(request) {
             }
         });
 
-        console.log('✅ Stripe checkout session created:', checkoutSession.id);
+        console.log('✅ Stripe checkout session created with tax collection:', checkoutSession.id);
 
         // Log the checkout creation
         console.log('💳 Checkout session created:', {
@@ -228,6 +236,7 @@ export async function POST(request) {
             price: price / 100, // Convert back to dollars for logging
             isUpgrade: isUpgrade,
             isDowngrade: isDowngrade,
+            automaticTax: true, // ✅ LOG TAX COLLECTION STATUS
             timestamp: new Date().toISOString()
         });
 

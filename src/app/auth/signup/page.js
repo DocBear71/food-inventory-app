@@ -267,7 +267,7 @@ function SignUpContent() {
                 <div className="max-w-md w-full space-y-6">
                     <div className="text-center">
                         <h2 className="text-3xl font-extrabold text-gray-900">
-                            Create your Doc Bear's Comfort Food account
+                            Create your Doc Bear's Comfort Kitchen account
                         </h2>
                         <p className="mt-2 text-sm text-gray-600">
                             Join thousands managing their food inventory smartly
