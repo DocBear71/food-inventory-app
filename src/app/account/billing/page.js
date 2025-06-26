@@ -289,6 +289,20 @@ function BillingContent() {
 
                     <p className="text-gray-600 mb-4">{currentPlan.description}</p>
 
+                    {/* DEBUG: Add this temporarily */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                        <h4 className="font-medium">Debug Info:</h4>
+                        <div className="text-sm space-y-1">
+                            <div>Tier: {subscription.tier}</div>
+                            <div>isOnTrial: {isOnTrial.toString()}</div>
+                            <div>Condition result: {(subscription.tier !== 'free' && !isOnTrial).toString()}</div>
+                            <div>Start Date: {subscription.startDate}</div>
+                            <div>End Date: {subscription.endDate}</div>
+                            <div>Formatted Start: {formatDate(subscription.startDate)}</div>
+                            <div>Formatted End: {formatDate(subscription.endDate)}</div>
+                        </div>
+                    </div>
+
                     {/* Trial Information */}
                     {isOnTrial && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
