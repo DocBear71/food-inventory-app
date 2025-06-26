@@ -20,7 +20,13 @@ export default function SaveRecipeButton({
                                              size = 'medium' // 'small', 'medium', 'large'
                                          }) {
     const {data: session} = useSafeSession();
-    const subscription = useSubscription();
+    const subscriptionData = subscription || {
+        loading: true,
+        tier: 'free',
+        checkFeature: () => false,
+        checkLimit: () => false
+    };
+
     const [loading, setLoading] = useState(false);
     const [collections, setCollections] = useState([]);
     const [showCollectionModal, setShowCollectionModal] = useState(false);

@@ -315,21 +315,31 @@ export function useSubscription() {
         }
     };
 
+    const DEBUG_SUBSCRIPTION = false;
+
     // NEW: Admin status checks
     const isAdmin = () => {
         const adminStatus = subscriptionData?.isAdmin === true;
-        console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
+        if (DEBUG_SUBSCRIPTION) {
+            console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
+        }
         return adminStatus;
     };
 
     const getEffectiveTier = () => {
-        console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
+        if (DEBUG_SUBSCRIPTION) {
+            console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
+        }
         if (subscriptionData?.isAdmin) {
-            console.log('✅ User is admin, returning admin tier');
+            if (DEBUG_SUBSCRIPTION) {
+                console.log('✅ User is admin, returning admin tier');
+            }
             return 'admin';
         }
         const tier = subscriptionData?.tier || 'free';
-        console.log('📊 Returning tier:', tier);
+        if (DEBUG_SUBSCRIPTION) {
+            console.log('📊 Returning tier:', tier);
+        }
         return tier;
     };
 

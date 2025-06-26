@@ -2,7 +2,7 @@
 // file: /src/app/recipes/page.js v7 - FIXED undefined filter errors and improved error handling
 
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useEffect, useState, Suspense} from 'react';
+import {useEffect, useState, Suspense, useMemo} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {useSubscription} from '@/hooks/useSubscription';
 import {StarRating} from '@/components/reviews/RecipeRating';
@@ -68,6 +68,10 @@ function RecipesContent() {
         {value: 'breakfast', label: 'Breakfast'}
     ];
 
+    const RECIPES_PER_PAGE = 20; // Load only 20 recipes at a time
+    const [currentPage, setCurrentPage] = useState(1);
+    const [displayedRecipes, setDisplayedRecipes] = useState([]);
+
     // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
     // const DECIMAL_PRESETS = [
     //     { label: '1/3 issues (0.333...)', value: '0.33333333333', type: 'amount' },
@@ -85,19 +89,55 @@ function RecipesContent() {
 
     useEffect(() => {
         if (session) {
+            setCurrentPage(1); // Reset to first page
+            fetchRecipes(1, RECIPES_PER_PAGE);
+        }
+    }, [searchTerm, selectedCategory, selectedDifficulty, selectedTag, activeTab]);
+
+    useEffect(() => {
+        if (session) {
             fetchRecipes();
             fetchCounts();
         }
     }, [session]);
 
-    const fetchRecipes = async () => {
+    useEffect(() => {
+        const startIndex = (currentPage - 1) * RECIPES_PER_PAGE;
+        const endIndex = startIndex + RECIPES_PER_PAGE;
+        const paginatedRecipes = getFilteredAndSortedRecipes().slice(startIndex, endIndex);
+        setDisplayedRecipes(paginatedRecipes);
+    }, [recipes, currentPage, searchTerm, selectedTag, selectedDifficulty, selectedCategory, sortBy, activeTab]);
+
+    const handleLoadMore = () => {
+        fetchRecipes(currentPage + 1, RECIPES_PER_PAGE);
+    };
+
+    const filteredRecipeCount = useMemo(() => {
+        return getFilteredAndSortedRecipes().length;
+    }, [recipes, searchTerm, selectedTag, selectedDifficulty, selectedCategory, activeTab]);
+
+    const totalPages = Math.ceil(filteredRecipeCount / RECIPES_PER_PAGE);
+
+    const fetchRecipes = async (page = 1, limit = 20) => {
         try {
             if (isInitialLoad) {
                 setShowLoadingModal(true);
             }
 
             setRecipesError('');
-            const response = await fetch(getApiUrl('/api/recipes'));
+
+            // Add pagination parameters
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                tab: activeTab, // Let server filter by tab
+                search: searchTerm || '',
+                category: selectedCategory || '',
+                difficulty: selectedDifficulty || '',
+                tag: selectedTag || ''
+            });
+
+            const response = await fetch(getApiUrl(`/api/recipes?${params}`));
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -106,16 +146,24 @@ function RecipesContent() {
             const data = await response.json();
 
             if (data.success) {
-                // FIXED: Ensure recipes is always an array
-                const recipesArray = Array.isArray(data.recipes) ? data.recipes : [];
-                setRecipes(recipesArray);
+                // Server returns paginated results
+                const { recipes: newRecipes, totalCount, currentPage, totalPages } = data;
 
-                // Extract all unique tags and categories with null checks
+                if (page === 1) {
+                    setRecipes(newRecipes); // Replace for new search/filter
+                } else {
+                    setRecipes(prev => [...prev, ...newRecipes]); // Append for "load more"
+                }
+
+                setTotalRecipeCount(totalCount);
+                setCurrentPage(currentPage);
+                setTotalPages(totalPages);
+
+                // Extract tags and categories from returned recipes only
                 const tags = new Set();
                 const categories = new Set();
 
-                recipesArray.forEach(recipe => {
-                    // FIXED: Add null checks for recipe properties
+                newRecipes.forEach(recipe => {
                     if (recipe && Array.isArray(recipe.tags)) {
                         recipe.tags.forEach(tag => {
                             if (tag && typeof tag === 'string') {
@@ -130,18 +178,13 @@ function RecipesContent() {
 
                 setAllTags(Array.from(tags).sort());
                 setAllCategories(Array.from(categories).sort());
-            } else {
-                console.error('Failed to fetch recipes:', data.error || 'Unknown error');
-                setRecipesError(data.error || 'Failed to load recipes');
-                setRecipes([]); // Ensure empty array on error
             }
         } catch (error) {
             console.error('Error fetching recipes:', error);
             setRecipesError(error.message || 'Failed to load recipes');
-            setRecipes([]); // Ensure empty array on error
+            setRecipes([]);
         } finally {
             setLoading(false);
-
             if (isInitialLoad) {
                 setTimeout(() => {
                     setShowLoadingModal(false);
@@ -254,7 +297,8 @@ function RecipesContent() {
             }
         }
     };
-// Also add this enhanced count update function:
+
+    // Also add this enhanced count update function:
     const updateCountsWithFallback = () => {
         // Try to fetch counts, but don't show loading if it fails
         fetchCounts(false).catch(error => {
@@ -1118,16 +1162,15 @@ function RecipesContent() {
                         </div>
 
                         {/* Recipe Grid */}
-                        {Array.isArray(filteredRecipes) && filteredRecipes.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredRecipes.map((recipe) => {
-                                    // FIXED: Add null check for recipe
-                                    if (!recipe) return null;
+                        {Array.isArray(displayedRecipes) && displayedRecipes.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {displayedRecipes.map((recipe) => {
+                                        if (!recipe) return null;
 
-                                    return (
-                                        <div key={recipe._id}
-                                             className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
-                                            <div className="p-6">
+                                        return (
+                                            <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="p-6">
                                                 {/* Header */}
                                                 <div className="flex justify-between items-start mb-3">
                                                     <Link
@@ -1145,6 +1188,7 @@ function RecipesContent() {
                                                                 size="small"
                                                                 showText={false}
                                                                 onSaveStateChange={handleRecipeSaveStateChange}
+                                                                subscription={subscription} // ← Pass subscription down
                                                             />
                                                         )}
                                                         {canEditRecipe(recipe) && (
@@ -1317,6 +1361,44 @@ function RecipesContent() {
                                     );
                                 })}
                             </div>
+
+                                {/* 6. ADD: Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div className="mt-8 flex items-center justify-center space-x-2">
+                                        <TouchEnhancedButton
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                        >
+                                            Previous
+                                        </TouchEnhancedButton>
+
+                                        <span className="px-4 py-2 text-sm text-gray-700">
+                        Page {currentPage} of {totalPages}
+                    </span>
+
+                                        <TouchEnhancedButton
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                        >
+                                            Next
+                                        </TouchEnhancedButton>
+                                    </div>
+                                )}
+
+                                {/* 7. ADD: Load More Button (Alternative to pagination) */}
+                                {filteredRecipeCount > displayedRecipes.length && (
+                                    <div className="mt-8 text-center">
+                                        <TouchEnhancedButton
+                                            onClick={() => setCurrentPage(prev => prev + 1)}
+                                            className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700"
+                                        >
+                                            Load More Recipes ({filteredRecipeCount - displayedRecipes.length} remaining)
+                                        </TouchEnhancedButton>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <div className="text-center py-12">
                                 <div className="text-gray-500 mb-4">
