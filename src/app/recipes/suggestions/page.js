@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/suggestions/page.js v7 - Enhanced with curated meal suggestions and loading modal
+// file: /src/app/recipes/suggestions/page.js v8 - OPTIMIZED with pre-indexing and deferred analysis
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
@@ -16,30 +16,32 @@ const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes =
     if (!isOpen) return null;
 
     const getLoadingEmoji = () => {
-        if (progress < 25) return "📋";
-        if (progress < 50) return "🍽️";
+        if (progress < 15) return "📋";
+        if (progress < 30) return "🗂️";
+        if (progress < 50) return "🔍";
         if (progress < 75) return "📖";
+        if (progress < 90) return "🧮";
         return "🎉";
     };
 
     const getProgressMessage = () => {
-        if (progress < 25) return "🔍 Scanning your pantry...";
-        if (progress < 50) return "🍽️ Finding delicious possibilities...";
-        if (progress < 75) return "📖 Matching recipes to ingredients...";
-        if (progress < 100) return "🎯 Calculating perfect matches...";
+        if (progress < 15) return "📋 Loading your pantry...";
+        if (progress < 30) return "🗂️ Indexing ingredients...";
+        if (progress < 50) return "🔍 Scanning recipe database...";
+        if (progress < 75) return "📖 Analyzing recipe matches...";
+        if (progress < 90) return "🧮 Calculating compatibility scores...";
+        if (progress < 100) return "🎯 Finalizing suggestions...";
         return "🎉 Ready to cook amazing meals!";
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-lg border border-gray-100">
-
                 {/* Main Loading Spinner */}
                 <div className="flex justify-center mb-6">
                     <div className="relative">
                         {/* Outer spinning ring */}
                         <div className="w-20 h-20 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
-
                         {/* Center emoji */}
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
@@ -118,69 +120,43 @@ export default function RecipeSuggestions() {
         status = 'unauthenticated';
     }
 
-    // Existing state
-    const [suggestions, setSuggestions] = useState([]);
-    const [simpleMealSuggestions, setSimpleMealSuggestions] = useState([]);
+    // Data state
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [matchThreshold, setMatchThreshold] = useState(0.4);
-    const [sortBy, setSortBy] = useState('match');
-    const [showShoppingList, setShowShoppingList] = useState(null);
-    const [showRecipeModal, setShowRecipeModal] = useState(null);
-    const [loadingRecipe, setLoadingRecipe] = useState(false);
-    const [activeTab, setActiveTab] = useState('curated');
-    const [selectedCategory, setSelectedCategory] = useState('all');
-
-    // New state for curated meals and loading
     const [curatedMeals, setCuratedMeals] = useState([]);
+
+    // Analysis state
+    const [suggestions, setSuggestions] = useState([]);
     const [curatedSuggestions, setCuratedSuggestions] = useState([]);
+    const [analysisComplete, setAnalysisComplete] = useState(false);
+    const [analyzedWithSettings, setAnalyzedWithSettings] = useState(null);
+
+    // UI state
+    const [loading, setLoading] = useState(true);
     const [showLoadingModal, setShowLoadingModal] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [currentLoadingTask, setCurrentLoadingTask] = useState('');
 
-    // State to prevent auto-refresh on tab switches
-    const [dataLoaded, setDataLoaded] = useState(false);
+    // Filter state
+    const [matchThreshold, setMatchThreshold] = useState(0.4);
+    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [sortBy, setSortBy] = useState('match');
+    const [activeTab, setActiveTab] = useState('curated');
 
-    // Existing meal templates (keeping for fallback)
-    const mealTemplates = [
-        {
-            id: 'protein-starch-vegetable',
-            name: 'Protein + Starch + Vegetable',
-            description: 'Classic balanced meal',
-            icon: '🍽️',
-            requiredCategories: ['protein', 'starch', 'vegetable'],
-            optionalCategories: ['sauce', 'gravy'],
-            examples: ['Steak + Mashed Potatoes + Broccoli', 'Chicken + Rice + Green Beans']
-        },
-        {
-            id: 'pasta-meal',
-            name: 'Pasta Dish',
-            description: 'Pasta-based meal',
-            icon: '🍝',
-            requiredCategories: ['pasta', 'sauce'],
-            optionalCategories: ['protein', 'vegetable', 'cheese'],
-            examples: ['Spaghetti + Marinara + Parmesan', 'Penne + Chicken + Broccoli']
-        },
-        {
-            id: 'sandwich-meal',
-            name: 'Sandwich/Wrap',
-            description: 'Bread-based meal',
-            icon: '🥪',
-            requiredCategories: ['bread', 'protein'],
-            optionalCategories: ['vegetable', 'cheese', 'condiment'],
-            examples: ['Turkey Sandwich + Lettuce + Tomato', 'Grilled Cheese + Tomato Soup']
-        },
-        {
-            id: 'rice-bowl',
-            name: 'Rice Bowl',
-            description: 'Rice-based bowl',
-            icon: '🍚',
-            requiredCategories: ['rice', 'protein'],
-            optionalCategories: ['vegetable', 'sauce'],
-            examples: ['Chicken Teriyaki Bowl', 'Beef and Broccoli Rice']
-        }
-    ];
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [curatedCurrentPage, setCuratedCurrentPage] = useState(1);
+    const [curatedItemsPerPage, setCuratedItemsPerPage] = useState(8);
+
+    // Modal state
+    const [showShoppingList, setShowShoppingList] = useState(null);
+    const [showRecipeModal, setShowRecipeModal] = useState(null);
+    const [loadingRecipe, setLoadingRecipe] = useState(false);
+
+    // NEW: Pre-indexing state
+    const [ingredientIndex, setIngredientIndex] = useState(null);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     const recipeCategories = [
         {value: 'all', label: 'All Categories'},
@@ -202,13 +178,6 @@ export default function RecipeSuggestions() {
         {value: 'breakfast', label: 'Breakfast'}
     ];
 
-    // New state for pagination
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [curatedCurrentPage, setCuratedCurrentPage] = useState(1);
-    const [curatedItemsPerPage, setCuratedItemsPerPage] = useState(8);
-
-    // Pagination options
     const perPageOptions = [
         { value: 5, label: '5 per page' },
         { value: 10, label: '10 per page' },
@@ -224,6 +193,152 @@ export default function RecipeSuggestions() {
         { value: 20, label: '20 per page' }
     ];
 
+    // OPTIMIZED: Pre-compute ingredient index for fast lookups
+    const createIngredientIndex = (inventory) => {
+        console.log('🗂️ Creating ingredient index...');
+        const index = new Map();
+
+        inventory.forEach(item => {
+            if (!item || !item.name) return;
+
+            // Get all variations for this ingredient
+            const variations = getIngredientVariations(item.name);
+
+            variations.forEach(variation => {
+                if (!index.has(variation)) {
+                    index.set(variation, []);
+                }
+                index.get(variation).push(item);
+            });
+        });
+
+        console.log(`✅ Ingredient index created with ${index.size} entries`);
+        return index;
+    };
+
+    // OPTIMIZED: Fast ingredient lookup using pre-computed index
+    const findBestIngredientMatchOptimized = (recipeIngredient, ingredientIndex) => {
+        const extractedName = extractIngredientName(recipeIngredient);
+        const recipeName = extractedName || recipeIngredient.name || recipeIngredient;
+        const recipeNormalized = normalizeIngredientName(recipeName);
+
+        // Step 1: Direct lookup in index
+        if (ingredientIndex.has(recipeNormalized)) {
+            const matches = ingredientIndex.get(recipeNormalized);
+            if (matches.length > 0) {
+                return {
+                    found: true,
+                    inventoryItem: matches[0],
+                    matchType: 'exact',
+                    confidence: 1.0
+                };
+            }
+        }
+
+        // Step 2: Check variations
+        const recipeVariations = getIngredientVariations(recipeName);
+        for (const variation of recipeVariations) {
+            if (ingredientIndex.has(variation)) {
+                const matches = ingredientIndex.get(variation);
+                if (matches.length > 0) {
+                    return {
+                        found: true,
+                        inventoryItem: matches[0],
+                        matchType: 'variation',
+                        confidence: 0.9
+                    };
+                }
+            }
+        }
+
+        // Step 3: Substitutions (keep the existing logic but use index)
+        const substitution = INTELLIGENT_SUBSTITUTIONS[recipeNormalized];
+        if (substitution) {
+            for (const substitute of substitution.canSubstituteWith) {
+                const subNormalized = normalizeIngredientName(substitute);
+                if (ingredientIndex.has(subNormalized)) {
+                    const matches = ingredientIndex.get(subNormalized);
+                    if (matches.length > 0) {
+                        return {
+                            found: true,
+                            inventoryItem: matches[0],
+                            matchType: 'substitution',
+                            substitutionNote: substitution.conversionNote,
+                            confidence: 0.85
+                        };
+                    }
+                }
+            }
+        }
+
+        return {
+            found: false,
+            inventoryItem: null,
+            matchType: null,
+            confidence: 0
+        };
+    };
+
+    // OPTIMIZED: Batch recipe analysis
+    const analyzeRecipeBatch = async (recipeBatch, ingredientIndex, batchNumber, totalBatches) => {
+        return new Promise((resolve) => {
+            // Use setTimeout to prevent blocking
+            setTimeout(() => {
+                const results = recipeBatch.map(recipe => {
+                    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+                        return {
+                            ...recipe,
+                            analysis: {
+                                matchPercentage: 0,
+                                availableIngredients: [],
+                                missingIngredients: [],
+                                canMake: false
+                            }
+                        };
+                    }
+
+                    const availableIngredients = [];
+                    const missingIngredients = [];
+
+                    recipe.ingredients.forEach((recipeIngredient) => {
+                        const matchResult = findBestIngredientMatchOptimized(recipeIngredient, ingredientIndex);
+
+                        if (matchResult.found) {
+                            availableIngredients.push({
+                                ...recipeIngredient,
+                                inventoryItem: matchResult.inventoryItem,
+                                matchType: matchResult.matchType,
+                                confidence: matchResult.confidence,
+                                substitutionNote: matchResult.substitutionNote
+                            });
+                        } else {
+                            missingIngredients.push(recipeIngredient);
+                        }
+                    });
+
+                    const matchPercentage = recipe.ingredients.length > 0 ?
+                        (availableIngredients.length / recipe.ingredients.length) : 0;
+                    const canMake = availableIngredients.length >= Math.ceil(recipe.ingredients.length * 0.8);
+
+                    return {
+                        ...recipe,
+                        analysis: {
+                            matchPercentage,
+                            availableIngredients,
+                            missingIngredients,
+                            canMake,
+                            totalIngredients: recipe.ingredients.length,
+                            availableCount: availableIngredients.length,
+                            missingCount: missingIngredients.length
+                        }
+                    };
+                });
+
+                resolve(results);
+            }, 10); // Small delay to prevent blocking
+        });
+    };
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             redirect('/auth/signin');
@@ -231,25 +346,16 @@ export default function RecipeSuggestions() {
     }, [status]);
 
     useEffect(() => {
-        // Only load data once when session is available and data hasn't been loaded
         if (session && !dataLoaded) {
-            loadAllData();
+            loadInitialData();
         }
     }, [session, dataLoaded]);
 
-    useEffect(() => {
-        // Only regenerate suggestions if we have data and user changes filters
-        // This prevents auto-refresh on tab switches
-        if (dataLoaded && inventory.length > 0 && recipes.length > 0) {
-            generateAllSuggestions();
-        }
-    }, [dataLoaded, matchThreshold, selectedCategory]);
-
-    // Enhanced data loading with progress tracking
-    const loadAllData = async () => {
+    // NEW: Load data but don't analyze until user clicks "Analyze"
+    const loadInitialData = async () => {
+        setLoading(true);
         setShowLoadingModal(true);
         setLoadingProgress(0);
-        setLoading(true);
 
         try {
             // Step 1: Load inventory
@@ -266,7 +372,15 @@ export default function RecipeSuggestions() {
 
             setLoadingProgress(25);
 
-            // Step 2: Load curated meals
+            // Step 2: Create ingredient index
+            setCurrentLoadingTask('Indexing ingredients for fast lookup...');
+
+            const index = createIngredientIndex(inventoryData.inventory || []);
+            setIngredientIndex(index);
+
+            setLoadingProgress(50);
+
+            // Step 3: Load curated meals
             setCurrentLoadingTask('Loading curated meal suggestions...');
 
             const curatedResponse = await fetch(getApiUrl('/api/admin/meals?status=approved&limit=100'));
@@ -277,9 +391,9 @@ export default function RecipeSuggestions() {
                 console.log('Loaded curated meals:', curatedData.meals.length);
             }
 
-            setLoadingProgress(50);
+            setLoadingProgress(75);
 
-            // Step 3: Load recipes
+            // Step 4: Load recipes
             setCurrentLoadingTask('Loading recipe database...');
 
             const recipesResponse = await fetch(getApiUrl('/api/recipes'));
@@ -290,21 +404,15 @@ export default function RecipeSuggestions() {
                 console.log('Loaded recipes:', recipesData.recipes.length);
             }
 
-            setLoadingProgress(75);
-
-            // Step 4: Brief pause for processing message
-            setCurrentLoadingTask('Analyzing meal possibilities...');
-            await new Promise(resolve => setTimeout(resolve, 500));
             setLoadingProgress(100);
+            setCurrentLoadingTask('Ready! Set your preferences and click "Find Recipes"');
 
-            // Set data loaded flag to prevent auto-refresh
             setDataLoaded(true);
 
         } catch (error) {
             console.error('Error loading data:', error);
             setCurrentLoadingTask('Error loading data. Please try again.');
         } finally {
-            // Hide loading modal after a brief delay
             setTimeout(() => {
                 setShowLoadingModal(false);
                 setLoading(false);
@@ -312,922 +420,117 @@ export default function RecipeSuggestions() {
         }
     };
 
-    // CORE SYSTEM - ONLY WHAT'S ACTUALLY USED
-
-    const NEVER_MATCH_INGREDIENTS = [
-        // Specialty flours
-        'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
-        'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
-
-        // Specialty sugars
-        'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
-        'swerve', 'stevia', 'erythritol', 'monk fruit', 'xylitol', 'sugar substitute',
-
-        // Alternative milks
-        'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
-
-        // Compound dairy products
-        'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
-
-        // Vegan/diet-specific ingredients
-        'vegan butter', 'vegan cheese', 'vegan milk', 'vegan bacon', 'vegan sausage',
-        'vegan beef', 'vegan chicken', 'plant butter', 'plant milk', 'plant beef',
-
-        // Specialty extracts and seasonings
-        'vanilla extract', 'almond extract', 'garlic powder', 'onion powder',
-
-        // Specialty baking ingredients
-        'baking powder', 'baking soda', 'cream of tartar', 'xanthan gum'
-    ];
-
-// 2. CROSS-MATCH PREVENTION - Compound ingredients shouldn't match components
-    const NEVER_CROSS_MATCH = {
-        'peanut butter': ['butter'],
-        'almond butter': ['butter'],
-        'green onions': ['onion', 'onions'],
-        'scallions': ['onion', 'onions'],
-        'red bell pepper': ['pepper'],
-        'green bell pepper': ['pepper'],
-        'red pepper diced': ['pepper'],
-        'buttermilk': ['milk', 'butter'],
-        'heavy cream': ['milk'],
-        'sour cream': ['cream', 'milk'],
-        'cream cheese': ['cheese', 'cream'],
-        'vegan bacon': ['bacon'],
-        'sugar substitute': ['sugar'],
-        'brown sugar': ['sugar'], // Keep brown sugar separate from white sugar
-        'packed brown sugar': ['sugar']
-    };
-
-// 3. RECIPE INGREDIENTS TO FILTER OUT
-    const RECIPE_INGREDIENTS_NOT_INVENTORY = [
-        'vegan honey mustard marinade', 'honey mustard marinade', 'teriyaki marinade',
-        'bbq sauce', 'pizza dough', 'seasoning mix', 'spice blend', 'marinade'
-    ];
-
-// 4. INTELLIGENT SUBSTITUTIONS
-    const INTELLIGENT_SUBSTITUTIONS = {
-        'garlic cloves': {
-            canSubstituteWith: ['minced garlic', 'garlic', 'chopped garlic', 'garlic jar'],
-            conversionNote: '1 clove ≈ 1 tsp minced garlic'
-        },
-        'garlic cloves minced': {
-            canSubstituteWith: ['minced garlic', 'garlic', 'garlic cloves'],
-            conversionNote: '1 clove ≈ 1 tsp minced garlic'
-        },
-        'minced garlic': {
-            canSubstituteWith: ['garlic cloves', 'garlic', 'fresh garlic'],
-            conversionNote: '1 tsp ≈ 1 clove fresh garlic'
-        },
-        'bread': {
-            canSubstituteWith: [
-                'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
-                'honey wheat bread', 'texas toast', 'sourdough bread', 'rye bread'
-            ],
-            conversionNote: 'Any bread type works for generic bread'
-        },
-        'slice of bread': {
-            canSubstituteWith: [
-                'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
-                'honey wheat bread', 'texas toast', 'sourdough bread'
-            ],
-            conversionNote: 'Any sliced bread works'
-        },
-        'ground hamburger': {
-            canSubstituteWith: ['ground beef', 'hamburger', 'ground chuck', 'lean ground beef'],
-            conversionNote: 'Ground hamburger is the same as ground beef'
-        },
-        'hamburger': {
-            canSubstituteWith: ['ground beef', 'ground hamburger', 'ground chuck'],
-            conversionNote: 'Hamburger meat is ground beef'
-        },
-        'bay leaf': {
-            canSubstituteWith: ['bay leaves'],
-            conversionNote: 'Singular and plural are the same ingredient'
-        },
-        'bay leaves': {
-            canSubstituteWith: ['bay leaf'],
-            conversionNote: 'Singular and plural are the same ingredient'
-        },
-        'marsala wine': {
-            canSubstituteWith: ['marsala cooking wine', 'cooking marsala', 'dry marsala'],
-            conversionNote: 'Cooking wine can substitute for regular wine'
-        },
-        'hot water': {
-            canSubstituteWith: ['water', 'warm water', 'boiling water'],
-            conversionNote: 'Water can be heated as needed'
-        }
-    };
-
-// 5. RAW TO COOKED CONVERSIONS
-    const RAW_TO_COOKED_CONVERSIONS = {
-        'cooked chicken': {
-            canMakeFrom: ['chicken', 'raw chicken', 'chicken breast', 'chicken thighs', 'whole chicken'],
-            conversionNote: 'Can cook raw chicken to make cooked chicken',
-            cookingRequired: true
-        },
-        'shredded cooked chicken': {
-            canMakeFrom: ['chicken', 'raw chicken', 'chicken breast', 'chicken thighs', 'cooked chicken'],
-            conversionNote: 'Cook and shred raw chicken, or shred existing cooked chicken',
-            cookingRequired: true
-        }
-    };
-
-// 6. INGREDIENT SEPARATIONS
-    const INGREDIENT_SEPARATIONS = {
-        'egg whites': {
-            canMakeFrom: ['eggs', 'large eggs', 'whole eggs'],
-            conversionNote: '1 egg = 1 egg white + 1 egg yolk',
-            separationRequired: true
-        },
-        'egg yolks': {
-            canMakeFrom: ['eggs', 'large eggs', 'whole eggs'],
-            conversionNote: '1 egg = 1 egg white + 1 egg yolk',
-            separationRequired: true
-        }
-    };
-
-// 7. COMPREHENSIVE INGREDIENT VARIATIONS
-    const INGREDIENT_VARIATIONS = {
-        // WATER
-        'water': ['tap water', 'filtered water', 'cold water', 'warm water', 'hot water', 'boiling water'],
-        'hot water': ['water', 'warm water', 'boiling water'],
-
-        // EGGS
-        'eggs': [
-            'egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs',
-            'fresh eggs', 'whole eggs', 'brown eggs', 'white eggs'
-        ],
-        'egg': ['eggs', 'large egg', 'extra large egg', 'fresh egg', 'whole egg'],
-
-        // FLOUR - Basic flour only
-        'flour': [
-            'all purpose flour', 'all-purpose flour', 'plain flour', 'white flour',
-            'unbleached flour', 'bleached flour', 'enriched flour', 'wheat flour',
-            'ap flour', 'general purpose flour'
-        ],
-        'all purpose flour': ['flour', 'all-purpose flour', 'plain flour'],
-        'all-purpose flour': ['flour', 'all purpose flour', 'plain flour'],
-
-        // SUGAR - White sugar only (brown sugar is specialty)
-        'sugar': [
-            'white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar',
-            'granulated white sugar', 'table sugar', 'regular sugar'
-        ],
-        'white sugar': ['sugar', 'granulated sugar', 'cane sugar'],
-        'granulated sugar': ['sugar', 'white sugar'],
-
-        // BROWN SUGAR - Exact matches only
-        'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
-        'packed brown sugar': ['brown sugar', 'light brown sugar', 'dark brown sugar'],
-        'light brown sugar': ['brown sugar', 'packed brown sugar'],
-        'dark brown sugar': ['brown sugar', 'packed brown sugar'],
-
-        // MILK
-        'milk': [
-            'whole milk', '2% milk', '1% milk', 'skim milk', 'vitamin d milk',
-            'reduced fat milk', 'low fat milk', 'fresh milk', 'dairy milk'
-        ],
-        'whole milk': ['milk', 'vitamin d milk'],
-
-        // BUTTER
-        'butter': [
-            'unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter',
-            'real butter', 'churned butter'
-        ],
-        'unsalted butter': ['butter', 'sweet cream butter'],
-        'salted butter': ['butter'],
-
-        // GARLIC
-        'garlic': [
-            'garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic',
-            'chopped garlic', 'whole garlic', 'garlic head'
-        ],
-        'garlic cloves': ['garlic', 'fresh garlic', 'minced garlic'],
-        'minced garlic': ['garlic', 'garlic cloves'],
-
-        // ONION
-        'onion': [
-            'onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion',
-            'spanish onion', 'diced onion'
-        ],
-        'onion finely diced': ['onion', 'onions', 'diced onion', 'yellow onion'],
-        'diced onion': ['onion', 'onions'],
-
-        // GROUND BEEF/HAMBURGER
-        'ground beef': [
-            'beef', 'hamburger', 'ground chuck', 'lean ground beef', 'ground hamburger',
-            'extra lean ground beef'
-        ],
-        'ground hamburger': ['ground beef', 'hamburger', 'beef', 'ground chuck'],
-        'hamburger': ['ground beef', 'ground hamburger', 'beef'],
-
-        // BREAD
-        'bread': [
-            'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
-            'honey wheat bread', 'texas toast', 'sourdough bread', 'sliced bread'
-        ],
-        'slice of bread': ['bread', 'sandwich bread', 'wheat bread', 'white bread'],
-        'sandwich wheat bread': ['bread', 'wheat bread', 'sandwich bread'],
-
-        // WINE
-        'marsala wine': ['marsala cooking wine', 'cooking marsala', 'dry marsala', 'sweet marsala'],
-        'marsala cooking wine': ['marsala wine', 'cooking marsala'],
-
-        // BAKING INGREDIENTS
-        'baking soda': ['sodium bicarbonate', 'bicarbonate of soda'],
-        'baking powder': ['double acting baking powder', 'aluminum free baking powder'],
-
-        // SEASONINGS
-        'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'iodized salt'],
-        'pepper': ['black pepper', 'ground pepper', 'ground black pepper'],
-
-        // Other common ingredients
-        'honey': ['raw honey', 'pure honey', 'natural honey', 'wildflower honey'],
-        'white pepper': ['white pepper powder', 'ground white pepper'],
-        'vanilla extract': ['pure vanilla extract', 'vanilla essence'],
-        'vegetable oil': ['canola oil', 'soybean oil', 'corn oil'],
-        'olive oil': ['extra virgin olive oil', 'virgin olive oil']
-    };
-
-// CORE FUNCTIONS
-
-// Enhanced ingredient name extraction from complex measurement strings
-    function extractIngredientName(ingredientString) {
-        if (!ingredientString || typeof ingredientString !== 'string') {
-            return '';
+    // NEW: Separate analysis function that runs when user clicks "Analyze"
+    const runAnalysis = async () => {
+        if (!ingredientIndex || recipes.length === 0) {
+            console.error('Missing data for analysis');
+            return;
         }
 
-        const nameString = ingredientString.name || ingredientString;
+        setShowLoadingModal(true);
+        setLoadingProgress(0);
+        setCurrentLoadingTask('Starting analysis...');
 
-        console.log(`🔍 Extracting from: "${nameString}"`);
+        try {
+            // Filter recipes by category first
+            let filteredRecipes = recipes;
+            if (selectedCategory !== 'all') {
+                filteredRecipes = recipes.filter(recipe => recipe.category === selectedCategory);
+                console.log(`Filtered to ${filteredRecipes.length} recipes in category: ${selectedCategory}`);
+            }
 
-        // Step 1: Remove parenthetical information first
-        let cleaned = nameString.replace(/\([^)]*\)/g, '');
+            setCurrentLoadingTask(`Analyzing ${filteredRecipes.length} recipes...`);
+            setLoadingProgress(10);
 
-        // Step 2: Handle the "1 1½ Cups flour" pattern - remove leading count numbers
-        cleaned = cleaned.replace(/^\d+\s+/, '');
+            // Process in batches of 25 to prevent blocking
+            const batchSize = 25;
+            const batches = [];
+            for (let i = 0; i < filteredRecipes.length; i += batchSize) {
+                batches.push(filteredRecipes.slice(i, i + batchSize));
+            }
 
-        // Step 3: Remove measurements aggressively
-        cleaned = cleaned
-            // Remove fraction measurements (1½, 1¼, 1¾, etc.)
-            .replace(/\d+\s*[½¼¾]/g, '')
-            .replace(/[½¼¾]/g, '')
-            // Remove decimal measurements (0.5, 1.5, 0.67, etc.)
-            .replace(/\d*\.\d+/g, '')
-            // Remove whole number measurements
-            .replace(/\b\d+\b/g, '')
-            // Remove measurement units (comprehensive list)
-            .replace(/\b(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|l|grams?|g|kg|kilograms?|pt\.?|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?)\b/gi, '')
-            // Remove cooking states/methods
-            .replace(/\b(beaten|melted|softened|minced|chopped|sliced|diced|crushed|grated|shredded|packed|cold|hot|warm|uncooked|cooked|finely)\b/gi, '')
-            // Remove "optional" and taste descriptors
-            .replace(/\b(optional|to\s+taste|dash|pinch)\b/gi, '')
-            // Remove leading/trailing words that aren't the ingredient
-            .replace(/^\s*(adds?\s+richness\s+and\s+color|about)\s*/gi, '')
-            // Clean up punctuation
-            .replace(/[^\w\s]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
+            console.log(`Processing ${batches.length} batches of ${batchSize} recipes each`);
 
-        console.log(`📝 Extracted: "${cleaned}"`);
-        return cleaned;
-    }
+            const allResults = [];
+            for (let i = 0; i < batches.length; i++) {
+                const batch = batches[i];
+                setCurrentLoadingTask(`Analyzing batch ${i + 1} of ${batches.length}...`);
 
-// Enhanced normalization
-    function normalizeIngredientName(name) {
-        if (!name || typeof name !== 'string') {
-            return '';
-        }
+                const batchResults = await analyzeRecipeBatch(batch, ingredientIndex, i + 1, batches.length);
+                allResults.push(...batchResults);
 
-        return name
-            .toLowerCase()
-            .trim()
-            .replace(/\([^)]*\)/g, '')
-            .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|ground)\b/g, '')
-            .replace(/\b(small|medium|large|extra large|jumbo|mini)\b/g, '')
-            .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
-            .replace(/[^\w\s]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-    }
+                // Update progress
+                const progress = 10 + ((i + 1) / batches.length) * 80;
+                setLoadingProgress(progress);
+            }
 
-// Check if ingredient is specialty (needs exact match only)
-    function isSpecialtyIngredient(ingredient) {
-        const normalized = normalizeIngredientName(ingredient);
-        return NEVER_MATCH_INGREDIENTS.some(specialty => {
-            const specialtyNorm = normalizeIngredientName(specialty);
-            return normalized === specialtyNorm || normalized.includes(specialtyNorm);
-        });
-    }
+            setCurrentLoadingTask('Filtering and sorting results...');
+            setLoadingProgress(95);
 
-// Check for problematic cross-matches
-    function hasProblematicCrossMatch(recipeIngredient, inventoryItem) {
-        const recipeNorm = normalizeIngredientName(recipeIngredient);
-        const inventoryNorm = normalizeIngredientName(inventoryItem);
-
-        for (const [compound, simpleList] of Object.entries(NEVER_CROSS_MATCH)) {
-            const compoundNorm = normalizeIngredientName(compound);
-
-            // If recipe asks for compound but inventory has simple
-            if (recipeNorm.includes(compoundNorm)) {
-                for (const simple of simpleList) {
-                    const simpleNorm = normalizeIngredientName(simple);
-                    if (inventoryNorm === simpleNorm) {
-                        console.log(`🚫 CROSS-MATCH BLOCKED: Recipe "${recipeIngredient}" should not match inventory "${inventoryItem}"`);
-                        return true;
+            // Filter by match threshold and sort
+            const suggestions = allResults
+                .filter(recipe => recipe.analysis.matchPercentage >= matchThreshold)
+                .sort((a, b) => {
+                    switch (sortBy) {
+                        case 'match':
+                            return b.analysis.matchPercentage - a.analysis.matchPercentage;
+                        case 'time':
+                            const timeA = (a.prepTime || 0) + (a.cookTime || 0);
+                            const timeB = (b.prepTime || 0) + (b.cookTime || 0);
+                            return timeA - timeB;
+                        case 'difficulty':
+                            const difficultyOrder = {easy: 1, medium: 2, hard: 3};
+                            return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+                        default:
+                            return b.analysis.matchPercentage - a.analysis.matchPercentage;
                     }
-                }
-            }
-
-            // If recipe asks for simple but inventory has compound
-            for (const simple of simpleList) {
-                const simpleNorm = normalizeIngredientName(simple);
-                if (recipeNorm === simpleNorm && inventoryNorm.includes(compoundNorm)) {
-                    console.log(`🚫 CROSS-MATCH BLOCKED: Recipe "${recipeIngredient}" should not match inventory "${inventoryItem}"`);
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-// Check for dietary conflicts
-    function isDietaryConflict(recipeIngredient, inventoryItem) {
-        const recipeNorm = normalizeIngredientName(recipeIngredient);
-        const inventoryNorm = normalizeIngredientName(inventoryItem);
-
-        const veganKeywords = ['vegan', 'plant', 'dairy free', 'dairy-free'];
-        const isRecipeVegan = veganKeywords.some(keyword => recipeNorm.includes(keyword));
-        const isInventoryVegan = veganKeywords.some(keyword => inventoryNorm.includes(keyword));
-
-        if (isRecipeVegan !== isInventoryVegan) {
-            const baseIngredients = ['butter', 'milk', 'cheese', 'beef', 'chicken', 'sausage', 'bacon'];
-            const hasCommonBase = baseIngredients.some(base =>
-                recipeNorm.includes(base) && inventoryNorm.includes(base)
-            );
-
-            if (hasCommonBase) {
-                console.log(`🚫 DIETARY CONFLICT: Recipe "${recipeIngredient}" vs inventory "${inventoryItem}"`);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-// Check if item is a recipe ingredient
-    function isRecipeIngredient(itemName) {
-        const normalized = normalizeIngredientName(itemName);
-        return RECIPE_INGREDIENTS_NOT_INVENTORY.some(recipe =>
-            normalized.includes(normalizeIngredientName(recipe))
-        );
-    }
-
-// Get ingredient variations
-    function getIngredientVariations(ingredient) {
-        const normalized = normalizeIngredientName(ingredient);
-
-        // If it's a specialty ingredient, only return itself for exact matching
-        if (isSpecialtyIngredient(ingredient)) {
-            console.log(`🔒 SPECIALTY INGREDIENT: "${ingredient}" requires exact match only`);
-            return [normalized, ingredient.toLowerCase().trim()];
-        }
-
-        const variations = new Set([normalized]);
-        variations.add(ingredient.toLowerCase().trim());
-
-        // Check if this ingredient has defined variations
-        if (INGREDIENT_VARIATIONS[normalized]) {
-            INGREDIENT_VARIATIONS[normalized].forEach(variation => {
-                variations.add(normalizeIngredientName(variation));
-            });
-        }
-
-        // Check if this ingredient is a variation of something else
-        for (const [base, variationList] of Object.entries(INGREDIENT_VARIATIONS)) {
-            const normalizedVariations = variationList.map(v => normalizeIngredientName(v));
-            if (normalizedVariations.includes(normalized)) {
-                variations.add(base);
-                normalizedVariations.forEach(v => variations.add(v));
-                break;
-            }
-        }
-
-        return Array.from(variations);
-    }
-
-// Validate partial matches
-    function isValidPartialMatch(recipeIngredient, inventoryItem, recipeNorm, inventoryNorm) {
-        if (isDietaryConflict(recipeIngredient, inventoryItem) ||
-            hasProblematicCrossMatch(recipeIngredient, inventoryItem)) {
-            return false;
-        }
-
-        const isContained = inventoryNorm.includes(recipeNorm) || recipeNorm.includes(inventoryNorm);
-        if (!isContained) {
-            return false;
-        }
-
-        const minLength = Math.min(recipeNorm.length, inventoryNorm.length);
-        const overlap = recipeNorm === inventoryNorm ? minLength :
-            Math.max(
-                recipeNorm.includes(inventoryNorm) ? inventoryNorm.length : 0,
-                inventoryNorm.includes(recipeNorm) ? recipeNorm.length : 0
-            );
-
-        return (overlap / minLength) >= 0.5;
-    }
-
-// Base matching function (no recursion)
-    function findBasicIngredientMatch(recipeIngredient, inventory) {
-        const extractedName = extractIngredientName(recipeIngredient);
-        const recipeName = extractedName || recipeIngredient.name || recipeIngredient;
-        const recipeNormalized = normalizeIngredientName(recipeName);
-
-        console.log(`\n🔍 Basic match for: "${recipeName}" (normalized: "${recipeNormalized}")`);
-
-        // Filter out recipe ingredients from inventory
-        const validInventory = inventory.filter(item => !isRecipeIngredient(item.name));
-
-        // Check if this is a specialty ingredient
-        const isSpecialty = isSpecialtyIngredient(recipeName);
-        if (isSpecialty) {
-            console.log(`🔒 SPECIALTY INGREDIENT: "${recipeName}" - exact match only`);
-        }
-
-        // Step 1: Exact match
-        for (const item of validInventory) {
-            const itemNormalized = normalizeIngredientName(item.name);
-
-            // Skip if there are conflicts
-            if (isDietaryConflict(recipeName, item.name) ||
-                hasProblematicCrossMatch(recipeName, item.name)) {
-                continue;
-            }
-
-            if (itemNormalized === recipeNormalized) {
-                console.log(`✅ EXACT MATCH: "${item.name}" = "${recipeName}"`);
-                return {
-                    found: true,
-                    inventoryItem: item,
-                    matchType: 'exact',
-                    confidence: 1.0
-                };
-            }
-        }
-
-        // Step 2: Variation matching (skip for specialty ingredients)
-        if (!isSpecialty) {
-            const recipeVariations = getIngredientVariations(recipeName);
-            console.log(`🔄 Recipe variations for "${recipeName}":`, recipeVariations);
-
-            for (const item of validInventory) {
-                // Skip if there are conflicts
-                if (isDietaryConflict(recipeName, item.name) ||
-                    hasProblematicCrossMatch(recipeName, item.name)) {
-                    continue;
-                }
-
-                const itemVariations = getIngredientVariations(item.name);
-
-                // Check if any recipe variation matches any inventory variation
-                for (const recipeVar of recipeVariations) {
-                    for (const itemVar of itemVariations) {
-                        if (recipeVar === itemVar && recipeVar.length > 2) {
-                            console.log(`✅ VARIATION MATCH: "${item.name}" ↔ "${recipeName}" via "${recipeVar}"`);
-                            return {
-                                found: true,
-                                inventoryItem: item,
-                                matchType: 'variation',
-                                confidence: 0.9
-                            };
-                        }
-                    }
-                }
-            }
-
-            // Step 3: Partial matching for non-specialty ingredients
-            for (const item of validInventory) {
-                // Skip if there are conflicts
-                if (isDietaryConflict(recipeName, item.name) ||
-                    hasProblematicCrossMatch(recipeName, item.name)) {
-                    continue;
-                }
-
-                const itemNormalized = normalizeIngredientName(item.name);
-
-                if (itemNormalized.includes(recipeNormalized) || recipeNormalized.includes(itemNormalized)) {
-                    if (isValidPartialMatch(recipeName, item.name, recipeNormalized, itemNormalized)) {
-                        console.log(`✅ PARTIAL MATCH: "${item.name}" ↔ "${recipeName}"`);
-                        return {
-                            found: true,
-                            inventoryItem: item,
-                            matchType: 'partial',
-                            confidence: 0.7
-                        };
-                    }
-                }
-            }
-        }
-
-        console.log(`❌ NO BASIC MATCH found for: "${recipeName}"`);
-        return {
-            found: false,
-            inventoryItem: null,
-            matchType: null,
-            confidence: 0
-        };
-    }
-
-// Enhanced matching with substitutions
-    function findBestIngredientMatch(recipeIngredient, inventory) {
-        // First try basic matching
-        const basicResult = findBasicIngredientMatch(recipeIngredient, inventory);
-        if (basicResult.found) {
-            return basicResult;
-        }
-
-        // Extract and normalize the ingredient name
-        const extractedName = extractIngredientName(recipeIngredient);
-        const recipeName = extractedName || recipeIngredient.name || recipeIngredient;
-        const recipeNormalized = normalizeIngredientName(recipeName);
-
-        console.log(`🔄 Trying intelligent substitutions for: "${recipeName}"`);
-
-        // Check intelligent substitutions
-        const substitution = INTELLIGENT_SUBSTITUTIONS[recipeNormalized];
-        if (substitution) {
-            console.log(`🧠 Found substitution options:`, substitution.canSubstituteWith);
-
-            for (const substitute of substitution.canSubstituteWith) {
-                const subResult = findBasicIngredientMatch(substitute, inventory);
-                if (subResult.found) {
-                    console.log(`✅ SUBSTITUTION MATCH: "${subResult.inventoryItem.name}" can substitute for "${recipeName}"`);
-                    console.log(`💡 ${substitution.conversionNote}`);
-                    return {
-                        ...subResult,
-                        matchType: 'substitution',
-                        substitutionNote: substitution.conversionNote,
-                        originalIngredient: recipeName,
-                        confidence: 0.85
-                    };
-                }
-            }
-        }
-
-        // Check raw-to-cooked conversions
-        const conversion = RAW_TO_COOKED_CONVERSIONS[recipeNormalized];
-        if (conversion) {
-            console.log(`🍳 Checking raw-to-cooked conversion:`, conversion.canMakeFrom);
-
-            for (const rawIngredient of conversion.canMakeFrom) {
-                const conversionResult = findBasicIngredientMatch(rawIngredient, inventory);
-                if (conversionResult.found) {
-                    console.log(`✅ CONVERSION MATCH: "${conversionResult.inventoryItem.name}" can be cooked to make "${recipeName}"`);
-                    console.log(`🔥 ${conversion.conversionNote}`);
-                    return {
-                        ...conversionResult,
-                        matchType: 'conversion',
-                        conversionNote: conversion.conversionNote,
-                        cookingRequired: true,
-                        originalIngredient: recipeName,
-                        confidence: 0.8
-                    };
-                }
-            }
-        }
-
-        // Check ingredient separations
-        const separation = INGREDIENT_SEPARATIONS[recipeNormalized];
-        if (separation) {
-            console.log(`🥚 Checking ingredient separation:`, separation.canMakeFrom);
-
-            for (const wholeIngredient of separation.canMakeFrom) {
-                const separationResult = findBasicIngredientMatch(wholeIngredient, inventory);
-                if (separationResult.found) {
-                    console.log(`✅ SEPARATION MATCH: "${separationResult.inventoryItem.name}" can be separated to make "${recipeName}"`);
-                    console.log(`✂️ ${separation.conversionNote}`);
-                    return {
-                        ...separationResult,
-                        matchType: 'separation',
-                        separationNote: separation.conversionNote,
-                        separationRequired: true,
-                        originalIngredient: recipeName,
-                        confidence: 0.9
-                    };
-                }
-            }
-        }
-
-        // No substitution found
-        console.log(`❌ No substitutions found for: "${recipeName}"`);
-        return basicResult;
-    }
-
-// Component matching for curated meals
-    const findComponentInInventory = (component, inventory) => {
-        return findBestIngredientMatch(component.itemName, inventory);
-    };
-
-// Recipe analysis function
-    function analyzeRecipe(recipe, inventory) {
-        if (!recipe.ingredients || recipe.ingredients.length === 0) {
-            return {
-                matchPercentage: 0,
-                availableIngredients: [],
-                missingIngredients: [],
-                canMake: false
-            };
-        }
-
-        const availableIngredients = [];
-        const missingIngredients = [];
-
-        console.log(`\n🍳 === ANALYZING RECIPE: ${recipe.title} ===`);
-        console.log(`📋 Recipe has ${recipe.ingredients.length} ingredients`);
-        console.log(`🥫 Inventory has ${inventory.length} items`);
-
-        recipe.ingredients.forEach((recipeIngredient, index) => {
-            console.log(`\n[${index + 1}/${recipe.ingredients.length}] Processing: "${recipeIngredient.name}"`);
-
-            // Use the enhanced matching with substitutions
-            const matchResult = findBestIngredientMatch(recipeIngredient, inventory);
-
-            if (matchResult.found) {
-                const matchDesc = matchResult.matchType === 'exact' || matchResult.matchType === 'variation'
-                    ? matchResult.matchType
-                    : `${matchResult.matchType} (${matchResult.substitutionNote || matchResult.conversionNote || matchResult.separationNote})`;
-
-                console.log(`✅ MATCHED: "${recipeIngredient.name}" → "${matchResult.inventoryItem.name}" (${matchDesc})`);
-                availableIngredients.push({
-                    ...recipeIngredient,
-                    inventoryItem: matchResult.inventoryItem,
-                    matchType: matchResult.matchType,
-                    confidence: matchResult.confidence,
-                    substitutionNote: matchResult.substitutionNote,
-                    conversionNote: matchResult.conversionNote,
-                    separationNote: matchResult.separationNote,
-                    cookingRequired: matchResult.cookingRequired,
-                    separationRequired: matchResult.separationRequired
                 });
-            } else {
-                console.log(`❌ MISSING: "${recipeIngredient.name}"`);
-                missingIngredients.push(recipeIngredient);
-            }
-        });
 
-        const matchPercentage = recipe.ingredients.length > 0 ?
-            (availableIngredients.length / recipe.ingredients.length) : 0;
-        const canMake = availableIngredients.length >= Math.ceil(recipe.ingredients.length * 0.8);
-
-        const summary = {
-            matchPercentage,
-            availableIngredients,
-            missingIngredients,
-            canMake,
-            totalIngredients: recipe.ingredients.length,
-            availableCount: availableIngredients.length,
-            missingCount: missingIngredients.length
-        };
-
-        console.log(`\n📊 === RECIPE ANALYSIS SUMMARY ===`);
-        console.log(`Available: ${summary.availableCount}/${summary.totalIngredients} (${Math.round(matchPercentage * 100)}%)`);
-        console.log(`Can make: ${canMake}`);
-        console.log(`Available ingredients:`, availableIngredients.map(ing => `"${ing.name}" → "${ing.inventoryItem.name}"`));
-        console.log(`Missing ingredients:`, missingIngredients.map(ing => `"${ing.name}"`));
-
-        return summary;
-    }
-
-// Debug function for specific ingredients
-    function debugSpecificIngredient(recipeIngredientName, inventory) {
-        console.log(`\n🔧 === DEBUGGING: "${recipeIngredientName}" ===`);
-
-        const result = findBestIngredientMatch(recipeIngredientName, inventory);
-        const extractedName = extractIngredientName(recipeIngredientName);
-        const normalized = normalizeIngredientName(extractedName);
-        const isSpecialty = isSpecialtyIngredient(recipeIngredientName);
-
-        console.log(`Extracted: "${extractedName}"`);
-        console.log(`Normalized: "${normalized}"`);
-        console.log(`Is specialty ingredient: ${isSpecialty}`);
-        console.log(`Variations:`, getIngredientVariations(recipeIngredientName));
-
-        // Check what substitution options exist
-        const substitution = INTELLIGENT_SUBSTITUTIONS[normalized];
-        const conversion = RAW_TO_COOKED_CONVERSIONS[normalized];
-        const separation = INGREDIENT_SEPARATIONS[normalized];
-
-        if (substitution) {
-            console.log(`🧠 Available substitutions:`, substitution);
-        }
-        if (conversion) {
-            console.log(`🍳 Available conversions:`, conversion);
-        }
-        if (separation) {
-            console.log(`✂️ Available separations:`, separation);
-        }
-
-        if (result.found) {
-            console.log(`✅ RESULT: "${result.inventoryItem.name}" (${result.matchType})`);
-            if (result.substitutionNote) {
-                console.log(`💡 Substitution: ${result.substitutionNote}`);
-            }
-            if (result.conversionNote) {
-                console.log(`🔥 Conversion: ${result.conversionNote}`);
-            }
-            if (result.separationNote) {
-                console.log(`✂️ Separation: ${result.separationNote}`);
-            }
-        } else {
-            console.log(`❌ NO MATCH FOUND`);
-
-            // Show potential matches that were rejected
-            const potentialMatches = inventory.filter(item => {
-                const itemNorm = normalizeIngredientName(item.name);
-                const recipeNorm = normalizeIngredientName(extractedName);
-                return itemNorm.includes(recipeNorm) || recipeNorm.includes(itemNorm);
-            }).map(item => ({
-                name: item.name,
-                normalized: normalizeIngredientName(item.name),
-                isRecipe: isRecipeIngredient(item.name),
-                dietaryConflict: isDietaryConflict(recipeIngredientName, item.name),
-                crossMatch: hasProblematicCrossMatch(recipeIngredientName, item.name)
-            }));
-
-            console.log(`Potential matches (rejected):`, potentialMatches);
-        }
-
-        return result;
-    }
-
-// Test function for your specific problematic examples
-    function testProblematicIngredients(inventory) {
-        console.log('\n🔧 === TESTING PROBLEMATIC INGREDIENTS ===');
-
-        const testIngredients = [
-            '1 1¼ Cups whole milk',
-            '1 3½ Cups flour',
-            '0.67 Cup packed brown sugar',
-            '0.25 Cup red pepper diced',
-            '1 slice of bread',
-            '1 Hot water',
-            '0.75 Cup sugar substitute',
-            '2 strips of vegan bacon',
-            '0.25 Cup Marsala wine',
-            '1 1½ tsp baking soda',
-            '1 tbsp. brown sugar',
-            '1 ½ Cups flour',
-            '1 ¾ tsp baking powder',
-            'Optional: 1 egg (adds richness and color)',
-            '1 onion, finely diced',
-            '1 lb. ground hamburger',
-            '1 pt. milk'
-        ];
-
-        testIngredients.forEach(ingredient => {
-            console.log(`\n--- Testing: "${ingredient}" ---`);
-            const extracted = extractIngredientName(ingredient);
-            const result = findBestIngredientMatch(ingredient, inventory);
-
-            console.log(`Extracted: "${extracted}"`);
-            if (result.found) {
-                console.log(`✅ FOUND: "${result.inventoryItem.name}" (${result.matchType})`);
-                if (result.matchType !== 'exact' && result.matchType !== 'variation') {
-                    console.log(`📝 Note: ${result.substitutionNote || result.conversionNote || result.separationNote}`);
-                }
-            } else {
-                console.log(`❌ NOT FOUND - This should be investigated`);
-            }
-        });
-    }
-
-    const generateRecipeSuggestions = () => {
-        console.log('=== GENERATING RECIPE SUGGESTIONS ===');
-
-        let filteredRecipes = recipes;
-
-        if (selectedCategory !== 'all') {
-            filteredRecipes = recipes.filter(recipe => recipe.category === selectedCategory);
-        }
-
-        const suggestions = filteredRecipes
-            .map(recipe => {
-                const analysis = analyzeRecipe(recipe, inventory); // ← CALLS analyzeRecipe()
-                return {
-                    ...recipe,
-                    analysis
-                };
-            })
-            .filter(recipe => recipe.analysis.matchPercentage >= matchThreshold)
-            .sort((a, b) => {
-                switch (sortBy) {
-                    case 'match':
-                        return b.analysis.matchPercentage - a.analysis.matchPercentage;
-                    case 'time':
-                        const timeA = (a.prepTime || 0) + (a.cookTime || 0);
-                        const timeB = (b.prepTime || 0) + (b.cookTime || 0);
-                        return timeA - timeB;
-                    case 'difficulty':
-                        const difficultyOrder = {easy: 1, medium: 2, hard: 3};
-                        return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
-                    default:
-                        return b.analysis.matchPercentage - a.analysis.matchPercentage;
-                }
+            setSuggestions(suggestions);
+            setAnalysisComplete(true);
+            setAnalyzedWithSettings({
+                matchThreshold,
+                selectedCategory,
+                sortBy
             });
 
-        console.log('Generated recipe suggestions:', suggestions.length);
-        setSuggestions(suggestions);
+            setLoadingProgress(100);
+            setCurrentLoadingTask(`Found ${suggestions.length} matching recipes!`);
+
+            console.log(`Analysis complete: ${suggestions.length} matching recipes found`);
+
+        } catch (error) {
+            console.error('Error during analysis:', error);
+            setCurrentLoadingTask('Error during analysis. Please try again.');
+        } finally {
+            setTimeout(() => {
+                setShowLoadingModal(false);
+            }, 1000);
+        }
     };
 
-    const generateCuratedMealSuggestions = () => {
-        console.log('=== GENERATING CURATED MEAL SUGGESTIONS ===');
+    // Check if analysis needs to be re-run
+    const needsReanalysis = () => {
+        if (!analysisComplete || !analyzedWithSettings) return true;
 
-        if (curatedMeals.length === 0 || inventory.length === 0) {
-            return [];
-        }
+        return (
+            analyzedWithSettings.matchThreshold !== matchThreshold ||
+            analyzedWithSettings.selectedCategory !== selectedCategory ||
+            analyzedWithSettings.sortBy !== sortBy
+        );
+    };
 
-        const suggestions = curatedMeals.map(meal => {
-            const analysis = analyzeCuratedMeal(meal, inventory);
-            return {
-                ...meal,
-                analysis,
-                type: 'curated'
-            };
-        }).filter(meal => meal.analysis.canMake || meal.analysis.matchPercentage >= 0.5)
-            .sort((a, b) => {
-                if (a.analysis.canMake !== b.analysis.canMake) {
-                    return b.analysis.canMake - a.analysis.canMake;
-                }
-                return b.analysis.matchPercentage - a.analysis.matchPercentage;
-            });
+    // Fast filtering/sorting of existing results (no re-analysis needed)
+    const getFilteredSuggestions = () => {
+        if (!analysisComplete) return [];
 
-        console.log('Generated curated meal suggestions:', suggestions.length);
+        // If we need reanalysis, return empty (user needs to click analyze again)
+        if (needsReanalysis()) return [];
+
         return suggestions;
     };
 
-    const analyzeCuratedMeal = (meal, inventory) => {
-        console.log(`\n=== ANALYZING CURATED MEAL: ${meal.name} ===`);
-
-        const availableComponents = [];
-        const missingComponents = [];
-        let requiredAvailable = 0;
-        let requiredTotal = 0;
-
-        meal.components.forEach(component => {
-            if (component.required) {
-                requiredTotal++;
-            }
-
-            const matchResult = findComponentInInventory(component, inventory);
-
-            if (matchResult.found) {
-                availableComponents.push({
-                    ...component,
-                    inventoryItem: matchResult.inventoryItem,
-                    matchType: matchResult.matchType
-                });
-
-                if (component.required) {
-                    requiredAvailable++;
-                }
-            } else {
-                missingComponents.push(component);
-            }
-        });
-
-        const totalComponents = meal.components.length;
-        const matchPercentage = totalComponents > 0 ? (availableComponents.length / totalComponents) : 0;
-        const canMake = requiredAvailable >= requiredTotal;
-
-        return {
-            matchPercentage,
-            availableComponents,
-            missingComponents,
-            canMake,
-            requiredMissing: requiredTotal - requiredAvailable,
-            estimatedTime: meal.estimatedTime,
-            difficulty: meal.difficulty
-        };
-    };
-
-    const generateAllSuggestions = async () => {
-        console.log('=== GENERATING ALL SUGGESTIONS ===');
-
-        // Generate curated meal suggestions first
-        const curatedSuggestions = generateCuratedMealSuggestions();
-        setCuratedSuggestions(curatedSuggestions);
-
-        // Generate traditional recipe suggestions
-        generateRecipeSuggestions();
-
-        // Generate simple meal suggestions if needed
-        // generateSimpleMealSuggestions();
-    };
-
-    // Keep existing utility functions
+    // Keep existing utility functions (unchanged)
     const loadRecipeDetails = async (recipeId) => {
         setLoadingRecipe(true);
         try {
@@ -1267,7 +570,7 @@ export default function RecipeSuggestions() {
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     };
 
-    // Pagination helper functions
+    // Pagination helpers
     const getPaginatedData = (data, currentPage, itemsPerPage) => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -1276,28 +579,6 @@ export default function RecipeSuggestions() {
 
     const getTotalPages = (totalItems, itemsPerPage) => {
         return Math.ceil(totalItems / itemsPerPage);
-    };
-
-    const handlePageChange = (newPage, type = 'recipes') => {
-        if (type === 'curated') {
-            setCuratedCurrentPage(newPage);
-            // Scroll to top of curated results
-            document.getElementById('curated-results')?.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            setCurrentPage(newPage);
-            // Scroll to top of recipe results
-            document.getElementById('recipes-results')?.scrollIntoView({ behavior: 'smooth' });
-        }
-    };
-
-    const handleItemsPerPageChange = (newItemsPerPage, type = 'recipes') => {
-        if (type === 'curated') {
-            setCuratedItemsPerPage(newItemsPerPage);
-            setCuratedCurrentPage(1); // Reset to first page
-        } else {
-            setItemsPerPage(newItemsPerPage);
-            setCurrentPage(1); // Reset to first page
-        }
     };
 
     // Loading and auth checks
@@ -1312,6 +593,8 @@ export default function RecipeSuggestions() {
     if (!session) {
         return null;
     }
+
+    const filteredSuggestions = getFilteredSuggestions();
 
     return (
         <MobileOptimizedLayout>
@@ -1333,33 +616,50 @@ export default function RecipeSuggestions() {
                     </div>
                     <div>
                         <TouchEnhancedButton
-                            onClick={loadAllData}
+                            onClick={loadInitialData}
                             disabled={showLoadingModal}
                             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-100"
                         >
-                            {showLoadingModal ? '🔄 Analyzing...' : '🔄 Refresh'}
+                            {showLoadingModal ? '🔄 Loading...' : '🔄 Refresh Data'}
                         </TouchEnhancedButton>
                     </div>
                 </div>
 
-                {/* Stats and Controls */}
+                {/* Stats */}
                 <div className="bg-white shadow rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                         <div>
                             <div className="text-sm font-medium text-gray-700">Inventory Items</div>
                             <div className="text-2xl font-bold text-indigo-600">{inventory.length}</div>
-                        </div>
-                        <div>
-                            <div className="text-sm font-medium text-gray-700">Curated Meals</div>
-                            <div className="text-2xl font-bold text-purple-600">{curatedMeals.length}</div>
                         </div>
                         <div>
                             <div className="text-sm font-medium text-gray-700">Total Recipes</div>
                             <div className="text-2xl font-bold text-green-600">{recipes.length}</div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Recipe Match: {Math.round(matchThreshold * 100)}%
+                            <div className="text-sm font-medium text-gray-700">Analysis Status</div>
+                            <div className={`text-sm font-medium ${analysisComplete ? 'text-green-600' : 'text-gray-400'}`}>
+                                {analysisComplete ? '✅ Complete' : '⏳ Ready to analyze'}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-sm font-medium text-gray-700">Matching Recipes</div>
+                            <div className="text-2xl font-bold text-purple-600">
+                                {analysisComplete ? filteredSuggestions.length : '?'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* NEW: Analysis Controls */}
+                <div className="bg-white shadow rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 Analysis Settings</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Match Threshold */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Match Threshold: {Math.round(matchThreshold * 100)}%
                             </label>
                             <input
                                 type="range"
@@ -1370,9 +670,14 @@ export default function RecipeSuggestions() {
                                 onChange={(e) => setMatchThreshold(parseFloat(e.target.value))}
                                 className="w-full"
                             />
+                            <div className="text-xs text-gray-500 mt-1">
+                                Minimum percentage of ingredients you must have
+                            </div>
                         </div>
+
+                        {/* Category Filter */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Recipe Category</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Recipe Category</label>
                             <select
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
@@ -1385,679 +690,393 @@ export default function RecipeSuggestions() {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Sort Order */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Sort Results By</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                                <option value="match">Best Match First</option>
+                                <option value="time">Quickest First</option>
+                                <option value="difficulty">Easiest First</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Analysis Button */}
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                            {!dataLoaded ? (
+                                "Load your data first, then set your preferences and analyze"
+                            ) : needsReanalysis() ? (
+                                "Settings changed. Click 'Find Recipes' to update results."
+                            ) : analysisComplete ? (
+                                `Analysis complete! Found ${filteredSuggestions.length} matching recipes.`
+                            ) : (
+                                "Ready to analyze. Click 'Find Recipes' to start."
+                            )}
+                        </div>
+
+                        <TouchEnhancedButton
+                            onClick={runAnalysis}
+                            disabled={!dataLoaded || showLoadingModal}
+                            className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white transition-colors ${
+                                !dataLoaded || showLoadingModal
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : needsReanalysis()
+                                        ? 'bg-indigo-600 hover:bg-indigo-700 animate-pulse'
+                                        : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                        >
+                            {showLoadingModal ? (
+                                '🔄 Analyzing...'
+                            ) : needsReanalysis() ? (
+                                '🔍 Find Recipes'
+                            ) : (
+                                '✅ Re-analyze'
+                            )}
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
-                {/* Enhanced Tab Navigation */}
-                <div className="bg-white shadow rounded-lg">
-                    <div className="border-b border-gray-200">
-                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                            <TouchEnhancedButton
-                                onClick={() => setActiveTab('curated')}
-                                className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
-                                    activeTab === 'curated'
-                                        ? 'border-indigo-500 text-indigo-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                ⭐ Curated Meals ({curatedSuggestions.length})
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => setActiveTab('recipes')}
-                                className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
-                                    activeTab === 'recipes'
-                                        ? 'border-indigo-500 text-indigo-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                📖 Recipe Matches ({suggestions.length})
-                            </TouchEnhancedButton>
-                            {simpleMealSuggestions.length > 0 && (
+                {/* Results Section */}
+                {analysisComplete && !needsReanalysis() && (
+                    <div className="bg-white shadow rounded-lg">
+                        <div className="border-b border-gray-200">
+                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                                 <TouchEnhancedButton
-                                    onClick={() => setActiveTab('simple')}
+                                    onClick={() => setActiveTab('recipes')}
                                     className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
-                                        activeTab === 'simple'
+                                        activeTab === 'recipes'
                                             ? 'border-indigo-500 text-indigo-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                                 >
-                                    🍽️ Simple Ideas ({simpleMealSuggestions.length})
+                                    📖 Recipe Matches ({filteredSuggestions.length})
                                 </TouchEnhancedButton>
-                            )}
-                        </nav>
-                    </div>
+                                <TouchEnhancedButton
+                                    onClick={() => setActiveTab('curated')}
+                                    className={`whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm ${
+                                        activeTab === 'curated'
+                                            ? 'border-indigo-500 text-indigo-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                                >
+                                    ⭐ Curated Meals ({curatedMeals.length})
+                                </TouchEnhancedButton>
+                            </nav>
+                        </div>
 
-                    <div className="px-4 py-5 sm:p-6">
-                        {/* Curated Meal Suggestions */}
-                        {activeTab === 'curated' && (
-                            <div id="curated-results">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                        ⭐ Curated Meal Suggestions ({curatedSuggestions.length})
-                                    </h3>
-                                    {curatedSuggestions.length > 4 && (
-                                        <div className="flex items-center space-x-3">
-                                            <label className="text-sm text-gray-700">Show:</label>
-                                            <select
-                                                value={curatedItemsPerPage}
-                                                onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value), 'curated')}
-                                                className="border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                {curatedPerPageOptions.map(option => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {loading ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500">Loading meal suggestions...</div>
-                                    </div>
-                                ) : inventory.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-4">No inventory items found</div>
-                                        <a
-                                            href="/inventory"
-                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                        >
-                                            Add inventory items first
-                                        </a>
-                                    </div>
-                                ) : curatedSuggestions.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-4">
-                                            No curated meals match your current inventory
-                                        </div>
-                                        <div className="text-sm text-gray-400 mb-4">
-                                            Try adding more basic ingredients like proteins, starches, and vegetables
-                                        </div>
-                                        <TouchEnhancedButton
-                                            onClick={() => setActiveTab('recipes')}
-                                            className="text-indigo-600 hover:text-indigo-900 text-sm"
-                                        >
-                                            Check recipe suggestions instead
-                                        </TouchEnhancedButton>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {getPaginatedData(curatedSuggestions, curatedCurrentPage, curatedItemsPerPage).map((meal, index) => (
-                                            <div key={meal._id} className="border border-gray-200 rounded-lg p-6 bg-gradient-to-r from-purple-50 to-indigo-50">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center space-x-3 mb-2">
-                                                            <h4 className="text-xl font-semibold text-gray-900">
-                                                                {meal.name}
-                                                            </h4>
-                                                            <div
-                                                                className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(meal.analysis.matchPercentage)}`}>
-                                                                {Math.round(meal.analysis.matchPercentage * 100)}% Match
-                                                            </div>
-                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(meal.difficulty)}`}>
-                                                                {meal.difficulty}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-gray-600 mb-3">{meal.description}</p>
-
-                                                        <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
-                                                            <span>⏱️ {meal.estimatedTime} min</span>
-                                                            <span>👥 {meal.servings} servings</span>
-                                                            <span>🍽️ {meal.mealType}</span>
-                                                            {meal.season !== 'any' && <span>📅 {meal.season}</span>}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col items-end space-y-2">
-                                                        <div
-                                                            className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                                                meal.analysis.canMake
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-yellow-100 text-yellow-800'
-                                                            }`}>
-                                                            {meal.analysis.canMake ? '✅ Ready to Make' : '🛒 Need Items'}
-                                                        </div>
-                                                        {meal.tags && meal.tags.length > 0 && (
-                                                            <div className="text-xs text-gray-500">
-                                                                {meal.tags.slice(0, 2).join(', ')}
-                                                                {meal.tags.length > 2 && '...'}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    {/* Available Components */}
-                                                    <div>
-                                                        <h5 className="font-medium text-green-700 mb-3">
-                                                            ✅ You Have ({meal.analysis.availableComponents.length})
-                                                        </h5>
-                                                        <div className="space-y-2">
-                                                            {meal.analysis.availableComponents.map((component, idx) => (
-                                                                <div key={idx} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-green-200">
-                                                                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                                                    <div className="flex-1">
-                                                                        <div className="font-medium text-gray-900">
-                                                                            {component.inventoryItem.name}
-                                                                        </div>
-                                                                        <div className="text-sm text-gray-500 capitalize">
-                                                                            {component.category} • {component.matchType} match
-                                                                            {component.inventoryItem.brand && ` • ${component.inventoryItem.brand}`}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Missing Components */}
-                                                    <div>
-                                                        <h5 className="font-medium text-red-700 mb-3">
-                                                            🛒 You Need ({meal.analysis.missingComponents.length})
-                                                        </h5>
-                                                        <div className="space-y-2">
-                                                            {meal.analysis.missingComponents.map((component, idx) => (
-                                                                <div key={idx} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-red-200">
-                                                                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                                                    <div className="flex-1">
-                                                                        <div className="font-medium text-gray-900">
-                                                                            {component.itemName}
-                                                                            {!component.required && <span className="text-gray-500 text-sm ml-1">(optional)</span>}
-                                                                        </div>
-                                                                        <div className="text-sm text-gray-500 capitalize">
-                                                                            {component.category}
-                                                                            {component.alternatives && component.alternatives.length > 0 && (
-                                                                                <span className="text-xs text-blue-600 ml-2">
-                                                                                    Alt: {component.alternatives.slice(0, 2).join(', ')}
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                            {meal.analysis.missingComponents.length === 0 && (
-                                                                <div className="text-green-600 text-sm italic p-3">
-                                                                    🎉 You have everything you need!
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Cooking Tips */}
-                                                {meal.cookingTips && meal.cookingTips.length > 0 && (
-                                                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                                        <div className="flex items-start space-x-2">
-                                                            <span className="text-yellow-600 mt-0.5">💡</span>
-                                                            <div>
-                                                                <div className="font-medium text-yellow-800 text-sm">Cooking Tips:</div>
-                                                                <ul className="text-yellow-700 text-sm mt-1 space-y-1">
-                                                                    {meal.cookingTips.map((tip, tipIndex) => (
-                                                                        <li key={tipIndex}>• {tip}</li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Action Bar */}
-                                                <div className="mt-4 flex justify-between items-center">
-                                                    <div className="text-sm text-gray-500">
-                                                        {meal.analysis.canMake ? (
-                                                            <span className="text-green-600 font-medium">
-                                                                🎉 You can make this meal!
-                                                            </span>
-                                                        ) : meal.analysis.requiredMissing === 1 ? (
-                                                            <span className="text-yellow-600 font-medium">
-                                                                Missing only 1 required ingredient
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-red-600">
-                                                                Missing {meal.analysis.requiredMissing} required ingredients
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex space-x-2">
-                                                        {!meal.analysis.canMake && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => setShowShoppingList({
-                                                                    mealId: meal._id,
-                                                                    mealName: meal.name,
-                                                                    type: 'curated'
-                                                                })}
-                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                                                            >
-                                                                🛒 Shopping List
-                                                            </TouchEnhancedButton>
-                                                        )}
-                                                        <TouchEnhancedButton
-                                                            onClick={() => {
-                                                                // Future: Add to meal plan functionality
-                                                                alert('Add to meal plan feature coming soon!');
-                                                            }}
-                                                            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                                                        >
-                                                            📅 Add to Meal Plan
-                                                        </TouchEnhancedButton>
-                                                    </div>
-                                                </div>
+                        <div className="px-4 py-5 sm:p-6">
+                            {/* Recipe Suggestions Tab */}
+                            {activeTab === 'recipes' && (
+                                <div id="recipes-results">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            📖 Recipe Suggestions ({filteredSuggestions.length})
+                                            {selectedCategory !== 'all' && (
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    • Filtered by {recipeCategories.find(cat => cat.value === selectedCategory)?.label}
+                                                </span>
+                                            )}
+                                        </h3>
+                                        {filteredSuggestions.length > 10 && (
+                                            <div className="flex items-center space-x-3">
+                                                <label className="text-sm text-gray-700">Show:</label>
+                                                <select
+                                                    value={itemsPerPage}
+                                                    onChange={(e) => {
+                                                        setItemsPerPage(parseInt(e.target.value));
+                                                        setCurrentPage(1);
+                                                    }}
+                                                    className="border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                    {perPageOptions.map(option => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Curated Meals Pagination */}
-                                {curatedSuggestions.length > curatedItemsPerPage && (
-                                    <div className="mt-8 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
-                                        <div className="flex flex-1 justify-between sm:hidden">
-                                            <TouchEnhancedButton
-                                                onClick={() => handlePageChange(curatedCurrentPage - 1, 'curated')}
-                                                disabled={curatedCurrentPage === 1}
-                                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-                                            >
-                                                Previous
-                                            </TouchEnhancedButton>
-                                            <TouchEnhancedButton
-                                                onClick={() => handlePageChange(curatedCurrentPage + 1, 'curated')}
-                                                disabled={curatedCurrentPage === getTotalPages(curatedSuggestions.length, curatedItemsPerPage)}
-                                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-                                            >
-                                                Next
-                                            </TouchEnhancedButton>
-                                        </div>
-                                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-700">
-                                                    Showing{' '}
-                                                    <span className="font-medium">
-                                                        {((curatedCurrentPage - 1) * curatedItemsPerPage) + 1}
-                                                    </span>{' '}
-                                                    to{' '}
-                                                    <span className="font-medium">
-                                                        {Math.min(curatedCurrentPage * curatedItemsPerPage, curatedSuggestions.length)}
-                                                    </span>{' '}
-                                                    of{' '}
-                                                    <span className="font-medium">{curatedSuggestions.length}</span> results
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                                                    <TouchEnhancedButton
-                                                        onClick={() => handlePageChange(curatedCurrentPage - 1, 'curated')}
-                                                        disabled={curatedCurrentPage === 1}
-                                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
-                                                    >
-                                                        <span className="sr-only">Previous</span>
-                                                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </TouchEnhancedButton>
-
-                                                    {Array.from({ length: getTotalPages(curatedSuggestions.length, curatedItemsPerPage) }, (_, i) => i + 1)
-                                                        .filter(page => {
-                                                            const totalPages = getTotalPages(curatedSuggestions.length, curatedItemsPerPage);
-                                                            if (totalPages <= 7) return true;
-                                                            if (page === 1 || page === totalPages) return true;
-                                                            if (Math.abs(page - curatedCurrentPage) <= 2) return true;
-                                                            return false;
-                                                        })
-                                                        .map((page, index, array) => {
-                                                            const showEllipsis = index > 0 && page - array[index - 1] > 1;
-                                                            return (
-                                                                <div key={page} className="flex items-center">
-                                                                    {showEllipsis && (
-                                                                        <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">
-                                                                            ...
-                                                                        </span>
-                                                                    )}
-                                                                    <TouchEnhancedButton
-                                                                        onClick={() => handlePageChange(page, 'curated')}
-                                                                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                                                                            page === curatedCurrentPage
-                                                                                ? 'bg-indigo-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
-                                                                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                                                                        }`}
-                                                                    >
-                                                                        {page}
-                                                                    </TouchEnhancedButton>
-                                                                </div>
-                                                            );
-                                                        })}
-
-                                                    <TouchEnhancedButton
-                                                        onClick={() => handlePageChange(curatedCurrentPage + 1, 'curated')}
-                                                        disabled={curatedCurrentPage === getTotalPages(curatedSuggestions.length, curatedItemsPerPage)}
-                                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
-                                                    >
-                                                        <span className="sr-only">Next</span>
-                                                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </TouchEnhancedButton>
-                                                </nav>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Recipe Suggestions (existing code with pagination) */}
-                        {activeTab === 'recipes' && (
-                            <div id="recipes-results">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                        📖 Recipe Suggestions ({suggestions.length})
-                                        {selectedCategory !== 'all' && (
-                                            <span className="text-sm text-gray-500 ml-2">
-                                                • Filtered by {recipeCategories.find(cat => cat.value === selectedCategory)?.label}
-                                            </span>
                                         )}
-                                    </h3>
-                                    {suggestions.length > 10 && (
-                                        <div className="flex items-center space-x-3">
-                                            <label className="text-sm text-gray-700">Show:</label>
-                                            <select
-                                                value={itemsPerPage}
-                                                onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value), 'recipes')}
-                                                className="border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    </div>
+
+                                    {filteredSuggestions.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <div className="text-gray-500 mb-4">
+                                                No recipes match your current settings
+                                            </div>
+                                            <TouchEnhancedButton
+                                                onClick={() => setMatchThreshold(0.1)}
+                                                className="text-indigo-600 hover:text-indigo-900 text-sm"
                                             >
-                                                {perPageOptions.map(option => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                Try lowering the match threshold to 10%
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {getPaginatedData(filteredSuggestions, currentPage, itemsPerPage).map((recipe) => (
+                                                <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="flex-1">
+                                                            <h4 className="text-xl font-semibold text-gray-900">{recipe.title}</h4>
+                                                            {recipe.description && (
+                                                                <p className="text-gray-600 mt-1">{recipe.description}</p>
+                                                            )}
+                                                        </div>
+                                                        <div
+                                                            className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
+                                                            {Math.round(recipe.analysis.matchPercentage * 100)}% Match
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                        {/* Recipe Info */}
+                                                        <div>
+                                                            <h5 className="font-medium text-gray-900 mb-2">Recipe Details</h5>
+                                                            <div className="space-y-1 text-sm text-gray-600">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                                                        {recipe.difficulty}
+                                                                    </span>
+                                                                </div>
+                                                                {recipe.prepTime && (
+                                                                    <div>Prep: {formatCookTime(recipe.prepTime)}</div>
+                                                                )}
+                                                                {recipe.cookTime && (
+                                                                    <div>Cook: {formatCookTime(recipe.cookTime)}</div>
+                                                                )}
+                                                                {recipe.prepTime && recipe.cookTime && (
+                                                                    <div>Total: {formatCookTime(recipe.prepTime + recipe.cookTime)}</div>
+                                                                )}
+                                                                {recipe.servings && (
+                                                                    <div>Serves: {recipe.servings}</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Available Ingredients */}
+                                                        <div>
+                                                            <h5 className="font-medium text-green-700 mb-2">
+                                                                ✅ You Have ({recipe.analysis.availableIngredients.length})
+                                                            </h5>
+                                                            <div className="space-y-1 text-sm">
+                                                                {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
+                                                                    <div key={index} className="text-green-600">
+                                                                        • {ingredient.amount} {ingredient.unit} {ingredient.name}
+                                                                        {ingredient.matchType === 'substitution' && (
+                                                                            <span className="text-xs text-blue-600 ml-1">(substitute)</span>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                                {recipe.analysis.availableIngredients.length > 5 && (
+                                                                    <div className="text-green-600 text-xs">
+                                                                        +{recipe.analysis.availableIngredients.length - 5} more available
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Missing Ingredients */}
+                                                        <div>
+                                                            <h5 className="font-medium text-red-700 mb-2">
+                                                                ❌ You Need ({recipe.analysis.missingIngredients.length})
+                                                            </h5>
+                                                            <div className="space-y-1 text-sm">
+                                                                {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
+                                                                    <div key={index} className="text-red-600">
+                                                                        • {ingredient.amount} {ingredient.unit} {ingredient.name}
+                                                                    </div>
+                                                                ))}
+                                                                {recipe.analysis.missingIngredients.length > 5 && (
+                                                                    <div className="text-red-600 text-xs">
+                                                                        +{recipe.analysis.missingIngredients.length - 5} more needed
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Action Buttons */}
+                                                    <div className="mt-4 flex justify-between items-center">
+                                                        <div className="text-sm text-gray-500">
+                                                            {recipe.analysis.canMake ? (
+                                                                <span className="text-green-600 font-medium">
+                                                                    🎉 You can make this recipe!
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-red-600">
+                                                                    Missing ingredients needed
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex space-x-2">
+                                                            <TouchEnhancedButton
+                                                                onClick={() => loadRecipeDetails(recipe._id)}
+                                                                disabled={loadingRecipe}
+                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                                                            >
+                                                                {loadingRecipe ? 'Loading...' : 'View Recipe'}
+                                                            </TouchEnhancedButton>
+                                                            {!recipe.analysis.canMake && (
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => setShowShoppingList({
+                                                                        recipeId: recipe._id,
+                                                                        recipeName: recipe.title,
+                                                                        type: 'recipe'
+                                                                    })}
+                                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                                                                >
+                                                                    Shopping List
+                                                                </TouchEnhancedButton>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Pagination */}
+                                    {filteredSuggestions.length > itemsPerPage && (
+                                        <div className="mt-8 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+                                            <div className="flex flex-1 justify-between sm:hidden">
+                                                <TouchEnhancedButton
+                                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                                    disabled={currentPage === 1}
+                                                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                                >
+                                                    Previous
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                                    disabled={currentPage === getTotalPages(filteredSuggestions.length, itemsPerPage)}
+                                                    className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                                >
+                                                    Next
+                                                </TouchEnhancedButton>
+                                            </div>
+                                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm text-gray-700">
+                                                        Showing{' '}
+                                                        <span className="font-medium">
+                                                            {((currentPage - 1) * itemsPerPage) + 1}
+                                                        </span>{' '}
+                                                        to{' '}
+                                                        <span className="font-medium">
+                                                            {Math.min(currentPage * itemsPerPage, filteredSuggestions.length)}
+                                                        </span>{' '}
+                                                        of{' '}
+                                                        <span className="font-medium">{filteredSuggestions.length}</span> results
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(currentPage - 1)}
+                                                            disabled={currentPage === 1}
+                                                            className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+                                                        >
+                                                            <span className="sr-only">Previous</span>
+                                                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </TouchEnhancedButton>
+
+                                                        {Array.from({ length: getTotalPages(filteredSuggestions.length, itemsPerPage) }, (_, i) => i + 1)
+                                                            .filter(page => {
+                                                                const totalPages = getTotalPages(filteredSuggestions.length, itemsPerPage);
+                                                                if (totalPages <= 7) return true;
+                                                                if (page === 1 || page === totalPages) return true;
+                                                                if (Math.abs(page - currentPage) <= 2) return true;
+                                                                return false;
+                                                            })
+                                                            .map((page, index, array) => {
+                                                                const showEllipsis = index > 0 && page - array[index - 1] > 1;
+                                                                return (
+                                                                    <div key={page} className="flex items-center">
+                                                                        {showEllipsis && (
+                                                                            <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">
+                                                                                ...
+                                                                            </span>
+                                                                        )}
+                                                                        <TouchEnhancedButton
+                                                                            onClick={() => setCurrentPage(page)}
+                                                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                                                                                page === currentPage
+                                                                                    ? 'bg-indigo-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                                                                                    : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                                                                            }`}
+                                                                        >
+                                                                            {page}
+                                                                        </TouchEnhancedButton>
+                                                                    </div>
+                                                                );
+                                                            })}
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(currentPage + 1)}
+                                                            disabled={currentPage === getTotalPages(filteredSuggestions.length, itemsPerPage)}
+                                                            className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+                                                        >
+                                                            <span className="sr-only">Next</span>
+                                                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </TouchEnhancedButton>
+                                                    </nav>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
+                            )}
 
-                                {loading ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500">Analyzing your recipes...</div>
-                                    </div>
-                                ) : inventory.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-4">No inventory items found</div>
-                                        <a
-                                            href="/inventory"
-                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                        >
-                                            Add inventory items first
-                                        </a>
-                                    </div>
-                                ) : suggestions.length === 0 ? (
+                            {/* Curated Meals Tab - Placeholder for future implementation */}
+                            {activeTab === 'curated' && (
+                                <div>
                                     <div className="text-center py-8">
                                         <div className="text-gray-500 mb-4">
-                                            No recipes match your current inventory at {Math.round(matchThreshold * 100)}% threshold
+                                            Curated meals feature coming soon!
                                         </div>
-                                        <TouchEnhancedButton
-                                            onClick={() => setMatchThreshold(0.1)}
-                                            className="text-indigo-600 hover:text-indigo-900 text-sm"
-                                        >
-                                            Try lowering the match threshold to 10%
-                                        </TouchEnhancedButton>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {getPaginatedData(suggestions, currentPage, itemsPerPage).map((recipe) => (
-                                            <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="flex-1">
-                                                        <h4 className="text-xl font-semibold text-gray-900">{recipe.title}</h4>
-                                                        {recipe.description && (
-                                                            <p className="text-gray-600 mt-1">{recipe.description}</p>
-                                                        )}
-                                                    </div>
-                                                    <div
-                                                        className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
-                                                        {Math.round(recipe.analysis.matchPercentage * 100)}% Match
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                    {/* Recipe Info */}
-                                                    <div>
-                                                        <h5 className="font-medium text-gray-900 mb-2">Recipe Details</h5>
-                                                        <div className="space-y-1 text-sm text-gray-600">
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                                                    {recipe.difficulty}
-                                                                </span>
-                                                            </div>
-                                                            {recipe.prepTime && (
-                                                                <div>Prep: {formatCookTime(recipe.prepTime)}</div>
-                                                            )}
-                                                            {recipe.cookTime && (
-                                                                <div>Cook: {formatCookTime(recipe.cookTime)}</div>
-                                                            )}
-                                                            {recipe.prepTime && recipe.cookTime && (
-                                                                <div>Total: {formatCookTime(recipe.prepTime + recipe.cookTime)}</div>
-                                                            )}
-                                                            {recipe.servings && (
-                                                                <div>Serves: {recipe.servings}</div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Available Ingredients */}
-                                                    <div>
-                                                        <h5 className="font-medium text-green-700 mb-2">
-                                                            ✅ You Have ({recipe.analysis.availableIngredients.length})
-                                                        </h5>
-                                                        <div className="space-y-1 text-sm">
-                                                            {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                <div key={index} className="text-green-600">
-                                                                    • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                                </div>
-                                                            ))}
-                                                            {recipe.analysis.availableIngredients.length > 5 && (
-                                                                <div className="text-green-600 text-xs">
-                                                                    +{recipe.analysis.availableIngredients.length - 5} more available
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Missing Ingredients */}
-                                                    <div>
-                                                        <h5 className="font-medium text-red-700 mb-2">
-                                                            ❌ You Need ({recipe.analysis.missingIngredients.length})
-                                                        </h5>
-                                                        <div className="space-y-1 text-sm">
-                                                            {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                <div key={index} className="text-red-600">
-                                                                    • {ingredient.amount} {ingredient.unit} {ingredient.name}
-                                                                </div>
-                                                            ))}
-                                                            {recipe.analysis.missingIngredients.length > 5 && (
-                                                                <div className="text-red-600 text-xs">
-                                                                    +{recipe.analysis.missingIngredients.length - 5} more needed
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Action Buttons */}
-                                                <div className="mt-4 flex justify-between items-center">
-                                                    <div className="text-sm text-gray-500">
-                                                        {recipe.analysis.canMake ? (
-                                                            <span className="text-green-600 font-medium">
-                                                                🎉 You can make this recipe!
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-red-600">
-                                                                Missing ingredients needed
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex space-x-2">
-                                                        <TouchEnhancedButton
-                                                            onClick={() => loadRecipeDetails(recipe._id)}
-                                                            disabled={loadingRecipe}
-                                                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                                                        >
-                                                            {loadingRecipe ? 'Loading...' : 'View Recipe'}
-                                                        </TouchEnhancedButton>
-                                                        {!recipe.analysis.canMake && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => setShowShoppingList({
-                                                                    recipeId: recipe._id,
-                                                                    recipeName: recipe.title,
-                                                                    type: 'recipe'
-                                                                })}
-                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                                                            >
-                                                                Shopping List
-                                                            </TouchEnhancedButton>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Recipe Pagination */}
-                                {suggestions.length > itemsPerPage && (
-                                    <div className="mt-8 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
-                                        <div className="flex flex-1 justify-between sm:hidden">
-                                            <TouchEnhancedButton
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                                disabled={currentPage === 1}
-                                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-                                            >
-                                                Previous
-                                            </TouchEnhancedButton>
-                                            <TouchEnhancedButton
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                                disabled={currentPage === getTotalPages(suggestions.length, itemsPerPage)}
-                                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-                                            >
-                                                Next
-                                            </TouchEnhancedButton>
-                                        </div>
-                                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-700">
-                                                    Showing{' '}
-                                                    <span className="font-medium">
-                                                        {((currentPage - 1) * itemsPerPage) + 1}
-                                                    </span>{' '}
-                                                    to{' '}
-                                                    <span className="font-medium">
-                                                        {Math.min(currentPage * itemsPerPage, suggestions.length)}
-                                                    </span>{' '}
-                                                    of{' '}
-                                                    <span className="font-medium">{suggestions.length}</span> results
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                                                    <TouchEnhancedButton
-                                                        onClick={() => handlePageChange(currentPage - 1)}
-                                                        disabled={currentPage === 1}
-                                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
-                                                    >
-                                                        <span className="sr-only">Previous</span>
-                                                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </TouchEnhancedButton>
-
-                                                    {Array.from({ length: getTotalPages(suggestions.length, itemsPerPage) }, (_, i) => i + 1)
-                                                        .filter(page => {
-                                                            const totalPages = getTotalPages(suggestions.length, itemsPerPage);
-                                                            if (totalPages <= 7) return true;
-                                                            if (page === 1 || page === totalPages) return true;
-                                                            if (Math.abs(page - currentPage) <= 2) return true;
-                                                            return false;
-                                                        })
-                                                        .map((page, index, array) => {
-                                                            const showEllipsis = index > 0 && page - array[index - 1] > 1;
-                                                            return (
-                                                                <div key={page} className="flex items-center">
-                                                                    {showEllipsis && (
-                                                                        <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">
-                                                                            ...
-                                                                        </span>
-                                                                    )}
-                                                                    <TouchEnhancedButton
-                                                                        onClick={() => handlePageChange(page)}
-                                                                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                                                                            page === currentPage
-                                                                                ? 'bg-indigo-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
-                                                                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                                                                        }`}
-                                                                    >
-                                                                        {page}
-                                                                    </TouchEnhancedButton>
-                                                                </div>
-                                                            );
-                                                        })}
-
-                                                    <TouchEnhancedButton
-                                                        onClick={() => handlePageChange(currentPage + 1)}
-                                                        disabled={currentPage === getTotalPages(suggestions.length, itemsPerPage)}
-                                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
-                                                    >
-                                                        <span className="sr-only">Next</span>
-                                                        <svg className="h-5 w-5" viewView="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </TouchEnhancedButton>
-                                                </nav>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Simple Meal Suggestions (Fallback - only show if active) */}
-                        {activeTab === 'simple' && simpleMealSuggestions.length > 0 && (
-                            <div>
-                                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                    🍽️ Simple Meal Ideas ({simpleMealSuggestions.length})
-                                </h3>
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                                    <div className="text-blue-800 text-sm">
-                                        <strong>ℹ️ Note:</strong> These are basic meal combinations generated from templates.
-                                        For better suggestions, check out the Curated Meals tab!
+                                        <p className="text-sm text-gray-400">
+                                            This will show hand-picked meal combinations based on your inventory.
+                                        </p>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    {simpleMealSuggestions.map((suggestion, index) => (
-                                        <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center space-x-3 mb-2">
-                                                        <span className="text-xl">{suggestion.template.icon}</span>
-                                                        <h4 className="text-lg font-semibold text-gray-900">
-                                                            {suggestion.template.name}
-                                                        </h4>
-                                                    </div>
-                                                    <p className="text-gray-600 mb-2">{suggestion.template.description}</p>
-                                                </div>
-                                                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                                    ✅ Available
-                                                </div>
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                <strong>Components:</strong> {suggestion.components.map(comp => comp.item.name).join(', ')}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Recipe Modal (existing) */}
+                {/* Empty State - Show when no analysis has been run */}
+                {!analysisComplete && dataLoaded && (
+                    <div className="bg-white shadow rounded-lg p-8">
+                        <div className="text-center">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Find Recipes!</h3>
+                            <p className="text-gray-500 mb-6">
+                                Your data is loaded and indexed. Set your preferences above and click "Find Recipes" to see what you can make with your current inventory.
+                            </p>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="text-blue-800 text-sm">
+                                    <strong>💡 Tip:</strong> Start with a 40% match threshold to see recipes where you have most ingredients.
+                                    You can always adjust and re-analyze!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Recipe Modal */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -2139,4 +1158,154 @@ export default function RecipeSuggestions() {
             </div>
         </MobileOptimizedLayout>
     );
+}
+
+// CORE INGREDIENT MATCHING FUNCTIONS (keep your existing functions here)
+// These need to be added at the bottom - all the functions like:
+// - normalizeIngredientName
+// - extractIngredientName
+// - getIngredientVariations
+// - INTELLIGENT_SUBSTITUTIONS
+// - etc.
+
+// CORE INGREDIENT MATCHING SYSTEM - Optimized for fast lookups
+
+const NEVER_MATCH_INGREDIENTS = [
+    'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
+    'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
+    'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
+    'swerve', 'stevia', 'erythritol', 'monk fruit', 'xylitol', 'sugar substitute',
+    'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
+    'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
+    'vegan butter', 'vegan cheese', 'vegan milk', 'vegan bacon', 'vegan sausage',
+    'vegan beef', 'vegan chicken', 'plant butter', 'plant milk', 'plant beef',
+    'vanilla extract', 'almond extract', 'garlic powder', 'onion powder',
+    'baking powder', 'baking soda', 'cream of tartar', 'xanthan gum'
+];
+
+const INTELLIGENT_SUBSTITUTIONS = {
+    'garlic cloves': {
+        canSubstituteWith: ['minced garlic', 'garlic', 'chopped garlic', 'garlic jar'],
+        conversionNote: '1 clove ≈ 1 tsp minced garlic'
+    },
+    'garlic cloves minced': {
+        canSubstituteWith: ['minced garlic', 'garlic', 'garlic cloves'],
+        conversionNote: '1 clove ≈ 1 tsp minced garlic'
+    },
+    'minced garlic': {
+        canSubstituteWith: ['garlic cloves', 'garlic', 'fresh garlic'],
+        conversionNote: '1 tsp ≈ 1 clove fresh garlic'
+    },
+    'bread': {
+        canSubstituteWith: [
+            'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
+            'honey wheat bread', 'texas toast', 'sourdough bread', 'rye bread'
+        ],
+        conversionNote: 'Any bread type works for generic bread'
+    },
+    'ground hamburger': {
+        canSubstituteWith: ['ground beef', 'hamburger', 'ground chuck', 'lean ground beef'],
+        conversionNote: 'Ground hamburger is the same as ground beef'
+    },
+    'hamburger': {
+        canSubstituteWith: ['ground beef', 'ground hamburger', 'ground chuck'],
+        conversionNote: 'Hamburger meat is ground beef'
+    }
+};
+
+const INGREDIENT_VARIATIONS = {
+    'water': ['tap water', 'filtered water', 'cold water', 'warm water', 'hot water', 'boiling water'],
+    'eggs': ['egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'fresh eggs', 'whole eggs'],
+    'flour': ['all purpose flour', 'all-purpose flour', 'plain flour', 'white flour', 'unbleached flour'],
+    'sugar': ['white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar', 'table sugar'],
+    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'vitamin d milk', 'reduced fat milk'],
+    'butter': ['unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter', 'real butter'],
+    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic'],
+    'onion': ['onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion', 'diced onion'],
+    'ground beef': ['beef', 'hamburger', 'ground chuck', 'lean ground beef', 'ground hamburger'],
+    'bread': ['sandwich bread', 'wheat bread', 'white bread', 'sliced bread']
+};
+
+function extractIngredientName(ingredientString) {
+    if (!ingredientString || typeof ingredientString !== 'string') {
+        return '';
+    }
+
+    const nameString = ingredientString.name || ingredientString;
+    let cleaned = nameString.replace(/\([^)]*\)/g, '');
+
+    // Remove leading count numbers
+    cleaned = cleaned.replace(/^\d+\s+/, '');
+
+    // Remove measurements aggressively
+    cleaned = cleaned
+        .replace(/\d+\s*[½¼¾]/g, '')
+        .replace(/[½¼¾]/g, '')
+        .replace(/\d*\.\d+/g, '')
+        .replace(/\b\d+\b/g, '')
+        .replace(/\b(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|l|grams?|g|kg|kilograms?|pt\.?|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?)\b/gi, '')
+        .replace(/\b(beaten|melted|softened|minced|chopped|sliced|diced|crushed|grated|shredded|packed|cold|hot|warm|uncooked|cooked|finely)\b/gi, '')
+        .replace(/\b(optional|to\s+taste|dash|pinch)\b/gi, '')
+        .replace(/^\s*(adds?\s+richness\s+and\s+color|about)\s*/gi, '')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return cleaned;
+}
+
+function normalizeIngredientName(name) {
+    if (!name || typeof name !== 'string') {
+        return '';
+    }
+
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|ground)\b/g, '')
+        .replace(/\b(small|medium|large|extra large|jumbo|mini)\b/g, '')
+        .replace(/\b(can|jar|bottle|bag|box|package|container)\b/g, '')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isSpecialtyIngredient(ingredient) {
+    const normalized = normalizeIngredientName(ingredient);
+    return NEVER_MATCH_INGREDIENTS.some(specialty => {
+        const specialtyNorm = normalizeIngredientName(specialty);
+        return normalized === specialtyNorm || normalized.includes(specialtyNorm);
+    });
+}
+
+function getIngredientVariations(ingredient) {
+    const normalized = normalizeIngredientName(ingredient);
+
+    // If it's a specialty ingredient, only return itself for exact matching
+    if (isSpecialtyIngredient(ingredient)) {
+        return [normalized, ingredient.toLowerCase().trim()];
+    }
+
+    const variations = new Set([normalized]);
+    variations.add(ingredient.toLowerCase().trim());
+
+    // Check if this ingredient has defined variations
+    if (INGREDIENT_VARIATIONS[normalized]) {
+        INGREDIENT_VARIATIONS[normalized].forEach(variation => {
+            variations.add(normalizeIngredientName(variation));
+        });
+    }
+
+    // Check if this ingredient is a variation of something else
+    for (const [base, variationList] of Object.entries(INGREDIENT_VARIATIONS)) {
+        const normalizedVariations = variationList.map(v => normalizeIngredientName(v));
+        if (normalizedVariations.includes(normalized)) {
+            variations.add(base);
+            normalizedVariations.forEach(v => variations.add(v));
+            break;
+        }
+    }
+
+    return Array.from(variations);
 }
