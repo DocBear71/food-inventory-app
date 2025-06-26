@@ -216,56 +216,215 @@ export default function RecipeSuggestions() {
         return index;
     };
 
-    // OPTIMIZED: Fast ingredient lookup using pre-computed index
+    function hasProblematicCrossMatch(recipeIngredient, inventoryItem) {
+        const recipeNorm = normalizeIngredientName(recipeIngredient);
+        const inventoryNorm = normalizeIngredientName(inventoryItem);
+
+        for (const [compound, simpleList] of Object.entries(NEVER_CROSS_MATCH)) {
+            const compoundNorm = normalizeIngredientName(compound);
+
+            // If recipe asks for compound but inventory has simple
+            if (recipeNorm.includes(compoundNorm)) {
+                for (const simple of simpleList) {
+                    const simpleNorm = normalizeIngredientName(simple);
+                    if (inventoryNorm === simpleNorm) {
+                        return true;
+                    }
+                }
+            }
+
+            // If recipe asks for simple but inventory has compound
+            for (const simple of simpleList) {
+                const simpleNorm = normalizeIngredientName(simple);
+                if (recipeNorm === simpleNorm && inventoryNorm.includes(compoundNorm)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function isDietaryConflict(recipeIngredient, inventoryItem) {
+        const recipeNorm = normalizeIngredientName(recipeIngredient);
+        const inventoryNorm = normalizeIngredientName(inventoryItem);
+
+        const veganKeywords = ['vegan', 'plant', 'dairy free', 'dairy-free'];
+        const isRecipeVegan = veganKeywords.some(keyword => recipeNorm.includes(keyword));
+        const isInventoryVegan = veganKeywords.some(keyword => inventoryNorm.includes(keyword));
+
+        if (isRecipeVegan !== isInventoryVegan) {
+            const baseIngredients = ['butter', 'milk', 'cheese', 'beef', 'chicken', 'sausage', 'bacon'];
+            const hasCommonBase = baseIngredients.some(base =>
+                recipeNorm.includes(base) && inventoryNorm.includes(base)
+            );
+
+            if (hasCommonBase) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function isRecipeIngredient(itemName) {
+        const normalized = normalizeIngredientName(itemName);
+        return RECIPE_INGREDIENTS_NOT_INVENTORY.some(recipe =>
+            normalized.includes(normalizeIngredientName(recipe))
+        );
+    }
+
+    function isValidPartialMatch(recipeIngredient, inventoryItem, recipeNorm, inventoryNorm) {
+        if (isDietaryConflict(recipeIngredient, inventoryItem) ||
+            hasProblematicCrossMatch(recipeIngredient, inventoryItem)) {
+            return false;
+        }
+
+        const isContained = inventoryNorm.includes(recipeNorm) || recipeNorm.includes(inventoryNorm);
+        if (!isContained) {
+            return false;
+        }
+
+        const minLength = Math.min(recipeNorm.length, inventoryNorm.length);
+        const overlap = recipeNorm === inventoryNorm ? minLength :
+            Math.max(
+                recipeNorm.includes(inventoryNorm) ? inventoryNorm.length : 0,
+                inventoryNorm.includes(recipeNorm) ? recipeNorm.length : 0
+            );
+
+        return (overlap / minLength) >= 0.5;
+    }
+
+// OPTIMIZED: Fast ingredient lookup using pre-computed index WITH FULL LOGIC
     const findBestIngredientMatchOptimized = (recipeIngredient, ingredientIndex) => {
         const extractedName = extractIngredientName(recipeIngredient);
         const recipeName = extractedName || recipeIngredient.name || recipeIngredient;
         const recipeNormalized = normalizeIngredientName(recipeName);
 
-        // Step 1: Direct lookup in index
+        // Step 1: Direct exact lookup in index
         if (ingredientIndex.has(recipeNormalized)) {
             const matches = ingredientIndex.get(recipeNormalized);
-            if (matches.length > 0) {
-                return {
-                    found: true,
-                    inventoryItem: matches[0],
-                    matchType: 'exact',
-                    confidence: 1.0
-                };
-            }
-        }
-
-        // Step 2: Check variations
-        const recipeVariations = getIngredientVariations(recipeName);
-        for (const variation of recipeVariations) {
-            if (ingredientIndex.has(variation)) {
-                const matches = ingredientIndex.get(variation);
-                if (matches.length > 0) {
+            for (const match of matches) {
+                if (!isDietaryConflict(recipeName, match.name) &&
+                    !hasProblematicCrossMatch(recipeName, match.name)) {
                     return {
                         found: true,
-                        inventoryItem: matches[0],
-                        matchType: 'variation',
-                        confidence: 0.9
+                        inventoryItem: match,
+                        matchType: 'exact',
+                        confidence: 1.0
                     };
                 }
             }
         }
 
-        // Step 3: Substitutions (keep the existing logic but use index)
+        // Step 2: Check variations in index
+        const recipeVariations = getIngredientVariations(recipeName);
+        for (const variation of recipeVariations) {
+            if (ingredientIndex.has(variation)) {
+                const matches = ingredientIndex.get(variation);
+                for (const match of matches) {
+                    if (!isDietaryConflict(recipeName, match.name) &&
+                        !hasProblematicCrossMatch(recipeName, match.name)) {
+                        return {
+                            found: true,
+                            inventoryItem: match,
+                            matchType: 'variation',
+                            confidence: 0.9
+                        };
+                    }
+                }
+            }
+        }
+
+        // Step 3: Intelligent substitutions using index
         const substitution = INTELLIGENT_SUBSTITUTIONS[recipeNormalized];
         if (substitution) {
             for (const substitute of substitution.canSubstituteWith) {
                 const subNormalized = normalizeIngredientName(substitute);
                 if (ingredientIndex.has(subNormalized)) {
                     const matches = ingredientIndex.get(subNormalized);
-                    if (matches.length > 0) {
-                        return {
-                            found: true,
-                            inventoryItem: matches[0],
-                            matchType: 'substitution',
-                            substitutionNote: substitution.conversionNote,
-                            confidence: 0.85
-                        };
+                    for (const match of matches) {
+                        if (!isDietaryConflict(recipeName, match.name) &&
+                            !hasProblematicCrossMatch(recipeName, match.name)) {
+                            return {
+                                found: true,
+                                inventoryItem: match,
+                                matchType: 'substitution',
+                                substitutionNote: substitution.conversionNote,
+                                originalIngredient: recipeName,
+                                confidence: 0.85
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 4: Raw-to-cooked conversions using index
+        const conversion = RAW_TO_COOKED_CONVERSIONS[recipeNormalized];
+        if (conversion) {
+            for (const rawIngredient of conversion.canMakeFrom) {
+                const rawNormalized = normalizeIngredientName(rawIngredient);
+                if (ingredientIndex.has(rawNormalized)) {
+                    const matches = ingredientIndex.get(rawNormalized);
+                    for (const match of matches) {
+                        if (!isDietaryConflict(recipeName, match.name) &&
+                            !hasProblematicCrossMatch(recipeName, match.name)) {
+                            return {
+                                found: true,
+                                inventoryItem: match,
+                                matchType: 'conversion',
+                                conversionNote: conversion.conversionNote,
+                                cookingRequired: true,
+                                originalIngredient: recipeName,
+                                confidence: 0.8
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 5: Ingredient separations using index
+        const separation = INGREDIENT_SEPARATIONS[recipeNormalized];
+        if (separation) {
+            for (const wholeIngredient of separation.canMakeFrom) {
+                const wholeNormalized = normalizeIngredientName(wholeIngredient);
+                if (ingredientIndex.has(wholeNormalized)) {
+                    const matches = ingredientIndex.get(wholeNormalized);
+                    for (const match of matches) {
+                        if (!isDietaryConflict(recipeName, match.name) &&
+                            !hasProblematicCrossMatch(recipeName, match.name)) {
+                            return {
+                                found: true,
+                                inventoryItem: match,
+                                matchType: 'separation',
+                                separationNote: separation.conversionNote,
+                                separationRequired: true,
+                                originalIngredient: recipeName,
+                                confidence: 0.9
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 6: Partial matching for non-specialty ingredients (only if not specialty)
+        if (!isSpecialtyIngredient(recipeName)) {
+            // Iterate through all index entries to find partial matches
+            for (const [indexKey, matches] of ingredientIndex.entries()) {
+                if (indexKey.includes(recipeNormalized) || recipeNormalized.includes(indexKey)) {
+                    for (const match of matches) {
+                        const itemNormalized = normalizeIngredientName(match.name);
+                        if (isValidPartialMatch(recipeName, match.name, recipeNormalized, itemNormalized)) {
+                            return {
+                                found: true,
+                                inventoryItem: match,
+                                matchType: 'partial',
+                                confidence: 0.7
+                            };
+                        }
                     }
                 }
             }
@@ -593,7 +752,7 @@ export default function RecipeSuggestions() {
 
     return (
         <MobileOptimizedLayout>
-            {/* Loading Modal*/}
+            {/* Loading Modal */}
             <LoadingModal
                 isOpen={showLoadingModal}
                 progress={loadingProgress}
@@ -1163,19 +1322,55 @@ export default function RecipeSuggestions() {
 // - INTELLIGENT_SUBSTITUTIONS
 // - etc.
 
-// CORE INGREDIENT MATCHING SYSTEM - Optimized for fast lookups
+// COMPLETE INGREDIENT MATCHING SYSTEM - All original logic preserved
 
 const NEVER_MATCH_INGREDIENTS = [
+    // Specialty flours
     'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
     'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
+
+    // Specialty sugars
     'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
     'swerve', 'stevia', 'erythritol', 'monk fruit', 'xylitol', 'sugar substitute',
+
+    // Alternative milks
     'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
+
+    // Compound dairy products
     'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
+
+    // Vegan/diet-specific ingredients
     'vegan butter', 'vegan cheese', 'vegan milk', 'vegan bacon', 'vegan sausage',
     'vegan beef', 'vegan chicken', 'plant butter', 'plant milk', 'plant beef',
+
+    // Specialty extracts and seasonings
     'vanilla extract', 'almond extract', 'garlic powder', 'onion powder',
+
+    // Specialty baking ingredients
     'baking powder', 'baking soda', 'cream of tartar', 'xanthan gum'
+];
+
+const NEVER_CROSS_MATCH = {
+    'peanut butter': ['butter'],
+    'almond butter': ['butter'],
+    'green onions': ['onion', 'onions'],
+    'scallions': ['onion', 'onions'],
+    'red bell pepper': ['pepper'],
+    'green bell pepper': ['pepper'],
+    'red pepper diced': ['pepper'],
+    'buttermilk': ['milk', 'butter'],
+    'heavy cream': ['milk'],
+    'sour cream': ['cream', 'milk'],
+    'cream cheese': ['cheese', 'cream'],
+    'vegan bacon': ['bacon'],
+    'sugar substitute': ['sugar'],
+    'brown sugar': ['sugar'],
+    'packed brown sugar': ['sugar']
+};
+
+const RECIPE_INGREDIENTS_NOT_INVENTORY = [
+    'vegan honey mustard marinade', 'honey mustard marinade', 'teriyaki marinade',
+    'bbq sauce', 'pizza dough', 'seasoning mix', 'spice blend', 'marinade'
 ];
 
 const INTELLIGENT_SUBSTITUTIONS = {
@@ -1198,6 +1393,13 @@ const INTELLIGENT_SUBSTITUTIONS = {
         ],
         conversionNote: 'Any bread type works for generic bread'
     },
+    'slice of bread': {
+        canSubstituteWith: [
+            'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
+            'honey wheat bread', 'texas toast', 'sourdough bread'
+        ],
+        conversionNote: 'Any sliced bread works'
+    },
     'ground hamburger': {
         canSubstituteWith: ['ground beef', 'hamburger', 'ground chuck', 'lean ground beef'],
         conversionNote: 'Ground hamburger is the same as ground beef'
@@ -1205,20 +1407,161 @@ const INTELLIGENT_SUBSTITUTIONS = {
     'hamburger': {
         canSubstituteWith: ['ground beef', 'ground hamburger', 'ground chuck'],
         conversionNote: 'Hamburger meat is ground beef'
+    },
+    'bay leaf': {
+        canSubstituteWith: ['bay leaves'],
+        conversionNote: 'Singular and plural are the same ingredient'
+    },
+    'bay leaves': {
+        canSubstituteWith: ['bay leaf'],
+        conversionNote: 'Singular and plural are the same ingredient'
+    },
+    'marsala wine': {
+        canSubstituteWith: ['marsala cooking wine', 'cooking marsala', 'dry marsala'],
+        conversionNote: 'Cooking wine can substitute for regular wine'
+    },
+    'hot water': {
+        canSubstituteWith: ['water', 'warm water', 'boiling water'],
+        conversionNote: 'Water can be heated as needed'
+    }
+};
+
+const RAW_TO_COOKED_CONVERSIONS = {
+    'cooked chicken': {
+        canMakeFrom: ['chicken', 'raw chicken', 'chicken breast', 'chicken thighs', 'whole chicken'],
+        conversionNote: 'Can cook raw chicken to make cooked chicken',
+        cookingRequired: true
+    },
+    'shredded cooked chicken': {
+        canMakeFrom: ['chicken', 'raw chicken', 'chicken breast', 'chicken thighs', 'cooked chicken'],
+        conversionNote: 'Cook and shred raw chicken, or shred existing cooked chicken',
+        cookingRequired: true
+    },
+    'cooked ground beef': {
+        canMakeFrom: ['ground beef', 'hamburger', 'ground hamburger', 'raw ground beef'],
+        conversionNote: 'Can cook raw ground beef',
+        cookingRequired: true
+    },
+    'cooked bacon': {
+        canMakeFrom: ['bacon', 'raw bacon', 'bacon strips'],
+        conversionNote: 'Can cook raw bacon',
+        cookingRequired: true
+    }
+};
+
+const INGREDIENT_SEPARATIONS = {
+    'egg whites': {
+        canMakeFrom: ['eggs', 'large eggs', 'whole eggs'],
+        conversionNote: '1 egg = 1 egg white + 1 egg yolk',
+        separationRequired: true
+    },
+    'egg yolks': {
+        canMakeFrom: ['eggs', 'large eggs', 'whole eggs'],
+        conversionNote: '1 egg = 1 egg white + 1 egg yolk',
+        separationRequired: true
     }
 };
 
 const INGREDIENT_VARIATIONS = {
+    // WATER
     'water': ['tap water', 'filtered water', 'cold water', 'warm water', 'hot water', 'boiling water'],
-    'eggs': ['egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'fresh eggs', 'whole eggs'],
-    'flour': ['all purpose flour', 'all-purpose flour', 'plain flour', 'white flour', 'unbleached flour'],
-    'sugar': ['white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar', 'table sugar'],
-    'milk': ['whole milk', '2% milk', '1% milk', 'skim milk', 'vitamin d milk', 'reduced fat milk'],
-    'butter': ['unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter', 'real butter'],
-    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic'],
-    'onion': ['onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion', 'diced onion'],
-    'ground beef': ['beef', 'hamburger', 'ground chuck', 'lean ground beef', 'ground hamburger'],
-    'bread': ['sandwich bread', 'wheat bread', 'white bread', 'sliced bread']
+    'hot water': ['water', 'warm water', 'boiling water'],
+
+    // EGGS
+    'eggs': [
+        'egg', 'large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs',
+        'fresh eggs', 'whole eggs', 'brown eggs', 'white eggs'
+    ],
+    'egg': ['eggs', 'large egg', 'extra large egg', 'fresh egg', 'whole egg'],
+
+    // FLOUR - Basic flour only
+    'flour': [
+        'all purpose flour', 'all-purpose flour', 'plain flour', 'white flour',
+        'unbleached flour', 'bleached flour', 'enriched flour', 'wheat flour',
+        'ap flour', 'general purpose flour'
+    ],
+    'all purpose flour': ['flour', 'all-purpose flour', 'plain flour'],
+    'all-purpose flour': ['flour', 'all purpose flour', 'plain flour'],
+
+    // SUGAR - White sugar only (brown sugar is specialty)
+    'sugar': [
+        'white sugar', 'granulated sugar', 'cane sugar', 'pure cane sugar',
+        'granulated white sugar', 'table sugar', 'regular sugar'
+    ],
+    'white sugar': ['sugar', 'granulated sugar', 'cane sugar'],
+    'granulated sugar': ['sugar', 'white sugar'],
+
+    // BROWN SUGAR - Exact matches only
+    'brown sugar': ['light brown sugar', 'dark brown sugar', 'packed brown sugar'],
+    'packed brown sugar': ['brown sugar', 'light brown sugar', 'dark brown sugar'],
+    'light brown sugar': ['brown sugar', 'packed brown sugar'],
+    'dark brown sugar': ['brown sugar', 'packed brown sugar'],
+
+    // MILK
+    'milk': [
+        'whole milk', '2% milk', '1% milk', 'skim milk', 'vitamin d milk',
+        'reduced fat milk', 'low fat milk', 'fresh milk', 'dairy milk'
+    ],
+    'whole milk': ['milk', 'vitamin d milk'],
+
+    // BUTTER
+    'butter': [
+        'unsalted butter', 'salted butter', 'sweet cream butter', 'dairy butter',
+        'real butter', 'churned butter'
+    ],
+    'unsalted butter': ['butter', 'sweet cream butter'],
+    'salted butter': ['butter'],
+
+    // GARLIC
+    'garlic': [
+        'garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic',
+        'chopped garlic', 'whole garlic', 'garlic head'
+    ],
+    'garlic cloves': ['garlic', 'fresh garlic', 'minced garlic'],
+    'minced garlic': ['garlic', 'garlic cloves'],
+
+    // ONION
+    'onion': [
+        'onions', 'yellow onion', 'white onion', 'sweet onion', 'cooking onion',
+        'spanish onion', 'diced onion'
+    ],
+    'onion finely diced': ['onion', 'onions', 'diced onion', 'yellow onion'],
+    'diced onion': ['onion', 'onions'],
+
+    // GROUND BEEF/HAMBURGER
+    'ground beef': [
+        'beef', 'hamburger', 'ground chuck', 'lean ground beef', 'ground hamburger',
+        'extra lean ground beef'
+    ],
+    'ground hamburger': ['ground beef', 'hamburger', 'beef', 'ground chuck'],
+    'hamburger': ['ground beef', 'ground hamburger', 'beef'],
+
+    // BREAD
+    'bread': [
+        'sandwich bread', 'wheat bread', 'white bread', 'sandwich wheat bread',
+        'honey wheat bread', 'texas toast', 'sourdough bread', 'sliced bread'
+    ],
+    'slice of bread': ['bread', 'sandwich bread', 'wheat bread', 'white bread'],
+    'sandwich wheat bread': ['bread', 'wheat bread', 'sandwich bread'],
+
+    // WINE
+    'marsala wine': ['marsala cooking wine', 'cooking marsala', 'dry marsala', 'sweet marsala'],
+    'marsala cooking wine': ['marsala wine', 'cooking marsala'],
+
+    // BAKING INGREDIENTS
+    'baking soda': ['sodium bicarbonate', 'bicarbonate of soda'],
+    'baking powder': ['double acting baking powder', 'aluminum free baking powder'],
+
+    // SEASONINGS
+    'salt': ['table salt', 'sea salt', 'kosher salt', 'fine salt', 'iodized salt'],
+    'pepper': ['black pepper', 'ground pepper', 'ground black pepper'],
+
+    // Other common ingredients
+    'honey': ['raw honey', 'pure honey', 'natural honey', 'wildflower honey'],
+    'white pepper': ['white pepper powder', 'ground white pepper'],
+    'vanilla extract': ['pure vanilla extract', 'vanilla essence'],
+    'vegetable oil': ['canola oil', 'soybean oil', 'corn oil'],
+    'olive oil': ['extra virgin olive oil', 'virgin olive oil']
 };
 
 function extractIngredientName(ingredientString) {
