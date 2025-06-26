@@ -71,8 +71,6 @@ function RecipesContent() {
     const RECIPES_PER_PAGE = 20; // Load only 20 recipes at a time
     const [currentPage, setCurrentPage] = useState(1);
     const [displayedRecipes, setDisplayedRecipes] = useState([]);
-    const [totalRecipeCount, setTotalRecipeCount] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
 
     // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
     // const DECIMAL_PRESETS = [
@@ -97,11 +95,19 @@ function RecipesContent() {
     }, [session]);
 
     useEffect(() => {
-        const startIndex = (currentPage - 1) * RECIPES_PER_PAGE;
-        const endIndex = startIndex + RECIPES_PER_PAGE;
-        const paginatedRecipes = getFilteredAndSortedRecipes().slice(startIndex, endIndex);
-        setDisplayedRecipes(paginatedRecipes);
+        if (recipes.length > 0) {
+            const startIndex = (currentPage - 1) * RECIPES_PER_PAGE;
+            const endIndex = startIndex + RECIPES_PER_PAGE;
+            const filtered = getFilteredAndSortedRecipes();
+            const paginatedRecipes = filtered.slice(startIndex, endIndex);
+            setDisplayedRecipes(paginatedRecipes);
+        }
     }, [recipes, currentPage, searchTerm, selectedTag, selectedDifficulty, selectedCategory, sortBy, activeTab]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedCategory, selectedDifficulty, selectedTag, activeTab]);
+
 
 // ADD: Reset to page 1 when filters change
     useEffect(() => {
@@ -109,30 +115,14 @@ function RecipesContent() {
     }, [searchTerm, selectedCategory, selectedDifficulty, selectedTag, activeTab]);
 
 
-    const filteredRecipeCount = useMemo(() => {
-        return getFilteredAndSortedRecipes().length;
-    }, [recipes, searchTerm, selectedTag, selectedDifficulty, selectedCategory, activeTab]);
-
-    const fetchRecipes = async (page = 1, limit = 20) => {
+    const fetchRecipes = async () => {
         try {
             if (isInitialLoad) {
                 setShowLoadingModal(true);
             }
 
             setRecipesError('');
-
-            // Add pagination parameters
-            const params = new URLSearchParams({
-                page: page.toString(),
-                limit: limit.toString(),
-                tab: activeTab, // Let server filter by tab
-                search: searchTerm || '',
-                category: selectedCategory || '',
-                difficulty: selectedDifficulty || '',
-                tag: selectedTag || ''
-            });
-
-            const response = await fetch(getApiUrl(`/api/recipes?${params}`));
+            const response = await fetch(getApiUrl('/api/recipes'));
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -170,32 +160,13 @@ function RecipesContent() {
                 setRecipesError(data.error || 'Failed to load recipes');
                 setRecipes([]); // Ensure empty array on error
             }
-                // Extract tags and categories from returned recipes only
-                const tags = new Set();
-                const categories = new Set();
-
-                newRecipes.forEach(recipe => {
-                    if (recipe && Array.isArray(recipe.tags)) {
-                        recipe.tags.forEach(tag => {
-                            if (tag && typeof tag === 'string') {
-                                tags.add(tag);
-                            }
-                        });
-                    }
-                    if (recipe && recipe.category && typeof recipe.category === 'string') {
-                        categories.add(recipe.category);
-                    }
-                });
-
-                setAllTags(Array.from(tags).sort());
-                setAllCategories(Array.from(categories).sort());
-
         } catch (error) {
             console.error('Error fetching recipes:', error);
             setRecipesError(error.message || 'Failed to load recipes');
-            setRecipes([]);
+            setRecipes([]); // Ensure empty array on error
         } finally {
             setLoading(false);
+
             if (isInitialLoad) {
                 setTimeout(() => {
                     setShowLoadingModal(false);
@@ -635,6 +606,8 @@ function RecipesContent() {
 
     // FIXED: Use safe filtering
     const filteredRecipes = getFilteredAndSortedRecipes();
+    const filteredRecipeCount = filteredRecipes.length;
+    const totalPages = Math.ceil(filteredRecipeCount / RECIPES_PER_PAGE);
     const tabCounts = getTabCounts();
 
     return (
