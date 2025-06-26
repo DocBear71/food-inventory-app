@@ -5,7 +5,6 @@
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useSubscription} from '@/hooks/useSubscription';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
@@ -20,13 +19,6 @@ export default function SaveRecipeButton({
                                              size = 'medium' // 'small', 'medium', 'large'
                                          }) {
     const {data: session} = useSafeSession();
-    const subscriptionData = subscription || {
-        loading: true,
-        tier: 'free',
-        checkFeature: () => false,
-        checkLimit: () => false
-    };
-
     const [loading, setLoading] = useState(false);
     const [collections, setCollections] = useState([]);
     const [showCollectionModal, setShowCollectionModal] = useState(false);

@@ -2,7 +2,7 @@
 // file: /src/app/recipes/page.js v7 - FIXED undefined filter errors and improved error handling
 
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useEffect, useState, Suspense, useMemo} from 'react';
+import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {useSubscription} from '@/hooks/useSubscription';
 import {StarRating} from '@/components/reviews/RecipeRating';
@@ -1172,7 +1172,6 @@ function RecipesContent() {
                                                                 size="small"
                                                                 showText={false}
                                                                 onSaveStateChange={handleRecipeSaveStateChange}
-                                                                subscription={subscription} // ← Pass subscription down
                                                             />
                                                         )}
                                                         {canEditRecipe(recipe) && (
