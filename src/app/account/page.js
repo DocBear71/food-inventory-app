@@ -357,7 +357,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">{session.user.email}</div>
                             </div>
                             <div className="flex items-center space-x-2">
-                                {session.user.emailVerified ? (
+                                {session.user?.emailVerified ? (
                                     <span className="text-green-600 text-sm">✅ Verified</span>
                                 ) : (
                                     <span className="text-orange-600 text-sm">⚠️ Unverified</span>
@@ -371,7 +371,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Last updated recently</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/account/change-password')}
+                                onClick={() => router.push('/auth/change-password')}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Change Password
@@ -404,7 +404,7 @@ export default function AccountPage() {
                         >
                             <div className="text-2xl mb-2">📧</div>
                             <div className="font-medium text-gray-900">Contact Support</div>
-                            <div className="text-sm text-gray-600">Get help via email</div>
+                            <div className="text-sm text-gray-600">Get help with software issues/bugs</div>
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
@@ -413,7 +413,7 @@ export default function AccountPage() {
                         >
                             <div className="text-2xl mb-2">📚</div>
                             <div className="font-medium text-gray-900">Help Center</div>
-                            <div className="text-sm text-gray-600">Browse documentation</div>
+                            <div className="text-sm text-gray-600">Browse F.A.Q.s</div>
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
@@ -422,7 +422,7 @@ export default function AccountPage() {
                         >
                             <div className="text-2xl mb-2">💡</div>
                             <div className="font-medium text-gray-900">Send Feedback</div>
-                            <div className="text-sm text-gray-600">Share your thoughts</div>
+                            <div className="text-sm text-gray-600">Share your thoughts/comments</div>
                         </TouchEnhancedButton>
                     </div>
                 </div>
