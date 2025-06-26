@@ -71,6 +71,8 @@ function RecipesContent() {
     const RECIPES_PER_PAGE = 20; // Load only 20 recipes at a time
     const [currentPage, setCurrentPage] = useState(1);
     const [displayedRecipes, setDisplayedRecipes] = useState([]);
+    const [totalRecipeCount, setTotalRecipeCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
     // COMMENTED OUT: Quick search presets for common decimal issues (used for import cleanup)
     // const DECIMAL_PRESETS = [
@@ -89,13 +91,6 @@ function RecipesContent() {
 
     useEffect(() => {
         if (session) {
-            setCurrentPage(1); // Reset to first page
-            fetchRecipes(1, RECIPES_PER_PAGE);
-        }
-    }, [searchTerm, selectedCategory, selectedDifficulty, selectedTag, activeTab]);
-
-    useEffect(() => {
-        if (session) {
             fetchRecipes();
             fetchCounts();
         }
@@ -108,15 +103,15 @@ function RecipesContent() {
         setDisplayedRecipes(paginatedRecipes);
     }, [recipes, currentPage, searchTerm, selectedTag, selectedDifficulty, selectedCategory, sortBy, activeTab]);
 
-    const handleLoadMore = () => {
-        fetchRecipes(currentPage + 1, RECIPES_PER_PAGE);
-    };
+// ADD: Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedCategory, selectedDifficulty, selectedTag, activeTab]);
+
 
     const filteredRecipeCount = useMemo(() => {
         return getFilteredAndSortedRecipes().length;
     }, [recipes, searchTerm, selectedTag, selectedDifficulty, selectedCategory, activeTab]);
-
-    const totalPages = Math.ceil(filteredRecipeCount / RECIPES_PER_PAGE);
 
     const fetchRecipes = async (page = 1, limit = 20) => {
         try {
@@ -146,19 +141,35 @@ function RecipesContent() {
             const data = await response.json();
 
             if (data.success) {
-                // Server returns paginated results
-                const { recipes: newRecipes, totalCount, currentPage, totalPages } = data;
+                // FIXED: Ensure recipes is always an array
+                const recipesArray = Array.isArray(data.recipes) ? data.recipes : [];
+                setRecipes(recipesArray);
 
-                if (page === 1) {
-                    setRecipes(newRecipes); // Replace for new search/filter
-                } else {
-                    setRecipes(prev => [...prev, ...newRecipes]); // Append for "load more"
-                }
+                // Extract all unique tags and categories with null checks
+                const tags = new Set();
+                const categories = new Set();
 
-                setTotalRecipeCount(totalCount);
-                setCurrentPage(currentPage);
-                setTotalPages(totalPages);
+                recipesArray.forEach(recipe => {
+                    // FIXED: Add null checks for recipe properties
+                    if (recipe && Array.isArray(recipe.tags)) {
+                        recipe.tags.forEach(tag => {
+                            if (tag && typeof tag === 'string') {
+                                tags.add(tag);
+                            }
+                        });
+                    }
+                    if (recipe && recipe.category && typeof recipe.category === 'string') {
+                        categories.add(recipe.category);
+                    }
+                });
 
+                setAllTags(Array.from(tags).sort());
+                setAllCategories(Array.from(categories).sort());
+            } else {
+                console.error('Failed to fetch recipes:', data.error || 'Unknown error');
+                setRecipesError(data.error || 'Failed to load recipes');
+                setRecipes([]); // Ensure empty array on error
+            }
                 // Extract tags and categories from returned recipes only
                 const tags = new Set();
                 const categories = new Set();
@@ -178,7 +189,7 @@ function RecipesContent() {
 
                 setAllTags(Array.from(tags).sort());
                 setAllCategories(Array.from(categories).sort());
-            }
+
         } catch (error) {
             console.error('Error fetching recipes:', error);
             setRecipesError(error.message || 'Failed to load recipes');
