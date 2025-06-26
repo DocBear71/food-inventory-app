@@ -289,7 +289,7 @@ function BillingContent() {
 
                     <p className="text-gray-600 mb-4">{currentPlan.description}</p>
 
-                    {/* DEBUG: Add this temporarily */}
+                    {/* DEBUG: Add this temporarily
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
                         <h4 className="font-medium">Debug Info:</h4>
                         <div className="text-sm space-y-1">
@@ -302,7 +302,7 @@ function BillingContent() {
                             <div>Formatted End: {formatDate(subscription.endDate)}</div>
                             <div>Full subscription object: {JSON.stringify(subscription, null, 2)}</div>
                         </div>
-                    </div>
+                    </div>*/}
 
                     {/* Trial Information */}
                     {isOnTrial && (
@@ -328,7 +328,7 @@ function BillingContent() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-gray-600">Next billing date:</span>
-                                    <span className="ml-2 font-medium">{formatDate(subscription.endDate)}</span>
+                                    <span className="ml-2 font-medium">{formatDate(subscription.nextBillingDate)}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Started:</span>
