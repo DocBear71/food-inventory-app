@@ -180,7 +180,14 @@ function BillingContent() {
 
     const formatDate = (date) => {
         if (!date) return 'N/A';
-        return new Date(date).toLocaleDateString('en-US', {
+
+        // Handle both string and Date object inputs
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+        // Check if the date is valid
+        if (isNaN(dateObj.getTime())) return 'N/A';
+
+        return dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -297,6 +304,12 @@ function BillingContent() {
                                 <div>
                                     <span className="text-gray-600">Next billing date:</span>
                                     <span className="ml-2 font-medium">{formatDate(subscription.endDate)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-600">Next billing date:</span>
+                                    <span className="ml-2 font-medium">
+        {subscription.endDate} - {formatDate(subscription.endDate)}
+    </span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Started:</span>
