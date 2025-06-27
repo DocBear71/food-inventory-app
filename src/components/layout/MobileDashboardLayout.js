@@ -203,10 +203,10 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* User avatar with profile link */}
+                        {/* User avatar with profile link - FIXED SIZE */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
-                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden"
+                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden flex-shrink-0"
                             aria-label="Go to profile"
                             title="Profile"
                         >
@@ -214,7 +214,13 @@ export default function MobileDashboardLayout({children}) {
                                 <img
                                     src={`/api/user/avatar/${session.user.avatar}`}
                                     alt="Profile"
-                                    className="w-full h-full object-cover"
+                                    className="w-10 h-10 object-cover rounded-full"
+                                    style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        objectFit: 'cover',
+                                        objectPosition: 'center'
+                                    }}
                                     onError={(e) => {
                                         // Fallback if image fails to load
                                         e.target.style.display = 'none';
@@ -223,11 +229,11 @@ export default function MobileDashboardLayout({children}) {
                                 />
                             ) : null}
                             <span
-                                className="text-indigo-600 text-sm font-medium"
+                                className="text-indigo-600 text-sm font-medium w-10 h-10 flex items-center justify-center"
                                 style={{display: session?.user?.avatar ? 'none' : 'flex'}}
                             >
-        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-    </span>
+                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                            </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>

@@ -974,24 +974,31 @@ export default function RecipeSuggestions() {
                                         <div className="space-y-6">
                                             {getPaginatedData(filteredSuggestions, currentPage, itemsPerPage).map((recipe) => (
                                                 <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
-                                                    <div className="flex justify-between items-start mb-4">
-                                                        <div className="flex-1">
-                                                            <h4 className="text-xl font-semibold text-gray-900">{recipe.title}</h4>
-                                                            {recipe.description && (
-                                                                <p className="text-gray-600 mt-1">{recipe.description}</p>
-                                                            )}
-                                                        </div>
-                                                        <div
-                                                            className={`px-3 py-1 rounded-full text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
-                                                            {Math.round(recipe.analysis.matchPercentage * 100)}% Match
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-3 sm:space-y-0">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-col space-y-2 mb-3">
+                                                                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+                                                                    <h4 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
+                                                                        {recipe.title}
+                                                                    </h4>
+                                                                    <div className="flex-shrink-0 mt-2 sm:mt-0">
+                                                                        <div className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
+                                                                            {Math.round(recipe.analysis.matchPercentage * 100)}% Match
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {recipe.description && (
+                                                                    <p className="text-gray-600 text-sm sm:text-base">{recipe.description}</p>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                                                         {/* Recipe Info */}
-                                                        <div>
-                                                            <h5 className="font-medium text-gray-900 mb-2">Recipe Details</h5>
-                                                            <div className="space-y-1 text-sm text-gray-600">
+                                                        <div className="lg:col-span-1">
+                                                            <h5 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Recipe Details</h5>
+                                                            <div className="space-y-1 text-xs sm:text-sm text-gray-600">
                                                                 <div className="flex items-center space-x-2">
                                                                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
                                                                         {recipe.difficulty}
@@ -1013,13 +1020,13 @@ export default function RecipeSuggestions() {
                                                         </div>
 
                                                         {/* Available Ingredients */}
-                                                        <div>
-                                                            <h5 className="font-medium text-green-700 mb-2">
+                                                        <div className="lg:col-span-1">
+                                                            <h5 className="font-medium text-green-700 mb-2 text-sm sm:text-base">
                                                                 ✅ You Have ({recipe.analysis.availableIngredients.length})
                                                             </h5>
-                                                            <div className="space-y-1 text-sm">
+                                                            <div className="space-y-1 text-xs sm:text-sm">
                                                                 {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                    <div key={index} className="text-green-600">
+                                                                    <div key={index} className="text-green-600 break-words">
                                                                         • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                                         {ingredient.matchType === 'substitution' && (
                                                                             <span className="text-xs text-blue-600 ml-1">(substitute)</span>
@@ -1035,13 +1042,13 @@ export default function RecipeSuggestions() {
                                                         </div>
 
                                                         {/* Missing Ingredients */}
-                                                        <div>
-                                                            <h5 className="font-medium text-red-700 mb-2">
+                                                        <div className="lg:col-span-1">
+                                                            <h5 className="font-medium text-red-700 mb-2 text-sm sm:text-base">
                                                                 ❌ You Need ({recipe.analysis.missingIngredients.length})
                                                             </h5>
-                                                            <div className="space-y-1 text-sm">
+                                                            <div className="space-y-1 text-xs sm:text-sm">
                                                                 {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                    <div key={index} className="text-red-600">
+                                                                    <div key={index} className="text-red-600 break-words">
                                                                         • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                                     </div>
                                                                 ))}
@@ -1055,8 +1062,8 @@ export default function RecipeSuggestions() {
                                                     </div>
 
                                                     {/* Action Buttons */}
-                                                    <div className="mt-4 flex justify-between items-center">
-                                                        <div className="text-sm text-gray-500">
+                                                    <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                                                        <div className="text-xs sm:text-sm text-gray-500">
                                                             {recipe.analysis.canMake ? (
                                                                 <span className="text-green-600 font-medium">
                                                                     🎉 You can make this recipe!
@@ -1067,11 +1074,11 @@ export default function RecipeSuggestions() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="flex space-x-2">
+                                                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
                                                             <TouchEnhancedButton
                                                                 onClick={() => loadRecipeDetails(recipe._id)}
                                                                 disabled={loadingRecipe}
-                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                                                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                                                             >
                                                                 {loadingRecipe ? 'Loading...' : 'View Recipe'}
                                                             </TouchEnhancedButton>
@@ -1082,7 +1089,7 @@ export default function RecipeSuggestions() {
                                                                         recipeName: recipe.title,
                                                                         type: 'recipe'
                                                                     })}
-                                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                                                                    className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                                                                 >
                                                                     Shopping List
                                                                 </TouchEnhancedButton>
@@ -1190,17 +1197,130 @@ export default function RecipeSuggestions() {
                                 </div>
                             )}
 
-                            {/* Curated Meals Tab - Placeholder for future implementation */}
+                            {/* Curated Meals Tab - Restored functionality */}
                             {activeTab === 'curated' && (
-                                <div>
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-4">
-                                            Curated meals feature coming soon!
-                                        </div>
-                                        <p className="text-sm text-gray-400">
-                                            This will show hand-picked meal combinations based on your inventory.
-                                        </p>
+                                <div id="curated-results">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            ⭐ Curated Meal Suggestions ({curatedMeals.length})
+                                        </h3>
                                     </div>
+
+                                    {curatedMeals.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <div className="text-gray-500 mb-4">
+                                                No curated meals available yet
+                                            </div>
+                                            <p className="text-sm text-gray-400">
+                                                Check back later for hand-picked meal combinations.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {curatedMeals.slice(0, 10).map((meal, index) => (
+                                                <div key={meal._id} className="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gradient-to-r from-purple-50 to-indigo-50">
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-2 sm:space-y-0">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2">
+                                                                <h4 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
+                                                                    {meal.name}
+                                                                </h4>
+                                                                <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                                        {meal.difficulty}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-gray-600 mb-3 text-sm sm:text-base">{meal.description}</p>
+
+                                                            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-4">
+                                                                <span>⏱️ {meal.estimatedTime} min</span>
+                                                                <span>👥 {meal.servings} servings</span>
+                                                                <span>🍽️ {meal.mealType}</span>
+                                                                {meal.season !== 'any' && <span>📅 {meal.season}</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                                                        {/* Meal Components */}
+                                                        <div>
+                                                            <h5 className="font-medium text-gray-700 mb-3 text-sm sm:text-base">
+                                                                🥘 Meal Components ({meal.components?.length || 0})
+                                                            </h5>
+                                                            <div className="space-y-2">
+                                                                {meal.components?.slice(0, 5).map((component, idx) => (
+                                                                    <div key={idx} className="flex items-center space-x-3 bg-white p-2 sm:p-3 rounded-lg border border-gray-200">
+                                                                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="font-medium text-gray-900 text-sm break-words">
+                                                                                {component.itemName}
+                                                                                {!component.required && <span className="text-gray-500 text-xs ml-1">(optional)</span>}
+                                                                            </div>
+                                                                            <div className="text-xs text-gray-500 capitalize">
+                                                                                {component.category}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )) || []}
+                                                                {meal.components?.length > 5 && (
+                                                                    <div className="text-xs text-gray-500 italic p-2">
+                                                                        +{meal.components.length - 5} more components
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Cooking Tips */}
+                                                        <div>
+                                                            <h5 className="font-medium text-gray-700 mb-3 text-sm sm:text-base">
+                                                                💡 Cooking Tips
+                                                            </h5>
+                                                            {meal.cookingTips && meal.cookingTips.length > 0 ? (
+                                                                <div className="space-y-2">
+                                                                    {meal.cookingTips.slice(0, 3).map((tip, tipIndex) => (
+                                                                        <div key={tipIndex} className="bg-white p-2 sm:p-3 rounded-lg border border-yellow-200">
+                                                                            <div className="text-xs sm:text-sm text-gray-700">• {tip}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                    {meal.cookingTips.length > 3 && (
+                                                                        <div className="text-xs text-gray-500 italic p-2">
+                                                                            +{meal.cookingTips.length - 3} more tips
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="bg-white p-3 rounded-lg border border-gray-200">
+                                                                    <div className="text-sm text-gray-500 italic">
+                                                                        No specific cooking tips for this meal
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Action Bar */}
+                                                    <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                                                        <div className="text-xs sm:text-sm text-gray-500">
+                                                            <span className="text-indigo-600 font-medium">
+                                                                🍽️ Curated meal suggestion
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                                                            <TouchEnhancedButton
+                                                                onClick={() => {
+                                                                    alert('Add to meal plan feature coming soon!');
+                                                                }}
+                                                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                                                            >
+                                                                📅 Add to Meal Plan
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
