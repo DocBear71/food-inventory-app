@@ -309,108 +309,174 @@ export default function SimpleMealBuilder({
         const category = item.category?.toLowerCase() || '';
         const brand = item.brand?.toLowerCase() || '';
 
+        // Normalize the name similar to your ingredient matching system
+        const normalizedName = name
+            .replace(/\([^)]*\)/g, '') // Remove parentheses
+            .replace(/\b(organic|natural|pure|fresh|raw|whole|fine|coarse|ground)\b/g, '') // Remove descriptors
+            .replace(/\b(small|medium|large|extra large|jumbo|mini)\b/g, '') // Remove sizes
+            .replace(/\b(can|jar|bottle|bag|box|package|container|pack)\b/g, '') // Remove packaging
+            .replace(/[^\w\s]/g, ' ') // Remove special characters
+            .replace(/\s+/g, ' ') // Normalize spaces
+            .trim();
+
+        // CONVENIENCE/PACKAGED MEALS - Check first
         const conveniencePatterns = [
-            'hamburger helper', 'tuna helper', 'chicken helper',
+            'hamburger helper', 'tuna helper', 'chicken helper', 'helper',
             'four cheese lasagna', 'deluxe beef stroganoff', 'cheesy italian shells',
-            'frozen pizza', 'lean cuisine', 'stouffer', 'marie callender'
+            'frozen pizza', 'lean cuisine', 'stouffer', 'marie callender',
+            'hot pocket', 'bagel bite', 'pizza roll', 'frozen meal', 'tv dinner'
         ];
 
-        if (conveniencePatterns.some(pattern => name.includes(pattern) || brand.includes(pattern))) {
+        if (conveniencePatterns.some(pattern => normalizedName.includes(pattern) || brand.includes(pattern))) {
             return 'other';
         }
 
+        // SEASONINGS/SPICES - Check early
         const seasoningPatterns = [
-            'ground cinnamon', 'ground pepper', 'white pepper', 'black pepper',
-            'garlic powder', 'onion powder', 'paprika', 'oregano', 'basil',
-            'thyme', 'cumin', 'chili powder', 'red pepper flakes', 'kosher salt',
-            'coarse salt', 'cayenne pepper'
+            'cinnamon', 'pepper', 'paprika', 'oregano', 'basil', 'thyme', 'cumin',
+            'chili powder', 'red pepper flakes', 'salt', 'italian seasoning',
+            'taco seasoning', 'ranch packet', 'onion soup mix', 'garlic powder',
+            'onion powder', 'cayenne'
         ];
 
-        if (seasoningPatterns.some(pattern => name.includes(pattern)) ||
+        if (seasoningPatterns.some(pattern => normalizedName.includes(pattern)) ||
             (category.includes('spice') || category.includes('seasoning')) ||
-            (name.includes('salt') && !name.includes('salted')) ||
-            (name.includes('pepper') && !name.includes('bell') && !name.includes('sweet'))) {
+            (normalizedName.includes('salt') && !normalizedName.includes('salted')) ||
+            (normalizedName.includes('pepper') && !normalizedName.includes('bell') &&
+             !normalizedName.includes('sweet') && !normalizedName.includes('red pepper') &&
+             !normalizedName.includes('green pepper'))) {
             return 'seasoning';
         }
 
-        if (name.includes('sauce') || name.includes('gravy') || name.includes('dressing') ||
-            name.includes('vinegar') || name.includes('mayo') || name.includes('mustard') ||
-            name.includes('ketchup')) {
+        // SAUCES/CONDIMENTS
+        if (normalizedName.includes('sauce') || normalizedName.includes('gravy') ||
+            normalizedName.includes('dressing') || normalizedName.includes('vinegar') ||
+            normalizedName.includes('mayo') || normalizedName.includes('mustard') ||
+            normalizedName.includes('ketchup') || normalizedName.includes('relish') ||
+            normalizedName.includes('syrup')) {
             return 'other';
         }
 
-        if (name.includes('soup') || name.includes('broth') || name.includes('stock')) {
+        // SOUPS/BROTHS
+        if (normalizedName.includes('soup') || normalizedName.includes('broth') ||
+            normalizedName.includes('stock')) {
             return 'other';
         }
 
-        const convenienceProteinPatterns = [
-            'hamburger patties', 'chicken patties', 'chicken nuggets', 'hot dogs',
-            'bratwurst', 'polish sausage', 'breakfast sausage'
+        // STARCHES/CARBS - Using your bread variations approach
+        const starchKeywords = [
+            // Bread products - exact matches from your system
+            'buns', 'hamburger buns', 'hot dog buns', 'bread', 'rolls', 'bagel',
+            'tortilla', 'pita', 'naan', 'english muffin', 'croissant', 'biscuit',
+            // Pasta - from your variations
+            'pasta', 'spaghetti', 'penne', 'macaroni', 'noodle', 'shells',
+            'rigatoni', 'farfalle', 'rotini', 'linguine', 'fettuccine',
+            // Grains and starches
+            'rice', 'potato', 'potatoes', 'sweet potato', 'quinoa', 'oats',
+            'oatmeal', 'stuffing', 'barley', 'couscous', 'polenta', 'grits',
+            'cornmeal', 'flour', 'crackers', 'chips'
         ];
 
-        if (convenienceProteinPatterns.some(pattern => name.includes(pattern))) {
-            return 'protein';
-        }
-
-        const proteinPatterns = [
-            'ground beef', 'stew meat', 'ribeye', 'new york steak', 'pork chops',
-            'chicken breast', 'chicken wing', 'cubed steak', 'bacon', 'ham',
-            'salmon', 'tuna', 'shrimp', 'eggs'
-        ];
-
-        if (proteinPatterns.some(pattern => name.includes(pattern))) {
-            return 'protein';
-        }
-
-        if ((name.includes('chicken') || name.includes('beef') || name.includes('pork') ||
-                name.includes('turkey') || name.includes('fish') || name.includes('meat')) &&
-            !name.includes('sauce') && !name.includes('gravy') && !name.includes('soup') &&
-            !name.includes('helper') && !name.includes('seasoning') && !name.includes('powder')) {
-            return 'protein';
-        }
-
-        if (name.includes('buns') || name.includes('bread') || name.includes('rolls') ||
-            name.includes('bagel') || name.includes('tortilla') || name.includes('pita')) {
+        // Check for exact starch matches first
+        if (starchKeywords.some(keyword => {
+            const normalizedKeyword = keyword.replace(/\s+/g, ' ').trim();
+            return normalizedName === normalizedKeyword ||
+                   normalizedName.includes(normalizedKeyword);
+        }) && !normalizedName.includes('vinegar') && !normalizedName.includes('sauce')) {
             return 'starch';
         }
 
-        if (name.includes('pasta') || name.includes('spaghetti') || name.includes('penne') ||
-            name.includes('macaroni') || name.includes('noodle') || name.includes('shells') ||
-            name.includes('rigatoni') || name.includes('farfalle') || name.includes('rotini')) {
-            return 'starch';
-        }
-
-        if ((name.includes('rice') || name.includes('potato') || name.includes('quinoa') ||
-                name.includes('oats') || name.includes('stuffing') || name.includes('barley') ||
-                name.includes('couscous')) &&
-            !name.includes('vinegar') && !name.includes('sauce')) {
-            return 'starch';
-        }
-
-        if ((name.includes('milk') || name.includes('yogurt') || name.includes('cream') ||
-                name.includes('butter') || name.includes('cottage cheese') || name.includes('sour cream')) ||
-            (name.includes('cheese') && !name.includes('lasagna') && !name.includes('helper') &&
-                !name.includes('sauce') && !name.includes('shells'))) {
-            return 'dairy';
-        }
-
-        const vegetablePatterns = [
-            'broccoli', 'carrot', 'spinach', 'lettuce', 'corn', 'peas',
-            'green beans', 'asparagus', 'zucchini', 'cauliflower', 'cabbage', 'brussels'
+        // VEGETABLES - Comprehensive list like your ingredient variations
+        const vegetableKeywords = [
+            // Basic vegetables
+            'broccoli', 'carrot', 'carrots', 'spinach', 'lettuce', 'corn', 'peas',
+            'green beans', 'asparagus', 'zucchini', 'cauliflower', 'cabbage',
+            'brussels sprouts',
+            // Root vegetables and aromatics
+            'onion', 'onions', 'garlic', 'ginger', 'beet', 'turnip', 'parsnip', 'radish',
+            // Peppers and nightshades
+            'bell pepper', 'red pepper', 'green pepper', 'yellow pepper', 'jalapeño',
+            'poblano', 'tomato', 'tomatoes', 'eggplant',
+            // Squash family
+            'squash', 'pumpkin', 'butternut', 'acorn squash',
+            // Leafy greens
+            'kale', 'arugula', 'chard', 'collard',
+            // Other vegetables
+            'celery', 'cucumber', 'mushroom', 'mushrooms', 'artichoke', 'okra'
         ];
 
-        if (vegetablePatterns.some(pattern => name.includes(pattern)) ||
-            (category.includes('vegetable') && !name.includes('sauce') &&
-                !name.includes('mushroom') && !name.includes('onion') &&
-                !name.includes('pepper') && !name.includes('celery') && !name.includes('tomato'))) {
+        if (vegetableKeywords.some(keyword => normalizedName.includes(keyword)) ||
+            (category.includes('vegetable') && !normalizedName.includes('sauce') &&
+             !normalizedName.includes('soup'))) {
             return 'vegetable';
         }
 
-        if (name.includes('oil') && !name.includes('olive oil vinegar') ||
-            name.includes('avocado') || name.includes('nuts') || name.includes('seeds')) {
+        // PROTEINS - More specific like your system
+        const proteinKeywords = [
+            // Meat cuts
+            'ground beef', 'stew meat', 'ribeye', 'new york steak', 'sirloin',
+            'tenderloin', 'chuck roast', 'pork chops', 'pork shoulder', 'bacon',
+            'ham', 'sausage',
+            // Poultry
+            'chicken breast', 'chicken thigh', 'chicken wing', 'chicken drumstick',
+            'whole chicken', 'turkey breast', 'ground turkey', 'ground chicken',
+            // Seafood
+            'salmon', 'tuna', 'cod', 'tilapia', 'shrimp', 'crab', 'lobster', 'fish',
+            // Processed proteins
+            'hamburger patties', 'chicken patties', 'chicken nuggets', 'hot dogs',
+            'bratwurst', 'polish sausage', 'breakfast sausage', 'deli meat', 'lunch meat',
+            // Other proteins
+            'eggs', 'tofu', 'tempeh', 'beans', 'lentils', 'chickpeas'
+        ];
+
+        if (proteinKeywords.some(keyword => normalizedName.includes(keyword))) {
+            return 'protein';
+        }
+
+        // General meat terms - but more specific
+        if ((normalizedName.includes('chicken') || normalizedName.includes('beef') ||
+             normalizedName.includes('pork') || normalizedName.includes('turkey') ||
+             normalizedName.includes('fish') || normalizedName.includes('meat')) &&
+            !normalizedName.includes('sauce') && !normalizedName.includes('gravy') &&
+            !normalizedName.includes('soup') && !normalizedName.includes('helper') &&
+            !normalizedName.includes('seasoning') && !normalizedName.includes('powder') &&
+            !normalizedName.includes('broth') && !normalizedName.includes('stock')) {
+            return 'protein';
+        }
+
+        // DAIRY - Using your variations approach
+        const dairyKeywords = [
+            'milk', 'whole milk', 'skim milk', 'yogurt', 'greek yogurt',
+            'cream', 'heavy cream', 'sour cream', 'whipped cream', 'butter',
+            'margarine', 'cottage cheese', 'cream cheese', 'ricotta',
+            'cheddar', 'mozzarella', 'parmesan', 'swiss', 'gouda', 'brie', 'feta'
+        ];
+
+        if (dairyKeywords.some(keyword => normalizedName.includes(keyword)) ||
+            (normalizedName.includes('cheese') && !normalizedName.includes('lasagna') &&
+             !normalizedName.includes('helper') && !normalizedName.includes('sauce') &&
+             !normalizedName.includes('shells') && !normalizedName.includes('macaroni'))) {
+            return 'dairy';
+        }
+
+        // FATS/OILS
+        const fatKeywords = [
+            'olive oil', 'vegetable oil', 'canola oil', 'coconut oil', 'avocado oil',
+            'nuts', 'almonds', 'walnuts', 'pecans', 'peanuts', 'cashews',
+            'seeds', 'sunflower seeds', 'pumpkin seeds', 'chia seeds'
+        ];
+
+        if (fatKeywords.some(keyword => normalizedName.includes(keyword)) &&
+            !normalizedName.includes('olive oil vinegar')) {
             return 'fat';
         }
 
+        // Special case for avocado - could be fat or vegetable
+        if (normalizedName.includes('avocado') && !normalizedName.includes('oil')) {
+            return 'vegetable'; // Whole avocados are vegetables, avocado oil is fat
+        }
+
+        // Default to 'other'
         return 'other';
     };
 
@@ -679,16 +745,14 @@ export default function SimpleMealBuilder({
                                     🍽️ Create Simple Meal
                                 </h2>
                                 <p className="text-sm text-gray-600">
-                                    Build a meal from your inventory items
-                                    for {selectedSlot?.day} {selectedSlot?.mealType}
+                                    Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
                                 </p>
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                         )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
-                                            <span> • </span>}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
                                         {userAvoidIngredients.length > 0 && (
                                             <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                         )}
@@ -770,8 +834,7 @@ export default function SimpleMealBuilder({
                                 >
                                     🍽️ Build Meal
                                     {mealData.items.length > 0 && (
-                                        <span
-                                            className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
+                                        <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
                                             {mealData.items.length}
                                         </span>
                                     )}
@@ -789,8 +852,7 @@ export default function SimpleMealBuilder({
 
                                             {inventory.length > 0 && filteredInventory.length < inventory.length && (
                                                 <div className="mb-2 text-sm text-orange-600">
-                                                    Showing {filteredInventory.length} of {inventory.length} items
-                                                    (filtered by dietary preferences)
+                                                    Showing {filteredInventory.length} of {inventory.length} items (filtered by dietary preferences)
                                                 </div>
                                             )}
 
@@ -822,8 +884,7 @@ export default function SimpleMealBuilder({
                                         <div className="flex-1 overflow-y-auto p-4">
                                             {loading ? (
                                                 <div className="text-center py-8">
-                                                    <div
-                                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
                                                     <p className="text-gray-500">Loading inventory...</p>
                                                 </div>
                                             ) : filteredInventory.length === 0 ? (
@@ -835,8 +896,7 @@ export default function SimpleMealBuilder({
                                                     </p>
                                                     {inventory.length > filteredInventory.length && (
                                                         <p className="text-xs text-orange-600 mt-2">
-                                                            {inventory.length - filteredInventory.length} items filtered
-                                                            by dietary preferences
+                                                            {inventory.length - filteredInventory.length} items filtered by dietary preferences
                                                         </p>
                                                     )}
                                                 </div>
@@ -854,18 +914,15 @@ export default function SimpleMealBuilder({
                                                             >
                                                                 <div className="flex items-start justify-between">
                                                                     <div className="flex-1">
-                                                                        <div
-                                                                            className="font-medium text-gray-900">{item.name}</div>
+                                                                        <div className="font-medium text-gray-900">{item.name}</div>
                                                                         {item.brand && (
-                                                                            <div
-                                                                                className="text-sm text-gray-600">{item.brand}</div>
+                                                                            <div className="text-sm text-gray-600">{item.brand}</div>
                                                                         )}
                                                                         <div className="text-sm text-gray-500">
                                                                             {item.quantity} {item.unit} • {item.location}
                                                                         </div>
                                                                     </div>
-                                                                    <span
-                                                                        className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
                                                                         {categoryInfo.icon}
                                                                     </span>
                                                                 </div>
