@@ -281,18 +281,17 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* WORKING: Standard Tailwind responsive grid */}
+                {/* FLEXBOX: Alternative to grid that should work reliably */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
-                    {/* SIMPLE: Use standard responsive classes without combining */}
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-
+                    {/* FLEXBOX: More reliable responsive behavior */}
+                    <div className="flex flex-wrap gap-4">
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
                                 onClick={() => setSelectedCategory(category.id)}
-                                className={`p-4 rounded-lg border-2 text-center transition-colors min-h-[100px] flex flex-col justify-center ${
+                                className={`p-4 rounded-lg border-2 text-center transition-colors min-h-[100px] flex flex-col justify-center flex-1 min-w-0 sm:min-w-[140px] sm:max-w-[200px] sm:flex-none ${
                                     selectedCategory === category.id
                                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
