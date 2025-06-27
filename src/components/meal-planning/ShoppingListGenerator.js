@@ -562,86 +562,92 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                                 return;
                                             }
 
-                                            // Create a clean copy of the content
-                                            const contentClone = printContent.cloneNode(true);
+                                            // Check if we're on mobile
+                                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                                                window.innerWidth <= 768;
 
-                                            // Replace checkboxes with print-friendly symbols
-                                            const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
-                                            checkboxes.forEach(checkbox => {
-                                                const replacement = document.createElement('span');
-                                                replacement.style.cssText = `
-                    display: inline-block;
-                    width: 12px;
-                    height: 12px;
-                    border: 1px solid #000;
-                    margin-right: 8px;
-                    text-align: center;
-                    line-height: 10px;
-                    font-size: 8pt;
-                    vertical-align: top;
-                    margin-top: 2px;
-                `;
-                                                replacement.textContent = checkbox.checked ? '✓' : '';
-                                                if (checkbox.checked) {
-                                                    replacement.style.backgroundColor = '#000';
-                                                    replacement.style.color = 'white';
+                                            if (isMobile) {
+                                                // Mobile approach: Use Web Share API or fallback to direct print
+                                                if (navigator.share) {
+                                                    // Create text version for sharing
+                                                    const textContent = `Meal Plan Shopping List - ${mealPlanName}\n\n` +
+                                                        Object.entries(groupedItems)
+                                                            .map(([category, items]) => {
+                                                                const categoryItems = items.map(item => {
+                                                                    const checkbox = item.purchased ? '☑' : '☐';
+                                                                    const status = item.purchased ? ' [PURCHASED]' :
+                                                                        item.inInventory ? ' [IN INVENTORY]' : '';
+                                                                    const recipes = item.recipes && item.recipes.length > 0 ?
+                                                                        ` (${item.recipes.join(', ')})` : '';
+                                                                    return `  ${checkbox} ${item.amount ? `${item.amount} ` : ''}${item.ingredient || item.name}${status}${recipes}`;
+                                                                });
+                                                                return `${category}:\n${categoryItems.join('\n')}`;
+                                                            })
+                                                            .join('\n\n');
+
+                                                    navigator.share({
+                                                        title: `Shopping List - ${mealPlanName}`,
+                                                        text: textContent
+                                                    }).catch(() => {
+                                                        // Fallback if sharing fails
+                                                        mobilePrintFallback();
+                                                    });
+                                                } else {
+                                                    // No Web Share API, use fallback
+                                                    mobilePrintFallback();
                                                 }
-                                                checkbox.parentNode.replaceChild(replacement, checkbox);
-                                            });
-
-                                            // Open a new window for printing (like PDF button)
-                                            const printWindow = window.open('', '_blank', 'width=800,height=600');
-
-                                            if (!printWindow) {
-                                                alert('Please allow popups to print the shopping list');
-                                                return;
+                                            } else {
+                                                // Desktop approach: Use popup window
+                                                desktopPrint();
                                             }
 
-                                            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Shopping List - ${mealPlanName}</title>
-                    <style>
-                        @page {
-                            margin: 0.75in;
-                            size: letter;
-                        }
-                        
-                        body {
-                            font-family: Arial, sans-serif;
-                            font-size: 11pt;
-                            line-height: 1.4;
-                            margin: 0;
-                            padding: 0;
-                            color: #000;
-                            background: white;
-                        }
-                        
-                        .header {
-                            text-align: center;
-                            margin-bottom: 20px;
-                            padding-bottom: 10px;
-                            border-bottom: 2px solid #333;
-                        }
-                        
-                        .header h1 {
-                            margin: 0 0 5px 0;
-                            font-size: 16pt;
-                            font-weight: bold;
-                        }
-                        
-                        .header p {
-                            margin: 0;
-                            font-size: 10pt;
-                            color: #666;
-                        }
-                        
-                        .category {
-                            margin-bottom: 20px;
-                            page-break-inside: avoid;
-                        }
-                        
+                                            function mobilePrintFallback() {
+                                                // Try direct print without popup
+                                                const originalContent = document.body.innerHTML;
+                                                const printContent = document.getElementById('meal-plan-shopping-list-content');
+                                                const contentClone = printContent.cloneNode(true);
+
+                                                // Replace checkboxes with print-friendly symbols
+                                                const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
+                                                checkboxes.forEach(checkbox => {
+                                                    const replacement = document.createElement('span');
+                                                    replacement.style.cssText = `
+                        display: inline-block;
+                        width: 12px;
+                        height: 12px;
+                        border: 1px solid #000;
+                        margin-right: 8px;
+                        text-align: center;
+                        line-height: 10px;
+                        font-size: 8pt;
+                        vertical-align: top;
+                        margin-top: 2px;
+                    `;
+                                                    replacement.textContent = checkbox.checked ? '✓' : '';
+                                                    if (checkbox.checked) {
+                                                        replacement.style.backgroundColor = '#000';
+                                                        replacement.style.color = 'white';
+                                                    }
+                                                    checkbox.parentNode.replaceChild(replacement, checkbox);
+                                                });
+
+                                                // Replace body content temporarily
+                                                document.body.innerHTML = `
+                    <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #333;">
+                            <h1 style="margin: 0 0 5px 0; font-size: 16pt;">🛒 Shopping List</h1>
+                            <p style="margin: 0; font-size: 10pt; color: #666;">${mealPlanName}</p>
+                            <p style="margin: 0; font-size: 10pt; color: #666;">Generated: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                        ${contentClone.innerHTML}
+                    </div>
+                `;
+
+                                                // Add print styles
+                                                const printStyles = document.createElement('style');
+                                                printStyles.innerHTML = `
+                    @media print {
+                        body { margin: 0; padding: 20px; }
                         .category h3 {
                             color: #333;
                             border-bottom: 1px solid #666;
@@ -649,75 +655,185 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                             margin: 15px 0 8px 0;
                             font-size: 12pt;
                             font-weight: bold;
-                            page-break-after: avoid;
                         }
-                        
-                        .category:first-child h3 {
-                            margin-top: 0;
-                        }
-                        
                         .item {
                             margin: 4px 0;
                             display: flex;
                             align-items: flex-start;
-                            page-break-inside: avoid;
                             min-height: 16px;
                         }
-                        
-                        .item-text {
-                            flex: 1;
-                            margin-left: 0;
-                        }
-                        
                         .inventory-note {
                             color: #16a34a;
                             font-size: 9pt;
-                            margin-top: 1px;
                             font-style: italic;
                         }
-                        
                         .recipe-note {
                             color: #666;
                             font-size: 9pt;
-                            margin-top: 1px;
                             font-style: italic;
                         }
-                        
-                        .purchased {
-                            text-decoration: line-through;
-                            opacity: 0.6;
-                        }
-                        
-                        /* Clean up any remaining modal styling */
-                        div[style*="position: fixed"],
-                        div[style*="z-index"],
-                        div[style*="background"] {
-                            position: static !important;
-                            z-index: auto !important;
-                            background: transparent !important;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>🛒 Shopping List</h1>
-                        <p>${mealPlanName}</p>
-                        <p>Generated: ${new Date().toLocaleDateString()}</p>
-                    </div>
-                    ${contentClone.innerHTML}
-                </body>
-                </html>
-            `);
+                    }
+                `;
+                                                document.head.appendChild(printStyles);
 
-                                            printWindow.document.close();
-
-                                            // Wait for content to load, then print and close
-                                            printWindow.onload = function() {
+                                                // Print and restore
                                                 setTimeout(() => {
-                                                    printWindow.print();
-                                                    printWindow.close();
-                                                }, 300);
-                                            };
+                                                    window.print();
+                                                    setTimeout(() => {
+                                                        document.body.innerHTML = originalContent;
+                                                        document.head.removeChild(printStyles);
+                                                    }, 1000);
+                                                }, 500);
+                                            }
+
+                                            function desktopPrint() {
+                                                const contentClone = document.getElementById('meal-plan-shopping-list-content').cloneNode(true);
+
+                                                // Replace checkboxes with print-friendly symbols
+                                                const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
+                                                checkboxes.forEach(checkbox => {
+                                                    const replacement = document.createElement('span');
+                                                    replacement.style.cssText = `
+                        display: inline-block;
+                        width: 12px;
+                        height: 12px;
+                        border: 1px solid #000;
+                        margin-right: 8px;
+                        text-align: center;
+                        line-height: 10px;
+                        font-size: 8pt;
+                        vertical-align: top;
+                        margin-top: 2px;
+                    `;
+                                                    replacement.textContent = checkbox.checked ? '✓' : '';
+                                                    if (checkbox.checked) {
+                                                        replacement.style.backgroundColor = '#000';
+                                                        replacement.style.color = 'white';
+                                                    }
+                                                    checkbox.parentNode.replaceChild(replacement, checkbox);
+                                                });
+
+                                                const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+                                                if (!printWindow) {
+                                                    alert('Please allow popups to print the shopping list');
+                                                    return;
+                                                }
+
+                                                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Shopping List - ${mealPlanName}</title>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                            @page {
+                                margin: 0.75in;
+                                size: letter;
+                            }
+                            
+                            body {
+                                font-family: Arial, sans-serif;
+                                font-size: 11pt;
+                                line-height: 1.4;
+                                margin: 0;
+                                padding: 0;
+                                color: #000;
+                                background: white;
+                            }
+                            
+                            .header {
+                                text-align: center;
+                                margin-bottom: 20px;
+                                padding-bottom: 10px;
+                                border-bottom: 2px solid #333;
+                            }
+                            
+                            .header h1 {
+                                margin: 0 0 5px 0;
+                                font-size: 16pt;
+                                font-weight: bold;
+                            }
+                            
+                            .header p {
+                                margin: 0;
+                                font-size: 10pt;
+                                color: #666;
+                            }
+                            
+                            .category {
+                                margin-bottom: 20px;
+                                page-break-inside: avoid;
+                            }
+                            
+                            .category h3 {
+                                color: #333;
+                                border-bottom: 1px solid #666;
+                                padding-bottom: 3px;
+                                margin: 15px 0 8px 0;
+                                font-size: 12pt;
+                                font-weight: bold;
+                                page-break-after: avoid;
+                            }
+                            
+                            .category:first-child h3 {
+                                margin-top: 0;
+                            }
+                            
+                            .item {
+                                margin: 4px 0;
+                                display: flex;
+                                align-items: flex-start;
+                                page-break-inside: avoid;
+                                min-height: 16px;
+                            }
+                            
+                            .item-text {
+                                flex: 1;
+                                margin-left: 0;
+                            }
+                            
+                            .inventory-note {
+                                color: #16a34a;
+                                font-size: 9pt;
+                                margin-top: 1px;
+                                font-style: italic;
+                            }
+                            
+                            .recipe-note {
+                                color: #666;
+                                font-size: 9pt;
+                                margin-top: 1px;
+                                font-style: italic;
+                            }
+                            
+                            .purchased {
+                                text-decoration: line-through;
+                                opacity: 0.6;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>🛒 Shopping List</h1>
+                            <p>${mealPlanName}</p>
+                            <p>Generated: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                        ${contentClone.innerHTML}
+                    </body>
+                    </html>
+                `);
+
+                                                printWindow.document.close();
+
+                                                // Wait for content to load, then print and close
+                                                printWindow.onload = function() {
+                                                    setTimeout(() => {
+                                                        printWindow.print();
+                                                        printWindow.close();
+                                                    }, 300);
+                                                };
+                                            }
 
                                         } catch (error) {
                                             console.error('Print error:', error);
