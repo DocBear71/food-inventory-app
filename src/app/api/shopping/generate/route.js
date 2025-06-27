@@ -103,6 +103,7 @@ const INGREDIENT_VARIATIONS = {
     'cheddar': ['cheddar cheese', 'sharp cheddar', 'mild cheddar', 'aged cheddar'],
     'shredded cheddar': ['shredded cheddar cheese', 'grated cheddar'],
     'eggs': ['large eggs', 'extra large eggs', 'jumbo eggs', 'medium eggs', 'small eggs'],
+    'egg': ['eggs', 'large egg', 'extra large egg', 'jumbo egg', 'medium egg', 'small egg'],
 
     // Enhanced pasta variations
     'pasta': [
