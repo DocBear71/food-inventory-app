@@ -6,35 +6,31 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe, UserInventory, MealPlan } from '@/lib/models';
 
-// UPDATED: Use the same sophisticated ingredient matching as recipe suggestions
+// UPDATED: More selective specialty ingredients list
 const NEVER_MATCH_INGREDIENTS = [
-    // Specialty flours
+    // Only the most critical specialty items that should NEVER cross-match
+    'tomato paste', 'tomato sauce', 'crushed tomatoes', 'diced tomatoes', 'tomato puree',
+
+    // Specialty flours (but allow basic flour matching)
     'almond flour', 'coconut flour', 'cake flour', 'bread flour', 'self rising flour',
     'whole wheat flour', 'gluten free flour', 'gluten-free flour', 'oat flour', 'rice flour',
 
-    // Specialty sugars
+    // Specialty sugars (but allow basic sugar matching)
     'powdered sugar', 'confectioners sugar', 'coconut sugar', 'maple sugar',
     'swerve', 'stevia', 'erythritol', 'monk fruit', 'xylitol', 'sugar substitute',
 
-    // Alternative milks
+    // Alternative milks (but allow regular milk matching)
     'almond milk', 'oat milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk',
 
-    // Compound dairy products
-    'buttermilk', 'sour cream', 'heavy cream', 'half and half', 'cream cheese',
+    // Specialty dairy (but allow basic dairy matching)
+    'buttermilk', 'heavy cream', 'half and half', 'cream cheese',
 
-    // Vegan/diet-specific ingredients
+    // Vegan alternatives
     'vegan butter', 'vegan cheese', 'vegan milk', 'vegan bacon', 'vegan sausage',
     'vegan beef', 'vegan chicken', 'plant butter', 'plant milk', 'plant beef',
 
-    // Specialty extracts and seasonings
-    'vanilla extract', 'almond extract', 'garlic powder', 'onion powder',
-
-    // Specialty baking ingredients
-    'baking powder', 'baking soda', 'cream of tartar', 'xanthan gum',
-
-    // CRITICAL: Tomato products - NEVER cross-match these
-    'tomato paste', 'tomato sauce', 'crushed tomatoes', 'diced tomatoes', 'tomato puree',
-    'sun dried tomatoes', 'cherry tomatoes', 'roma tomatoes', 'whole tomatoes'
+    // Specialty extracts and very specific seasonings
+    'vanilla extract', 'almond extract'
 ];
 
 const NEVER_CROSS_MATCH = {
@@ -170,25 +166,24 @@ function isSpecialtyIngredient(ingredient) {
     });
 }
 
-// UPDATED: Check if two ingredients can match
+// UPDATED: Check if two ingredients can match (more balanced approach)
 function canIngredientsMatch(recipeIngredient, inventoryIngredient) {
     const recipeNorm = normalizeIngredient(recipeIngredient);
     const inventoryNorm = normalizeIngredient(inventoryIngredient);
 
+    console.log(`[SHOPPING API] Checking match: "${recipeIngredient}" (${recipeNorm}) vs "${inventoryIngredient}" (${inventoryNorm})`);
+
     // Exact match
     if (recipeNorm === inventoryNorm) {
+        console.log(`[SHOPPING API] ✅ EXACT MATCH`);
         return true;
     }
 
-    // Check if either is a specialty ingredient that shouldn't cross-match
-    if (isSpecialtyIngredient(recipeIngredient) || isSpecialtyIngredient(inventoryIngredient)) {
-        return false;
-    }
-
-    // Check NEVER_CROSS_MATCH rules
+    // Check NEVER_CROSS_MATCH rules FIRST (most restrictive)
     for (const [ingredient, blockedMatches] of Object.entries(NEVER_CROSS_MATCH)) {
         const ingredientNorm = normalizeIngredient(ingredient);
 
+        // If recipe ingredient matches a blocked ingredient
         if (recipeNorm === ingredientNorm || recipeNorm.includes(ingredientNorm)) {
             if (blockedMatches.some(blocked => {
                 const blockedNorm = normalizeIngredient(blocked);
@@ -199,6 +194,7 @@ function canIngredientsMatch(recipeIngredient, inventoryIngredient) {
             }
         }
 
+        // If inventory ingredient matches a blocked ingredient
         if (inventoryNorm === ingredientNorm || inventoryNorm.includes(ingredientNorm)) {
             if (blockedMatches.some(blocked => {
                 const blockedNorm = normalizeIngredient(blocked);
@@ -210,19 +206,56 @@ function canIngredientsMatch(recipeIngredient, inventoryIngredient) {
         }
     }
 
-    // Check ingredient variations
+    // Check if either is a specialty ingredient that should only exact match
+    if (isSpecialtyIngredient(recipeIngredient) || isSpecialtyIngredient(inventoryIngredient)) {
+        // For specialty ingredients, only allow exact matches or very close matches
+        const recipeVariations = getIngredientVariations(recipeIngredient);
+        const inventoryVariations = getIngredientVariations(inventoryIngredient);
+
+        for (const recipeVar of recipeVariations) {
+            for (const invVar of inventoryVariations) {
+                if (recipeVar === invVar) {
+                    console.log(`[SHOPPING API] ✅ SPECIALTY VARIATION MATCH: ${recipeVar}`);
+                    return true;
+                }
+            }
+        }
+        console.log(`[SHOPPING API] ❌ SPECIALTY INGREDIENT - no variation match`);
+        return false;
+    }
+
+    // Check ingredient variations (for non-specialty ingredients)
     const recipeVariations = getIngredientVariations(recipeIngredient);
     const inventoryVariations = getIngredientVariations(inventoryIngredient);
 
-    // Check if any variations match
     for (const recipeVar of recipeVariations) {
         for (const invVar of inventoryVariations) {
             if (recipeVar === invVar) {
+                console.log(`[SHOPPING API] ✅ VARIATION MATCH: ${recipeVar}`);
                 return true;
             }
         }
     }
 
+    // RELAXED: Allow partial matching for common ingredients (but not specialty ones)
+    // This covers cases like "onion" matching "yellow onion" that aren't in variations
+    if (recipeNorm.length >= 4 && inventoryNorm.length >= 4) {
+        // Check if one contains the other
+        if (recipeNorm.includes(inventoryNorm) || inventoryNorm.includes(recipeNorm)) {
+            // Calculate similarity ratio
+            const shorterLength = Math.min(recipeNorm.length, inventoryNorm.length);
+            const longerLength = Math.max(recipeNorm.length, inventoryNorm.length);
+            const similarity = shorterLength / longerLength;
+
+            // Require high similarity for partial matches
+            if (similarity >= 0.7) {
+                console.log(`[SHOPPING API] ✅ PARTIAL MATCH: similarity ${similarity.toFixed(2)}`);
+                return true;
+            }
+        }
+    }
+
+    console.log(`[SHOPPING API] ❌ NO MATCH`);
     return false;
 }
 
@@ -275,11 +308,33 @@ function findBestInventoryMatch(ingredient, inventory) {
         }
     }
 
-    // 2. INTELLIGENT MATCHING using canIngredientsMatch
+    // UPDATED: Enhanced matching with better logging
     for (const item of inventory) {
         if (canIngredientsMatch(ingredient, item.name)) {
             console.log(`[SHOPPING API] ✅ INTELLIGENT MATCH: "${item.name}" matches "${ingredient}"`);
             return item;
+        }
+    }
+
+    // 3. FALLBACK: Conservative partial matching for common ingredients not in variations
+    for (const item of inventory) {
+        const itemName = normalizeIngredient(item.name);
+
+        // Only do partial matching for longer ingredient names to avoid false positives
+        if (normalizedIngredient.length >= 4 && itemName.length >= 4) {
+            // Check if one contains the other
+            if (itemName.includes(normalizedIngredient) || normalizedIngredient.includes(itemName)) {
+                // Calculate similarity ratio to ensure they're actually similar
+                const shorterLength = Math.min(itemName.length, normalizedIngredient.length);
+                const longerLength = Math.max(itemName.length, normalizedIngredient.length);
+                const similarity = shorterLength / longerLength;
+
+                // Require high similarity for partial matches
+                if (similarity >= 0.75) {
+                    console.log(`[SHOPPING API] ✅ FALLBACK PARTIAL MATCH: "${item.name}" similarity ${similarity.toFixed(2)}`);
+                    return item;
+                }
+            }
         }
     }
 
