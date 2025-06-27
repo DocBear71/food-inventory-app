@@ -132,7 +132,7 @@ export default function Dashboard() {
                                 <div className="ml-5 w-0 flex-1">
                                     <dl>
                                         <dt className="text-sm font-medium text-gray-500 truncate">
-                                            Expiring Soon
+                                            Expiring Soon<br/>
                                             <span
                                                 className="text-xs text-indigo-600 ml-1">(click to {showNotifications ? 'hide' : 'view'})</span>
                                         </dt>
@@ -259,7 +259,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Category breakdown */}
+                /* Category breakdown - Fixed version */
                 {!loading && Object.keys(inventoryStats.categories).length > 0 && (
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
@@ -267,20 +267,18 @@ export default function Dashboard() {
                                 Inventory by Category
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <div className="space-y-3">
-                                    {Object.entries(inventoryStats.categories)
-                                        .sort(([, a], [, b]) => b - a)
-                                        .map(([category, count]) => (
-                                            <div key={category} className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-gray-700">
-                                                {category}
-                                            </span>
-                                                <span className="text-sm text-gray-500">
-                                                {count} item{count !== 1 ? 's' : ''}
-                                            </span>
-                                            </div>
-                                        ))}
-                                </div>
+                                {Object.entries(inventoryStats.categories)
+                                    .sort(([, a], [, b]) => b - a)
+                                    .map(([category, count]) => (
+                                        <div key={category} className="flex justify-between items-center py-1">
+                            <span className="text-sm font-medium text-gray-700">
+                                {category}
+                            </span>
+                                            <span className="text-sm text-gray-500">
+                                {count} item{count !== 1 ? 's' : ''}
+                            </span>
+                                        </div>
+                                    ))}
                             </div>
                         </div>
                     </div>
