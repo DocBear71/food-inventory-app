@@ -1081,7 +1081,7 @@ export default function RecipeSuggestions() {
                                                                 className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 h-9"
                                                             >
                                                                 {loadingRecipe ? 'Loading...' : 'View Recipe'}
-                                                            </TouchEnhancedButton>
+                                                            </TouchEnhancedButton>&nbsp;&nbsp;
                                                             {(recipe.analysis.matchPercentage * 100) < 100 && (
                                                                 <TouchEnhancedButton
                                                                     onClick={() => setShowShoppingList({
