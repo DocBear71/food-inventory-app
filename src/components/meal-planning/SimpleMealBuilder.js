@@ -59,15 +59,24 @@ export default function SimpleMealBuilder({
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Auto-switch to meal tab when items are added (mobile only)
+    // Auto-switch to meal tab when first item is added (mobile only)
+    const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
+
     useEffect(() => {
-        if (isMobile && mealData.items.length > 0 && activeTab === 'inventory') {
+        // Only auto-switch once when going from 0 to 1 items, and only if user hasn't manually switched tabs
+        if (isMobile && mealData.items.length === 1 && activeTab === 'inventory' && !hasAutoSwitched) {
             // Small delay to let user see the item was added
             setTimeout(() => {
                 setActiveTab('meal');
-            }, 500);
+                setHasAutoSwitched(true);
+            }, 800);
         }
-    }, [mealData.items.length, isMobile, activeTab]);
+
+        // Reset the auto-switch flag if user empties the meal
+        if (mealData.items.length === 0) {
+            setHasAutoSwitched(false);
+        }
+    }, [mealData.items.length, isMobile, activeTab, hasAutoSwitched]);
 
     // All your existing functions remain the same
     const selectRandomIngredient = (availableItems, category) => {
