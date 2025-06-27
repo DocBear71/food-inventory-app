@@ -353,11 +353,6 @@ export default function CollectionViewPage() {
                                                 showNumber={false}
                                             />
                                         </div>
-                                        <SaveRecipeButton
-                                            recipeId={recipe._id}
-                                            recipeName={recipe.title}
-                                            size="medium"
-                                        />
 
                                         <AddToCollectionButton
                                             recipeId={recipe._id}

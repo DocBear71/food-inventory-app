@@ -379,12 +379,6 @@ export default function RecipeDetailPage() {
                             </TouchEnhancedButton>
                         )}
 
-                        <SaveRecipeButton
-                            recipeId={recipe._id}
-                            recipeName={recipe.title}
-                            size="medium"
-                        />
-
                         <AddToCollectionButton
                             recipeId={recipe._id}
                             recipeName={recipe.title}
