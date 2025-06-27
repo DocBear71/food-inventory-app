@@ -2,7 +2,7 @@
 
 // file: src/app/help/page.js v1 - Help Center with FAQs
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
