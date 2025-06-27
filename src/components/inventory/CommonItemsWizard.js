@@ -397,7 +397,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                                                     </div>
 
                                                     <div className="p-4">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                             {category.items.map((item, index) => {
                                                                 const itemId = `${categoryKey}-${index}`;
                                                                 const isSelected = selectedItems.has(itemId);
