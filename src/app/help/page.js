@@ -10,6 +10,7 @@ import ContactSupportModal from '@/components/support/ContactSupportModal';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
 
+
 export default function HelpCenterPage() {
     const { data: session } = useSafeSession();
     const subscription = useSubscription();
@@ -17,6 +18,8 @@ export default function HelpCenterPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [expandedFAQ, setExpandedFAQ] = useState(null);
+    const [screenSize, setScreenSize] = useState('mobile');
+
 
     const categories = [
         { id: 'all', name: 'All Topics', icon: '📚' },
@@ -205,6 +208,30 @@ export default function HelpCenterPage() {
         }
     ];
 
+    useEffect(() => {
+        const updateScreenSize = () => {
+            const width = window.innerWidth;
+            if (width < 640) setScreenSize('mobile');
+            else if (width < 768) setScreenSize('sm');
+            else if (width < 1024) setScreenSize('md');
+            else setScreenSize('lg');
+        };
+
+        updateScreenSize();
+        window.addEventListener('resize', updateScreenSize);
+        return () => window.removeEventListener('resize', updateScreenSize);
+    }, []);
+
+    const getGridCols = () => {
+        switch (screenSize) {
+            case 'mobile': return 'grid-cols-1';
+            case 'sm': return 'grid-cols-2';
+            case 'md': return 'grid-cols-3';
+            case 'lg': return 'grid-cols-4';
+            default: return 'grid-cols-1';
+        }
+    };
+
     const filteredFAQs = faqs.filter(faq => {
         const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory;
         const matchesSearch = searchQuery === '' ||
@@ -281,22 +308,12 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* MANUAL: Inline CSS grid to bypass Tailwind issues */}
+                {/* REACT CONTROLLED: Use React state to control grid */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
-                    {/* MANUAL CSS: Force the grid behavior */}
-                    <div
-                        style={{
-                            display: 'grid',
-                            gap: '1rem',
-                            gridTemplateColumns: window.innerWidth < 640 ? '1fr' :
-                                window.innerWidth < 768 ? 'repeat(2, 1fr)' :
-                                    window.innerWidth < 1024 ? 'repeat(3, 1fr)' :
-                                        'repeat(4, 1fr)'
-                        }}
-                        className="gap-4"
-                    >
+                    {/* CONTROLLED: React determines the grid columns */}
+                    <div className={`grid gap-4 ${getGridCols()}`}>
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
