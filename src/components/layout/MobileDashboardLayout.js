@@ -320,30 +320,44 @@ export default function MobileDashboardLayout({children}) {
                             {session && (
                                 <div className="px-4 py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                             {session?.user?.avatar ? (
                                                 <img
                                                     src={`/api/user/avatar/${session.user.avatar}`}
                                                     alt="Profile"
-                                                    className="absolute inset-0 w-full h-full object-cover rounded-full"
+                                                    className="w-10 h-10 object-cover rounded-full"
                                                     onError={(e) => {
-                                                        // Fallback if image fails to load
+                                                        // Hide the image and show fallback
                                                         e.target.style.display = 'none';
-                                                        const fallback = e.target.parentElement.querySelector('span');
-                                                        if (fallback) {
-                                                            fallback.classList.remove('hidden');
-                                                            fallback.classList.add('block');
-                                                        }
                                                     }}
                                                 />
-                                            ) : null}
-                                            <span
-                                                className={`text-indigo-600 text-sm font-medium w-full h-full flex items-center justify-center ${
-                                                    session?.user?.avatar ? 'hidden' : 'flex'
-                                                }`}
-                                            >
-        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-    </span>
+                                            ) : (
+                                                <span className="text-indigo-600 text-sm font-medium">
+            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+        </span>
+                                            )}
+
+                                            {/* Fallback span that shows when image fails to load */}
+                                            {session?.user?.avatar && (
+                                                <span
+                                                    className="text-indigo-600 text-sm font-medium"
+                                                    style={{ display: 'none' }}
+                                                    ref={(el) => {
+                                                        if (el && session?.user?.avatar) {
+                                                            // This will be shown if the image fails to load
+                                                            const img = el.parentElement.querySelector('img');
+                                                            if (img) {
+                                                                img.onerror = () => {
+                                                                    img.style.display = 'none';
+                                                                    el.style.display = 'flex';
+                                                                };
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+        </span>
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-medium text-gray-900 truncate">
