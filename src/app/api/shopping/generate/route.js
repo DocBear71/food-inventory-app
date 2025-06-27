@@ -65,9 +65,9 @@ const NEVER_CROSS_MATCH = {
 
 // FIXED: Enhanced ingredient variations - more specific and targeted
 const INGREDIENT_VARIATIONS = {
-    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic'],
-    'garlic cloves': ['garlic', 'fresh garlic', 'minced garlic'],
-    'minced garlic': ['garlic', 'garlic cloves'],
+    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic', 'cloves garlic'],
+    'garlic cloves': ['garlic', 'fresh garlic', 'minced garlic', 'cloves garlic'],
+    'minced garlic': ['garlic', 'garlic cloves', 'cloves garlic'],
 
     'onion': ['onions', 'yellow onion', 'white onion', 'red onion', 'sweet onion', 'vidalia onion'],
     'onions': ['onion', 'yellow onion', 'white onion', 'sweet onion'],
@@ -95,7 +95,7 @@ const INGREDIENT_VARIATIONS = {
     'mushroom': ['mushrooms', 'button mushrooms', 'cremini mushrooms', 'portobello mushrooms'],
     'chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings', 'whole chicken'],
     'chicken breast': ['chicken breasts', 'boneless chicken breast', 'skinless chicken breast'],
-    'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef'],
+    'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef', 'ground beef'],
     'beef sirloin': ['sirloin steak', 'beef sirloin steak', 'sirloin'],
     'italian sausage': ['italian turkey sausage', 'sweet italian sausage', 'spicy italian sausage'],
     'mozzarella': ['mozzarella cheese', 'fresh mozzarella', 'part skim mozzarella'],
@@ -136,7 +136,9 @@ const INGREDIENT_VARIATIONS = {
     'sesame seeds': ['toasted sesame seeds', 'white sesame seeds'],
     'white wine': ['dry white wine', 'cooking wine', 'white cooking wine'],
     'red pepper flakes': ['crushed red pepper', 'red chili flakes'],
-    'chives': ['fresh chives', 'chopped chives']
+    'chives': ['fresh chives', 'chopped chives'],
+    'oregano': ['fresh oregano', 'chopped oregano', 'dried oregano'],
+    'bread crumbs': ['fresh bread crumbs', 'italian bread crumbs', 'panko bread crumbs', 'panko'],
 };
 
 // UPDATED: Better ingredient normalization
@@ -415,6 +417,7 @@ function createIngredientKey(ingredient) {
     if (cleaned.includes('broccoli')) return 'broccoli';
     if (cleaned.includes('pineapple')) return 'pineapple';
     if (cleaned.includes('carrots')) return 'carrots';
+    if (cleaned.includes('oregano')) return 'oregano';
 
     return cleaned;
 }
