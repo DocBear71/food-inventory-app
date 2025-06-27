@@ -281,7 +281,7 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* WORKING: Standard Tailwind responsive grid */}<div className="help-categories-grid">
+                {/* WORKING: Standard Tailwind responsive grid */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
@@ -302,7 +302,6 @@ export default function HelpCenterPage() {
                                 <div className="text-sm font-medium leading-tight">{category.name}</div>
                             </TouchEnhancedButton>
                         ))}
-                        </div>
                     </div>
                 </div>
 
