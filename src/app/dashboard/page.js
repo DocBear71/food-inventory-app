@@ -2,17 +2,17 @@
 // file: src/app/dashboard/page.js v14 - Added Receipt Scanner to Quick Actions
 
 
-import { useSafeSession } from '@/hooks/useSafeSession';
-import { useEffect, useState } from 'react';
+import {useSafeSession} from '@/hooks/useSafeSession';
+import {useEffect, useState} from 'react';
 import ExpirationNotifications from '@/components/notifications/ExpirationNotifications';
-import { redirect } from 'next/navigation';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {redirect} from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import {getApiUrl} from '@/lib/api-config';
 
 export default function Dashboard() {
-    const { data: session, status } = useSafeSession();
+    const {data: session, status} = useSafeSession();
     const [inventoryStats, setInventoryStats] = useState({
         totalItems: 0,
         expiringItems: 0,
@@ -97,7 +97,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stats cards - Stack on mobile */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
                         <div className="p-5">
                             <div className="flex items-center">
@@ -133,7 +133,8 @@ export default function Dashboard() {
                                     <dl>
                                         <dt className="text-sm font-medium text-gray-500 truncate">
                                             Expiring Soon
-                                            <span className="text-xs text-indigo-600 ml-1">(click to {showNotifications ? 'hide' : 'view'})</span>
+                                            <span
+                                                className="text-xs text-indigo-600 ml-1">(click to {showNotifications ? 'hide' : 'view'})</span>
                                         </dt>
                                         <dd className={`text-lg font-medium ${inventoryStats.expiringItems > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                                             {loading ? '...' : inventoryStats.expiringItems}
@@ -167,7 +168,7 @@ export default function Dashboard() {
 
                 {/* Expiration Notifications - Show/Hide based on toggle */}
                 {showNotifications && (
-                    <ExpirationNotifications onItemsUpdated={handleItemsUpdated} />
+                    <ExpirationNotifications onItemsUpdated={handleItemsUpdated}/>
                 )}
 
                 {/* Quick actions - Fixed mobile layout with Receipt Scanner */}
@@ -265,24 +266,26 @@ export default function Dashboard() {
                             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                 Inventory by Category
                             </h3>
-                            <div className="space-y-3">
-                                {Object.entries(inventoryStats.categories)
-                                    .sort(([,a], [,b]) => b - a)
-                                    .map(([category, count]) => (
-                                        <div key={category} className="flex justify-between items-center">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="space-y-3">
+                                    {Object.entries(inventoryStats.categories)
+                                        .sort(([, a], [, b]) => b - a)
+                                        .map(([category, count]) => (
+                                            <div key={category} className="flex justify-between items-center">
                                             <span className="text-sm font-medium text-gray-700">
                                                 {category}
                                             </span>
-                                            <span className="text-sm text-gray-500">
+                                                <span className="text-sm text-gray-500">
                                                 {count} item{count !== 1 ? 's' : ''}
                                             </span>
-                                        </div>
-                                    ))}
+                                            </div>
+                                        ))}
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
-                <Footer />
+                <Footer/>
             </div>
         </MobileOptimizedLayout>
     );
