@@ -224,7 +224,7 @@ export default function HelpCenterPage() {
 
     const getGridCols = () => {
         switch (screenSize) {
-            case 'mobile': return 'grid-cols-1';
+            case 'mobile': return 'grid-cols-2';
             case 'sm': return 'grid-cols-2';
             case 'md': return 'grid-cols-3';
             case 'lg': return 'grid-cols-4';
