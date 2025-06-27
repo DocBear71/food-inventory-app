@@ -1,18 +1,18 @@
 'use client';
-// file: /src/components/meal-planning/SimpleMealBuilder.js v4 - FIXED with dropdown filters
+// file: /src/components/meal-planning/SimpleMealBuilder.js v5 - TABBED INTERFACE for better mobile UX
 
-import { useState, useEffect } from 'react';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import {useState, useEffect} from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import {getApiUrl} from '@/lib/api-config';
 
 const MEAL_CATEGORIES = [
-    { id: 'protein', name: 'Protein', icon: '🥩', color: 'bg-red-50 border-red-200 text-red-700' },
-    { id: 'starch', name: 'Starch/Carbs', icon: '🥔', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
-    { id: 'vegetable', name: 'Vegetables', icon: '🥦', color: 'bg-green-50 border-green-200 text-green-700' },
-    { id: 'dairy', name: 'Dairy', icon: '🧀', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-    { id: 'fat', name: 'Fats/Oils', icon: '🫒', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-    { id: 'seasoning', name: 'Seasonings', icon: '🧂', color: 'bg-gray-50 border-gray-200 text-gray-700' },
-    { id: 'other', name: 'Other/Convenience', icon: '📦', color: 'bg-gray-50 border-gray-200 text-gray-700' }
+    {id: 'protein', name: 'Protein', icon: '🥩', color: 'bg-red-50 border-red-200 text-red-700'},
+    {id: 'starch', name: 'Starch/Carbs', icon: '🥔', color: 'bg-yellow-50 border-yellow-200 text-yellow-700'},
+    {id: 'vegetable', name: 'Vegetables', icon: '🥦', color: 'bg-green-50 border-green-200 text-green-700'},
+    {id: 'dairy', name: 'Dairy', icon: '🧀', color: 'bg-blue-50 border-blue-200 text-blue-700'},
+    {id: 'fat', name: 'Fats/Oils', icon: '🫒', color: 'bg-purple-50 border-purple-200 text-purple-700'},
+    {id: 'seasoning', name: 'Seasonings', icon: '🧂', color: 'bg-gray-50 border-gray-200 text-gray-700'},
+    {id: 'other', name: 'Other/Convenience', icon: '📦', color: 'bg-gray-50 border-gray-200 text-gray-700'}
 ];
 
 const COOKING_METHODS = [
@@ -36,6 +36,10 @@ export default function SimpleMealBuilder({
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [showDietaryWarning, setShowDietaryWarning] = useState(false);
     const [dietaryConflicts, setDietaryConflicts] = useState([]);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // NEW: Tab state for mobile interface
+    const [activeTab, setActiveTab] = useState('inventory');
 
     const [mealData, setMealData] = useState({
         name: '',
@@ -45,7 +49,27 @@ export default function SimpleMealBuilder({
         difficulty: 'easy'
     });
 
-    // All existing functions (keeping them exactly the same)
+    // Check if mobile on mount and resize
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Auto-switch to meal tab when items are added (mobile only)
+    useEffect(() => {
+        if (isMobile && mealData.items.length > 0 && activeTab === 'inventory') {
+            // Small delay to let user see the item was added
+            setTimeout(() => {
+                setActiveTab('meal');
+            }, 500);
+        }
+    }, [mealData.items.length, isMobile, activeTab]);
+
+    // All your existing functions remain the same
     const selectRandomIngredient = (availableItems, category) => {
         if (!availableItems || availableItems.length === 0) {
             console.log(`❌ No items available for category: ${category}`);
@@ -214,9 +238,13 @@ export default function SimpleMealBuilder({
     useEffect(() => {
         if (isOpen) {
             fetchInventory();
+            // Reset to inventory tab when opening
+            setActiveTab('inventory');
 
             if (initialMeal?.simpleMeal) {
                 setMealData(initialMeal.simpleMeal);
+                // If editing existing meal, start on meal tab
+                setActiveTab('meal');
             } else {
                 setMealData({
                     name: '',
@@ -443,6 +471,8 @@ export default function SimpleMealBuilder({
             });
 
             console.log(`✅ Generated convenience meal: "${convenience.name}"`);
+            // Switch to meal tab to show the generated meal
+            setActiveTab('meal');
             return;
         }
 
@@ -537,6 +567,9 @@ export default function SimpleMealBuilder({
         });
 
         console.log(`✅ Generated random meal: "${mealName}" with ${mealItems.length} items`);
+
+        // Switch to meal tab to show the generated meal
+        setActiveTab('meal');
     };
 
     const addItemToMeal = (inventoryItem) => {
@@ -574,7 +607,7 @@ export default function SimpleMealBuilder({
 
     const updateItemInMeal = (index, field, value) => {
         const updatedItems = [...mealData.items];
-        updatedItems[index] = { ...updatedItems[index], [field]: value };
+        updatedItems[index] = {...updatedItems[index], [field]: value};
 
         setMealData({
             ...mealData,
@@ -637,14 +670,16 @@ export default function SimpleMealBuilder({
                                     🍽️ Create Simple Meal
                                 </h2>
                                 <p className="text-sm text-gray-600">
-                                    Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
+                                    Build a meal from your inventory items
+                                    for {selectedSlot?.day} {selectedSlot?.mealType}
                                 </p>
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                         )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
+                                            <span> • </span>}
                                         {userAvoidIngredients.length > 0 && (
                                             <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                         )}
@@ -694,295 +729,647 @@ export default function SimpleMealBuilder({
                     </div>
                 )}
 
-                {/* Main Content */}
+                {/* Main Content - RESPONSIVE: Tabbed for Mobile, Split for Desktop */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Panel - Inventory Selection */}
-                    <div className="w-1/2 border-r border-gray-200 flex flex-col">
-                        {/* FIXED: Compact Search and Filters */}
-                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                            <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
-
-                            {inventory.length > 0 && filteredInventory.length < inventory.length && (
-                                <div className="mb-2 text-sm text-orange-600">
-                                    Showing {filteredInventory.length} of {inventory.length} items (filtered by dietary preferences)
-                                </div>
-                            )}
-
-                            {/* Search */}
-                            <input
-                                type="text"
-                                placeholder="Search inventory..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
-                            />
-
-                            {/* FIXED: Dropdown Category Filter */}
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                            >
-                                <option value="all">All Categories</option>
-                                {MEAL_CATEGORIES.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.icon} {category.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* FIXED: Much larger scrollable inventory area */}
-                        <div className="flex-1 overflow-y-auto p-4">
-                            {loading ? (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
-                                    <p className="text-gray-500">Loading inventory...</p>
-                                </div>
-                            ) : filteredInventory.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500">
-                                        {inventory.length === 0
-                                            ? "No inventory items found"
-                                            : "No items match your current filters"}
-                                    </p>
-                                    {inventory.length > filteredInventory.length && (
-                                        <p className="text-xs text-orange-600 mt-2">
-                                            {inventory.length - filteredInventory.length} items filtered by dietary preferences
-                                        </p>
+                    {isMobile ? (
+                        // MOBILE: Tabbed Interface
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                            {/* Tab Navigation */}
+                            <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                                <TouchEnhancedButton
+                                    onClick={() => setActiveTab('inventory')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                        activeTab === 'inventory'
+                                            ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    📦 Select Items
+                                    {filteredInventory.length < inventory.length && (
+                                        <div className="text-xs text-orange-600 mt-1">
+                                            ({inventory.length - filteredInventory.length} filtered)
+                                        </div>
                                     )}
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {filteredInventory.map(item => {
-                                        const itemCategory = categorizeInventoryItem(item);
-                                        const categoryInfo = MEAL_CATEGORIES.find(c => c.id === itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
-
-                                        return (
-                                            <TouchEnhancedButton
-                                                key={item._id}
-                                                onClick={() => addItemToMeal(item)}
-                                                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="font-medium text-gray-900">{item.name}</div>
-                                                        {item.brand && (
-                                                            <div className="text-sm text-gray-600">{item.brand}</div>
-                                                        )}
-                                                        <div className="text-sm text-gray-500">
-                                                            {item.quantity} {item.unit} • {item.location}
-                                                        </div>
-                                                    </div>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
-                                                        {categoryInfo.icon}
-                                                    </span>
-                                                </div>
-                                            </TouchEnhancedButton>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right Panel - Meal Builder */}
-                    <div className="w-1/2 flex flex-col">
-                        {/* FIXED: Compact Meal Info */}
-                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                            <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
-
-                            {/* Meal Name */}
-                            <div className="mb-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Meal Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={mealData.name}
-                                    onChange={(e) => setMealData({...mealData, name: e.target.value})}
-                                    placeholder="Auto-generated from items"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setActiveTab('meal')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                        activeTab === 'meal'
+                                            ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    🍽️ Build Meal
+                                    {mealData.items.length > 0 && (
+                                        <span
+                                            className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
+                                            {mealData.items.length}
+                                        </span>
+                                    )}
+                                </TouchEnhancedButton>
                             </div>
 
-                            {/* Estimated Time & Difficulty */}
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Time (min)
-                                    </label>
+                            {/* Tab Content - Full Height */}
+                            <div className="flex-1 overflow-hidden">
+                                {activeTab === 'inventory' ? (
+                                    // INVENTORY TAB - Full Width
+                                    <div className="h-full flex flex-col">
+                                        {/* Search and Filters */}
+                                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                                            <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
+
+                                            {inventory.length > 0 && filteredInventory.length < inventory.length && (
+                                                <div className="mb-2 text-sm text-orange-600">
+                                                    Showing {filteredInventory.length} of {inventory.length} items
+                                                    (filtered by dietary preferences)
+                                                </div>
+                                            )}
+
+                                            {/* Search */}
+                                            <input
+                                                type="text"
+                                                placeholder="Search inventory..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
+                                            />
+
+                                            {/* Category Filter */}
+                                            <select
+                                                value={selectedCategory}
+                                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                                            >
+                                                <option value="all">All Categories</option>
+                                                {MEAL_CATEGORIES.map(category => (
+                                                    <option key={category.id} value={category.id}>
+                                                        {category.icon} {category.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* FULL-HEIGHT Inventory List */}
+                                        <div className="flex-1 overflow-y-auto p-4">
+                                            {loading ? (
+                                                <div className="text-center py-8">
+                                                    <div
+                                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                                    <p className="text-gray-500">Loading inventory...</p>
+                                                </div>
+                                            ) : filteredInventory.length === 0 ? (
+                                                <div className="text-center py-8">
+                                                    <p className="text-gray-500">
+                                                        {inventory.length === 0
+                                                            ? "No inventory items found"
+                                                            : "No items match your current filters"}
+                                                    </p>
+                                                    {inventory.length > filteredInventory.length && (
+                                                        <p className="text-xs text-orange-600 mt-2">
+                                                            {inventory.length - filteredInventory.length} items filtered
+                                                            by dietary preferences
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {filteredInventory.map(item => {
+                                                        const itemCategory = categorizeInventoryItem(item);
+                                                        const categoryInfo = MEAL_CATEGORIES.find(c => c.id === itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
+
+                                                        return (
+                                                            <TouchEnhancedButton
+                                                                key={item._id}
+                                                                onClick={() => addItemToMeal(item)}
+                                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                                            >
+                                                                <div className="flex items-start justify-between">
+                                                                    <div className="flex-1">
+                                                                        <div
+                                                                            className="font-medium text-gray-900">{item.name}</div>
+                                                                        {item.brand && (
+                                                                            <div
+                                                                                className="text-sm text-gray-600">{item.brand}</div>
+                                                                        )}
+                                                                        <div className="text-sm text-gray-500">
+                                                                            {item.quantity} {item.unit} • {item.location}
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
+                                                                        {categoryInfo.icon}
+                                                                    </span>
+                                                                </div>
+                                                            </TouchEnhancedButton>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // MEAL BUILDING TAB - Full Width
+                                    <div className="h-full flex flex-col">
+                                        {/* Compact Meal Info */}
+                                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                                            <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
+
+                                            {/* Meal Name */}
+                                            <div className="mb-3">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Meal Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={mealData.name}
+                                                    onChange={(e) => setMealData({...mealData, name: e.target.value})}
+                                                    placeholder="Auto-generated from items"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                />
+                                            </div>
+
+                                            {/* Time & Difficulty */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Time (min)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="5"
+                                                        max="180"
+                                                        value={mealData.totalEstimatedTime}
+                                                        onChange={(e) => setMealData({
+                                                            ...mealData,
+                                                            totalEstimatedTime: parseInt(e.target.value)
+                                                        })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Difficulty
+                                                    </label>
+                                                    <select
+                                                        value={mealData.difficulty}
+                                                        onChange={(e) => setMealData({
+                                                            ...mealData,
+                                                            difficulty: e.target.value
+                                                        })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                    >
+                                                        <option value="easy">Easy</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="hard">Hard</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* MUCH LARGER Selected Items Area */}
+                                        <div className="flex-1 overflow-y-auto p-4">
+                                            {mealData.items.length === 0 ? (
+                                                <div className="text-center py-12">
+                                                    <div className="text-4xl mb-4">🍽️</div>
+                                                    <p className="text-gray-500 mb-4">No items added yet</p>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => setActiveTab('inventory')}
+                                                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                                    >
+                                                        ← Go to Select Items
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {mealData.items.map((item, index) => {
+                                                        const categoryInfo = MEAL_CATEGORIES.find(c => c.id === item.itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
+
+                                                        const itemConflicts = dietaryConflicts.filter(conflict =>
+                                                            conflict.includes(item.itemName)
+                                                        );
+                                                        const hasConflict = itemConflicts.length > 0;
+
+                                                        return (
+                                                            <div key={index}
+                                                                 className={`border rounded-lg p-4 ${hasConflict ? 'border-orange-300 bg-orange-50' : 'border-gray-300 bg-gray-50'}`}>
+                                                                <div className="flex items-start justify-between mb-3">
+                                                                    <div className="flex-1">
+                                                                        <div
+                                                                            className="font-medium text-gray-900 flex items-center mb-2">
+                                                                            {hasConflict && (
+                                                                                <span className="text-orange-500 mr-2"
+                                                                                      title={itemConflicts.join(', ')}>⚠️</span>
+                                                                            )}
+                                                                            {item.itemName}
+                                                                        </div>
+                                                                        <span
+                                                                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
+                                                                            {categoryInfo.icon} {categoryInfo.name}
+                                                                        </span>
+                                                                        {hasConflict && (
+                                                                            <div
+                                                                                className="text-xs text-orange-600 mt-2">
+                                                                                {itemConflicts[0]}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <TouchEnhancedButton
+                                                                        onClick={() => removeItemFromMeal(index)}
+                                                                        className="text-red-600 hover:text-red-700 p-2 text-lg"
+                                                                    >
+                                                                        ×
+                                                                    </TouchEnhancedButton>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                                                    <div>
+                                                                        <label
+                                                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            Quantity
+                                                                        </label>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0.1"
+                                                                            step="0.1"
+                                                                            value={item.quantity}
+                                                                            onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label
+                                                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            Unit
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={item.unit}
+                                                                            onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                <div>
+                                                                    <label
+                                                                        className="block text-sm font-medium text-gray-700 mb-2">
+                                                                        Cooking Method/Notes
+                                                                    </label>
+                                                                    <div className="flex gap-2 mb-2 flex-wrap">
+                                                                        {COOKING_METHODS.map(method => (
+                                                                            <TouchEnhancedButton
+                                                                                key={method}
+                                                                                onClick={() => updateItemInMeal(index, 'notes', method)}
+                                                                                className={`px-3 py-1 rounded text-sm transition-colors ${
+                                                                                    item.notes === method
+                                                                                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                                                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300 border border-gray-300'
+                                                                                }`}
+                                                                            >
+                                                                                {method}
+                                                                            </TouchEnhancedButton>
+                                                                        ))}
+                                                                    </div>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={item.notes}
+                                                                        onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
+                                                                        placeholder="e.g., grilled, seasoned with salt"
+                                                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Description */}
+                                        <div className="p-4 border-t border-gray-100 flex-shrink-0">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Description (Optional)
+                                            </label>
+                                            <textarea
+                                                value={mealData.description}
+                                                onChange={(e) => setMealData({
+                                                    ...mealData,
+                                                    description: e.target.value
+                                                })}
+                                                placeholder="Brief description of the meal..."
+                                                rows="2"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        // DESKTOP: Keep existing split layout
+                        <>
+                            {/* Left Panel - Inventory Selection */}
+                            <div className="w-1/2 border-r border-gray-200 flex flex-col">
+                                <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                                    <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
+
+                                    {inventory.length > 0 && filteredInventory.length < inventory.length && (
+                                        <div className="mb-2 text-sm text-orange-600">
+                                            Showing {filteredInventory.length} of {inventory.length} items (filtered by
+                                            dietary preferences)
+                                        </div>
+                                    )}
+
+                                    {/* Search */}
                                     <input
-                                        type="number"
-                                        min="5"
-                                        max="180"
-                                        value={mealData.totalEstimatedTime}
-                                        onChange={(e) => setMealData({...mealData, totalEstimatedTime: parseInt(e.target.value)})}
+                                        type="text"
+                                        placeholder="Search inventory..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
+                                    />
+
+                                    {/* Category Filter */}
+                                    <select
+                                        value={selectedCategory}
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                                    >
+                                        <option value="all">All Categories</option>
+                                        {MEAL_CATEGORIES.map(category => (
+                                            <option key={category.id} value={category.id}>
+                                                {category.icon} {category.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4">
+                                    {loading ? (
+                                        <div className="text-center py-8">
+                                            <div
+                                                className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                            <p className="text-gray-500">Loading inventory...</p>
+                                        </div>
+                                    ) : filteredInventory.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <p className="text-gray-500">
+                                                {inventory.length === 0
+                                                    ? "No inventory items found"
+                                                    : "No items match your current filters"}
+                                            </p>
+                                            {inventory.length > filteredInventory.length && (
+                                                <p className="text-xs text-orange-600 mt-2">
+                                                    {inventory.length - filteredInventory.length} items filtered by
+                                                    dietary preferences
+                                                </p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {filteredInventory.map(item => {
+                                                const itemCategory = categorizeInventoryItem(item);
+                                                const categoryInfo = MEAL_CATEGORIES.find(c => c.id === itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
+
+                                                return (
+                                                    <TouchEnhancedButton
+                                                        key={item._id}
+                                                        onClick={() => addItemToMeal(item)}
+                                                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                                    >
+                                                        <div className="flex items-start justify-between">
+                                                            <div className="flex-1">
+                                                                <div
+                                                                    className="font-medium text-gray-900">{item.name}</div>
+                                                                {item.brand && (
+                                                                    <div
+                                                                        className="text-sm text-gray-600">{item.brand}</div>
+                                                                )}
+                                                                <div className="text-sm text-gray-500">
+                                                                    {item.quantity} {item.unit} • {item.location}
+                                                                </div>
+                                                            </div>
+                                                            <span
+                                                                className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
+                                                                {categoryInfo.icon}
+                                                            </span>
+                                                        </div>
+                                                    </TouchEnhancedButton>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Right Panel - Meal Builder */}
+                            <div className="w-1/2 flex flex-col">
+                                <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                                    <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
+
+                                    {/* Meal Name */}
+                                    <div className="mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Meal Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={mealData.name}
+                                            onChange={(e) => setMealData({...mealData, name: e.target.value})}
+                                            placeholder="Auto-generated from items"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Estimated Time & Difficulty */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Time (min)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="5"
+                                                max="180"
+                                                value={mealData.totalEstimatedTime}
+                                                onChange={(e) => setMealData({
+                                                    ...mealData,
+                                                    totalEstimatedTime: parseInt(e.target.value)
+                                                })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Difficulty
+                                            </label>
+                                            <select
+                                                value={mealData.difficulty}
+                                                onChange={(e) => setMealData({...mealData, difficulty: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            >
+                                                <option value="easy">Easy</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="hard">Hard</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4">
+                                    {mealData.items.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <div className="text-4xl mb-4">🍽️</div>
+                                            <p className="text-gray-500">Add items from your inventory to build your
+                                                meal</p>
+                                            {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    Items are filtered based on your dietary preferences
+                                                </p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {mealData.items.map((item, index) => {
+                                                const categoryInfo = MEAL_CATEGORIES.find(c => c.id === item.itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
+
+                                                const itemConflicts = dietaryConflicts.filter(conflict =>
+                                                    conflict.includes(item.itemName)
+                                                );
+                                                const hasConflict = itemConflicts.length > 0;
+
+                                                return (
+                                                    <div key={index}
+                                                         className={`border rounded-lg p-3 ${hasConflict ? 'border-orange-300 bg-orange-50' : 'border-gray-300 bg-gray-50'}`}>
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div className="flex-1">
+                                                                <div
+                                                                    className="font-medium text-gray-900 flex items-center">
+                                                                    {hasConflict && (
+                                                                        <span className="text-orange-500 mr-1"
+                                                                              title={itemConflicts.join(', ')}>⚠️</span>
+                                                                    )}
+                                                                    {item.itemName}
+                                                                </div>
+                                                                <span
+                                                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
+                                                                    {categoryInfo.icon} {categoryInfo.name}
+                                                                </span>
+                                                                {hasConflict && (
+                                                                    <div className="text-xs text-orange-600 mt-1">
+                                                                        {itemConflicts[0]}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => removeItemFromMeal(index)}
+                                                                className="text-red-600 hover:text-red-700 p-1"
+                                                            >
+                                                                ×
+                                                            </TouchEnhancedButton>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-2 mb-2">
+                                                            <div>
+                                                                <label
+                                                                    className="block text-xs font-medium text-gray-700 mb-1">
+                                                                    Quantity
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0.1"
+                                                                    step="0.1"
+                                                                    value={item.quantity}
+                                                                    onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label
+                                                                    className="block text-xs font-medium text-gray-700 mb-1">
+                                                                    Unit
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.unit}
+                                                                    onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label
+                                                                className="block text-xs font-medium text-gray-700 mb-1">
+                                                                Cooking Method/Notes
+                                                            </label>
+                                                            <div className="flex gap-1 mb-1 flex-wrap">
+                                                                {COOKING_METHODS.map(method => (
+                                                                    <TouchEnhancedButton
+                                                                        key={method}
+                                                                        onClick={() => updateItemInMeal(index, 'notes', method)}
+                                                                        className={`px-2 py-1 rounded text-xs ${
+                                                                            item.notes === method
+                                                                                ? 'bg-indigo-100 text-indigo-700'
+                                                                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                                                        }`}
+                                                                    >
+                                                                        {method}
+                                                                    </TouchEnhancedButton>
+                                                                ))}
+                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                value={item.notes}
+                                                                onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
+                                                                placeholder="e.g., grilled, seasoned with salt"
+                                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="p-4 border-t border-gray-100 flex-shrink-0">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Description (Optional)
+                                    </label>
+                                    <textarea
+                                        value={mealData.description}
+                                        onChange={(e) => setMealData({...mealData, description: e.target.value})}
+                                        placeholder="Brief description of the meal..."
+                                        rows="2"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Difficulty
-                                    </label>
-                                    <select
-                                        value={mealData.difficulty}
-                                        onChange={(e) => setMealData({...mealData, difficulty: e.target.value})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                    >
-                                        <option value="easy">Easy</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="hard">Hard</option>
-                                    </select>
-                                </div>
                             </div>
-                        </div>
+                        </>
+                    )}
 
-                        {/* FIXED: Much larger selected items area */}
-                        <div className="flex-1 overflow-y-auto p-4">
-                            {mealData.items.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <div className="text-4xl mb-4">🍽️</div>
-                                    <p className="text-gray-500">Add items from your inventory to build your meal</p>
-                                    {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            Items are filtered based on your dietary preferences
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {mealData.items.map((item, index) => {
-                                        const categoryInfo = MEAL_CATEGORIES.find(c => c.id === item.itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
 
-                                        const itemConflicts = dietaryConflicts.filter(conflict =>
-                                            conflict.includes(item.itemName)
-                                        );
-                                        const hasConflict = itemConflicts.length > 0;
-
-                                        return (
-                                            <div key={index} className={`border rounded-lg p-3 ${hasConflict ? 'border-orange-300 bg-orange-50' : 'border-gray-300 bg-gray-50'}`}>
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <div className="flex-1">
-                                                        <div className="font-medium text-gray-900 flex items-center">
-                                                            {hasConflict && (
-                                                                <span className="text-orange-500 mr-1" title={itemConflicts.join(', ')}>⚠️</span>
-                                                            )}
-                                                            {item.itemName}
-                                                        </div>
-                                                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
-                                                            {categoryInfo.icon} {categoryInfo.name}
-                                                        </span>
-                                                        {hasConflict && (
-                                                            <div className="text-xs text-orange-600 mt-1">
-                                                                {itemConflicts[0]}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <TouchEnhancedButton
-                                                        onClick={() => removeItemFromMeal(index)}
-                                                        className="text-red-600 hover:text-red-700 p-1"
-                                                    >
-                                                        ×
-                                                    </TouchEnhancedButton>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                                    <div>
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                            Quantity
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            min="0.1"
-                                                            step="0.1"
-                                                            value={item.quantity}
-                                                            onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
-                                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                            Unit
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={item.unit}
-                                                            onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
-                                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                        Cooking Method/Notes
-                                                    </label>
-                                                    <div className="flex gap-1 mb-1 flex-wrap">
-                                                        {COOKING_METHODS.map(method => (
-                                                            <TouchEnhancedButton
-                                                                key={method}
-                                                                onClick={() => updateItemInMeal(index, 'notes', method)}
-                                                                className={`px-2 py-1 rounded text-xs ${
-                                                                    item.notes === method
-                                                                        ? 'bg-indigo-100 text-indigo-700'
-                                                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                                                }`}
-                                                            >
-                                                                {method}
-                                                            </TouchEnhancedButton>
-                                                        ))}
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        value={item.notes}
-                                                        onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
-                                                        placeholder="e.g., grilled, seasoned with salt"
-                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* FIXED: Compact Description */}
-                        <div className="p-4 border-t border-gray-100 flex-shrink-0">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Description (Optional)
-                            </label>
-                            <textarea
-                                value={mealData.description}
-                                onChange={(e) => setMealData({...mealData, description: e.target.value})}
-                                placeholder="Brief description of the meal..."
-                                rows="2"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                            />
-                        </div>
+                    {/* Footer */}
+                    <div className="p-6 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
+                        <TouchEnhancedButton
+                            onClick={onClose}
+                            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={handleSave}
+                            disabled={mealData.items.length === 0 || saving}
+                            className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                                dietaryConflicts.length > 0
+                                    ? 'bg-orange-600 hover:bg-orange-700'
+                                    : 'bg-indigo-600 hover:bg-indigo-700'
+                            } disabled:bg-gray-400`}
+                        >
+                            {saving ? 'Saving...' : dietaryConflicts.length > 0 ? 'Save Despite Conflicts' : 'Save Meal'}
+                        </TouchEnhancedButton>
                     </div>
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
-                    <TouchEnhancedButton
-                        onClick={onClose}
-                        className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                        Cancel
-                    </TouchEnhancedButton>
-                    <TouchEnhancedButton
-                        onClick={handleSave}
-                        disabled={mealData.items.length === 0 || saving}
-                        className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                            dietaryConflicts.length > 0
-                                ? 'bg-orange-600 hover:bg-orange-700'
-                                : 'bg-indigo-600 hover:bg-indigo-700'
-                        } disabled:bg-gray-400`}
-                    >
-                        {saving ? 'Saving...' : dietaryConflicts.length > 0 ? 'Save Despite Conflicts' : 'Save Meal'}
-                    </TouchEnhancedButton>
                 </div>
             </div>
         </div>
