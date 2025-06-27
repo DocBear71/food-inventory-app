@@ -548,7 +548,152 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                     📧<br/>Share
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
-                                    onClick={() => window.print()}
+                                    onClick={() => {
+                                        // Prevent multiple clicks
+                                        const button = event.target;
+                                        if (button.disabled) return;
+                                        button.disabled = true;
+
+                                        // Hide everything except the shopping list content for printing
+                                        const elementsToHide = [
+                                            'header', 'nav', 'aside', 'footer', '.modal-header', '.modal-footer',
+                                            '.controls', '.actions', '.buttons', '[class*="button"]', '[class*="btn"]'
+                                        ];
+
+                                        const hiddenElements = [];
+
+                                        // Hide UI elements
+                                        elementsToHide.forEach(selector => {
+                                            document.querySelectorAll(selector).forEach(el => {
+                                                if (el.style.display !== 'none') {
+                                                    hiddenElements.push({ element: el, originalDisplay: el.style.display });
+                                                    el.style.display = 'none';
+                                                }
+                                            });
+                                        });
+
+                                        // Hide the modal overlay and show only content
+                                        const modalOverlay = document.querySelector('[style*="position: fixed"]');
+                                        const shoppingContent = document.getElementById('meal-plan-shopping-list-content');
+
+                                        if (modalOverlay && shoppingContent) {
+                                            // Temporarily modify styles for printing
+                                            const originalModalStyle = modalOverlay.style.cssText;
+                                            const originalContentStyle = shoppingContent.style.cssText;
+
+                                            // Make the modal look like a normal page
+                                            modalOverlay.style.cssText = `
+                position: static !important;
+                background: white !important;
+                width: 100% !important;
+                height: auto !important;
+                max-width: none !important;
+                padding: 20px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            `;
+
+                                            // Style the content for printing
+                                            shoppingContent.style.cssText = `
+                font-family: Arial, sans-serif !important;
+                font-size: 12pt !important;
+                line-height: 1.4 !important;
+                color: black !important;
+                background: white !important;
+                width: 100% !important;
+                max-width: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            `;
+
+                                            // Add print styles
+                                            const printStyles = document.createElement('style');
+                                            printStyles.id = 'temp-print-styles';
+                                            printStyles.innerHTML = `
+                @media print {
+                    @page {
+                        margin: 0.5in;
+                        size: letter;
+                    }
+                    
+                    body * {
+                        visibility: hidden;
+                    }
+                    
+                    #meal-plan-shopping-list-content,
+                    #meal-plan-shopping-list-content * {
+                        visibility: visible;
+                    }
+                    
+                    #meal-plan-shopping-list-content {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        font-size: 11pt;
+                        line-height: 1.3;
+                    }
+                    
+                    .category {
+                        page-break-inside: avoid;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .category h3 {
+                        border-bottom: 1px solid #333;
+                        padding-bottom: 3px;
+                        margin-bottom: 8px;
+                        font-size: 12pt;
+                        font-weight: bold;
+                    }
+                    
+                    .item {
+                        page-break-inside: avoid;
+                        margin-bottom: 4px;
+                        display: flex;
+                        align-items: flex-start;
+                    }
+                    
+                    input[type="checkbox"] {
+                        margin-right: 8px;
+                        transform: scale(1.2);
+                    }
+                }
+            `;
+                                            document.head.appendChild(printStyles);
+
+                                            // Print after a short delay
+                                            setTimeout(() => {
+                                                window.print();
+
+                                                // Restore original styles after printing
+                                                setTimeout(() => {
+                                                    // Remove temp styles
+                                                    const tempStyles = document.getElementById('temp-print-styles');
+                                                    if (tempStyles) tempStyles.remove();
+
+                                                    // Restore modal styles
+                                                    modalOverlay.style.cssText = originalModalStyle;
+                                                    shoppingContent.style.cssText = originalContentStyle;
+
+                                                    // Restore hidden elements
+                                                    hiddenElements.forEach(({ element, originalDisplay }) => {
+                                                        element.style.display = originalDisplay;
+                                                    });
+
+                                                    // Re-enable button
+                                                    button.disabled = false;
+                                                }, 1000);
+                                            }, 100);
+                                        } else {
+                                            // Fallback - just print normally
+                                            window.print();
+                                            setTimeout(() => {
+                                                button.disabled = false;
+                                            }, 1000);
+                                        }
+                                    }}
                                     style={{
                                         backgroundColor: '#2563eb',
                                         color: 'white',
