@@ -281,12 +281,12 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* FIXED: Category Filter with explicit mobile-first responsive classes */}
+                {/* ALTERNATIVE: Very explicit mobile-first grid */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
-                    {/* FIXED: Explicit responsive classes to prevent mobile issues */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {/* EXPLICIT: Force mobile to 1 column, then scale up */}
+                    <div className="grid gap-4 grid-cols-1 min-[640px]:grid-cols-2 min-[768px]:grid-cols-3 min-[1024px]:grid-cols-4 min-[1280px]:grid-cols-5">
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
