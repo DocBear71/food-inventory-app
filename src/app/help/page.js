@@ -281,22 +281,24 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* Category Filter */}
+                {/* FIXED: Category Filter with explicit mobile-first responsive classes */}
                 <div className="bg-white shadow rounded-lg p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Browse by Category</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
+
+                    {/* FIXED: Explicit responsive classes to prevent mobile issues */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
                                 onClick={() => setSelectedCategory(category.id)}
-                                className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                                className={`p-4 rounded-lg border-2 text-center transition-colors min-h-[100px] flex flex-col justify-center ${
                                     selectedCategory === category.id
                                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                 }`}
                             >
-                                <div className="text-lg mb-1">{category.icon}</div>
-                                <div className="text-sm font-medium">{category.name}</div>
+                                <div className="text-2xl mb-2">{category.icon}</div>
+                                <div className="text-sm font-medium leading-tight">{category.name}</div>
                             </TouchEnhancedButton>
                         ))}
                     </div>

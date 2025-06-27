@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/account/page.js v3 - Fixed Quick Actions grid spacing
+// file: /src/app/account/page.js v2 - Updated with Contact Support Modal
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -76,7 +76,7 @@ export default function AccountPage() {
         return 'bg-green-500';
     };
 
-    // EXPANDED: More comprehensive quick actions
+    // Quick actions
     const quickActions = [
         {
             title: 'Manage Billing',
@@ -105,41 +105,6 @@ export default function AccountPage() {
             icon: '📚',
             action: () => router.push('/recipes?tab=collections'),
             color: 'border-purple-200 hover:border-purple-300 hover:bg-purple-50'
-        },
-        {
-            title: 'Meal Planning',
-            description: 'Plan your weekly meals and generate shopping lists',
-            icon: '🍽️',
-            action: () => router.push('/meal-planning'),
-            color: 'border-orange-200 hover:border-orange-300 hover:bg-orange-50'
-        },
-        {
-            title: 'Shopping Lists',
-            description: 'Create and manage your grocery shopping lists',
-            icon: '🛒',
-            action: () => router.push('/shopping-lists'),
-            color: 'border-teal-200 hover:border-teal-300 hover:bg-teal-50'
-        },
-        {
-            title: 'Browse Recipes',
-            description: 'Discover new recipes and cooking inspiration',
-            icon: '🍳',
-            action: () => router.push('/recipes'),
-            color: 'border-pink-200 hover:border-pink-300 hover:bg-pink-50'
-        },
-        {
-            title: 'Food Scanner',
-            description: 'Scan barcodes and receipts to add items quickly',
-            icon: '📱',
-            action: () => router.push('/scanner'),
-            color: 'border-cyan-200 hover:border-cyan-300 hover:bg-cyan-50'
-        },
-        {
-            title: 'Nutrition Tracking',
-            description: 'Track nutritional information and dietary goals',
-            icon: '🥗',
-            action: () => router.push('/nutrition'),
-            color: 'border-lime-200 hover:border-lime-300 hover:bg-lime-50'
         }
     ];
 
@@ -313,7 +278,7 @@ export default function AccountPage() {
                             </div>
                         </div>
 
-                        {/* Recipe Collections */}
+                        {/* Recipe Collections - UNIFIED */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-blue-600 mb-1">
                                 {subscription.usage?.recipeCollections || 0}
@@ -332,7 +297,7 @@ export default function AccountPage() {
                             </div>
                         </div>
 
-                        {/* Recipes in Collections */}
+                        {/* Recipes in Collections - UPDATED */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-purple-600 mb-1">
                                 {subscription.usage?.savedRecipes || 0}
@@ -353,26 +318,23 @@ export default function AccountPage() {
                     </div>
                 </div>
 
-                {/* FIXED: Quick Actions with proper spacing */}
+                {/* Quick Actions */}
                 <div className="bg-white shadow rounded-lg p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
 
-                    {/* FIXED: Better grid layout with proper spacing */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {quickActions.map((action, index) => (
                             <TouchEnhancedButton
                                 key={index}
                                 onClick={action.action}
-                                className={`p-5 border-2 rounded-lg text-left transition-all ${action.color} min-h-[120px] flex flex-col`}
+                                className={`p-4 border-2 rounded-lg text-left transition-all ${action.color}`}
                             >
-                                <div className="flex items-start space-x-4 flex-1">
-                                    <div className="text-3xl flex-shrink-0">{action.icon}</div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-900 mb-2 text-base">{action.title}</div>
-                                        <div className="text-sm text-gray-600 leading-relaxed">{action.description}</div>
+                                <div className="flex items-start space-x-3">
+                                    <div className="text-2xl">{action.icon}</div>
+                                    <div className="flex-1">
+                                        <div className="font-medium text-gray-900 mb-1">{action.title}</div>
+                                        <div className="text-sm text-gray-600">{action.description}</div>
                                     </div>
-                                </div>
-                                <div className="flex justify-end mt-3">
                                     <div className="text-gray-400">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
