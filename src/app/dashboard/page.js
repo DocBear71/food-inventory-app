@@ -259,7 +259,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                /* Category breakdown - Fixed version */
+                {/* Category breakdown - Fixed version */}
                 {!loading && Object.keys(inventoryStats.categories).length > 0 && (
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
