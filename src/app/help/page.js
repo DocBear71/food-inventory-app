@@ -281,17 +281,27 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* FLEXBOX: Alternative to grid that should work reliably */}
+                {/* MANUAL: Inline CSS grid to bypass Tailwind issues */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
-                    {/* FLEXBOX: More reliable responsive behavior */}
-                    <div className="flex flex-wrap gap-4">
+                    {/* MANUAL CSS: Force the grid behavior */}
+                    <div
+                        style={{
+                            display: 'grid',
+                            gap: '1rem',
+                            gridTemplateColumns: window.innerWidth < 640 ? '1fr' :
+                                window.innerWidth < 768 ? 'repeat(2, 1fr)' :
+                                    window.innerWidth < 1024 ? 'repeat(3, 1fr)' :
+                                        'repeat(4, 1fr)'
+                        }}
+                        className="gap-4"
+                    >
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
                                 onClick={() => setSelectedCategory(category.id)}
-                                className={`p-4 rounded-lg border-2 text-center transition-colors min-h-[100px] flex flex-col justify-center flex-1 min-w-0 sm:min-w-[140px] sm:max-w-[200px] sm:flex-none ${
+                                className={`p-4 rounded-lg border-2 text-center transition-colors min-h-[100px] flex flex-col justify-center ${
                                     selectedCategory === category.id
                                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
