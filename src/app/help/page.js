@@ -281,8 +281,8 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* WORKING: Standard Tailwind responsive grid */}
-                <div className="bg-white shadow rounded-lg p-6"><div className="help-categories-grid">
+                {/* WORKING: Standard Tailwind responsive grid */}<div className="help-categories-grid">
+                <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
                     {/* SIMPLE: Use standard responsive classes without combining */}
