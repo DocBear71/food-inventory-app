@@ -1,6 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/SimpleMealBuilder.js v2 - Added dietary filtering and conflict warnings
-
+// file: /src/components/meal-planning/SimpleMealBuilder.js v3 - FIXED SCROLLING ISSUES
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -26,11 +25,11 @@ export default function SimpleMealBuilder({
                                               onSave,
                                               selectedSlot, // { day, mealType }
                                               initialMeal = null,
-                                              userDietaryRestrictions = [], // NEW: Dietary restrictions
-                                              userAvoidIngredients = [] // NEW: Ingredients to avoid
+                                              userDietaryRestrictions = [],
+                                              userAvoidIngredients = []
                                           }) {
     const [inventory, setInventory] = useState([]);
-    const [filteredInventory, setFilteredInventory] = useState([]); // NEW: Filtered inventory
+    const [filteredInventory, setFilteredInventory] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +45,7 @@ export default function SimpleMealBuilder({
         difficulty: 'easy'
     });
 
-    // ENHANCED: Randomized ingredient selection for variety (ADD THIS FUNCTION)
+    // ... (keep all existing functions: selectRandomIngredient, filterInventoryByDietary, checkMealConflicts, etc.)
     const selectRandomIngredient = (availableItems, category) => {
         if (!availableItems || availableItems.length === 0) {
             console.log(`❌ No items available for category: ${category}`);
@@ -55,18 +54,15 @@ export default function SimpleMealBuilder({
 
         console.log(`🎲 SimpleMealBuilder selecting from ${availableItems.length} ${category} options:`, availableItems.map(i => i.name));
 
-        // If only one option, use it
         if (availableItems.length === 1) {
             console.log(`✅ Only one option for ${category}: ${availableItems[0].name}`);
             return availableItems[0];
         }
 
-        // Special logic for different categories with randomization
         let preferredItems = [];
 
         switch (category) {
             case 'protein':
-                // Prefer whole proteins over processed, but randomize within preferred group
                 const wholeProteins = availableItems.filter(item =>
                     ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'steak'].some(protein =>
                         item.name.toLowerCase().includes(protein)
@@ -76,7 +72,6 @@ export default function SimpleMealBuilder({
                 break;
 
             case 'vegetable':
-                // For vegetables, prefer fresh/frozen over canned, but randomize
                 const freshVeggies = availableItems.filter(item =>
                     !item.name.toLowerCase().includes('canned')
                 );
@@ -84,35 +79,17 @@ export default function SimpleMealBuilder({
                 break;
 
             case 'starch':
-                // Prefer actual starches over rice (since rice has its own category)
                 const nonRiceStarches = availableItems.filter(item =>
                     !item.name.toLowerCase().includes('rice')
                 );
                 preferredItems = nonRiceStarches.length > 0 ? nonRiceStarches : availableItems;
                 break;
 
-            case 'dairy':
-                // Randomize dairy products for variety
-                preferredItems = availableItems;
-                break;
-
-            case 'fat':
-                // Randomize fats/oils for variety
-                preferredItems = availableItems;
-                break;
-
-            case 'seasoning':
-                // Randomize seasonings completely for variety
-                preferredItems = availableItems;
-                break;
-
             default:
-                // For all other categories, use all available items
                 preferredItems = availableItems;
                 break;
         }
 
-        // Randomly select from preferred items
         const randomIndex = Math.floor(Math.random() * preferredItems.length);
         const selectedItem = preferredItems[randomIndex];
 
@@ -120,7 +97,6 @@ export default function SimpleMealBuilder({
         return selectedItem;
     };
 
-    // NEW: Filter inventory based on dietary restrictions
     const filterInventoryByDietary = (inventoryList) => {
         if (!inventoryList || inventoryList.length === 0) return [];
 
@@ -129,12 +105,9 @@ export default function SimpleMealBuilder({
             const itemCategory = item.category?.toLowerCase() || '';
             const itemBrand = item.brand?.toLowerCase() || '';
 
-            // Check against avoided ingredients
             if (userAvoidIngredients.length > 0) {
                 const hasAvoidedIngredient = userAvoidIngredients.some(avoidedIngredient => {
                     const avoidedLower = avoidedIngredient.toLowerCase().trim();
-
-                    // Check in item name, category, and brand
                     return itemName.includes(avoidedLower) ||
                         itemCategory.includes(avoidedLower) ||
                         itemBrand.includes(avoidedLower);
@@ -145,9 +118,7 @@ export default function SimpleMealBuilder({
                 }
             }
 
-            // Check dietary restrictions (for items that might conflict)
             if (userDietaryRestrictions.length > 0) {
-                // Common dietary restriction conflicts
                 const restrictionConflicts = {
                     'vegetarian': ['meat', 'beef', 'pork', 'chicken', 'fish', 'seafood', 'bacon', 'ham'],
                     'vegan': ['meat', 'beef', 'pork', 'chicken', 'fish', 'seafood', 'dairy', 'milk', 'cheese', 'butter', 'eggs', 'honey'],
@@ -175,14 +146,12 @@ export default function SimpleMealBuilder({
         });
     };
 
-    // NEW: Check if current meal has dietary conflicts
     const checkMealConflicts = () => {
         const conflicts = [];
 
         mealData.items.forEach(item => {
             const itemName = item.itemName?.toLowerCase() || '';
 
-            // Check against avoided ingredients
             userAvoidIngredients.forEach(avoidedIngredient => {
                 const avoidedLower = avoidedIngredient.toLowerCase().trim();
                 if (itemName.includes(avoidedLower)) {
@@ -190,7 +159,6 @@ export default function SimpleMealBuilder({
                 }
             });
 
-            // Check dietary restrictions
             userDietaryRestrictions.forEach(restriction => {
                 const restrictionLower = restriction.toLowerCase().trim();
                 const restrictionConflicts = {
@@ -209,11 +177,10 @@ export default function SimpleMealBuilder({
             });
         });
 
-        setDietaryConflicts([...new Set(conflicts)]); // Remove duplicates
+        setDietaryConflicts([...new Set(conflicts)]);
         setShowDietaryWarning(conflicts.length > 0);
     };
 
-    // Check for conflicts when meal items change
     useEffect(() => {
         if (mealData.items.length > 0) {
             checkMealConflicts();
@@ -223,11 +190,9 @@ export default function SimpleMealBuilder({
         }
     }, [mealData.items, userDietaryRestrictions, userAvoidIngredients]);
 
-    // Filter inventory when dietary preferences or search changes
     useEffect(() => {
         let filtered = filterInventoryByDietary(inventory);
 
-        // Apply search filter
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(item =>
@@ -237,7 +202,6 @@ export default function SimpleMealBuilder({
             );
         }
 
-        // Apply category filter
         if (selectedCategory !== 'all') {
             filtered = filtered.filter(item =>
                 categorizeInventoryItem(item) === selectedCategory
@@ -247,16 +211,13 @@ export default function SimpleMealBuilder({
         setFilteredInventory(filtered);
     }, [inventory, userDietaryRestrictions, userAvoidIngredients, searchQuery, selectedCategory]);
 
-    // Fetch user's inventory
     useEffect(() => {
         if (isOpen) {
             fetchInventory();
 
-            // Initialize with existing meal data if editing
             if (initialMeal?.simpleMeal) {
                 setMealData(initialMeal.simpleMeal);
             } else {
-                // Reset for new meal
                 setMealData({
                     name: '',
                     description: '',
@@ -284,7 +245,6 @@ export default function SimpleMealBuilder({
         }
     };
 
-    // Auto-generate meal name based on selected items
     const generateMealName = (items) => {
         if (items.length === 0) return '';
 
@@ -307,7 +267,6 @@ export default function SimpleMealBuilder({
         return name || items[0].itemName;
     };
 
-    // FIXED: Much more precise categorization logic (REPLACE EXISTING categorizeInventoryItem)
     const categorizeInventoryItem = (item) => {
         const name = item.name.toLowerCase();
         const category = item.category?.toLowerCase() || '';
@@ -315,7 +274,6 @@ export default function SimpleMealBuilder({
 
         console.log(`🏷️ Categorizing SimpleMealBuilder item: "${item.name}"`);
 
-        // CONVENIENCE MEALS - Check for packaged meal kits first (highest priority)
         const conveniencePatterns = [
             'hamburger helper', 'tuna helper', 'chicken helper',
             'four cheese lasagna', 'deluxe beef stroganoff', 'cheesy italian shells',
@@ -324,10 +282,9 @@ export default function SimpleMealBuilder({
 
         if (conveniencePatterns.some(pattern => name.includes(pattern) || brand.includes(pattern))) {
             console.log(`✅ CONVENIENCE MEAL: "${item.name}"`);
-            return 'other'; // Use 'other' for convenience meals in SimpleMealBuilder
+            return 'other';
         }
 
-        // SEASONINGS - Check before proteins to catch spices with "ground" in name
         const seasoningPatterns = [
             'ground cinnamon', 'ground pepper', 'white pepper', 'black pepper',
             'garlic powder', 'onion powder', 'paprika', 'oregano', 'basil',
@@ -343,21 +300,18 @@ export default function SimpleMealBuilder({
             return 'seasoning';
         }
 
-        // SAUCES/CONDIMENTS/GRAVIES - Check before other categories
         if (name.includes('sauce') || name.includes('gravy') || name.includes('dressing') ||
             name.includes('vinegar') || name.includes('mayo') || name.includes('mustard') ||
             name.includes('ketchup')) {
             console.log(`✅ SAUCE/CONDIMENT: "${item.name}"`);
-            return 'other'; // Treat sauces as 'other' in SimpleMealBuilder
+            return 'other';
         }
 
-        // SOUPS - Check before proteins to avoid "chicken soup" being categorized as protein
         if (name.includes('soup') || name.includes('broth') || name.includes('stock')) {
             console.log(`✅ SOUP: "${item.name}"`);
             return 'other';
         }
 
-        // CONVENIENCE PROTEINS - Specific handling for patties, nuggets, etc.
         const convenienceProteinPatterns = [
             'hamburger patties', 'chicken patties', 'chicken nuggets', 'hot dogs',
             'bratwurst', 'polish sausage', 'breakfast sausage'
@@ -368,20 +322,17 @@ export default function SimpleMealBuilder({
             return 'protein';
         }
 
-        // PROTEINS - Only actual meats, fish, eggs (be very specific)
         const proteinPatterns = [
             'ground beef', 'stew meat', 'ribeye', 'new york steak', 'pork chops',
             'chicken breast', 'chicken wing', 'cubed steak', 'bacon', 'ham',
             'salmon', 'tuna', 'shrimp', 'eggs'
         ];
 
-        // Check exact protein matches first
         if (proteinPatterns.some(pattern => name.includes(pattern))) {
             console.log(`✅ PROTEIN (exact): "${item.name}"`);
             return 'protein';
         }
 
-        // More general protein check (but exclude items that contain other keywords)
         if ((name.includes('chicken') || name.includes('beef') || name.includes('pork') ||
                 name.includes('turkey') || name.includes('fish') || name.includes('meat')) &&
             !name.includes('sauce') && !name.includes('gravy') && !name.includes('soup') &&
@@ -390,14 +341,12 @@ export default function SimpleMealBuilder({
             return 'protein';
         }
 
-        // BREAD/BUNS - Check before starch to catch specific bread items
         if (name.includes('buns') || name.includes('bread') || name.includes('rolls') ||
             name.includes('bagel') || name.includes('tortilla') || name.includes('pita')) {
             console.log(`✅ BREAD/STARCH: "${item.name}"`);
             return 'starch';
         }
 
-        // PASTA - Check before starch to catch pasta specifically
         if (name.includes('pasta') || name.includes('spaghetti') || name.includes('penne') ||
             name.includes('macaroni') || name.includes('noodle') || name.includes('shells') ||
             name.includes('rigatoni') || name.includes('farfalle') || name.includes('rotini')) {
@@ -405,7 +354,6 @@ export default function SimpleMealBuilder({
             return 'starch';
         }
 
-        // STARCHES - Remaining carbs (exclude vinegar and sauces)
         if ((name.includes('rice') || name.includes('potato') || name.includes('quinoa') ||
                 name.includes('oats') || name.includes('stuffing') || name.includes('barley') ||
                 name.includes('couscous')) &&
@@ -414,7 +362,6 @@ export default function SimpleMealBuilder({
             return 'starch';
         }
 
-        // DAIRY - Check for actual dairy products (not just items with cheese in name)
         if ((name.includes('milk') || name.includes('yogurt') || name.includes('cream') ||
                 name.includes('butter') || name.includes('cottage cheese') || name.includes('sour cream')) ||
             (name.includes('cheese') && !name.includes('lasagna') && !name.includes('helper') &&
@@ -423,7 +370,6 @@ export default function SimpleMealBuilder({
             return 'dairy';
         }
 
-        // VEGETABLES - Pure vegetables only (exclude moved ingredients)
         const vegetablePatterns = [
             'broccoli', 'carrot', 'spinach', 'lettuce', 'corn', 'peas',
             'green beans', 'asparagus', 'zucchini', 'cauliflower', 'cabbage', 'brussels'
@@ -437,19 +383,16 @@ export default function SimpleMealBuilder({
             return 'vegetable';
         }
 
-        // FATS/OILS
         if (name.includes('oil') && !name.includes('olive oil vinegar') ||
             name.includes('avocado') || name.includes('nuts') || name.includes('seeds')) {
             console.log(`✅ FAT: "${item.name}"`);
             return 'fat';
         }
 
-        // Everything else goes to OTHER
         console.log(`✅ OTHER: "${item.name}"`);
         return 'other';
     };
 
-    // UPDATED: Enhanced random meal suggestion that handles convenience meals
     const suggestRandomMeal = () => {
         if (filteredInventory.length === 0) {
             alert('No inventory items available to create a meal suggestion');
@@ -458,7 +401,6 @@ export default function SimpleMealBuilder({
 
         console.log('🎲 Generating random meal suggestion...');
 
-        // Categorize available inventory
         const categorizedItems = {
             protein: [],
             starch: [],
@@ -480,7 +422,6 @@ export default function SimpleMealBuilder({
             Object.entries(categorizedItems).map(([cat, items]) => [cat, items.length])
         ));
 
-        // Check if we have convenience meals and randomly decide to use one (30% chance)
         const convenienceItems = categorizedItems.other.filter(item => {
             const name = item.name.toLowerCase();
             return name.includes('helper') || name.includes('lasagna') ||
@@ -489,7 +430,6 @@ export default function SimpleMealBuilder({
         });
 
         if (convenienceItems.length > 0 && Math.random() < 0.3) {
-            // Suggest a convenience meal
             const convenience = selectRandomIngredient(convenienceItems, 'convenience');
             const mealItems = [{
                 inventoryItemId: convenience._id,
@@ -500,7 +440,6 @@ export default function SimpleMealBuilder({
                 notes: 'follow package directions'
             }];
 
-            // Add a protein if it's a helper meal
             if (convenience.name.toLowerCase().includes('helper')) {
                 if (categorizedItems.protein.length > 0) {
                     const protein = selectRandomIngredient(categorizedItems.protein, 'protein');
@@ -527,11 +466,9 @@ export default function SimpleMealBuilder({
             return;
         }
 
-        // Build a traditional balanced meal with randomization
         const mealItems = [];
         let mealName = '';
 
-        // Try to add protein (priority)
         if (categorizedItems.protein.length > 0) {
             const protein = selectRandomIngredient(categorizedItems.protein, 'protein');
             if (protein) {
@@ -547,7 +484,6 @@ export default function SimpleMealBuilder({
             }
         }
 
-        // Try to add starch
         if (categorizedItems.starch.length > 0) {
             const starch = selectRandomIngredient(categorizedItems.starch, 'starch');
             if (starch) {
@@ -563,7 +499,6 @@ export default function SimpleMealBuilder({
             }
         }
 
-        // Try to add vegetable
         if (categorizedItems.vegetable.length > 0) {
             const vegetable = selectRandomIngredient(categorizedItems.vegetable, 'vegetable');
             if (vegetable) {
@@ -579,7 +514,6 @@ export default function SimpleMealBuilder({
             }
         }
 
-        // Optionally add dairy (20% chance)
         if (categorizedItems.dairy.length > 0 && Math.random() < 0.20) {
             const dairy = selectRandomIngredient(categorizedItems.dairy, 'dairy');
             if (dairy) {
@@ -594,7 +528,6 @@ export default function SimpleMealBuilder({
             }
         }
 
-        // If no items were selected, pick any 2-3 random items
         if (mealItems.length === 0) {
             const randomItems = [...filteredInventory]
                 .sort(() => 0.5 - Math.random())
@@ -614,8 +547,7 @@ export default function SimpleMealBuilder({
             mealName = generateMealName(mealItems);
         }
 
-        // Update meal data
-        const estimatedTime = 20 + (mealItems.length * 10); // Base time + complexity
+        const estimatedTime = 20 + (mealItems.length * 10);
         setMealData({
             name: mealName || 'Random Meal',
             description: `A randomly suggested meal using available ingredients: ${mealItems.map(item => item.itemName).join(', ')}`,
@@ -626,7 +558,6 @@ export default function SimpleMealBuilder({
 
         console.log(`✅ Generated random meal: "${mealName}" with ${mealItems.length} items`);
     };
-
 
     const addItemToMeal = (inventoryItem) => {
         const itemCategory = categorizeInventoryItem(inventoryItem);
@@ -677,7 +608,6 @@ export default function SimpleMealBuilder({
             return;
         }
 
-        // NEW: Show dietary conflict confirmation
         if (dietaryConflicts.length > 0) {
             const confirmSave = window.confirm(
                 `This meal has potential dietary conflicts:\n\n${dietaryConflicts.join('\n')}\n\nDo you want to save it anyway?`
@@ -697,8 +627,8 @@ export default function SimpleMealBuilder({
                 },
                 mealType: selectedSlot.mealType,
                 servings: 1,
-                prepTime: Math.floor(mealData.totalEstimatedTime * 0.3), // 30% prep
-                cookTime: Math.floor(mealData.totalEstimatedTime * 0.7), // 70% cook
+                prepTime: Math.floor(mealData.totalEstimatedTime * 0.3),
+                cookTime: Math.floor(mealData.totalEstimatedTime * 0.7),
                 notes: dietaryConflicts.length > 0 ? `⚠️ Dietary conflicts noted: ${dietaryConflicts.join('; ')}` : '',
                 createdAt: new Date()
             };
@@ -717,9 +647,9 @@ export default function SimpleMealBuilder({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-                {/* Enhanced Header with Random Meal Button */}
-                <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+            <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+                {/* Header */}
+                <div className="p-6 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
                             <div>
@@ -729,7 +659,6 @@ export default function SimpleMealBuilder({
                                 <p className="text-sm text-gray-600">
                                     Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
                                 </p>
-                                {/* Existing dietary preferences display */}
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
@@ -742,7 +671,6 @@ export default function SimpleMealBuilder({
                                     </div>
                                 )}
                             </div>
-                            {/* NEW: Random Meal Suggestion Button */}
                             <div className="ml-4">
                                 <TouchEnhancedButton
                                     onClick={suggestRandomMeal}
@@ -763,9 +691,9 @@ export default function SimpleMealBuilder({
                     </TouchEnhancedButton>
                 </div>
 
-                {/* NEW: Dietary Conflicts Warning */}
+                {/* Dietary Conflicts Warning */}
                 {showDietaryWarning && dietaryConflicts.length > 0 && (
-                    <div className="mx-6 mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="mx-6 mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3 flex-shrink-0">
                         <div className="flex items-start">
                             <span className="text-orange-500 mr-2">⚠️</span>
                             <div className="flex-1">
@@ -786,13 +714,14 @@ export default function SimpleMealBuilder({
                     </div>
                 )}
 
+                {/* Main Content - FIXED SCROLLING */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Panel - Inventory Selection */}
+                    {/* Left Panel - Inventory Selection - FIXED HEIGHT AND SCROLLING */}
                     <div className="w-1/2 border-r border-gray-200 flex flex-col">
-                        <div className="p-4 border-b border-gray-100">
+                        {/* Search and Filters - Fixed at top */}
+                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
                             <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
 
-                            {/* NEW: Show filtering info */}
                             {inventory.length > 0 && filteredInventory.length < inventory.length && (
                                 <div className="mb-3 text-sm text-orange-600">
                                     Showing {filteredInventory.length} of {inventory.length} items (filtered by dietary preferences)
@@ -837,8 +766,8 @@ export default function SimpleMealBuilder({
                             </div>
                         </div>
 
-                        {/* Inventory Items */}
-                        <div className="flex-1 overflow-auto p-4">
+                        {/* Inventory Items - FIXED: Proper scrollable area */}
+                        <div className="flex-1 overflow-y-auto p-4">
                             {loading ? (
                                 <div className="text-center py-8">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -891,9 +820,10 @@ export default function SimpleMealBuilder({
                         </div>
                     </div>
 
-                    {/* Right Panel - Meal Builder */}
+                    {/* Right Panel - Meal Builder - FIXED HEIGHT AND SCROLLING */}
                     <div className="w-1/2 flex flex-col">
-                        <div className="p-4 border-b border-gray-100">
+                        {/* Meal Info - Fixed at top */}
+                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
                             <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
 
                             {/* Meal Name */}
@@ -942,8 +872,8 @@ export default function SimpleMealBuilder({
                             </div>
                         </div>
 
-                        {/* Selected Items */}
-                        <div className="flex-1 overflow-auto p-4">
+                        {/* Selected Items - FIXED: Much larger scrollable area */}
+                        <div className="flex-1 overflow-y-auto p-4">
                             {mealData.items.length === 0 ? (
                                 <div className="text-center py-8">
                                     <div className="text-4xl mb-4">🍽️</div>
@@ -959,7 +889,6 @@ export default function SimpleMealBuilder({
                                     {mealData.items.map((item, index) => {
                                         const categoryInfo = MEAL_CATEGORIES.find(c => c.id === item.itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
 
-                                        // NEW: Check if this item has conflicts
                                         const itemConflicts = dietaryConflicts.filter(conflict =>
                                             conflict.includes(item.itemName)
                                         );
@@ -1053,8 +982,8 @@ export default function SimpleMealBuilder({
                             )}
                         </div>
 
-                        {/* Description */}
-                        <div className="p-4 border-t border-gray-100">
+                        {/* Description - Fixed at bottom */}
+                        <div className="p-4 border-t border-gray-100 flex-shrink-0">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Description (Optional)
                             </label>
@@ -1070,7 +999,7 @@ export default function SimpleMealBuilder({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <div className="p-6 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
                     <TouchEnhancedButton
                         onClick={onClose}
                         className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"

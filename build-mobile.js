@@ -8,9 +8,11 @@ const projectRoot = process.cwd();
 const apiPath = path.join(projectRoot, 'src', 'app', 'api');
 const apiBackupPath = path.join(projectRoot, 'temp-api-backup');
 
-// Also move dynamic route folders
+// Add ALL dynamic route folders that cause issues with static export
 const dynamicRoutes = [
     path.join(projectRoot, 'src', 'app', 'recipes', '[id]'),
+    path.join(projectRoot, 'src', 'app', 'collections', '[id]'),
+    // Add any other dynamic routes you might have
 ];
 const dynamicBackups = [];
 

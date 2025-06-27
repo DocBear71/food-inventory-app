@@ -34,6 +34,70 @@ export default function MealPlanningCalendar() {
     const [userDietaryRestrictions, setUserDietaryRestrictions] = useState([]);
     const [userAvoidIngredients, setUserAvoidIngredients] = useState([]);
     const [dietaryWarningMessage, setDietaryWarningMessage] = useState('');
+    const [recipeSearchQuery, setRecipeSearchQuery] = useState('');
+    const [selectedRecipeCategory, setSelectedRecipeCategory] = useState('all');
+
+    const RECIPE_CATEGORIES = [
+        { id: 'entree', name: 'Entrees', icon: '🍖', color: 'bg-red-50 border-red-200 text-red-700' },
+        { id: 'side', name: 'Sides', icon: '🥗', color: 'bg-green-50 border-green-200 text-green-700' },
+        { id: 'appetizer', name: 'Appetizers', icon: '🥨', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
+        { id: 'dessert', name: 'Desserts', icon: '🍰', color: 'bg-pink-50 border-pink-200 text-pink-700' },
+        { id: 'soup', name: 'Soups', icon: '🍲', color: 'bg-orange-50 border-orange-200 text-orange-700' },
+        { id: 'salad', name: 'Salads', icon: '🥬', color: 'bg-green-50 border-green-200 text-green-700' },
+        { id: 'breakfast', name: 'Breakfast', icon: '🥞', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+        { id: 'snack', name: 'Snacks', icon: '🍿', color: 'bg-purple-50 border-purple-200 text-purple-700' }
+    ];
+
+    const categorizeRecipe = (recipe) => {
+        const title = recipe.title?.toLowerCase() || '';
+        const tags = recipe.tags || [];
+        const category = recipe.category?.toLowerCase() || '';
+
+        // Check tags first for explicit categorization
+        const tagCategories = {
+            'entree': ['entree', 'main dish', 'main course', 'dinner', 'lunch'],
+            'side': ['side dish', 'side', 'sides'],
+            'appetizer': ['appetizer', 'starter', 'appetizers'],
+            'dessert': ['dessert', 'sweet', 'cake', 'cookie', 'pie', 'desserts'],
+            'soup': ['soup', 'stew', 'broth', 'chili'],
+            'salad': ['salad', 'salads'],
+            'breakfast': ['breakfast', 'brunch'],
+            'snack': ['snack', 'snacks']
+        };
+
+        // Check tags for matches
+        for (const [cat, keywords] of Object.entries(tagCategories)) {
+            if (tags.some(tag => keywords.some(keyword => tag.toLowerCase().includes(keyword)))) {
+                return cat;
+            }
+        }
+
+        // Check title for matches
+        for (const [cat, keywords] of Object.entries(tagCategories)) {
+            if (keywords.some(keyword => title.includes(keyword))) {
+                return cat;
+            }
+        }
+
+        // Check category field
+        if (category) {
+            for (const [cat, keywords] of Object.entries(tagCategories)) {
+                if (keywords.some(keyword => category.includes(keyword))) {
+                    return cat;
+                }
+            }
+        }
+
+        // Default categorization based on common food words
+        if (title.includes('salad')) return 'salad';
+        if (title.includes('soup') || title.includes('stew')) return 'soup';
+        if (title.includes('cake') || title.includes('cookie') || title.includes('pie') || title.includes('dessert')) return 'dessert';
+        if (title.includes('breakfast') || title.includes('pancake') || title.includes('waffle') || title.includes('omelette')) return 'breakfast';
+
+        // Default to entree
+        return 'entree';
+    };
+
 
     // Week days configuration based user preference
     const getWeekDaysOrder = (startDay) => {
@@ -170,17 +234,41 @@ export default function MealPlanningCalendar() {
     // Filter recipes whenever recipes or dietary preferences change
     useEffect(() => {
         if (recipes.length > 0) {
-            const filtered = filterRecipesByDietaryPreferences(recipes);
+            let filtered = filterRecipesByDietaryPreferences(recipes);
+
+            // Apply search filter
+            if (recipeSearchQuery.trim()) {
+                const query = recipeSearchQuery.toLowerCase();
+                filtered = filtered.filter(recipe =>
+                    recipe.title.toLowerCase().includes(query) ||
+                    (recipe.description && recipe.description.toLowerCase().includes(query)) ||
+                    (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(query))) ||
+                    (recipe.ingredients && recipe.ingredients.some(ingredient => {
+                        const ingredientName = typeof ingredient === 'string'
+                            ? ingredient.toLowerCase()
+                            : ingredient.name?.toLowerCase() || '';
+                        return ingredientName.includes(query);
+                    }))
+                );
+            }
+
+            // Apply category filter
+            if (selectedRecipeCategory !== 'all') {
+                filtered = filtered.filter(recipe =>
+                    categorizeRecipe(recipe) === selectedRecipeCategory
+                );
+            }
+
             setFilteredRecipes(filtered);
 
             // Show warning if many recipes were filtered out
             if (recipes.length > 0 && filtered.length < recipes.length * 0.5) {
                 setDietaryWarningMessage(
-                    `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your dietary preferences.`
+                    `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your preferences.`
                 );
             }
         }
-    }, [recipes, userDietaryRestrictions, userAvoidIngredients]);
+    }, [recipes, userDietaryRestrictions, userAvoidIngredients, recipeSearchQuery, selectedRecipeCategory]);
 
     // UPDATED: Migration function for existing users with old meal types
     const migrateOldMealTypes = (mealTypes) => {
@@ -442,6 +530,8 @@ export default function MealPlanningCalendar() {
 
         setShowRecipeModal(false);
         setSelectedSlot(null);
+        setRecipeSearchQuery('');
+        setSelectedRecipeCategory('all');
     };
 
     const addSimpleMealToSlot = async (day, mealType, simpleMealEntry) => {
@@ -1008,69 +1098,149 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* Mobile Recipe Selection Modal - uses filtered recipes */}
+                // MOBILE Recipe Selection Modal - Replace the existing mobile modal:
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden">
-                            <div className="p-4 border-b border-gray-200">
-                                <div className="flex items-center justify-between">
+                        <div className="bg-white rounded-lg max-w-lg w-full h-[85vh] overflow-hidden flex flex-col">
+                            {/* Header */}
+                            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+                                <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        Add Recipe
-                                        to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                        Add Recipe to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                     </h3>
                                     <TouchEnhancedButton
                                         onClick={() => {
                                             setShowRecipeModal(false);
                                             setSelectedSlot(null);
+                                            setRecipeSearchQuery('');
+                                            setSelectedRecipeCategory('all');
                                         }}
                                         className="text-gray-400 hover:text-gray-600 text-xl"
                                     >
                                         ×
                                     </TouchEnhancedButton>
                                 </div>
-                                {/* Show filtering info */}
+
+                                {/* Search */}
+                                <input
+                                    type="text"
+                                    placeholder="Search recipes..."
+                                    value={recipeSearchQuery}
+                                    onChange={(e) => setRecipeSearchQuery(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
+                                />
+
+                                {/* Category Filter */}
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    <TouchEnhancedButton
+                                        onClick={() => setSelectedRecipeCategory('all')}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                            selectedRecipeCategory === 'all'
+                                                ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        All ({recipes.length})
+                                    </TouchEnhancedButton>
+                                    {RECIPE_CATEGORIES.map(category => {
+                                        const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
+                                        return (
+                                            <TouchEnhancedButton
+                                                key={category.id}
+                                                onClick={() => setSelectedRecipeCategory(category.id)}
+                                                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                                                    selectedRecipeCategory === category.id
+                                                        ? category.color
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                <span>{category.icon}</span>
+                                                <span>{category.name} ({count})</span>
+                                            </TouchEnhancedButton>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Filter Info */}
                                 {filteredRecipes.length < recipes.length && (
-                                    <div className="mt-2 text-sm text-orange-600">
-                                        Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by
-                                        dietary preferences)
+                                    <div className="text-sm text-orange-600">
+                                        Showing {filteredRecipes.length} of {recipes.length} recipes
+                                        {recipes.length - filteredRecipes.length > 0 && (
+                                            <span> ({recipes.length - filteredRecipes.length} filtered)</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
 
-                            <div className="p-4 max-h-80 overflow-y-auto">
+                            {/* Recipe List - FIXED: Proper scrolling */}
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {filteredRecipes.length === 0 ? (
                                     <div className="text-center py-8">
                                         <p className="text-gray-500">
                                             {recipes.length === 0
                                                 ? "No recipes found. Add some recipes first!"
-                                                : "No recipes match your dietary preferences. Try adjusting your filters in Profile → Meal Planning."}
+                                                : "No recipes match your current filters."}
                                         </p>
+                                        {recipeSearchQuery && (
+                                            <TouchEnhancedButton
+                                                onClick={() => {
+                                                    setRecipeSearchQuery('');
+                                                    setSelectedRecipeCategory('all');
+                                                }}
+                                                className="mt-2 text-indigo-600 hover:text-indigo-800"
+                                            >
+                                                Clear filters
+                                            </TouchEnhancedButton>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {filteredRecipes.map(recipe => (
-                                            <TouchEnhancedButton
-                                                key={recipe._id}
-                                                onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
-                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                                            >
-                                                <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
-                                                <div className="text-sm text-gray-600 mb-2">
-                                                    {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
-                                                    • {recipe.difficulty}
-                                                </div>
-                                                {recipe.tags && recipe.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {recipe.tags.slice(0, 3).map(tag => (
-                                                            <span key={tag}
-                                                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
+                                        {filteredRecipes.map(recipe => {
+                                            const recipeCategory = categorizeRecipe(recipe);
+                                            const categoryInfo = RECIPE_CATEGORIES.find(c => c.id === recipeCategory) || RECIPE_CATEGORIES.find(c => c.id === 'entree');
+
+                                            return (
+                                                <TouchEnhancedButton
+                                                    key={recipe._id}
+                                                    onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
+                                                    className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
+                                                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
+                                                {categoryInfo.icon} {categoryInfo.name}
+                                            </span>
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </TouchEnhancedButton>
-                                        ))}
+
+                                                    <div className="text-sm text-gray-600 mb-2">
+                                                        {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min • {recipe.difficulty}
+                                                    </div>
+
+                                                    {recipe.description && (
+                                                        <div className="text-sm text-gray-500 mb-2 line-clamp-2">
+                                                            {recipe.description}
+                                                        </div>
+                                                    )}
+
+                                                    {recipe.tags && recipe.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {recipe.tags.slice(0, 3).map(tag => (
+                                                                <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                    {tag}
+                                                </span>
+                                                            ))}
+                                                            {recipe.tags.length > 3 && (
+                                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                    +{recipe.tags.length - 3} more
+                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TouchEnhancedButton>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -1477,69 +1647,208 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Desktop Recipe Selection Modal - uses filtered recipes */}
+            // DESKTOP Recipe Selection Modal - Replace the existing desktop modal:
             {showRecipeModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-hidden">
-                        <div className="p-4 border-b border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    Select Recipe
-                                    for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                    <div className="bg-white rounded-lg max-w-4xl w-full h-[85vh] overflow-hidden flex flex-col">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-200 flex-shrink-0">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         setShowRecipeModal(false);
                                         setSelectedSlot(null);
+                                        setRecipeSearchQuery('');
+                                        setSelectedRecipeCategory('all');
                                     }}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
                                     ×
                                 </TouchEnhancedButton>
                             </div>
-                            {/* Show filtering info */}
-                            {filteredRecipes.length < recipes.length && (
-                                <div className="mt-2 text-sm text-orange-600">
-                                    Showing {filteredRecipes.length} of {recipes.length} recipes (filtered by dietary
-                                    preferences)
+
+                            {/* Search and Filters */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                {/* Search */}
+                                <div className="md:col-span-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Search recipes by title, description, tags, or ingredients..."
+                                        value={recipeSearchQuery}
+                                        onChange={(e) => setRecipeSearchQuery(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm"
+                                    />
+                                </div>
+
+                                {/* Quick Stats */}
+                                <div className="text-sm text-gray-600 flex items-center">
+                                    Showing {filteredRecipes.length} of {recipes.length} recipes
+                                </div>
+                            </div>
+
+                            {/* Category Filter */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <TouchEnhancedButton
+                                    onClick={() => setSelectedRecipeCategory('all')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                                        selectedRecipeCategory === 'all'
+                                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    All ({recipes.length})
+                                </TouchEnhancedButton>
+                                {RECIPE_CATEGORIES.map(category => {
+                                    const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
+                                    return (
+                                        <TouchEnhancedButton
+                                            key={category.id}
+                                            onClick={() => setSelectedRecipeCategory(category.id)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                                                selectedRecipeCategory === category.id
+                                                    ? category.color
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            <span>{category.icon}</span>
+                                            <span>{category.name} ({count})</span>
+                                        </TouchEnhancedButton>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Filter Info */}
+                            {(recipeSearchQuery || selectedRecipeCategory !== 'all' || filteredRecipes.length < recipes.length) && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm text-blue-700">
+                                            {recipeSearchQuery && (
+                                                <span>Search: "{recipeSearchQuery}" • </span>
+                                            )}
+                                            {selectedRecipeCategory !== 'all' && (
+                                                <span>Category: {RECIPE_CATEGORIES.find(c => c.id === selectedRecipeCategory)?.name} • </span>
+                                            )}
+                                            {filteredRecipes.length < recipes.length && (
+                                                <span>{recipes.length - filteredRecipes.length} recipes filtered by dietary preferences</span>
+                                            )}
+                                        </div>
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                setRecipeSearchQuery('');
+                                                setSelectedRecipeCategory('all');
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 text-sm"
+                                        >
+                                            Clear filters
+                                        </TouchEnhancedButton>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="p-4 max-h-80 overflow-y-auto">
+                        {/* Recipe Grid - FIXED: Proper scrolling */}
+                        <div className="flex-1 overflow-y-auto p-6">
                             {filteredRecipes.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500">
+                                <div className="text-center py-12">
+                                    <div className="text-6xl mb-4">🍽️</div>
+                                    <h4 className="text-lg font-medium text-gray-900 mb-2">No recipes found</h4>
+                                    <p className="text-gray-500 mb-4">
                                         {recipes.length === 0
-                                            ? "No recipes found. Add some recipes first!"
-                                            : "No recipes match your dietary preferences. Try adjusting your filters in Profile → Meal Planning."}
+                                            ? "You haven't added any recipes yet."
+                                            : "No recipes match your current filters."}
                                     </p>
+                                    {(recipeSearchQuery || selectedRecipeCategory !== 'all') && (
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                setRecipeSearchQuery('');
+                                                setSelectedRecipeCategory('all');
+                                            }}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                                        >
+                                            Clear all filters
+                                        </TouchEnhancedButton>
+                                    )}
                                 </div>
                             ) : (
-                                <div className="space-y-2">
-                                    {filteredRecipes.map(recipe => (
-                                        <TouchEnhancedButton
-                                            key={recipe._id}
-                                            onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
-                                            className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                                        >
-                                            <div className="font-medium text-gray-900">{recipe.title}</div>
-                                            <div className="text-sm text-gray-600">
-                                                {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min
-                                                • {recipe.difficulty}
-                                            </div>
-                                            {recipe.tags && recipe.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mt-2">
-                                                    {recipe.tags.slice(0, 3).map(tag => (
-                                                        <span key={tag}
-                                                              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                            {tag}
-                                                        </span>
-                                                    ))}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filteredRecipes.map(recipe => {
+                                        const recipeCategory = categorizeRecipe(recipe);
+                                        const categoryInfo = RECIPE_CATEGORIES.find(c => c.id === recipeCategory) || RECIPE_CATEGORIES.find(c => c.id === 'entree');
+
+                                        return (
+                                            <TouchEnhancedButton
+                                                key={recipe._id}
+                                                onClick={() => addMealToSlot(selectedSlot.day, selectedSlot.mealType, recipe)}
+                                                className="text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors h-full flex flex-col"
+                                            >
+                                                {/* Recipe Header */}
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">{recipe.title}</h4>
+                                                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
+                                                {categoryInfo.icon} {categoryInfo.name}
+                                            </span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </TouchEnhancedButton>
-                                    ))}
+
+                                                {/* Recipe Info */}
+                                                <div className="text-sm text-gray-600 mb-3">
+                                                    <div className="flex items-center gap-4 mb-1">
+                                                        <span>👥 {recipe.servings} servings</span>
+                                                        <span>⏱️ {recipe.prepTime + recipe.cookTime} min</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>📊 {recipe.difficulty}</span>
+                                                        {recipe.rating && (
+                                                            <span>⭐ {recipe.rating}/5</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Description */}
+                                                {recipe.description && (
+                                                    <div className="text-sm text-gray-500 mb-3 line-clamp-2 flex-1">
+                                                        {recipe.description}
+                                                    </div>
+                                                )}
+
+                                                {/* Ingredients Preview */}
+                                                {recipe.ingredients && recipe.ingredients.length > 0 && (
+                                                    <div className="text-xs text-gray-500 mb-3">
+                                                        <div className="font-medium mb-1">Key ingredients:</div>
+                                                        <div className="line-clamp-1">
+                                                            {recipe.ingredients.slice(0, 3).map(ingredient => {
+                                                                const ingredientName = typeof ingredient === 'string'
+                                                                    ? ingredient
+                                                                    : ingredient.name || ingredient;
+                                                                return ingredientName;
+                                                            }).join(', ')}
+                                                            {recipe.ingredients.length > 3 && ` +${recipe.ingredients.length - 3} more`}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Tags */}
+                                                {recipe.tags && recipe.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-auto">
+                                                        {recipe.tags.slice(0, 3).map(tag => (
+                                                            <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                    {tag}
+                                                </span>
+                                                        ))}
+                                                        {recipe.tags.length > 3 && (
+                                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                    +{recipe.tags.length - 3}
+                                                </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </TouchEnhancedButton>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

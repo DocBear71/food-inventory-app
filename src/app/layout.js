@@ -1,21 +1,17 @@
-// file: /src/app/layout.js v4 - Fixed to always include SessionProvider for web builds
+// file: /src/app/layout.js v5 - Fixed PWA wrapper integration
 
 import {Inter} from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import PWAWrapper from '@/components/PWAWrapper';
 import CapacitorAuthProvider from '@/components/CapacitorAuthProvider';
-import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
-import {getServerSession} from 'next-auth/next';
-import {authOptions} from '@/lib/auth';
 
 const inter = Inter({subsets: ['latin']});
 
 export const metadata = {
     title: 'Doc Bear\'s Comfort Kitchen',
     description: 'Manage your Food Inventory and find recipes based on what you have',
-    // ... keep all your existing metadata
     manifest: '/manifest.json',
     // Icons - Enhanced with more Apple sizes
     icons: {
@@ -61,8 +57,7 @@ export function generateViewport() {
 }
 
 export default async function RootLayout({children}) {
-    // FIXED: Determine if this is a native mobile app (Capacitor) vs web
-    // Only exclude SessionProvider for actual native mobile apps, not web/PWA builds
+    // Determine if this is a native mobile app (Capacitor) vs web
     const isNativeMobileApp = process.env.CAPACITOR_PLATFORM === 'ios' ||
         process.env.CAPACITOR_PLATFORM === 'android';
 
@@ -71,14 +66,15 @@ export default async function RootLayout({children}) {
         <body className={inter.className}>
         <CapacitorAuthProvider>
             {isNativeMobileApp ? (
-                // Only for native mobile apps - no SessionProvider
+                // Native mobile apps - no PWA wrapper or SessionProvider needed
                 children
             ) : (
-                // For web builds (including PWA) - always include SessionProvider
+                // Web builds (including PWA) - full PWA functionality
                 <SessionProvider>
                     <SubscriptionProvider>
-                        <PWAInstallBanner />
-                        {children}
+                        <PWAWrapper>
+                            {children}
+                        </PWAWrapper>
                     </SubscriptionProvider>
                 </SessionProvider>
             )}
