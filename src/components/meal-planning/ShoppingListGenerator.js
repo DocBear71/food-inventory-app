@@ -617,6 +617,11 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                         size: letter;
                     }
                     
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    
                     body * {
                         visibility: hidden;
                     }
@@ -627,37 +632,80 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                     }
                     
                     #meal-plan-shopping-list-content {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        font-size: 11pt;
-                        line-height: 1.3;
+                        position: static !important;
+                        left: auto !important;
+                        top: auto !important;
+                        width: 100% !important;
+                        max-width: none !important;
+                        height: auto !important;
+                        font-size: 11pt !important;
+                        line-height: 1.3 !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        background: white !important;
+                        color: black !important;
+                    }
+                    
+                    /* Ensure content flows naturally */
+                    #meal-plan-shopping-list-content > * {
+                        position: static !important;
+                        width: 100% !important;
+                        max-width: none !important;
                     }
                     
                     .category {
                         page-break-inside: avoid;
-                        margin-bottom: 15px;
+                        break-inside: avoid;
+                        margin-bottom: 15px !important;
+                        padding: 0 !important;
                     }
                     
                     .category h3 {
-                        border-bottom: 1px solid #333;
-                        padding-bottom: 3px;
-                        margin-bottom: 8px;
-                        font-size: 12pt;
-                        font-weight: bold;
+                        border-bottom: 1px solid #333 !important;
+                        padding-bottom: 3px !important;
+                        margin: 15px 0 8px 0 !important;
+                        font-size: 12pt !important;
+                        font-weight: bold !important;
+                        page-break-after: avoid;
+                    }
+                    
+                    .category:first-child h3 {
+                        margin-top: 0 !important;
                     }
                     
                     .item {
                         page-break-inside: avoid;
-                        margin-bottom: 4px;
-                        display: flex;
-                        align-items: flex-start;
+                        break-inside: avoid;
+                        margin-bottom: 4px !important;
+                        display: flex !important;
+                        align-items: flex-start !important;
+                        padding: 2px 0 !important;
                     }
                     
                     input[type="checkbox"] {
-                        margin-right: 8px;
-                        transform: scale(1.2);
+                        margin-right: 8px !important;
+                        transform: scale(1.2) !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    /* Hide any overflow content that might create blank pages */
+                    body::after,
+                    html::after {
+                        content: none !important;
+                        display: none !important;
+                    }
+                    
+                    /* Ensure no floating elements cause issues */
+                    * {
+                        float: none !important;
+                        position: static !important;
+                    }
+                    
+                    /* Override any flex or grid that might cause layout issues */
+                    .flex, .grid, [style*="display: flex"], [style*="display: grid"] {
+                        display: block !important;
                     }
                 }
             `;
