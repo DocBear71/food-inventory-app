@@ -1082,7 +1082,7 @@ export default function RecipeSuggestions() {
                                                             >
                                                                 {loadingRecipe ? 'Loading...' : 'View Recipe'}
                                                             </TouchEnhancedButton>
-                                                            {recipe.analysis.matchPercentage < 100 && (
+                                                            {recipe.analysis.matchPercentage < 99 && (
                                                                 <TouchEnhancedButton
                                                                     onClick={() => setShowShoppingList({
                                                                         recipeId: recipe._id,
