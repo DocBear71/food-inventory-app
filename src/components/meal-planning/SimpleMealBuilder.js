@@ -1348,30 +1348,30 @@ export default function SimpleMealBuilder({
                             </div>
                         </>
                     )}
+                </div>
 
-
-                    {/* Footer */}
-                    <div className="p-6 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
-                        <TouchEnhancedButton
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                            Cancel
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={handleSave}
-                            disabled={mealData.items.length === 0 || saving}
-                            className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                                dietaryConflicts.length > 0
-                                    ? 'bg-orange-600 hover:bg-orange-700'
-                                    : 'bg-indigo-600 hover:bg-indigo-700'
-                            } disabled:bg-gray-400`}
-                        >
-                            {saving ? 'Saving...' : dietaryConflicts.length > 0 ? 'Save Despite Conflicts' : 'Save Meal'}
-                        </TouchEnhancedButton>
-                    </div>
+                {/* Footer - Fixed positioning */}
+                <div className="p-4 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0 bg-white">
+                    <TouchEnhancedButton
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
+                        onClick={handleSave}
+                        disabled={mealData.items.length === 0 || saving}
+                        className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                            dietaryConflicts.length > 0
+                                ? 'bg-orange-600 hover:bg-orange-700'
+                                : 'bg-indigo-600 hover:bg-indigo-700'
+                        } disabled:bg-gray-400`}
+                    >
+                        {saving ? 'Saving...' : dietaryConflicts.length > 0 ? 'Save Despite Conflicts' : 'Save Meal'}
+                    </TouchEnhancedButton>
                 </div>
             </div>
         </div>
+
     );
 }
