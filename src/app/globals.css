@@ -4003,3 +4003,28 @@ input[type="radio"]:focus {
 .pb-8 { padding-bottom: 2rem !important; }
 .pb-16 { padding-bottom: 4rem !important; }
 .pb-32 { padding-bottom: 8rem !important; }
+
+/* Add to your CSS file */
+.help-categories-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+    .help-categories-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 768px) {
+    .help-categories-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .help-categories-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

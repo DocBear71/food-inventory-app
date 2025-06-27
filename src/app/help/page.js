@@ -281,12 +281,12 @@ export default function HelpCenterPage() {
                     </div>
                 </div>
 
-                {/* ALTERNATIVE: Very explicit mobile-first grid */}
+                {/* WORKING: Standard Tailwind responsive grid */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Browse by Category</h2>
 
-                    {/* EXPLICIT: Force mobile to 1 column, then scale up */}
-                    <div className="grid gap-4 grid-cols-1 min-[640px]:grid-cols-2 min-[768px]:grid-cols-3 min-[1024px]:grid-cols-4 min-[1280px]:grid-cols-5">
+                    {/* SIMPLE: Use standard responsive classes without combining */}
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
