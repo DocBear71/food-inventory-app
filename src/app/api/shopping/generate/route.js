@@ -65,12 +65,12 @@ const NEVER_CROSS_MATCH = {
 
 // FIXED: Enhanced ingredient variations - more specific and targeted
 const INGREDIENT_VARIATIONS = {
-    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic', 'cloves garlic'],
+    'garlic': ['garlic cloves', 'garlic bulb', 'minced garlic', 'fresh garlic', 'chopped garlic', 'garlic minced'],
     'garlic cloves': ['garlic', 'fresh garlic', 'minced garlic', 'cloves garlic'],
-    'minced garlic': ['garlic', 'garlic cloves', 'cloves garlic'],
+    'minced garlic': ['garlic', 'garlic cloves', 'garlic minced'],
 
-    'onion': ['onions', 'yellow onion', 'white onion', 'red onion', 'sweet onion', 'vidalia onion'],
-    'onions': ['onion', 'yellow onion', 'white onion', 'sweet onion'],
+    'onion': ['onions', 'yellow onion', 'white onion', 'red onion', 'sweet onion', 'vidalia onion', 'onion chopped'],
+    'onions': ['onion', 'yellow onion', 'white onion', 'sweet onion', 'onion chopped'],
 
     'green onion': ['green onions', 'scallions', 'scallion', 'spring onions'],
     'bell pepper': ['bell peppers', 'red bell pepper', 'green bell pepper', 'yellow bell pepper'],
