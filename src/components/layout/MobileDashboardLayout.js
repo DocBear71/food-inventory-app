@@ -320,25 +320,25 @@ export default function MobileDashboardLayout({children}) {
                             {session && (
                                 <div className="px-4 py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                                             {session?.user?.avatar ? (
                                                 <img
                                                     src={`/api/user/avatar/${session.user.avatar}`}
                                                     alt="Profile"
                                                     className="absolute inset-0 w-full h-full object-cover rounded-full"
                                                     onError={(e) => {
-                                                        // Fallback if image fails to load
                                                         e.target.style.display = 'none';
                                                         e.target.parentElement.classList.add('show-fallback');
                                                     }}
                                                 />
                                             ) : null}
                                             <span
-                                                className="text-indigo-600 text-sm font-medium"
-                                                style={{display: session?.user?.avatar ? 'none' : 'flex'}}
+                                                className={`text-indigo-600 text-sm font-medium w-full h-full flex items-center justify-center ${
+                                                    session?.user?.avatar ? 'hidden' : 'block'
+                                                }`}
                                             >
-                                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                                            </span>
+        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+    </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-medium text-gray-900 truncate">

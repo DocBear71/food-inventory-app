@@ -283,13 +283,13 @@ export default function DashboardLayout({ children }) {
                 {/* Top bar */}
                 <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
                     <div className="flex items-center justify-between h-16 px-4">
-                        {/* Mobile menu button - Always visible on mobile */}
+                        {/* Menu button - FIXED: Now visible on all screen sizes */}
                         <TouchEnhancedButton
-                            onClick={() => setSidebarOpen(true)}
-                            className="mobile-menu-button text-gray-500 hover:text-gray-700 lg:hidden p-2 rounded-md"
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="mobile-menu-button text-gray-500 hover:text-gray-700 p-2 rounded-md"
                         >
-                            <span className="sr-only">Open sidebar</span>
-                            {/* Hamburger icon - made larger and more visible */}
+                            <span className="sr-only">Toggle sidebar</span>
+                            {/* Hamburger icon */}
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
