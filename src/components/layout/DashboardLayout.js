@@ -1,10 +1,10 @@
 'use client';
-// file: /src/components/layout/DashboardLayout.js - v4 - Fixed sign-out functionality with proper session clearing
+// file: /src/components/layout/DashboardLayout.js - v5 - Fixed click-outside to close sidebar
 
 import { handleMobileSignOut } from '@/lib/mobile-signout';
 import { signOut } from 'next-auth/react';
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -18,6 +18,35 @@ export default function DashboardLayout({ children }) {
     const [isSigningOut, setIsSigningOut] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+    const sidebarRef = useRef(null);
+
+    // Close sidebar when clicking outside of it
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (sidebarOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+                // Check if click is on the hamburger menu button (don't close if clicking the button)
+                const menuButton = event.target.closest('.mobile-menu-button');
+                if (!menuButton) {
+                    setSidebarOpen(false);
+                }
+            }
+        };
+
+        if (sidebarOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [sidebarOpen]);
+
+    // Close sidebar when route changes
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [pathname]);
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
@@ -103,8 +132,6 @@ export default function DashboardLayout({ children }) {
         }
     };
 
-
-
     const toggleSubmenu = (itemName) => {
         setExpandedMenus(prev => ({
             ...prev,
@@ -125,18 +152,21 @@ export default function DashboardLayout({ children }) {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Mobile sidebar overlay */}
+            {/* FIXED: Overlay that appears when sidebar is open (on all screen sizes) */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+                    className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
             {/* Sidebar */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}>
+            <div
+                ref={sidebarRef}
+                className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
                 <div className="flex flex-col h-full">
                     {/* Logo/Title */}
                     <div className="flex items-center justify-between h-16 px-4 bg-indigo-600">
@@ -145,13 +175,16 @@ export default function DashboardLayout({ children }) {
                             Comfort Kitchen
                         </h1>
 
-                        {/* Mobile close button */}
-                        <TouchEnhancedButton
-                            onClick={() => setSidebarOpen(false)}
-                            className="text-white hover:text-gray-200 p-1"
-                        >
-                            <span className="text-xl">×</span>
-                        </TouchEnhancedButton>
+                        {/* Close button - FIXED: Now shows on all screen sizes when sidebar is open */}
+                        {sidebarOpen && (
+                            <TouchEnhancedButton
+                                onClick={() => setSidebarOpen(false)}
+                                className="text-white hover:text-gray-200 p-1"
+                                title="Close menu"
+                            >
+                                <span className="text-xl">×</span>
+                            </TouchEnhancedButton>
+                        )}
                     </div>
 
                     {/* Navigation */}
@@ -253,12 +286,12 @@ export default function DashboardLayout({ children }) {
                         {/* Mobile menu button - Always visible on mobile */}
                         <TouchEnhancedButton
                             onClick={() => setSidebarOpen(true)}
-                            className="mobile-menu-button"
+                            className="mobile-menu-button text-gray-500 hover:text-gray-700 lg:hidden p-2 rounded-md"
                         >
                             <span className="sr-only">Open sidebar</span>
                             {/* Hamburger icon - made larger and more visible */}
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </TouchEnhancedButton>
 

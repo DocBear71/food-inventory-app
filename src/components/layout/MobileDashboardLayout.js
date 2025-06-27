@@ -325,10 +325,11 @@ export default function MobileDashboardLayout({children}) {
                                                 <img
                                                     src={`/api/user/avatar/${session.user.avatar}`}
                                                     alt="Profile"
-                                                    className="w-full h-full object-cover"
+                                                    className="absolute inset-0 w-full h-full object-cover rounded-full"
                                                     onError={(e) => {
+                                                        // Fallback if image fails to load
                                                         e.target.style.display = 'none';
-                                                        e.target.nextElementSibling.style.display = 'flex';
+                                                        e.target.parentElement.classList.add('show-fallback');
                                                     }}
                                                 />
                                             ) : null}
