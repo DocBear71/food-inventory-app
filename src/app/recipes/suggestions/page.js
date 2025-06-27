@@ -1078,7 +1078,7 @@ export default function RecipeSuggestions() {
                                                             <TouchEnhancedButton
                                                                 onClick={() => loadRecipeDetails(recipe._id)}
                                                                 disabled={loadingRecipe}
-                                                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 min-h-[2.25rem]"
+                                                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 h-9"
                                                             >
                                                                 {loadingRecipe ? 'Loading...' : 'View Recipe'}
                                                             </TouchEnhancedButton>
@@ -1089,7 +1089,7 @@ export default function RecipeSuggestions() {
                                                                         recipeName: recipe.title,
                                                                         type: 'recipe'
                                                                     })}
-                                                                    className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 min-h-[3rem]"
+                                                                    className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 h-12"
                                                                 >
                                                                     Shopping List
                                                                 </TouchEnhancedButton>

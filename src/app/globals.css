@@ -239,6 +239,7 @@ span[role="img"],
 .h-10 { height: 2.5rem !important; }
 .w-12 { width: 3rem !important; }
 .h-12 { height: 3rem !important; }
+.h-9 { height: 2.25rem !important; }
 
 /* ADD MISSING SPACING UTILITIES */
 .space-x-1 > * + * { margin-left: 0.25rem !important; }
