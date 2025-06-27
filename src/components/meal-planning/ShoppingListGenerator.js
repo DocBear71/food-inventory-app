@@ -886,6 +886,7 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
                                 >
                                     🖨️<br/>Print
                                 </TouchEnhancedButton>
+                                {/*Just making changes */}
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         const printContent = document.getElementById('meal-plan-shopping-list-content').innerHTML;
