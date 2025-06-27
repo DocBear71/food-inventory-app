@@ -287,6 +287,7 @@ export default function HelpCenterPage() {
 
                     {/* SIMPLE: Use standard responsive classes without combining */}
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        <div className="help-categories-grid">
                         {categories.map(category => (
                             <TouchEnhancedButton
                                 key={category.id}
@@ -301,6 +302,7 @@ export default function HelpCenterPage() {
                                 <div className="text-sm font-medium leading-tight">{category.name}</div>
                             </TouchEnhancedButton>
                         ))}
+                        </div>
                     </div>
                 </div>
 
