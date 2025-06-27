@@ -38,16 +38,17 @@ export default function MealPlanningCalendar() {
     const [selectedRecipeCategory, setSelectedRecipeCategory] = useState('all');
 
     const RECIPE_CATEGORIES = [
-        { id: 'entree', name: 'Entrees', icon: '🍖', color: 'bg-red-50 border-red-200 text-red-700' },
-        { id: 'side', name: 'Sides', icon: '🥗', color: 'bg-green-50 border-green-200 text-green-700' },
-        { id: 'appetizer', name: 'Appetizers', icon: '🥨', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
-        { id: 'dessert', name: 'Desserts', icon: '🍰', color: 'bg-pink-50 border-pink-200 text-pink-700' },
-        { id: 'soup', name: 'Soups', icon: '🍲', color: 'bg-orange-50 border-orange-200 text-orange-700' },
-        { id: 'salad', name: 'Salads', icon: '🥬', color: 'bg-green-50 border-green-200 text-green-700' },
-        { id: 'breakfast', name: 'Breakfast', icon: '🥞', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-        { id: 'snack', name: 'Snacks', icon: '🍿', color: 'bg-purple-50 border-purple-200 text-purple-700' }
+        { id: 'entree', name: 'Entrees', icon: '🍖' },
+        { id: 'side', name: 'Sides', icon: '🥗' },
+        { id: 'appetizer', name: 'Appetizers', icon: '🥨' },
+        { id: 'dessert', name: 'Desserts', icon: '🍰' },
+        { id: 'soup', name: 'Soups', icon: '🍲' },
+        { id: 'salad', name: 'Salads', icon: '🥬' },
+        { id: 'breakfast', name: 'Breakfast', icon: '🥞' },
+        { id: 'snack', name: 'Snacks', icon: '🍿' }
     ];
 
+    // ENHANCED: Add this function to categorize recipes:
     const categorizeRecipe = (recipe) => {
         const title = recipe.title?.toLowerCase() || '';
         const tags = recipe.tags || [];
@@ -236,6 +237,8 @@ export default function MealPlanningCalendar() {
         if (recipes.length > 0) {
             let filtered = filterRecipesByDietaryPreferences(recipes);
 
+            console.log(`🔍 Recipe filtering: Starting with ${recipes.length} recipes, after dietary filter: ${filtered.length}`);
+
             // Apply search filter
             if (recipeSearchQuery.trim()) {
                 const query = recipeSearchQuery.toLowerCase();
@@ -250,6 +253,7 @@ export default function MealPlanningCalendar() {
                         return ingredientName.includes(query);
                     }))
                 );
+                console.log(`🔍 After search filter "${query}": ${filtered.length} recipes`);
             }
 
             // Apply category filter
@@ -257,6 +261,7 @@ export default function MealPlanningCalendar() {
                 filtered = filtered.filter(recipe =>
                     categorizeRecipe(recipe) === selectedRecipeCategory
                 );
+                console.log(`🔍 After category filter "${selectedRecipeCategory}": ${filtered.length} recipes`);
             }
 
             setFilteredRecipes(filtered);
@@ -266,6 +271,8 @@ export default function MealPlanningCalendar() {
                 setDietaryWarningMessage(
                     `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your preferences.`
                 );
+            } else {
+                setDietaryWarningMessage('');
             }
         }
     }, [recipes, userDietaryRestrictions, userAvoidIngredients, recipeSearchQuery, selectedRecipeCategory]);
@@ -1098,7 +1105,7 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                // MOBILE Recipe Selection Modal - Replace the existing mobile modal:
+                {/* MOBILE Recipe Selection Modal - Replace your existing mobile recipe modal: */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-lg w-full h-[85vh] overflow-hidden flex flex-col">
@@ -1121,58 +1128,45 @@ export default function MealPlanningCalendar() {
                                     </TouchEnhancedButton>
                                 </div>
 
-                                {/* Search */}
-                                <input
-                                    type="text"
-                                    placeholder="Search recipes..."
-                                    value={recipeSearchQuery}
-                                    onChange={(e) => setRecipeSearchQuery(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
-                                />
+                                {/* FIXED: Compact filters */}
+                                <div className="space-y-2">
+                                    {/* Search */}
+                                    <input
+                                        type="text"
+                                        placeholder="Search recipes..."
+                                        value={recipeSearchQuery}
+                                        onChange={(e) => setRecipeSearchQuery(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                    />
 
-                                {/* Category Filter */}
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    <TouchEnhancedButton
-                                        onClick={() => setSelectedRecipeCategory('all')}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                            selectedRecipeCategory === 'all'
-                                                ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
+                                    {/* FIXED: Dropdown Category Filter */}
+                                    <select
+                                        value={selectedRecipeCategory}
+                                        onChange={(e) => setSelectedRecipeCategory(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                                     >
-                                        All ({recipes.length})
-                                    </TouchEnhancedButton>
-                                    {RECIPE_CATEGORIES.map(category => {
-                                        const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
-                                        return (
-                                            <TouchEnhancedButton
-                                                key={category.id}
-                                                onClick={() => setSelectedRecipeCategory(category.id)}
-                                                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                                                    selectedRecipeCategory === category.id
-                                                        ? category.color
-                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                <span>{category.icon}</span>
-                                                <span>{category.name} ({count})</span>
-                                            </TouchEnhancedButton>
-                                        );
-                                    })}
+                                        <option value="all">All Categories ({recipes.length})</option>
+                                        {RECIPE_CATEGORIES.map(category => {
+                                            const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
+                                            return (
+                                                <option key={category.id} value={category.id}>
+                                                    {category.icon} {category.name} ({count})
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
                                 </div>
 
                                 {/* Filter Info */}
-                                {filteredRecipes.length < recipes.length && (
-                                    <div className="text-sm text-orange-600">
-                                        Showing {filteredRecipes.length} of {recipes.length} recipes
-                                        {recipes.length - filteredRecipes.length > 0 && (
-                                            <span> ({recipes.length - filteredRecipes.length} filtered)</span>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="mt-2 text-sm text-orange-600">
+                                    Showing {filteredRecipes.length} of {recipes.length} recipes
+                                    {recipes.length - filteredRecipes.length > 0 && (
+                                        <span> ({recipes.length - filteredRecipes.length} filtered)</span>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Recipe List - FIXED: Proper scrolling */}
+                            {/* FIXED: Much larger recipe list area */}
                             <div className="flex-1 overflow-y-auto p-4">
                                 {filteredRecipes.length === 0 ? (
                                     <div className="text-center py-8">
@@ -1181,7 +1175,7 @@ export default function MealPlanningCalendar() {
                                                 ? "No recipes found. Add some recipes first!"
                                                 : "No recipes match your current filters."}
                                         </p>
-                                        {recipeSearchQuery && (
+                                        {(recipeSearchQuery || selectedRecipeCategory !== 'all') && (
                                             <TouchEnhancedButton
                                                 onClick={() => {
                                                     setRecipeSearchQuery('');
@@ -1208,9 +1202,9 @@ export default function MealPlanningCalendar() {
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex-1">
                                                             <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
-                                                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
-                                                {categoryInfo.icon} {categoryInfo.name}
-                                            </span>
+                                                            <div className="text-xs text-gray-600 mb-1">
+                                                                {categoryInfo.icon} {categoryInfo.name}
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -1647,10 +1641,10 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            // DESKTOP Recipe Selection Modal - Replace the existing desktop modal:
+            {/* DESKTOP Recipe Selection Modal - Replace your existing desktop recipe modal: */}
             {showRecipeModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-4xl w-full h-[85vh] overflow-hidden flex flex-col">
+                    <div className="bg-white rounded-lg max-w-6xl w-full h-[85vh] overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="p-6 border-b border-gray-200 flex-shrink-0">
                             <div className="flex items-center justify-between mb-4">
@@ -1670,8 +1664,8 @@ export default function MealPlanningCalendar() {
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Search and Filters */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            {/* FIXED: Compact Search and Filters */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {/* Search */}
                                 <div className="md:col-span-2">
                                     <input
@@ -1683,73 +1677,62 @@ export default function MealPlanningCalendar() {
                                     />
                                 </div>
 
+                                {/* FIXED: Dropdown Category Filter */}
+                                <div>
+                                    <select
+                                        value={selectedRecipeCategory}
+                                        onChange={(e) => setSelectedRecipeCategory(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                                    >
+                                        <option value="all">All Categories ({recipes.length})</option>
+                                        {RECIPE_CATEGORIES.map(category => {
+                                            const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
+                                            return (
+                                                <option key={category.id} value={category.id}>
+                                                    {category.icon} {category.name} ({count})
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                </div>
+
                                 {/* Quick Stats */}
                                 <div className="text-sm text-gray-600 flex items-center">
                                     Showing {filteredRecipes.length} of {recipes.length} recipes
-                                </div>
-                            </div>
-
-                            {/* Category Filter */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                <TouchEnhancedButton
-                                    onClick={() => setSelectedRecipeCategory('all')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                                        selectedRecipeCategory === 'all'
-                                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    All ({recipes.length})
-                                </TouchEnhancedButton>
-                                {RECIPE_CATEGORIES.map(category => {
-                                    const count = recipes.filter(recipe => categorizeRecipe(recipe) === category.id).length;
-                                    return (
-                                        <TouchEnhancedButton
-                                            key={category.id}
-                                            onClick={() => setSelectedRecipeCategory(category.id)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                                                selectedRecipeCategory === category.id
-                                                    ? category.color
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            <span>{category.icon}</span>
-                                            <span>{category.name} ({count})</span>
-                                        </TouchEnhancedButton>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Filter Info */}
-                            {(recipeSearchQuery || selectedRecipeCategory !== 'all' || filteredRecipes.length < recipes.length) && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-sm text-blue-700">
-                                            {recipeSearchQuery && (
-                                                <span>Search: "{recipeSearchQuery}" • </span>
-                                            )}
-                                            {selectedRecipeCategory !== 'all' && (
-                                                <span>Category: {RECIPE_CATEGORIES.find(c => c.id === selectedRecipeCategory)?.name} • </span>
-                                            )}
-                                            {filteredRecipes.length < recipes.length && (
-                                                <span>{recipes.length - filteredRecipes.length} recipes filtered by dietary preferences</span>
-                                            )}
-                                        </div>
+                                    {(recipeSearchQuery || selectedRecipeCategory !== 'all') && (
                                         <TouchEnhancedButton
                                             onClick={() => {
                                                 setRecipeSearchQuery('');
                                                 setSelectedRecipeCategory('all');
                                             }}
-                                            className="text-blue-600 hover:text-blue-800 text-sm"
+                                            className="ml-2 text-indigo-600 hover:text-indigo-800 text-xs"
                                         >
-                                            Clear filters
+                                            Clear
                                         </TouchEnhancedButton>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Enhanced Filter Info */}
+                            {(recipeSearchQuery || selectedRecipeCategory !== 'all' || filteredRecipes.length < recipes.length) && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                                    <div className="text-sm text-blue-700">
+                                        {recipeSearchQuery && (
+                                            <span>Search: "{recipeSearchQuery}" • </span>
+                                        )}
+                                        {selectedRecipeCategory !== 'all' && (
+                                            <span>Category: {RECIPE_CATEGORIES.find(c => c.id === selectedRecipeCategory)?.name} • </span>
+                                        )}
+                                        {filteredRecipes.length < recipes.length && userDietaryRestrictions.length > 0 && (
+                                            <span>Dietary filtering applied • </span>
+                                        )}
+                                        <span>{recipes.length - filteredRecipes.length} recipes filtered out</span>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Recipe Grid - FIXED: Proper scrolling */}
+                        {/* FIXED: Much larger recipe grid area */}
                         <div className="flex-1 overflow-y-auto p-6">
                             {filteredRecipes.length === 0 ? (
                                 <div className="text-center py-12">
@@ -1788,9 +1771,9 @@ export default function MealPlanningCalendar() {
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div className="flex-1">
                                                         <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">{recipe.title}</h4>
-                                                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
-                                                {categoryInfo.icon} {categoryInfo.name}
-                                            </span>
+                                                        <div className="text-xs text-gray-600 mb-1">
+                                                            {categoryInfo.icon} {categoryInfo.name}
+                                                        </div>
                                                     </div>
                                                 </div>
 

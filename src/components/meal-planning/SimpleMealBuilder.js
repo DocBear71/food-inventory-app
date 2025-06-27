@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/SimpleMealBuilder.js v3 - FIXED SCROLLING ISSUES
+// file: /src/components/meal-planning/SimpleMealBuilder.js v4 - FIXED with dropdown filters
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -23,7 +23,7 @@ export default function SimpleMealBuilder({
                                               isOpen,
                                               onClose,
                                               onSave,
-                                              selectedSlot, // { day, mealType }
+                                              selectedSlot,
                                               initialMeal = null,
                                               userDietaryRestrictions = [],
                                               userAvoidIngredients = []
@@ -45,7 +45,7 @@ export default function SimpleMealBuilder({
         difficulty: 'easy'
     });
 
-    // ... (keep all existing functions: selectRandomIngredient, filterInventoryByDietary, checkMealConflicts, etc.)
+    // All existing functions (keeping them exactly the same)
     const selectRandomIngredient = (availableItems, category) => {
         if (!availableItems || availableItems.length === 0) {
             console.log(`❌ No items available for category: ${category}`);
@@ -272,8 +272,6 @@ export default function SimpleMealBuilder({
         const category = item.category?.toLowerCase() || '';
         const brand = item.brand?.toLowerCase() || '';
 
-        console.log(`🏷️ Categorizing SimpleMealBuilder item: "${item.name}"`);
-
         const conveniencePatterns = [
             'hamburger helper', 'tuna helper', 'chicken helper',
             'four cheese lasagna', 'deluxe beef stroganoff', 'cheesy italian shells',
@@ -281,7 +279,6 @@ export default function SimpleMealBuilder({
         ];
 
         if (conveniencePatterns.some(pattern => name.includes(pattern) || brand.includes(pattern))) {
-            console.log(`✅ CONVENIENCE MEAL: "${item.name}"`);
             return 'other';
         }
 
@@ -296,19 +293,16 @@ export default function SimpleMealBuilder({
             (category.includes('spice') || category.includes('seasoning')) ||
             (name.includes('salt') && !name.includes('salted')) ||
             (name.includes('pepper') && !name.includes('bell') && !name.includes('sweet'))) {
-            console.log(`✅ SEASONING: "${item.name}"`);
             return 'seasoning';
         }
 
         if (name.includes('sauce') || name.includes('gravy') || name.includes('dressing') ||
             name.includes('vinegar') || name.includes('mayo') || name.includes('mustard') ||
             name.includes('ketchup')) {
-            console.log(`✅ SAUCE/CONDIMENT: "${item.name}"`);
             return 'other';
         }
 
         if (name.includes('soup') || name.includes('broth') || name.includes('stock')) {
-            console.log(`✅ SOUP: "${item.name}"`);
             return 'other';
         }
 
@@ -318,7 +312,6 @@ export default function SimpleMealBuilder({
         ];
 
         if (convenienceProteinPatterns.some(pattern => name.includes(pattern))) {
-            console.log(`✅ CONVENIENCE PROTEIN: "${item.name}"`);
             return 'protein';
         }
 
@@ -329,7 +322,6 @@ export default function SimpleMealBuilder({
         ];
 
         if (proteinPatterns.some(pattern => name.includes(pattern))) {
-            console.log(`✅ PROTEIN (exact): "${item.name}"`);
             return 'protein';
         }
 
@@ -337,20 +329,17 @@ export default function SimpleMealBuilder({
                 name.includes('turkey') || name.includes('fish') || name.includes('meat')) &&
             !name.includes('sauce') && !name.includes('gravy') && !name.includes('soup') &&
             !name.includes('helper') && !name.includes('seasoning') && !name.includes('powder')) {
-            console.log(`✅ PROTEIN (general): "${item.name}"`);
             return 'protein';
         }
 
         if (name.includes('buns') || name.includes('bread') || name.includes('rolls') ||
             name.includes('bagel') || name.includes('tortilla') || name.includes('pita')) {
-            console.log(`✅ BREAD/STARCH: "${item.name}"`);
             return 'starch';
         }
 
         if (name.includes('pasta') || name.includes('spaghetti') || name.includes('penne') ||
             name.includes('macaroni') || name.includes('noodle') || name.includes('shells') ||
             name.includes('rigatoni') || name.includes('farfalle') || name.includes('rotini')) {
-            console.log(`✅ PASTA/STARCH: "${item.name}"`);
             return 'starch';
         }
 
@@ -358,7 +347,6 @@ export default function SimpleMealBuilder({
                 name.includes('oats') || name.includes('stuffing') || name.includes('barley') ||
                 name.includes('couscous')) &&
             !name.includes('vinegar') && !name.includes('sauce')) {
-            console.log(`✅ STARCH: "${item.name}"`);
             return 'starch';
         }
 
@@ -366,7 +354,6 @@ export default function SimpleMealBuilder({
                 name.includes('butter') || name.includes('cottage cheese') || name.includes('sour cream')) ||
             (name.includes('cheese') && !name.includes('lasagna') && !name.includes('helper') &&
                 !name.includes('sauce') && !name.includes('shells'))) {
-            console.log(`✅ DAIRY: "${item.name}"`);
             return 'dairy';
         }
 
@@ -379,17 +366,14 @@ export default function SimpleMealBuilder({
             (category.includes('vegetable') && !name.includes('sauce') &&
                 !name.includes('mushroom') && !name.includes('onion') &&
                 !name.includes('pepper') && !name.includes('celery') && !name.includes('tomato'))) {
-            console.log(`✅ VEGETABLE: "${item.name}"`);
             return 'vegetable';
         }
 
         if (name.includes('oil') && !name.includes('olive oil vinegar') ||
             name.includes('avocado') || name.includes('nuts') || name.includes('seeds')) {
-            console.log(`✅ FAT: "${item.name}"`);
             return 'fat';
         }
 
-        console.log(`✅ OTHER: "${item.name}"`);
         return 'other';
     };
 
@@ -417,10 +401,6 @@ export default function SimpleMealBuilder({
                 categorizedItems[itemCategory].push(item);
             }
         });
-
-        console.log('📊 Available items by category:', Object.fromEntries(
-            Object.entries(categorizedItems).map(([cat, items]) => [cat, items.length])
-        ));
 
         const convenienceItems = categorizedItems.other.filter(item => {
             const name = item.name.toLowerCase();
@@ -714,16 +694,16 @@ export default function SimpleMealBuilder({
                     </div>
                 )}
 
-                {/* Main Content - FIXED SCROLLING */}
+                {/* Main Content */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Panel - Inventory Selection - FIXED HEIGHT AND SCROLLING */}
+                    {/* Left Panel - Inventory Selection */}
                     <div className="w-1/2 border-r border-gray-200 flex flex-col">
-                        {/* Search and Filters - Fixed at top */}
+                        {/* FIXED: Compact Search and Filters */}
                         <div className="p-4 border-b border-gray-100 flex-shrink-0">
                             <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
 
                             {inventory.length > 0 && filteredInventory.length < inventory.length && (
-                                <div className="mb-3 text-sm text-orange-600">
+                                <div className="mb-2 text-sm text-orange-600">
                                     Showing {filteredInventory.length} of {inventory.length} items (filtered by dietary preferences)
                                 </div>
                             )}
@@ -734,39 +714,25 @@ export default function SimpleMealBuilder({
                                 placeholder="Search inventory..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
                             />
 
-                            {/* Category Filter */}
-                            <div className="flex flex-wrap gap-2">
-                                <TouchEnhancedButton
-                                    onClick={() => setSelectedCategory('all')}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                        selectedCategory === 'all'
-                                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    All
-                                </TouchEnhancedButton>
+                            {/* FIXED: Dropdown Category Filter */}
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                            >
+                                <option value="all">All Categories</option>
                                 {MEAL_CATEGORIES.map(category => (
-                                    <TouchEnhancedButton
-                                        key={category.id}
-                                        onClick={() => setSelectedCategory(category.id)}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                                            selectedCategory === category.id
-                                                ? category.color
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <span>{category.icon}</span>
-                                        <span>{category.name}</span>
-                                    </TouchEnhancedButton>
+                                    <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                    </option>
                                 ))}
-                            </div>
+                            </select>
                         </div>
 
-                        {/* Inventory Items - FIXED: Proper scrollable area */}
+                        {/* FIXED: Much larger scrollable inventory area */}
                         <div className="flex-1 overflow-y-auto p-4">
                             {loading ? (
                                 <div className="text-center py-8">
@@ -808,8 +774,8 @@ export default function SimpleMealBuilder({
                                                             {item.quantity} {item.unit} • {item.location}
                                                         </div>
                                                     </div>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
-                                                        {categoryInfo.icon} {categoryInfo.name}
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
+                                                        {categoryInfo.icon}
                                                     </span>
                                                 </div>
                                             </TouchEnhancedButton>
@@ -820,14 +786,14 @@ export default function SimpleMealBuilder({
                         </div>
                     </div>
 
-                    {/* Right Panel - Meal Builder - FIXED HEIGHT AND SCROLLING */}
+                    {/* Right Panel - Meal Builder */}
                     <div className="w-1/2 flex flex-col">
-                        {/* Meal Info - Fixed at top */}
+                        {/* FIXED: Compact Meal Info */}
                         <div className="p-4 border-b border-gray-100 flex-shrink-0">
                             <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
 
                             {/* Meal Name */}
-                            <div className="mb-3">
+                            <div className="mb-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Meal Name
                                 </label>
@@ -840,11 +806,11 @@ export default function SimpleMealBuilder({
                                 />
                             </div>
 
-                            {/* Estimated Time */}
-                            <div className="grid grid-cols-2 gap-3 mb-3">
+                            {/* Estimated Time & Difficulty */}
+                            <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Est. Time (min)
+                                        Time (min)
                                     </label>
                                     <input
                                         type="number"
@@ -872,7 +838,7 @@ export default function SimpleMealBuilder({
                             </div>
                         </div>
 
-                        {/* Selected Items - FIXED: Much larger scrollable area */}
+                        {/* FIXED: Much larger selected items area */}
                         <div className="flex-1 overflow-y-auto p-4">
                             {mealData.items.length === 0 ? (
                                 <div className="text-center py-8">
@@ -982,7 +948,7 @@ export default function SimpleMealBuilder({
                             )}
                         </div>
 
-                        {/* Description - Fixed at bottom */}
+                        {/* FIXED: Compact Description */}
                         <div className="p-4 border-t border-gray-100 flex-shrink-0">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Description (Optional)
