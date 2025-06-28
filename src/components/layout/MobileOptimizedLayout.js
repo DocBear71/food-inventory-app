@@ -37,12 +37,10 @@ export default function MobileOptimizedLayout({ children }) {
     return isMobile ? (
         <MobileDashboardLayout>
             {children}
-            <AdminDebug />
         </MobileDashboardLayout>
     ) : (
         <DashboardLayout>
             {children}
-            <AdminDebug />
         </DashboardLayout>
     );
 }
