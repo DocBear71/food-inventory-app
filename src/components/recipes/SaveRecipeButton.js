@@ -16,7 +16,8 @@ export default function SaveRecipeButton({
                                              onSaveStateChange = null,
                                              className = '',
                                              showText = true,
-                                             size = 'medium' // 'small', 'medium', 'large'
+                                             size = 'medium',
+                                             iconOnly = false // Add this new prop
                                          }) {
     const {data: session} = useSafeSession();
     const [loading, setLoading] = useState(false);
@@ -31,6 +32,31 @@ export default function SaveRecipeButton({
             fetchCollections();
         }
     }, [session?.user?.id]);
+
+    // Clear messages after delay
+    useEffect(() => {
+        if (success || error) {
+            const timer = setTimeout(() => {
+                setSuccess('');
+                setError('');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, error]);
+
+
+    const isRecipeAlreadySaved = () => {
+        return collections.some(collection =>
+            collection.recipes.some(recipe =>
+                recipe.recipeId?._id === recipeId || recipe.recipeId === recipeId
+            )
+        );
+    };
+
+    // Don't render if recipe is already saved and we're in icon-only mode
+    if (iconOnly && isRecipeAlreadySaved()) {
+        return null;
+    }
 
     const fetchCollections = async () => {
         try {
@@ -114,53 +140,72 @@ export default function SaveRecipeButton({
         }
     };
 
-    // Clear messages after delay
-    useEffect(() => {
-        if (success || error) {
-            const timer = setTimeout(() => {
-                setSuccess('');
-                setError('');
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [success, error]);
 
     return (
         <FeatureGate
             feature={FEATURE_GATES.RECIPE_COLLECTIONS}
             fallback={
-                <TouchEnhancedButton
-                    onClick={() => window.location.href = '/pricing?source=save-recipe'}
-                    className={`bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-md font-medium hover:from-yellow-500 hover:to-orange-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
-                >
-                    <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                iconOnly ? (
+                    // Icon-only fallback for upgrade prompt
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
-                    {showText && <span>Add to Collection (Gold)</span>}
-                </TouchEnhancedButton>
-            }
-        >
-            <div className="relative">
-                <TouchEnhancedButton
-                    onClick={() => setShowCollectionModal(true)}
-                    disabled={loading}
-                    className={`bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className}`}
-                >
-                    {loading ? (
-                        <div className={`animate-spin rounded-full border-b-2 border-gray-600 ${getIconSize()}`}></div>
-                    ) : (
+                ) : (
+                    // Original full button fallback
+                    <TouchEnhancedButton
+                        onClick={() => window.location.href = '/pricing?source=save-recipe'}
+                        className={`bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-md font-medium hover:from-yellow-500 hover:to-orange-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
+                    >
                         <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                   d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
-                    )}
-                    {showText && (
-                        <span>
-                            {loading ? 'Adding...' : 'Add to Collection'}
-                        </span>
-                    )}
-                </TouchEnhancedButton>
+                        {showText && <span>Add to Collection (Gold)</span>}
+                    </TouchEnhancedButton>
+                )
+            }
+        >
+            <div className="relative">
+                {iconOnly ? (
+                    // Icon-only version - just the SVG
+                    <button
+                        onClick={() => setShowCollectionModal(true)}
+                        disabled={loading}
+                        className={`${className}`}
+                        title="Add to Collection"
+                    >
+                        {loading ? (
+                            <div className="w-4 h-4 animate-spin rounded-full border-b-2 border-green-600"></div>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        )}
+                    </button>
+                ) : (
+                    // Original full button version
+                    <TouchEnhancedButton
+                        onClick={() => setShowCollectionModal(true)}
+                        disabled={loading}
+                        className={`bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-md font-medium transition-colors flex items-center gap-2 ${getSizeClasses()} ${className}`}
+                    >
+                        {loading ? (
+                            <div className={`animate-spin rounded-full border-b-2 border-gray-600 ${getIconSize()}`}></div>
+                        ) : (
+                            <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        )}
+                        {showText && (
+                            <span>
+                                {loading ? 'Adding...' : 'Add to Collection'}
+                            </span>
+                        )}
+                    </TouchEnhancedButton>
+                )}
 
                 {/* Collection Selection Modal */}
                 {showCollectionModal && (

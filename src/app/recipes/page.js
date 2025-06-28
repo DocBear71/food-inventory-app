@@ -1166,7 +1166,6 @@ function RecipesContent() {
                                                     </div>
 
                                                     {/* Action Buttons - Moved below title */}
-                                                    {/* Action Buttons - Moved below title */}
                                                     <div className="flex justify-end gap-2 mb-3">
                                                         {activeTab === 'public-recipes' && (
                                                             <div className="flex flex-col items-center justify-center p-2 touch-friendly">
@@ -1176,7 +1175,7 @@ function RecipesContent() {
                                                                     size="small"
                                                                     showText={false}
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
-                                                                    className="w-4 h-4 mb-1" // Add margin bottom to match other buttons
+                                                                    className="mb-1" // Add margin bottom to match other buttons
                                                                 />
                                                                 <span className="text-xs">Save</span>
                                                             </div>
