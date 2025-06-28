@@ -97,9 +97,9 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stats cards - Stack on mobile */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
+                        <div className="p-4">
                             <div className="flex items-center">
                                 <div className="flex-shrink-0">
                                     <div className="text-2xl">📦</div>
@@ -122,7 +122,7 @@ export default function Dashboard() {
                         className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => setShowNotifications(!showNotifications)}
                     >
-                        <div className="p-5">
+                        <div className="p-4">
                             <div className="flex items-center">
                                 <div className="flex-shrink-0">
                                     <div className="text-2xl">
@@ -146,7 +146,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
+                        <div className="p-4">
                             <div className="flex items-center">
                                 <div className="flex-shrink-0">
                                     <div className="text-2xl">🏷️</div>
@@ -266,7 +266,7 @@ export default function Dashboard() {
                             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                 Inventory by Category
                             </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {Object.entries(inventoryStats.categories)
                                     .sort(([, a], [, b]) => b - a)
                                     .map(([category, count]) => (
