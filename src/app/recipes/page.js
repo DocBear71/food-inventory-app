@@ -718,10 +718,10 @@ function RecipesContent() {
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-col items-center justify-center">
                                 <span>📝 My Recipes</span>
                                 <span
-                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
+                                    className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
                     {formatCountWithLimit('my-recipes')}
                 </span>
                             </div>
@@ -735,9 +735,9 @@ function RecipesContent() {
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-col items-center justify-center">
                                 <span>🌍 Public Recipes</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                <span className={`text-xs px-2 py-1 rounded-full mt-1 ${
                                     activeTab === 'public-recipes'
                                         ? 'bg-indigo-100 text-indigo-600'
                                         : 'bg-gray-200 text-gray-600'
@@ -755,10 +755,10 @@ function RecipesContent() {
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-col items-center justify-center">
                                 <span>📁 Collections</span>
                                 <span
-                                    className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
+                                    className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('collections', activeTab === 'collections')}`}>
                     {formatCountWithLimit('collections')}
                 </span>
                             </div>
