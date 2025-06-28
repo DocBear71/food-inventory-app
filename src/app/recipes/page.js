@@ -719,7 +719,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>📝 My Recipes</span>
+                                <span>📝 My Recipes</span><br/>
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
                     {formatCountWithLimit('my-recipes')}
@@ -736,7 +736,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>🌍 Public Recipes</span>
+                                <span>🌍 Public Recipes</span><br/>
                                 <span className={`text-xs px-2 py-1 rounded-full ${
                                     activeTab === 'public-recipes'
                                         ? 'bg-indigo-100 text-indigo-600'
@@ -756,7 +756,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>📁 Collections</span>
+                                <span>📁 Collections</span><br/>
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
                     {formatCountWithLimit('collections')}
@@ -1175,13 +1175,13 @@ function RecipesContent() {
                                                             />
                                                         )}
                                                         {canEditRecipe(recipe) && (
-                                                            <div className="flex space-x-1">
+                                                            <div className="flex space-x-4">
                                                                 <TouchEnhancedButton
                                                                     onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
-                                                                    className="flex items-center justify-center w-8 h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
+                                                                    className="flex flex-col items-center justify-center p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
                                                                     title="Edit recipe"
                                                                 >
-                                                                    <svg className="w-4 h-4" fill="none"
+                                                                    <svg className="w-4 h-4 mb-1" fill="none"
                                                                          stroke="currentColor"
                                                                          viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round"
@@ -1189,13 +1189,14 @@ function RecipesContent() {
                                                                               strokeWidth={2}
                                                                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                                     </svg>
+                                                                    <span className="text-xs">Edit</span>
                                                                 </TouchEnhancedButton>
                                                                 <TouchEnhancedButton
                                                                     onClick={() => handleDelete(recipe._id)}
-                                                                    className="flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
+                                                                    className="flex flex-col items-center justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors touch-friendly"
                                                                     title="Delete recipe"
                                                                 >
-                                                                    <svg className="w-4 h-4" fill="none"
+                                                                    <svg className="w-4 h-4 mb-1" fill="none"
                                                                          stroke="currentColor"
                                                                          viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round"
@@ -1203,6 +1204,7 @@ function RecipesContent() {
                                                                               strokeWidth={2}
                                                                               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                                     </svg>
+                                                                    <span className="text-xs">Delete</span>
                                                                 </TouchEnhancedButton>
                                                             </div>
                                                         )}

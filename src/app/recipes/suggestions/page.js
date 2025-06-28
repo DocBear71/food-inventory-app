@@ -1084,11 +1084,50 @@ export default function RecipeSuggestions() {
                                                         </TouchEnhancedButton>
                                                         {(recipe.analysis.matchPercentage * 100) < 100 && (
                                                             <TouchEnhancedButton
-                                                                onClick={() => setShowShoppingList({
-                                                                    recipeId: recipe._id,
-                                                                    recipeName: recipe.title,
-                                                                    type: 'recipe'
-                                                                })}
+                                                                onClick={() => {
+                                                                    // Find the recipe to get its missing ingredients
+                                                                    const recipe = filteredSuggestions.find(r => r._id === recipe._id);
+                                                                    if (!recipe || !recipe.analysis) {
+                                                                        alert('Recipe analysis not available');
+                                                                        return;
+                                                                    }
+
+                                                                    // Create shopping list from missing ingredients
+                                                                    const shoppingListData = {
+                                                                        items: {
+                                                                            'Grocery': recipe.analysis.missingIngredients.map(ingredient => ({
+                                                                                name: ingredient.name,
+                                                                                ingredient: ingredient.name,
+                                                                                amount: ingredient.amount || '',
+                                                                                unit: ingredient.unit || '',
+                                                                                category: 'Grocery',
+                                                                                recipes: [recipe.title],
+                                                                                inInventory: false,
+                                                                                inventoryItem: null,
+                                                                                purchased: false,
+                                                                                itemKey: `${ingredient.name}-Grocery`,
+                                                                                haveAmount: '',
+                                                                                needAmount: ingredient.amount || '',
+                                                                                notes: ''
+                                                                            }))
+                                                                        },
+                                                                        summary: {
+                                                                            totalItems: recipe.analysis.missingIngredients.length,
+                                                                            needToBuy: recipe.analysis.missingIngredients.length,
+                                                                            inInventory: 0,
+                                                                            purchased: 0
+                                                                        },
+                                                                        recipes: [recipe.title],
+                                                                        generatedAt: new Date().toISOString()
+                                                                    };
+
+                                                                    setShowShoppingList({
+                                                                        recipeId: recipe._id,
+                                                                        recipeName: recipe.title,
+                                                                        type: 'recipe',
+                                                                        shoppingListData: shoppingListData
+                                                                    });
+                                                                }}
                                                                 className="w-half sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                                                                 style={{ height: '36px', minHeight: '36px', width: '36px', minWidth: '36px'}}
                                                             >
@@ -1422,7 +1461,7 @@ export default function RecipeSuggestions() {
                     <UnifiedShoppingListModal
                         isOpen={true}
                         onClose={() => setShowShoppingList(null)}
-                        shoppingList={null} // This will trigger the component to generate the list
+                        shoppingList={showShoppingList.shoppingListData} // Use the generated data
                         title="🛒 Shopping List"
                         subtitle={showShoppingList.type === 'recipe' ? showShoppingList.recipeName : showShoppingList.mealName}
                         sourceRecipeIds={showShoppingList.type === 'recipe' ? [showShoppingList.recipeId] : []}
