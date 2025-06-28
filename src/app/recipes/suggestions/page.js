@@ -1086,7 +1086,6 @@ export default function RecipeSuggestions() {
                                                             <TouchEnhancedButton
                                                                 onClick={() => {
                                                                     // Find the recipe to get its missing ingredients
-                                                                    const recipe = filteredSuggestions.find(r => r._id === recipe._id);
                                                                     if (!recipe || !recipe.analysis) {
                                                                         alert('Recipe analysis not available');
                                                                         return;
