@@ -1166,17 +1166,19 @@ function RecipesContent() {
                                                     </div>
 
                                                     {/* Action Buttons - Moved below title */}
+                                                    {/* Action Buttons - Moved below title */}
                                                     <div className="flex justify-end gap-2 mb-3">
                                                         {activeTab === 'public-recipes' && (
-                                                            <div className="flex flex-col items-center justify-center p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors touch-friendly">
+                                                            <div className="flex flex-col items-center justify-center p-2 touch-friendly">
                                                                 <SaveRecipeButton
                                                                     recipeId={recipe._id}
                                                                     recipeName={recipe.title || 'Recipe'}
                                                                     size="small"
                                                                     showText={false}
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
+                                                                    className="mb-1" // Add margin bottom to match other buttons
                                                                 />
-                                                                <span className="text-xs mt-1">Save</span>
+                                                                <span className="text-xs">Save</span>
                                                             </div>
                                                         )}
                                                         {canEditRecipe(recipe) && (
