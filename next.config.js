@@ -6,13 +6,11 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    output: 'export',        // Only for mobile builds
-    trailingSlash: true,
+    // NO output: 'export' for web deployment!
+    // NO console.log debug messages!
     images: {
-        unoptimized: true
+        unoptimized: false
     }
 }
-
-console.log('🔥 MOBILE CONFIG LOADED - output: export should create out/ folder');
 
 module.exports = nextConfig
