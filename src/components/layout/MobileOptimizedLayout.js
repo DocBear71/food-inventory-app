@@ -1,6 +1,4 @@
 'use client';
-// file: /src/components/layout/MobileOptimizedLayout.js - Fixed over-scroll and loading issues
-
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import MobileDashboardLayout from './MobileDashboardLayout';
@@ -15,7 +13,6 @@ export default function MobileOptimizedLayout({ children }) {
             setIsMobile(window.innerWidth < 768);
         };
 
-        // Check immediately
         checkMobile();
         setMounted(true);
 
@@ -23,9 +20,21 @@ export default function MobileOptimizedLayout({ children }) {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Prevent hydration mismatch with a more seamless loading
+    // Move this useEffect BEFORE the early return
+    useEffect(() => {
+        if (mounted) {
+            document.body.style.overscrollBehavior = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+
+            return () => {
+                document.body.style.overscrollBehavior = '';
+                document.documentElement.style.overscrollBehavior = '';
+            };
+        }
+    }, [mounted]);
+
+    // Now the early return comes AFTER all hooks
     if (!mounted) {
-        // Use a minimal loading that doesn't interfere with scroll
         return (
             <div className="min-h-screen bg-gray-50" style={{
                 position: 'fixed',
@@ -42,21 +51,6 @@ export default function MobileOptimizedLayout({ children }) {
             </div>
         );
     }
-
-    // Add CSS to prevent over-scrolling
-    useEffect(() => {
-        if (mounted) {
-            // Prevent over-scroll behavior
-            document.body.style.overscrollBehavior = 'none';
-            document.documentElement.style.overscrollBehavior = 'none';
-
-            return () => {
-                // Cleanup
-                document.body.style.overscrollBehavior = '';
-                document.documentElement.style.overscrollBehavior = '';
-            };
-        }
-    }, [mounted]);
 
     const LayoutComponent = isMobile ? MobileDashboardLayout : DashboardLayout;
 

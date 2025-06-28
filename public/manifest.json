@@ -2,6 +2,7 @@
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
   "description": "Manage your food inventory, meal planning, and recipes",
+  "version": "1.0.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -121,6 +122,13 @@
       "description": "Browse your recipe collection",
       "url": "/recipes",
       "icons": [{ "src": "/icons/recipe-shortcut.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Shopping List",
+      "short_name": "Shopping",
+      "description": "Generate smart shopping lists",
+      "url": "/shopping",
+      "icons": [{ "src": "/icons/shopping-shortcut.png", "sizes": "96x96" }]
     }
   ],
   "screenshots": [
@@ -139,5 +147,12 @@
       "label": "Desktop dashboard"
     }
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "id": "kitchen.docbearscomfort",
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

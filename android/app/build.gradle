@@ -7,8 +7,8 @@ android {
         applicationId "kitchen.docbearscomfort"
         minSdkVersion 23
         targetSdkVersion 34
-        versionCode 1        // Increment this for each release
-        versionName "1.0.0"  // Update this for user-facing version
+        versionCode 2        // Increment this for each release
+        versionName "1.0.1"  // Update this for user-facing version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
