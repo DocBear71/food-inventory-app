@@ -1,19 +1,18 @@
 'use client';
 // file: /src/app/shopping/page.js v10 - Fixed duplicate content and misplaced elements
 
-import {useSafeSession} from '@/hooks/useSafeSession';
-import {useEffect} from 'react';
-import {redirect} from 'next/navigation';
-import {useState} from 'react';
-import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
+import { useSafeSession } from '@/hooks/useSafeSession';
+import { useEffect, useState } from 'react';
+import { redirect } from 'next/navigation';
+import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
-import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
-import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
-import FeatureGate, {SubscriptionIndicator} from '@/components/subscription/FeatureGate';
-import {FEATURE_GATES} from '@/lib/subscription-config';
+import { getApiUrl } from '@/lib/api-config';
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export default function ShoppingPage() {
     const {data: session, status} = useSafeSession();
@@ -346,6 +345,7 @@ export default function ShoppingPage() {
 
     const closeShoppingList = () => {
         setShowShoppingList(false);
+        setShoppingList(null);
     };
 
     const getSelectedRecipeNames = () => {
@@ -358,9 +358,9 @@ export default function ShoppingPage() {
         const selectedCount = selectedRecipes.length;
         if (selectedCount === 1) {
             const recipeName = getSelectedRecipeNames()[0];
-            return `🛒 Shopping List - ${recipeName}`;
+            return `Shopping List - ${recipeName}`;
         } else {
-            return `🛒 Shopping List - ${selectedCount} Recipes`;
+            return `Shopping List - ${selectedCount} Recipes`;
         }
     };
 
@@ -410,14 +410,16 @@ export default function ShoppingPage() {
     if (showShoppingList && shoppingList) {
         return (
             <MobileOptimizedLayout>
-                <ShoppingListDisplay
-                    shoppingList={shoppingList}
+                <UnifiedShoppingListModal
+                    isOpen={showShoppingList}
                     onClose={closeShoppingList}
-                    onRefresh={refreshShoppingList}
+                    shoppingList={shoppingList}
                     title={getShoppingListTitle()}
                     subtitle={getShoppingListSubtitle()}
                     sourceRecipeIds={selectedRecipes}
                     sourceMealPlanId={null}
+                    onRefresh={refreshShoppingList}
+                    showRefresh={true}
                 />
             </MobileOptimizedLayout>
         );

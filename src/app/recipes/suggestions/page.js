@@ -3,7 +3,7 @@
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
-import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
+import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -1419,12 +1419,15 @@ export default function RecipeSuggestions() {
 
                 {/* Shopping List Modal */}
                 {showShoppingList && (
-                    <RecipeShoppingList
-                        recipeId={showShoppingList.type === 'recipe' ? showShoppingList.recipeId : null}
-                        recipeName={showShoppingList.type === 'recipe' ? showShoppingList.recipeName : showShoppingList.mealName}
+                    <UnifiedShoppingListModal
+                        isOpen={true}
                         onClose={() => setShowShoppingList(null)}
-                        mealId={showShoppingList.type === 'curated' ? showShoppingList.mealId : null}
-                        type={showShoppingList.type}
+                        shoppingList={null} // This will trigger the component to generate the list
+                        title="🛒 Shopping List"
+                        subtitle={showShoppingList.type === 'recipe' ? showShoppingList.recipeName : showShoppingList.mealName}
+                        sourceRecipeIds={showShoppingList.type === 'recipe' ? [showShoppingList.recipeId] : []}
+                        sourceMealPlanId={null}
+                        showRefresh={false}
                     />
                 )}
 

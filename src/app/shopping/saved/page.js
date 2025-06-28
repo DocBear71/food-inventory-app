@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
-import ShoppingListDisplay from '@/components/shopping/ShoppingListDisplay';
+import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
@@ -185,15 +185,17 @@ export default function SavedShoppingListsPage() {
     if (showingListData && showingList) {
         return (
             <MobileOptimizedLayout>
-                <ShoppingListDisplay
-                    shoppingList={showingListData}
+                <UnifiedShoppingListModal
+                    isOpen={true}
                     onClose={() => {
                         setShowingList(null);
                         setShowingListData(null);
                     }}
-                    onRefresh={() => loadSavedList(showingList.id)}
+                    shoppingList={showingListData}
                     title={`${showingList.name} (Loaded)`}
                     subtitle={`Saved on ${new Date(showingList.createdAt).toLocaleDateString()}`}
+                    onRefresh={() => loadSavedList(showingList.id)}
+                    showRefresh={true}
                 />
             </MobileOptimizedLayout>
         );

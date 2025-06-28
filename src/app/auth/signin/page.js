@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v3 - Added email verification handling and resend functionality
+// file: /src/app/auth/signin/page.js v4 - Fixed native platform detection and redirect
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -9,6 +9,18 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { getApiUrl } from '@/lib/api-config';
+
+// Import Capacitor properly
+let Capacitor;
+if (typeof window !== 'undefined') {
+    try {
+        const { Capacitor: Cap } = require('@capacitor/core');
+        Capacitor = Cap;
+    } catch (e) {
+        // Fallback if Capacitor is not available
+        Capacitor = { isNativePlatform: () => false };
+    }
+}
 
 function SignInContent() {
     const router = useRouter();
@@ -75,9 +87,10 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
+        const isNative = Capacitor && Capacitor.isNativePlatform();
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
-        console.log('Is native platform:', Capacitor.isNativePlatform());
+        console.log('Is native platform:', isNative);
 
         try {
             const result = await signIn('credentials', {
@@ -86,16 +99,10 @@ function SignInContent() {
                 redirect: false,
             });
 
-            // More detailed logging
             console.log('SignIn result:', result);
-            console.log('SignIn result.ok:', result?.ok);
-            console.log('SignIn result.error:', result?.error);
-            console.log('SignIn result.status:', result?.status);
-            console.log('SignIn result.url:', result?.url);
 
             if (result?.error) {
                 console.log('Login failed with error:', result.error);
-                // Handle specific authentication errors
                 if (result.error === 'email-not-verified') {
                     setError('Please verify your email address before signing in.');
                     setShowResendVerification(true);
@@ -106,6 +113,10 @@ function SignInContent() {
                 }
             } else if (result?.ok) {
                 console.log('Login appears successful, checking session...');
+                setRedirecting(true);
+
+                // Wait a moment for session to be established
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Check if session was actually created
                 const { getSession } = await import('next-auth/react');
@@ -114,22 +125,24 @@ function SignInContent() {
 
                 if (session) {
                     console.log('Session confirmed, redirecting...');
-                    setRedirecting(true);
 
-                    // Try different redirect methods
-                    if (Capacitor.isNativePlatform()) {
+                    if (isNative) {
                         console.log('Using native platform redirect');
-                        // Force a complete page reload for native
+                        // For native, use window.location with a longer delay
                         setTimeout(() => {
-                            window.location.href = '/dashboard';
+                            window.location.replace('/dashboard');
                         }, 1000);
                     } else {
                         console.log('Using web platform redirect');
-                        router.push('/dashboard');
+                        // For web, use router.replace instead of push to prevent back button issues
+                        router.replace('/dashboard');
                     }
                 } else {
-                    console.log('No session found after successful login - this is the problem!');
-                    setError('Login succeeded but session was not created. Please try again.');
+                    console.log('No session found after successful login');
+                    // Try forcing a page reload to establish session
+                    setTimeout(() => {
+                        window.location.replace('/dashboard');
+                    }, 1000);
                 }
             }
         } catch (error) {
@@ -340,4 +353,3 @@ export default function SignIn() {
         </Suspense>
     );
 }
-

@@ -42,6 +42,33 @@ body {
     height: 100%;
 }
 
+/* Prevent over-scrolling on mobile */
+html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure the main container doesn't allow over-scroll */
+.dashboard-container {
+    overscroll-behavior: none;
+    overflow-y: auto;
+    max-height: 100vh;
+}
+
+/* For Capacitor apps specifically */
+.capacitor-app {
+    overscroll-behavior: none;
+}
+
+/* Alternative: If you have a specific layout container */
+.mobile-layout {
+    position: relative;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    min-height: 100vh;
+    max-height: 100vh;
+}
+
 /* ===== BROWSER-SPECIFIC FIXES ===== */
 
 /* iOS Safari viewport fixes */

@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/route.js v4 - Added subscription-based inventory limits
+// file: /src/app/api/inventory/route.js v5 - Fixed subscription limits and error handling
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -61,15 +61,25 @@ export async function POST(request) {
         const body = await request.json();
         const {
             name, brand, category, quantity, unit, location, upc, expirationDate, nutrition,
-            // NEW: Add support for secondary units
+            // Secondary units support
             secondaryQuantity, secondaryUnit
         } = body;
 
         console.log('POST /api/inventory - Body:', body);
 
-        if (!name) {
+        // FIXED: Better validation
+        if (!name || name.trim().length === 0) {
             return NextResponse.json(
-                { error: 'Item name is required' },
+                { error: 'Item name is required and cannot be empty' },
+                { status: 400 }
+            );
+        }
+
+        // FIXED: Validate quantity
+        const validQuantity = parseFloat(quantity);
+        if (isNaN(validQuantity) || validQuantity <= 0) {
+            return NextResponse.json(
+                { error: 'Quantity must be a positive number' },
                 { status: 400 }
             );
         }
@@ -79,6 +89,7 @@ export async function POST(request) {
         // Get user and check subscription limits
         const user = await User.findById(session.user.id);
         if (!user) {
+            console.error('User not found for ID:', session.user.id);
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
@@ -93,77 +104,123 @@ export async function POST(request) {
 
         const currentItemCount = inventory.items.length;
 
-        // Check subscription limits
+        // FIXED: Better subscription checking
         const userSubscription = {
             tier: user.getEffectiveTier(),
             status: user.subscription?.status || 'free'
         };
 
-        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.ADD_INVENTORY_ITEM, currentItemCount);
+        console.log('User subscription info:', {
+            tier: userSubscription.tier,
+            status: userSubscription.status,
+            currentItems: currentItemCount
+        });
+
+        // FIXED: Check if user has feature access
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, currentItemCount);
 
         if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.ADD_INVENTORY_ITEM);
+            const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
+            console.log('User exceeded inventory limits:', {
+                currentTier: userSubscription.tier,
+                requiredTier,
+                currentItems: currentItemCount
+            });
+
             return NextResponse.json({
-                error: getUpgradeMessage(FEATURE_GATES.ADD_INVENTORY_ITEM, requiredTier),
+                error: getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier),
                 code: 'USAGE_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.ADD_INVENTORY_ITEM,
+                feature: FEATURE_GATES.INVENTORY_LIMIT,
                 currentCount: currentItemCount,
                 currentTier: userSubscription.tier,
                 requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=inventory-limit&feature=${FEATURE_GATES.ADD_INVENTORY_ITEM}&required=${requiredTier}`
+                upgradeUrl: `/pricing?source=inventory-limit&feature=${FEATURE_GATES.INVENTORY_LIMIT}&required=${requiredTier}`
             }, { status: 403 });
         }
 
+        // FIXED: Better item creation with validation
         const newItem = {
-            name,
-            brand: brand || '',
-            category: category || '',
-            quantity: quantity || 1,
+            name: name.trim(),
+            brand: brand ? brand.trim() : '',
+            category: category ? category.trim() : '',
+            quantity: validQuantity,
             unit: unit || 'item',
 
-            // NEW: Add secondary unit support
-            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' ?
+            // Secondary unit support with validation
+            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) ?
                 Math.max(parseFloat(secondaryQuantity), 0.1) : null,
-            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' ?
-                secondaryUnit : null,
+            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) && secondaryUnit ?
+                secondaryUnit.trim() : null,
 
             location: location || 'pantry',
-            upc: upc || '',
+            upc: upc ? upc.trim() : '',
             expirationDate: expirationDate ? new Date(expirationDate) : null,
             addedDate: new Date(),
-            // Add nutrition data if provided
             nutrition: nutrition || null
         };
 
-        inventory.items.push(newItem);
-        inventory.lastUpdated = new Date();
-
-        await inventory.save();
-
-        // Update user's usage tracking
-        if (!user.usageTracking) {
-            user.usageTracking = {};
+        // FIXED: Validate expiration date
+        if (expirationDate) {
+            const expDate = new Date(expirationDate);
+            if (isNaN(expDate.getTime())) {
+                return NextResponse.json(
+                    { error: 'Invalid expiration date format' },
+                    { status: 400 }
+                );
+            }
+            newItem.expirationDate = expDate;
         }
-        user.usageTracking.totalInventoryItems = inventory.items.length;
-        user.usageTracking.lastUpdated = new Date();
-        await user.save();
 
-        console.log('Item added successfully:', newItem);
+        console.log('Creating new item:', newItem);
 
-        return NextResponse.json({
-            success: true,
-            item: newItem,
-            message: 'Item added successfully',
-            remainingItems: userSubscription.tier === 'free' ?
-                Math.max(0, 50 - inventory.items.length) :
-                userSubscription.tier === 'gold' ?
-                    Math.max(0, 250 - inventory.items.length) : 'Unlimited'
-        });
+        try {
+            inventory.items.push(newItem);
+            inventory.lastUpdated = new Date();
+            await inventory.save();
+
+            // Update user's usage tracking
+            if (!user.usageTracking) {
+                user.usageTracking = {};
+            }
+            user.usageTracking.totalInventoryItems = inventory.items.length;
+            user.usageTracking.lastUpdated = new Date();
+            await user.save();
+
+            console.log('Item added successfully:', newItem);
+
+            // FIXED: Calculate remaining items properly
+            let remainingItems;
+            if (userSubscription.tier === 'platinum' || userSubscription.tier === 'admin') {
+                remainingItems = 'Unlimited';
+            } else if (userSubscription.tier === 'gold') {
+                remainingItems = Math.max(0, 250 - inventory.items.length);
+            } else {
+                remainingItems = Math.max(0, 50 - inventory.items.length);
+            }
+
+            return NextResponse.json({
+                success: true,
+                item: newItem,
+                message: 'Item added successfully',
+                remainingItems: remainingItems,
+                totalItems: inventory.items.length
+            });
+
+        } catch (saveError) {
+            console.error('Error saving item to inventory:', saveError);
+            return NextResponse.json(
+                { error: 'Failed to save item to database' },
+                { status: 500 }
+            );
+        }
 
     } catch (error) {
         console.error('POST inventory error:', error);
         return NextResponse.json(
-            { error: 'Failed to add item' },
+            {
+                error: 'Failed to add item',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            },
             { status: 500 }
         );
     }
@@ -215,16 +272,22 @@ export async function PUT(request) {
             );
         }
 
-        // Update the item (including secondary unit data if provided)
+        // FIXED: Better validation for updates
         Object.keys(updateData).forEach(key => {
             if (updateData[key] !== undefined) {
-                // Handle secondary quantity specially
-                if (key === 'secondaryQuantity') {
-                    inventory.items[itemIndex][key] = updateData[key] && updateData[key] !== '' ?
+                if (key === 'quantity') {
+                    const validQuantity = parseFloat(updateData[key]);
+                    if (!isNaN(validQuantity) && validQuantity > 0) {
+                        inventory.items[itemIndex][key] = validQuantity;
+                    }
+                } else if (key === 'secondaryQuantity') {
+                    inventory.items[itemIndex][key] = updateData[key] && updateData[key] !== '' && !isNaN(parseFloat(updateData[key])) ?
                         Math.max(parseFloat(updateData[key]), 0.1) : null;
                 } else if (key === 'secondaryUnit') {
                     inventory.items[itemIndex][key] = updateData[key] && updateData[key] !== '' ?
-                        updateData[key] : null;
+                        updateData[key].trim() : null;
+                } else if (key === 'name' && updateData[key]) {
+                    inventory.items[itemIndex][key] = updateData[key].trim();
                 } else {
                     inventory.items[itemIndex][key] = updateData[key];
                 }

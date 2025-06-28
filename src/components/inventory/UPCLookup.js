@@ -527,10 +527,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
 // Check if camera is available
     const checkCameraAvailability = () => {
+        console.log('🔍 Checking camera availability...');
+
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.log('❌ Camera API not supported');
             setCameraAvailable(false);
             return false;
         }
+
+        console.log('✅ Camera API supported');
+        setCameraAvailable(true);
         return true;
     };
 
@@ -541,11 +547,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             return;
         }
 
-        // NEW: Check usage limits before opening scanner
+        // Check usage limits before opening scanner
         if (!(await checkUsageLimits())) {
             return;
         }
 
+        console.log('🔄 Opening barcode scanner...');
         setShowScanner(true);
     };
 
@@ -993,7 +1000,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     <BarcodeScanner
                         isActive={showScanner}
                         onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
-                        onClose={handleScannerClose}
+                        onClose={() => {
+                            console.log('🔄 Closing barcode scanner...');
+                            setShowScanner(false);
+                        }}
                     />
                 </div>
             )}

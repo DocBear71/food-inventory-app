@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js v11 - Enhanced with usage display and reset fix
+// file: /src/components/inventory/BarcodeScanner.js v12 - Fixed permission handling and UI issues
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -16,6 +16,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const [isLoading, setIsLoading] = useState(true);
     const [isScanning, setIsScanning] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [permissionState, setPermissionState] = useState('unknown'); // 'unknown', 'requesting', 'granted', 'denied'
     const cooldownRef = useRef(false);
     const quaggaRef = useRef(null);
     const mountedRef = useRef(true);
@@ -28,11 +29,11 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const subscription = useSubscription();
     const upcScanGate = useFeatureGate(FEATURE_GATES.UPC_SCANNING, subscription.usage?.monthlyUPCScans);
 
-    // NEW: Usage state
+    // Usage state
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
-    // NEW: Load usage information
+    // Load usage information
     useEffect(() => {
         if (isActive) {
             loadUsageInfo();
@@ -49,7 +50,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                // Force fresh data, no cache
                 cache: 'no-cache'
             });
 
@@ -72,32 +72,38 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     };
 
-    // Add this function before your existing useEffect in BarcodeScanner.js
+    // FIXED: Improved permission request function
     const requestCameraPermission = async () => {
         console.log('🔐 Requesting camera permission...');
+        setPermissionState('requesting');
 
         if (Capacitor.isNativePlatform()) {
             try {
-                // For native platforms, use Capacitor's camera permission system
                 const permission = await Camera.requestPermissions({permissions: ['camera']});
                 console.log('📋 Camera permission result:', permission);
 
                 if (permission.camera === 'granted') {
                     console.log('✅ Camera permission granted via Capacitor');
+                    setPermissionState('granted');
                     return true;
                 } else if (permission.camera === 'denied') {
                     console.log('❌ Camera permission denied via Capacitor');
-                    throw new Error('Camera permission denied. Please enable camera access in your device settings.');
+                    setPermissionState('denied');
+                    setError('Camera permission denied. Please enable camera access in your device settings.');
+                    return false;
                 } else if (permission.camera === 'prompt') {
                     console.log('❓ Camera permission prompt will be shown');
+                    setPermissionState('granted');
                     return true;
                 }
             } catch (error) {
                 console.error('❌ Capacitor camera permission error:', error);
-                throw new Error(`Camera permission failed: ${error.message}`);
+                setPermissionState('denied');
+                setError(`Camera permission failed: ${error.message}`);
+                return false;
             }
         } else {
-            // For web platforms, use the existing getUserMedia approach
+            // For web platforms
             try {
                 console.log('🌐 Web platform: testing getUserMedia...');
                 const testStream = await navigator.mediaDevices.getUserMedia({
@@ -105,10 +111,25 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 });
                 console.log('✅ Web camera access granted');
                 testStream.getTracks().forEach(track => track.stop());
+                setPermissionState('granted');
                 return true;
             } catch (error) {
                 console.error('❌ Web camera access denied:', error);
-                throw error;
+                setPermissionState('denied');
+
+                let errorMessage = 'Camera access denied';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera found. Please ensure your device has a camera.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage = 'Camera not supported by this browser.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Camera is being used by another application.';
+                }
+
+                setError(errorMessage);
+                return false;
             }
         }
 
@@ -144,18 +165,15 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const validateUPC = useCallback((code) => {
         console.log(`🔍 Validating UPC: "${code}"`);
 
-        // Clean the code - remove all non-digits
         const cleanCode = code.replace(/\D/g, '');
         console.log(`🧹 Cleaned code: "${cleanCode}" (length: ${cleanCode.length})`);
 
-        // Check length - must be valid UPC length
-        const validLengths = [8, 12, 13, 14]; // UPC-E, UPC-A, EAN-13, ITF-14
+        const validLengths = [8, 12, 13, 14];
         if (!validLengths.includes(cleanCode.length)) {
             console.log(`❌ Invalid length: ${cleanCode.length}, expected one of ${validLengths.join(', ')}`);
             return {valid: false, reason: 'invalid_length'};
         }
 
-        // Check for obviously invalid patterns
         if (cleanCode.match(/^0+$/)) {
             console.log('❌ All zeros detected');
             return {valid: false, reason: 'all_zeros'};
@@ -166,7 +184,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             return {valid: false, reason: 'all_same'};
         }
 
-        // Check for minimum digit variation (at least 3 different digits for codes 10+ digits)
         if (cleanCode.length >= 10) {
             const uniqueDigits = new Set(cleanCode).size;
             if (uniqueDigits < 3) {
@@ -175,13 +192,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }
 
-        // Enhanced pattern checks for common invalid sequences
         const invalidPatterns = [
-            /^123456/, // Sequential start
-            /^111111/, // Repeated digits
-            /^000000/, // Leading zeros beyond normal
-            /^999999/, // Repeated 9s
-            /1234567890/, // Sequential pattern
+            /^123456/, /^111111/, /^000000/, /^999999/, /1234567890/,
         ];
 
         for (const pattern of invalidPatterns) {
@@ -247,7 +259,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 console.log('Stopping Quagga');
                 quaggaRef.current.stop();
 
-                // Force clear the scanner container
                 if (scannerRef.current) {
                     scannerRef.current.innerHTML = '';
                     console.log('🧹 Cleared scanner container HTML');
@@ -264,6 +275,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         setIsScanning(false);
         setIsLoading(true);
         setError(null);
+        setPermissionState('unknown');
         cooldownRef.current = false;
         scanCountRef.current = 0;
         lastValidCodeRef.current = null;
@@ -287,18 +299,16 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         console.log(`📱 Raw barcode detected: "${code}" (format: ${format}, scan #${scanCountRef.current})`);
 
-        // Enhanced confidence checking
         if (result.codeResult.decodedCodes && result.codeResult.decodedCodes.length > 0) {
             const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
             console.log(`📊 Average decode error: ${avgError.toFixed(3)}`);
 
-            if (avgError > 0.1) { // Stricter error threshold
+            if (avgError > 0.1) {
                 console.log(`❌ High error rate rejected: ${avgError.toFixed(3)} > 0.1`);
                 return;
             }
         }
 
-        // Validate the UPC
         const validation = validateUPC(code);
         if (!validation.valid) {
             console.log(`❌ UPC validation failed: ${validation.reason}`);
@@ -307,9 +317,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         const cleanCode = validation.cleanCode;
 
-        // Check against recent detection history to avoid duplicates
         const now = Date.now();
-        detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000); // Keep last 5 seconds
+        detectionHistoryRef.current = detectionHistoryRef.current.filter(entry => now - entry.timestamp < 5000);
 
         const recentDetection = detectionHistoryRef.current.find(entry => entry.code === cleanCode);
         if (recentDetection) {
@@ -317,10 +326,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             return;
         }
 
-        // Add to detection history
         detectionHistoryRef.current.push({code: cleanCode, timestamp: now});
 
-        // Check if this is the same as the last valid code (additional safety)
         if (lastValidCodeRef.current === cleanCode) {
             console.log(`⏩ Same code as last detection, ignoring: "${cleanCode}"`);
             return;
@@ -329,15 +336,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         console.log(`✅ Valid UPC accepted: "${cleanCode}"`);
         lastValidCodeRef.current = cleanCode;
 
-        // Set cooldown to prevent multiple rapid detections
         cooldownRef.current = true;
         setIsScanning(false);
 
-        // Enhanced visual feedback
         playBeepSound();
 
         if (scannerRef.current && mountedRef.current) {
-            // Flash the entire scanner area green
             scannerRef.current.style.backgroundColor = '#10B981';
             scannerRef.current.style.border = '4px solid #10B981';
 
@@ -349,19 +353,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }, 500);
         }
 
-        // Process result with proper usage refresh
         setTimeout(async () => {
             if (mountedRef.current) {
                 console.log(`📤 Calling onBarcodeDetected with: "${cleanCode}"`);
-
-                // Call the parent callback first
                 onBarcodeDetected(cleanCode);
-
-                // FIXED: Refresh usage info after successful scan with multiple attempts
-                console.log('🔄 Refreshing scanner usage info after successful scan...');
                 await loadUsageInfo();
 
-                // Additional refresh after a delay to ensure backend has processed
                 setTimeout(async () => {
                     if (mountedRef.current) {
                         console.log('🔄 Secondary usage refresh after scan...');
@@ -369,7 +366,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     }
                 }, 2000);
             }
-        }, 800); // Increased delay
+        }, 800);
 
     }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo]);
 
@@ -380,11 +377,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [isActive]);
 
-// 4. ADD: Effect to periodically refresh usage while scanner is active
     useEffect(() => {
         if (!isActive) return;
 
-        // Refresh usage every 10 seconds while scanner is active
         const interval = setInterval(() => {
             if (mountedRef.current && isActive) {
                 console.log('🔄 Periodic usage refresh in scanner...');
@@ -394,7 +389,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         return () => clearInterval(interval);
     }, [isActive, loadUsageInfo]);
-    // Main scanner initialization effect - keeping your existing logic
+
+    // FIXED: Main scanner initialization with better error handling
     useEffect(() => {
         let Quagga;
         let initTimeoutId;
@@ -414,45 +410,24 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 lastValidCodeRef.current = null;
                 detectionHistoryRef.current = [];
 
-                // Enhanced camera availability check
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error('Camera API not supported on this device or browser');
                 }
 
-                // Request camera permission first (especially important for Android)
+                // FIXED: Request permission first and handle denial
                 console.log('🔍 Requesting camera permission...');
-                try {
-                    await requestCameraPermission();
-                    console.log('✅ Camera permission granted, proceeding with initialization');
-                } catch (permissionError) {
-                    console.error('❌ Camera permission failed:', permissionError);
-
-                    let errorMessage = 'Camera access denied';
-                    if (permissionError.message) {
-                        errorMessage = permissionError.message;
-                    } else if (permissionError.name === 'NotAllowedError') {
-                        errorMessage = 'Camera permission denied. Please allow camera access in your device settings and try again.';
-                    } else if (permissionError.name === 'NotFoundError') {
-                        errorMessage = 'No camera found. Please ensure your device has a camera.';
-                    } else if (permissionError.name === 'NotSupportedError') {
-                        errorMessage = 'Camera not supported by this browser.';
-                    } else if (permissionError.name === 'NotReadableError') {
-                        errorMessage = 'Camera is being used by another application.';
-                    }
-
-                    setError(errorMessage);
+                const hasPermission = await requestCameraPermission();
+                if (!hasPermission) {
+                    console.log('❌ Camera permission denied, cannot proceed');
                     setIsLoading(false);
                     return;
                 }
 
-                // Enhanced Quagga scanner configuration for mobile
-                console.log('📱 Configuring Quagga for mobile scanning...');
+                console.log('✅ Camera permission granted, proceeding with initialization');
 
-                // Dynamic import for Quagga to reduce bundle size
                 Quagga = (await import('quagga')).default;
                 quaggaRef.current = Quagga;
 
-                // Enhanced mobile scanner configuration
                 const config = {
                     inputStream: {
                         name: "Live",
@@ -523,13 +498,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     halfsample: false
                 };
 
-                console.log('🎯 Quagga config:', {
-                    mobile: isMobile,
-                    constraints: config.inputStream.constraints,
-                    readers: config.decoder.readers.length
-                });
-
-                // Initialize Quagga with error handling
                 console.log('🚀 Initializing Quagga scanner...');
 
                 await new Promise((resolve, reject) => {
@@ -542,11 +510,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
                         console.log('✅ Quagga initialized successfully');
 
-                        // Set up detection handler
                         detectionHandlerRef.current = handleBarcodeDetection;
                         Quagga.onDetected(detectionHandlerRef.current);
 
-                        // Start scanning
                         Quagga.start();
                         console.log('📡 Quagga scanner started');
 
@@ -565,16 +531,14 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             } catch (error) {
                 console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError('Camera scanner not supported on this device.');
+                    setError(error.message || 'Camera scanner setup failed');
                     setIsLoading(false);
                 }
             }
         };
 
-        // Wait for the camera container to be rendered before initializing
         if (isActive && mountedRef.current) {
             console.log('🕐 Scheduling scanner initialization...');
-            console.log('🔍 Debug state:', {isActive, mounted: !!mountedRef.current, isLoading, isInitialized});
 
             initTimeoutId = setTimeout(() => {
                 if (mountedRef.current && scannerRef.current) {
@@ -582,13 +546,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     initializeScanner();
                 } else {
                     console.log('❌ Component or ref not ready for delayed init');
-                    console.log('Component mounted:', !!mountedRef.current);
-                    console.log('Scanner ref exists:', !!scannerRef.current);
-                    console.log('IsLoading:', isLoading);
                 }
             }, 500);
-        } else {
-            console.log('🚫 Not scheduling init:', {isActive, mounted: !!mountedRef.current, isLoading, isInitialized});
         }
 
         return () => {
@@ -670,14 +629,13 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 </div>
             }
         >
-            {/* Your existing scanner UI with enhanced usage indicator */}
+            {/* FIXED: Enhanced UI with proper close button and error handling */}
             {isMobile ? (
                 <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                    {/* Mobile Header with enhanced subscription info */}
+                    {/* Mobile Header with close button */}
                     <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                         <div>
                             <h3 className="text-lg font-medium">📷 Scan Barcode</h3>
-                            {/* Enhanced usage display */}
                             {!isLoadingUsage && usageInfo && (
                                 <div className="text-sm text-gray-300 mt-1">
                                     {usageInfo.monthlyLimit === 'unlimited' ? (
@@ -686,8 +644,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         <>
                                             <span className="font-medium">{usageInfo.remaining} scans remaining</span>
                                             <span className="text-gray-400 ml-2">
-                                                    ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
-                                                </span>
+                                                ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
+                                            </span>
                                         </>
                                     )}
                                 </div>
@@ -696,25 +654,34 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 <div className="text-sm text-gray-400">Loading usage...</div>
                             )}
                         </div>
+                        {/* FIXED: Always visible close button */}
                         <TouchEnhancedButton
                             onClick={() => {
                                 cleanupScanner();
                                 onClose();
                             }}
-                            className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                            className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700"
                         >
                             ×
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* Rest of your existing mobile scanner UI */}
+                    {/* FIXED: Enhanced error handling */}
                     {error ? (
                         <div className="flex-1 flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
                                 <div className="text-red-600 mb-4">❌ {error}</div>
-                                <div className="text-sm text-gray-500 mb-4">
-                                    Please ensure camera permissions are enabled.
-                                </div>
+
+                                {permissionState === 'denied' && (
+                                    <div className="text-sm text-gray-600 mb-4">
+                                        <p className="mb-2">To enable camera access:</p>
+                                        <ul className="text-left text-xs space-y-1">
+                                            <li>• Refresh this page</li>
+                                            <li>• Allow camera when prompted</li>
+                                            <li>• Or check browser settings</li>
+                                        </ul>
+                                    </div>
+                                )}
 
                                 <div className="space-y-3">
                                     <TouchEnhancedButton
@@ -726,18 +693,30 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     >
                                         Close Scanner
                                     </TouchEnhancedButton>
+
+                                    {permissionState === 'denied' && (
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                window.location.reload();
+                                            }}
+                                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md"
+                                        >
+                                            Refresh Page
+                                        </TouchEnhancedButton>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     ) : (
                         <>
-                            {/* Loading State */}
+                            {/* FIXED: Loading State with close button */}
                             {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                     <div className="text-center text-white">
-                                        <div
-                                            className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                                        <div className="text-lg">Starting camera...</div>
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div className="text-lg">
+                                            {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting camera...'}
+                                        </div>
                                         <div className="text-sm mt-2 opacity-75">
                                             Enhanced validation active
                                         </div>
@@ -764,16 +743,13 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 {/* Scanner reticle overlay */}
                                 {!isLoading && (
                                     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-                                        {/* Scanning reticle with corners */}
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="relative w-64 h-64 border-2 border-transparent">
-                                                {/* Corner indicators */}
                                                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-red-500"></div>
                                                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-red-500"></div>
                                                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-red-500"></div>
                                                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-red-500"></div>
 
-                                                {/* Scanning line animation */}
                                                 {isScanning && (
                                                     <div
                                                         className="absolute inset-x-4 h-1 bg-red-500 opacity-80"
@@ -815,9 +791,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         onClose();
                                     }}
                                     className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
-                                    disabled={!isScanning}
+                                    disabled={!isScanning && !error}
                                 >
-                                    {isScanning ? 'Cancel Scan' : 'Processing...'}
+                                    {isScanning ? 'Cancel Scan' : error ? 'Close' : 'Processing...'}
                                 </TouchEnhancedButton>
                             </div>
                         </>
@@ -842,13 +818,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     `}</style>
                 </div>
             ) : (
-                // Desktop version with enhanced usage display
+                // Desktop version with enhanced usage display and close button
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4 max-h-screen overflow-hidden">
                         <div className="flex justify-between items-center mb-4">
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900">📷 Scan Barcode</h3>
-                                {/* Enhanced desktop usage display */}
                                 {!isLoadingUsage && usageInfo && (
                                     <div className="text-sm text-gray-500 mt-1">
                                         {usageInfo.monthlyLimit === 'unlimited' ? (
@@ -864,6 +839,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     </div>
                                 )}
                             </div>
+                            {/* FIXED: Always visible close button */}
                             <TouchEnhancedButton
                                 onClick={() => {
                                     cleanupScanner();
@@ -878,25 +854,49 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         {error ? (
                             <div className="text-center py-8">
                                 <div className="text-red-600 mb-4">❌ {error}</div>
-                                <div className="text-sm text-gray-500 mb-4">
-                                    Please ensure your browser has camera permissions enabled and try again.
+
+                                {permissionState === 'denied' && (
+                                    <div className="text-sm text-gray-600 mb-4">
+                                        <p className="mb-2">To enable camera access:</p>
+                                        <ul className="text-left text-xs space-y-1 bg-gray-50 p-3 rounded">
+                                            <li>• Click the camera icon in your browser's address bar</li>
+                                            <li>• Select "Allow" for camera permission</li>
+                                            <li>• Refresh this page and try again</li>
+                                        </ul>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            cleanupScanner();
+                                            onClose();
+                                        }}
+                                        className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                    >
+                                        Close Scanner
+                                    </TouchEnhancedButton>
+
+                                    {permissionState === 'denied' && (
+                                        <TouchEnhancedButton
+                                            onClick={() => {
+                                                window.location.reload();
+                                            }}
+                                            className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        >
+                                            Refresh Page
+                                        </TouchEnhancedButton>
+                                    )}
                                 </div>
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        cleanupScanner();
-                                        onClose();
-                                    }}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                                >
-                                    Close Scanner
-                                </TouchEnhancedButton>
                             </div>
                         ) : (
                             <>
                                 {isLoading && (
                                     <div className="text-center py-8">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                                        <div className="text-gray-600">Starting camera...</div>
+                                        <div className="text-gray-600">
+                                            {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting camera...'}
+                                        </div>
                                         <div className="text-xs text-gray-500 mt-2">Enhanced validation enabled</div>
                                     </div>
                                 )}
@@ -941,9 +941,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                                 onClose();
                                             }}
                                             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
-                                            disabled={!isScanning}
+                                            disabled={!isScanning && !error}
                                         >
-                                            {isScanning ? 'Cancel' : 'Processing...'}
+                                            {isScanning ? 'Cancel' : error ? 'Close' : 'Processing...'}
                                         </TouchEnhancedButton>
                                     </div>
                                 )}
