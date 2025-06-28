@@ -1176,7 +1176,7 @@ function RecipesContent() {
                                                                     size="small"
                                                                     showText={false}
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
-                                                                    className="mb-1" // Add margin bottom to match other buttons
+                                                                    className="w-4 h-4 mb-1" // Add margin bottom to match other buttons
                                                                 />
                                                                 <span className="text-xs">Save</span>
                                                             </div>
