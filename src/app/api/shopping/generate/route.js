@@ -425,11 +425,17 @@ function createIngredientKey(ingredient) {
 
 // Parse amount and unit from ingredient amount string with better handling
 function parseAmountAndUnit(amountStr) {
-    if (!amountStr || typeof amountStr !== 'string') {
+    // FIXED: Ensure we always have a string to work with
+    if (!amountStr) {
         return { amount: '', unit: '', numeric: 0, isToTaste: false, originalAmount: amountStr };
     }
 
-    const str = amountStr.trim().toLowerCase();
+    // Convert to string if it's not already (handles numbers, etc.)
+    const str = String(amountStr).trim().toLowerCase();
+
+    if (!str) {
+        return { amount: '', unit: '', numeric: 0, isToTaste: false, originalAmount: amountStr };
+    }
 
     // Handle "to taste" specially
     if (str.includes('to taste')) {
@@ -471,10 +477,14 @@ function parseAmountAndUnit(amountStr) {
 
 // Smart combination of ingredient amounts with better unit handling
 function combineIngredientAmounts(existing, newIngredient) {
-    const existingParsed = parseAmountAndUnit(existing.amount);
-    const newParsed = parseAmountAndUnit(newIngredient.amount);
+    // FIXED: Ensure amounts are converted to strings safely
+    const existingAmountStr = existing.amount ? String(existing.amount) : '';
+    const newAmountStr = newIngredient.amount ? String(newIngredient.amount) : '';
 
-    console.log(`Combining amounts: "${existing.amount}" (${existing.unit}) + "${newIngredient.amount}" (${newIngredient.unit})`);
+    const existingParsed = parseAmountAndUnit(existingAmountStr);
+    const newParsed = parseAmountAndUnit(newAmountStr);
+
+    console.log(`Combining amounts: "${existingAmountStr}" (${existing.unit}) + "${newAmountStr}" (${newIngredient.unit})`);
 
     // Handle "to taste" items - only keep one "to taste"
     if (existingParsed.isToTaste && newParsed.isToTaste) {
@@ -496,9 +506,9 @@ function combineIngredientAmounts(existing, newIngredient) {
 
     if (!existingParsed.isToTaste && newParsed.isToTaste) {
         const existingUnit = existing.unit || existingParsed.unit || '';
-        const existingAmountStr = existingUnit ? `${existingParsed.amount} ${existingUnit}` : existingParsed.amount;
+        const existingAmountDisplay = existingUnit ? `${existingParsed.amount} ${existingUnit}` : existingParsed.amount;
         return {
-            amount: `${existingAmountStr}, to taste`,
+            amount: `${existingAmountDisplay}, to taste`,
             unit: ''
         };
     }
@@ -650,12 +660,14 @@ function categorizeIngredient(ingredient) {
 function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     if (!inventoryItem) return false;
 
-    const neededMatch = neededAmount?.match(/(\d+(?:\.\d+)?)/);
+    // FIXED: Safely convert neededAmount to string
+    const neededAmountStr = neededAmount ? String(neededAmount) : '';
+    const neededMatch = neededAmountStr.match(/(\d+(?:\.\d+)?)/);
     const neededNumber = neededMatch ? parseFloat(neededMatch[1]) : 1;
     const inventoryQuantity = inventoryItem.quantity || 1;
     const inventoryUnit = (inventoryItem.unit || 'item').toLowerCase();
 
-    console.log(`[COVERAGE CHECK] Need: "${neededAmount}", Have: ${inventoryQuantity} ${inventoryUnit}, Item: "${inventoryItem.name}"`);
+    console.log(`[COVERAGE CHECK] Need: "${neededAmountStr}", Have: ${inventoryQuantity} ${inventoryUnit}, Item: "${inventoryItem.name}"`);
 
     // Smart coverage rules for different ingredient types
     const itemName = normalizeIngredient(inventoryItem.name);
@@ -668,13 +680,13 @@ function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     }
 
     // Rule 2: If we have oil and need tablespoons/teaspoons, we're good
-    if (itemName.includes('oil') && neededAmount && (neededAmount.includes('tbsp') || neededAmount.includes('tsp'))) {
+    if (itemName.includes('oil') && neededAmountStr && (neededAmountStr.includes('tbsp') || neededAmountStr.includes('tsp'))) {
         console.log(`[COVERAGE CHECK] ✅ Oil rule: Have oil item, covers small oil need`);
         return inventoryQuantity >= 1;
     }
 
     // Rule 3: If we have spices/seasonings and need "to taste", we're good
-    if (neededAmount === 'to taste' || neededAmount.includes('to taste')) {
+    if (neededAmountStr === 'to taste' || neededAmountStr.includes('to taste')) {
         const spiceKeywords = ['salt', 'pepper', 'garlic powder', 'onion powder', 'oregano', 'basil', 'thyme'];
         if (spiceKeywords.some(spice => itemName.includes(spice))) {
             console.log(`[COVERAGE CHECK] ✅ Spice rule: Have spice, covers "to taste" need`);
@@ -683,7 +695,7 @@ function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     }
 
     // Rule 4: Same units - direct comparison
-    if (inventoryUnit !== 'item' && neededAmount && neededAmount.toLowerCase().includes(inventoryUnit)) {
+    if (inventoryUnit !== 'item' && neededAmountStr && neededAmountStr.toLowerCase().includes(inventoryUnit)) {
         console.log(`[COVERAGE CHECK] Unit match: comparing ${neededNumber} needed vs ${inventoryQuantity} have`);
         return inventoryQuantity >= neededNumber;
     }
@@ -703,6 +715,7 @@ function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     console.log(`[COVERAGE CHECK] ❌ No rule matched - need: ${neededNumber}, have: ${inventoryQuantity} ${inventoryUnit}`);
     return false;
 }
+
 
 // Function to extract recipe IDs from meal plan
 async function getRecipeIdsFromMealPlan(mealPlanId) {
@@ -794,58 +807,91 @@ export async function POST(request) {
         // Enhanced ingredient aggregation with improved combination logic
         const ingredientMap = new Map();
 
-        recipes.forEach(recipe => {
-            console.log(`[SHOPPING API] Processing recipe: ${recipe.title}`);
+        recipes.forEach((recipe, recipeIndex) => {
+            console.log(`[SHOPPING API] Processing recipe ${recipeIndex + 1}/${recipes.length}: ${recipe.title}`);
 
             if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
-                console.log(`Recipe ${recipe.title} has no ingredients array`);
+                console.log(`[SHOPPING API] Recipe ${recipe.title} has no ingredients array`);
                 return;
             }
 
-            recipe.ingredients.forEach(ingredient => {
-                const ingredientKey = createIngredientKey(ingredient.name);
-
-                console.log(`[SHOPPING API] Processing ingredient: "${ingredient.name}" -> key: "${ingredientKey}"`);
-                console.log(`Amount: "${ingredient.amount}", Unit: "${ingredient.unit}"`);
-
-                if (ingredientMap.has(ingredientKey)) {
-                    const existing = ingredientMap.get(ingredientKey);
-                    existing.recipes.push(recipe.title);
-
-                    // Smart amount combination
-                    const combinedAmounts = combineIngredientAmounts(existing, ingredient);
-                    existing.amount = combinedAmounts.amount;
-                    existing.unit = combinedAmounts.unit;
-
-                    // Keep the most descriptive name
-                    if (ingredient.name.length > existing.name.length) {
-                        existing.name = ingredient.name;
-                        existing.originalName = ingredient.name;
+            recipe.ingredients.forEach((ingredient, ingredientIndex) => {
+                try {
+                    // FIXED: Add safety checks for ingredient properties
+                    if (!ingredient || typeof ingredient !== 'object') {
+                        console.log(`[SHOPPING API] Invalid ingredient at index ${ingredientIndex} in recipe ${recipe.title}:`, ingredient);
+                        return;
                     }
 
-                    console.log(`[SHOPPING API] Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
-                } else {
-                    const category = categorizeIngredient(ingredient.name);
+                    if (!ingredient.name || typeof ingredient.name !== 'string') {
+                        console.log(`[SHOPPING API] Ingredient missing name at index ${ingredientIndex} in recipe ${recipe.title}:`, ingredient);
+                        return;
+                    }
 
-                    // Ensure we preserve the unit from the ingredient
-                    const finalAmount = ingredient.amount || '';
-                    const finalUnit = ingredient.unit || '';
+                    const ingredientKey = createIngredientKey(ingredient.name);
 
-                    ingredientMap.set(ingredientKey, {
-                        name: ingredient.name,
-                        originalName: ingredient.name,
-                        normalizedName: normalizeIngredient(ingredient.name),
-                        amount: finalAmount,
-                        unit: finalUnit,
-                        category: category,
-                        recipes: [recipe.title],
-                        optional: ingredient.optional || false,
-                        alternatives: ingredient.alternatives || [],
-                        variations: getIngredientVariations(ingredient.name),
-                        ingredientKey: ingredientKey
-                    });
+                    console.log(`[SHOPPING API] Processing ingredient: "${ingredient.name}" -> key: "${ingredientKey}"`);
 
-                    console.log(`[SHOPPING API] New ingredient: ${ingredient.name} - ${finalAmount} ${finalUnit}`);
+                    // FIXED: Safely handle amount - convert to string if it's a number
+                    let safeAmount = '';
+                    if (ingredient.amount !== null && ingredient.amount !== undefined) {
+                        safeAmount = String(ingredient.amount);
+                    }
+
+                    // FIXED: Safely handle unit
+                    let safeUnit = '';
+                    if (ingredient.unit && typeof ingredient.unit === 'string') {
+                        safeUnit = ingredient.unit;
+                    }
+
+                    console.log(`Amount: "${safeAmount}", Unit: "${safeUnit}"`);
+
+                    if (ingredientMap.has(ingredientKey)) {
+                        const existing = ingredientMap.get(ingredientKey);
+                        existing.recipes.push(recipe.title);
+
+                        // Smart amount combination with safe values
+                        const combinedAmounts = combineIngredientAmounts({
+                            amount: existing.amount,
+                            unit: existing.unit
+                        }, {
+                            amount: safeAmount,
+                            unit: safeUnit
+                        });
+
+                        existing.amount = combinedAmounts.amount;
+                        existing.unit = combinedAmounts.unit;
+
+                        // Keep the most descriptive name
+                        if (ingredient.name.length > existing.name.length) {
+                            existing.name = ingredient.name;
+                            existing.originalName = ingredient.name;
+                        }
+
+                        console.log(`[SHOPPING API] Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
+                    } else {
+                        const category = categorizeIngredient(ingredient.name);
+
+                        ingredientMap.set(ingredientKey, {
+                            name: ingredient.name,
+                            originalName: ingredient.name,
+                            normalizedName: normalizeIngredient(ingredient.name),
+                            amount: safeAmount,
+                            unit: safeUnit,
+                            category: category,
+                            recipes: [recipe.title],
+                            optional: ingredient.optional || false,
+                            alternatives: ingredient.alternatives || [],
+                            variations: getIngredientVariations(ingredient.name),
+                            ingredientKey: ingredientKey
+                        });
+
+                        console.log(`[SHOPPING API] New ingredient: ${ingredient.name} - ${safeAmount} ${safeUnit}`);
+                    }
+                } catch (ingredientError) {
+                    console.error(`[SHOPPING API] Error processing ingredient ${ingredientIndex} in recipe ${recipe.title}:`, ingredientError);
+                    console.error(`[SHOPPING API] Ingredient data:`, ingredient);
+                    // Continue processing other ingredients
                 }
             });
         });
