@@ -719,7 +719,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>📝 My Recipes</span><br/>
+                                <span>📝 My Recipes</span>
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
                     {formatCountWithLimit('my-recipes')}
@@ -736,7 +736,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>🌍 Public Recipes</span><br/>
+                                <span>🌍 Public Recipes</span>
                                 <span className={`text-xs px-2 py-1 rounded-full ${
                                     activeTab === 'public-recipes'
                                         ? 'bg-indigo-100 text-indigo-600'
@@ -756,7 +756,7 @@ function RecipesContent() {
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>📁 Collections</span><br/>
+                                <span>📁 Collections</span>
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
                     {formatCountWithLimit('collections')}
@@ -1155,27 +1155,32 @@ function RecipesContent() {
                                         return (
                                             <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
                                                 <div className="p-6">
-                                                {/* Header */}
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <Link
-                                                        href={`/recipes/${recipe._id}`}
-                                                        className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
-                                                    >
-                                                        {recipe.title || 'Untitled Recipe'}
-                                                    </Link>
-                                                    {/* Show appropriate buttons based on tab */}
-                                                    <div className="flex gap-1 ml-2">
+                                                    {/* Header - Title only */}
+                                                    <div className="mb-3">
+                                                        <Link
+                                                            href={`/recipes/${recipe._id}`}
+                                                            className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block"
+                                                        >
+                                                            {recipe.title || 'Untitled Recipe'}
+                                                        </Link>
+                                                    </div>
+
+                                                    {/* Action Buttons - Moved below title */}
+                                                    <div className="flex justify-end gap-2 mb-3">
                                                         {activeTab === 'public-recipes' && (
-                                                            <SaveRecipeButton
-                                                                recipeId={recipe._id}
-                                                                recipeName={recipe.title || 'Recipe'}
-                                                                size="small"
-                                                                showText={false}
-                                                                onSaveStateChange={handleRecipeSaveStateChange}
-                                                            />
+                                                            <div className="flex flex-col items-center justify-center p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors touch-friendly">
+                                                                <SaveRecipeButton
+                                                                    recipeId={recipe._id}
+                                                                    recipeName={recipe.title || 'Recipe'}
+                                                                    size="small"
+                                                                    showText={false}
+                                                                    onSaveStateChange={handleRecipeSaveStateChange}
+                                                                />
+                                                                <span className="text-xs mt-1">Save</span>
+                                                            </div>
                                                         )}
                                                         {canEditRecipe(recipe) && (
-                                                            <div className="flex space-x-4">
+                                                            <div className="flex space-x-2">
                                                                 <TouchEnhancedButton
                                                                     onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
                                                                     className="flex flex-col items-center justify-center p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
@@ -1209,7 +1214,6 @@ function RecipesContent() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                </div>
 
                                                 {/* Recipe Author Info (for public recipes) */}
                                                 {activeTab === 'public-recipes' && recipe.createdBy && (
