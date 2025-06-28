@@ -1176,7 +1176,7 @@ function RecipesContent() {
                                                                     showText={false}
                                                                     iconOnly={true} // Add this prop
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
-                                                                    className="mb-1" // This will align with the other icons
+
                                                                 />
                                                                 <span className="text-xs">Save</span>
                                                             </div>
