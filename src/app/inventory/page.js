@@ -42,6 +42,7 @@ function InventoryContent() {
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
     const isAdminEmail = session?.user?.email === 'e.g.mckeown@gmail.com';
+    const originalSubscription = useSubscription();
 
     // Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
@@ -62,16 +63,6 @@ function InventoryContent() {
         expirationDate: '',
         upc: ''
     });
-    const originalSubscription = useSubscription();
-
-    useEffect(() => {
-        console.log('🔍 ADMIN EMAIL CHECK:', {
-            email: session?.user?.email,
-            isAdminEmail: isAdminEmail,
-            subscriptionTier: subscription.tier,
-            usageInfo: getUsageInfo()
-        });
-    }, [session, isAdminEmail, subscription.tier]);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -105,7 +96,7 @@ function InventoryContent() {
         };
     }, []);
 
-    const subscription = isForceAdmin ? {
+    const subscription = isAdminEmail ? {
         // Override with admin values
         tier: 'admin',
         status: 'active',
@@ -152,6 +143,17 @@ function InventoryContent() {
         clearCache: originalSubscription.clearCache
     } : originalSubscription; // Use original for non-admin users
 
+
+    useEffect(() => {
+        console.log('🔍 ADMIN EMAIL CHECK:', {
+            email: session?.user?.email,
+            isAdminEmail: isAdminEmail,
+            subscriptionTier: subscription.tier,
+            usageInfo: getUsageInfo()
+        });
+    }, [session, isAdminEmail, subscription.tier]);
+
+
     const getUsageInfo = () => {
         // Force admin for your email
         if (isAdminEmail) {
@@ -183,8 +185,7 @@ function InventoryContent() {
 
     // Add limit checking functions
     const getUsageColor = (isActive = false) => {
-        // Use isForceAdmin instead of subscription checks
-        if (isForceAdmin) {
+        if (isAdminEmail) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
 
