@@ -10,18 +10,6 @@ import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { getApiUrl } from '@/lib/api-config';
 
-// Import Capacitor properly
-let Capacitor;
-if (typeof window !== 'undefined') {
-    try {
-        const { Capacitor: Cap } = require('@capacitor/core');
-        Capacitor = Cap;
-    } catch (e) {
-        // Fallback if Capacitor is not available
-        Capacitor = { isNativePlatform: () => false };
-    }
-}
-
 function SignInContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -87,7 +75,15 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
-        const isNative = Capacitor && Capacitor.isNativePlatform();
+        // Use dynamic import for Capacitor to avoid require() issues
+        let isNative = false;
+        try {
+            const { Capacitor } = await import('@capacitor/core');
+            isNative = Capacitor.isNativePlatform();
+        } catch (e) {
+            isNative = false;
+        }
+
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
         console.log('Is native platform:', isNative);
@@ -124,13 +120,24 @@ function SignInContent() {
                 console.log('Session after login:', session);
 
                 if (session) {
-                    console.log('Session confirmed');
+                    console.log('Session confirmed, user data:', {
+                        email: session.user?.email,
+                        name: session.user?.name,
+                        id: session.user?.id,
+                        // Log any admin/role fields
+                        ...session.user
+                    });
 
-                    // ADDED: Store session for mobile use
+                    // FIXED: Store session for mobile use with correct import
                     if (isNative) {
                         console.log('Storing session for mobile platform');
-                        const { MobileSession } = await import('@/lib/mobile-session');
-                        await MobileSession.setSession(session);
+                        try {
+                            const { MobileSession } = await import('@/lib/mobile-session-simple');
+                            const success = await MobileSession.setSession(session);
+                            console.log('Mobile session storage result:', success);
+                        } catch (mobileError) {
+                            console.error('Mobile session storage failed:', mobileError);
+                        }
                     }
 
                     console.log('Redirecting to dashboard...');
@@ -159,6 +166,7 @@ function SignInContent() {
             setError('Network error. Please try again.');
         } finally {
             setLoading(false);
+            setRedirecting(false); // ADDED: Reset redirecting state
         }
     };
 
