@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - v4 - Added emailVerified to session
+// file: /src/lib/auth.js - v5 - FIXED: Added admin/tier information to session
 console.log('Auth config loading...');
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
@@ -36,13 +36,30 @@ export const authOptions = {
                         return null;
                     }
 
-                    // FIXED: Include emailVerified field from database
+                    // FIXED: Include ALL user data needed for the session
+                    console.log('🔐 Authorizing user:', {
+                        id: user._id.toString(),
+                        email: user.email,
+                        effectiveTier: user.getEffectiveTier?.() || 'free',
+                        subscriptionStatus: user.subscription?.status,
+                        subscriptionTier: user.subscription?.tier
+                    });
+
                     return {
                         id: user._id.toString(),
                         email: user.email,
                         name: user.name,
-                        emailVerified: user.emailVerified || false, // Add this field
-                        avatar: user.avatar || '', // Include avatar too for consistency
+                        emailVerified: user.emailVerified || false,
+                        avatar: user.avatar || '',
+                        // ADDED: Include subscription/admin information
+                        subscriptionTier: user.subscription?.tier || 'free',
+                        subscriptionStatus: user.subscription?.status || 'free',
+                        effectiveTier: user.getEffectiveTier?.() || 'free',
+                        // Include raw subscription data for debugging
+                        subscription: user.subscription || null,
+                        // Include any admin flags if they exist
+                        isAdmin: user.isAdmin || false,
+                        roles: user.roles || [],
                     };
                 } catch (error) {
                     console.error('Auth error:', error);
@@ -58,22 +75,55 @@ export const authOptions = {
     pages: {
         signIn: '/auth/signin',
         signUp: '/auth/signup',
-        signOut: '/auth/signout', // Add custom signout page
+        signOut: '/auth/signout',
     },
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
+                // Store ALL user data in the JWT token
                 token.id = user.id;
-                token.emailVerified = user.emailVerified; // ADDED: Store in JWT
-                token.avatar = user.avatar; // ADDED: Store avatar in JWT too
+                token.emailVerified = user.emailVerified;
+                token.avatar = user.avatar;
+                // ADDED: Store subscription/admin information in JWT
+                token.subscriptionTier = user.subscriptionTier;
+                token.subscriptionStatus = user.subscriptionStatus;
+                token.effectiveTier = user.effectiveTier;
+                token.subscription = user.subscription;
+                token.isAdmin = user.isAdmin;
+                token.roles = user.roles;
+
+                console.log('🎫 JWT token created with data:', {
+                    id: token.id,
+                    email: token.email,
+                    effectiveTier: token.effectiveTier,
+                    subscriptionTier: token.subscriptionTier,
+                    isAdmin: token.isAdmin
+                });
             }
             return token;
         },
         async session({ session, token }) {
             if (token) {
+                // Include ALL data in the session
                 session.user.id = token.id;
-                session.user.emailVerified = token.emailVerified; // ADDED: Include in session
-                session.user.avatar = token.avatar; // ADDED: Include avatar in session
+                session.user.emailVerified = token.emailVerified;
+                session.user.avatar = token.avatar;
+                // ADDED: Include subscription/admin information in session
+                session.user.subscriptionTier = token.subscriptionTier;
+                session.user.subscriptionStatus = token.subscriptionStatus;
+                session.user.effectiveTier = token.effectiveTier;
+                session.user.subscription = token.subscription;
+                session.user.isAdmin = token.isAdmin;
+                session.user.roles = token.roles;
+
+                console.log('👤 Session created with data:', {
+                    id: session.user.id,
+                    email: session.user.email,
+                    effectiveTier: session.user.effectiveTier,
+                    subscriptionTier: session.user.subscriptionTier,
+                    isAdmin: session.user.isAdmin,
+                    allKeys: Object.keys(session.user)
+                });
             }
             return session;
         },
@@ -104,17 +154,19 @@ export const authOptions = {
             return '/dashboard';
         },
         async signIn({ user, account, profile }) {
-            console.log('SignIn callback - User:', user);
+            console.log('SignIn callback - User:', {
+                id: user.id,
+                email: user.email,
+                effectiveTier: user.effectiveTier,
+                isAdmin: user.isAdmin
+            });
             console.log('SignIn callback - Account:', account);
             return true;
         },
     },
-    // ADDED: Events to handle signout more aggressively
     events: {
         async signOut({ token, session }) {
             console.log('SignOut event triggered - clearing all auth state');
-            // This event is called when signOut happens
-            // We can use this to ensure cleanup
         },
         async session({ token, session }) {
             // Prevent session restoration after signout
@@ -128,7 +180,6 @@ export const authOptions = {
             }
         }
     },
-    // Keep simplified settings
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
 };
