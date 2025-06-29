@@ -94,6 +94,27 @@ function InventoryContent() {
         };
     }, []);
 
+    useEffect(() => {
+        console.log('🔍 Component session/subscription debug:', {
+            sessionStatus: status,
+            hasSession: !!session,
+            userId: session?.user?.id,
+            userEmail: session?.user?.email,
+            effectiveTier: session?.user?.effectiveTier,
+            subscriptionTier: session?.user?.subscriptionTier,
+            subscriptionHookTier: subscription?.tier,
+            subscriptionHookLoading: subscription?.loading,
+            timestamp: new Date().toISOString()
+        });
+    }, [session, status, subscription]);
+
+// Also log when the component renders
+    console.log('🎨 Component render with data:', {
+        sessionStatus: status,
+        effectiveTier: session?.user?.effectiveTier,
+        renderTime: new Date().toISOString()
+    });
+
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
