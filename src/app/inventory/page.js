@@ -62,7 +62,7 @@ function InventoryContent() {
         expirationDate: '',
         upc: ''
     });
-    const subscription = useSubscription();
+    const originalSubscription = useSubscription();
 
     useEffect(() => {
         console.log('🔍 INVENTORY ADMIN CHECK:', {
@@ -73,26 +73,14 @@ function InventoryContent() {
     }, [session, isForceAdmin]);
 
     useEffect(() => {
-        console.log('🔍 INVENTORY DEBUG: useSubscription returned:', {
-            subscription: subscription,
-            tier: subscription?.tier,
-            loading: subscription?.loading,
-            isAdmin: subscription?.isAdmin,
-            status: subscription?.status,
-            allKeys: subscription ? Object.keys(subscription) : 'null'
+        console.log('🔍 COMPREHENSIVE OVERRIDE CHECK:', {
+            email: session?.user?.email,
+            isForceAdmin: isForceAdmin,
+            subscriptionTier: subscription.tier,
+            subscriptionLoading: subscription.loading,
+            usageInfoTier: getUsageInfo().tier
         });
-    }, [subscription]);
-
-// **ALSO ADD THIS TO COMPARE WITH SESSION:**
-
-    useEffect(() => {
-        console.log('🔍 INVENTORY DEBUG: useSafeSession returned:', {
-            user: session?.user,
-            subscriptionTier: session?.user?.subscriptionTier,
-            effectiveTier: session?.user?.effectiveTier,
-            isAdmin: session?.user?.isAdmin
-        });
-    }, [session]);
+    }, [session, isForceAdmin, subscription.tier]);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -126,11 +114,55 @@ function InventoryContent() {
         };
     }, []);
 
-    const getUsageInfo = () => {
-        // **OVERRIDE: Force admin for your email**
-        const forceAdmin = session?.user?.email === 'e.g.mckeown@gmail.com';
+    const subscription = isForceAdmin ? {
+        // Override with admin values
+        tier: 'admin',
+        status: 'active',
+        isAdmin: true,
+        loading: false,
+        error: null,
+        isActive: true,
+        isTrialActive: false,
+        isFree: false,
+        isGold: false,
+        isPlatinum: true, // Admin counts as platinum+
+        isGoldOrHigher: true,
 
-        if (forceAdmin) {
+        // Override all feature checks to return true
+        checkFeature: () => true,
+        checkLimit: () => true,
+        canAddInventoryItem: true,
+        canScanUPC: true,
+        canScanReceipt: true,
+        canAddPersonalRecipe: true,
+        canSaveRecipe: true,
+        canCreateCollection: true,
+        canWriteReviews: true,
+        canMakeRecipesPublic: true,
+        hasNutritionAccess: true,
+        hasMealPlanning: true,
+        hasEmailNotifications: true,
+        hasEmailSharing: true,
+        hasCommonItemsWizard: true,
+        hasConsumptionHistory: true,
+        hasRecipeCollections: true,
+
+        // Override remaining counts to unlimited
+        remainingInventoryItems: 'Unlimited',
+        remainingPersonalRecipes: 'Unlimited',
+        remainingUPCScans: 'Unlimited',
+        remainingReceiptScans: 'Unlimited',
+        remainingSavedRecipes: 'Unlimited',
+        remainingCollections: 'Unlimited',
+
+        // Keep original functions
+        refetch: originalSubscription.refetch,
+        forceRefresh: originalSubscription.forceRefresh,
+        clearCache: originalSubscription.clearCache
+    } : originalSubscription; // Use original for non-admin users
+
+    const getUsageInfo = () => {
+        if (isForceAdmin) {
             console.log('🔧 FORCE ADMIN: Overriding tier for', session.user.email);
             return {
                 current: inventory.length,
@@ -141,7 +173,6 @@ function InventoryContent() {
             };
         }
 
-        // **FALLBACK: Use original logic**
         if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
