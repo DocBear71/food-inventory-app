@@ -1,6 +1,5 @@
 'use client';
-// file: /src/app/page.js v2
-
+// file: /src/app/page.js v3 - FIXED: Show landing page when not authenticated
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect} from 'react';
@@ -14,10 +13,11 @@ export default function Home() {
     const router = useRouter();
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        // FIXED: Only redirect if authenticated
+        if (status === 'authenticated' && session) {
             router.push('/dashboard');
         }
-    }, [status, router]);
+    }, [status, session, router]);
 
     if (status === 'loading') {
         return (
@@ -25,17 +25,15 @@ export default function Home() {
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                        <div className="text-lg text-gray-600">Loading dashboard...</div>
+                        <div className="text-lg text-gray-600">Loading...</div>
                     </div>
                 </div>
             </MobileOptimizedLayout>
         );
     }
 
-    if (!session) {
-        return null; // Will redirect to dashboard
-    }
-
+    // FIXED: Show landing page when not authenticated (removed the problematic return null)
+    // If user is authenticated, the useEffect will redirect them to dashboard
     return (
         <MobileOptimizedLayout>
             <div className="min-h-screen bg-gray-50 flex flex-col">
