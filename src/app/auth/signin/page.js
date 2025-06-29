@@ -9,6 +9,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { getApiUrl } from '@/lib/api-config';
+import { MobileSession } from '@/lib/mobile-session-simple';
 
 function SignInContent() {
     const router = useRouter();
@@ -127,17 +128,46 @@ function SignInContent() {
                         // Log any admin/role fields
                         ...session.user
                     });
+                    console.log('Session confirmed, user data:', sessionData);
 
-                    // FIXED: Store session for mobile use with correct import
-                    if (isNative) {
-                        console.log('Storing session for mobile platform');
-                        try {
-                            const { MobileSession } = await import('@/lib/mobile-session-simple');
-                            const success = await MobileSession.setSession(session);
-                            console.log('Mobile session storage result:', success);
-                        } catch (mobileError) {
-                            console.error('Mobile session storage failed:', mobileError);
+                    try {
+                        console.log('💾 Storing session in mobile session storage...');
+                        console.log('📋 Session data being stored:', {
+                            email: session.user.email,
+                            subscriptionTier: session.user.subscriptionTier,
+                            effectiveTier: session.user.effectiveTier,
+                            isAdmin: session.user.isAdmin,
+                            subscriptionStatus: session.user.subscriptionStatus
+                        });
+
+                        // Create the session object that mobile session expects
+                        const mobileSessionData = {
+                            user: session.user,  // **FIXED: Use session.user**
+                            expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                        };
+
+                        const success = await MobileSession.setSession(mobileSessionData);
+
+                        if (success) {
+                            console.log('✅ Mobile session stored successfully');
+
+                            // Verify it worked
+                            const verification = await MobileSession.getSession();
+                            if (verification?.user) {
+                                console.log('🔍 Stored mobile session verification:', {
+                                    email: verification.user.email,
+                                    subscriptionTier: verification.user.subscriptionTier,
+                                    effectiveTier: verification.user.effectiveTier,
+                                    isAdmin: verification.user.isAdmin
+                                });
+                            } else {
+                                console.error('❌ Verification failed - mobile session empty');
+                            }
+                        } else {
+                            console.error('❌ Failed to store mobile session');
                         }
+                    } catch (error) {
+                        console.error('💥 Error storing mobile session:', error);
                     }
 
                     console.log('Redirecting to dashboard...');
