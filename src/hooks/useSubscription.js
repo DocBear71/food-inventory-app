@@ -315,18 +315,10 @@ export function useSubscription() {
         }
     };
 
-    const DEBUG_SUBSCRIPTION = true;
+    const DEBUG_SUBSCRIPTION = false;
 
     // NEW: Admin status checks
     const isAdmin = () => {
-        // **TEMPORARY FIX: Force admin for your email**
-        if (typeof window !== 'undefined') {
-            const session = window.__NEXT_DATA__?.props?.pageProps?.session;
-            if (session?.user?.email === 'e.g.mckeown@gmail.com') {
-                return true;
-            }
-        }
-
         const adminStatus = subscriptionData?.isAdmin === true;
         if (DEBUG_SUBSCRIPTION) {
             console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
@@ -338,12 +330,6 @@ export function useSubscription() {
         if (DEBUG_SUBSCRIPTION) {
             console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
         }
-
-        // **TEMPORARY FIX: Force admin tier for your email**
-        if (subscriptionData?.usage?.currentUser === 'e.g.mckeown@gmail.com') {
-            return 'admin';
-        }
-
         if (subscriptionData?.isAdmin) {
             if (DEBUG_SUBSCRIPTION) {
                 console.log('✅ User is admin, returning admin tier');

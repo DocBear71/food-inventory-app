@@ -41,6 +41,8 @@ function InventoryContent() {
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
+    const isForceAdmin = session?.user?.email === 'e.g.mckeown@gmail.com';
+
     // Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterLocation, setFilterLocation] = useState('all');
@@ -61,6 +63,14 @@ function InventoryContent() {
         upc: ''
     });
     const subscription = useSubscription();
+
+    useEffect(() => {
+        console.log('🔍 INVENTORY ADMIN CHECK:', {
+            email: session?.user?.email,
+            isForceAdmin: isForceAdmin,
+            tier: getUsageInfo().tier
+        });
+    }, [session, isForceAdmin]);
 
     useEffect(() => {
         console.log('🔍 INVENTORY DEBUG: useSubscription returned:', {
@@ -117,39 +127,44 @@ function InventoryContent() {
     }, []);
 
     const getUsageInfo = () => {
-        // **FIXED: Use session data instead of broken useSubscription hook**
-        const {data: session} = useSafeSession();
+        // **OVERRIDE: Force admin for your email**
+        const forceAdmin = session?.user?.email === 'e.g.mckeown@gmail.com';
 
-        if (!session?.user) {
+        if (forceAdmin) {
+            console.log('🔧 FORCE ADMIN: Overriding tier for', session.user.email);
+            return {
+                current: inventory.length,
+                limit: 'unlimited',
+                isUnlimited: true,
+                tier: 'admin',
+                isAdmin: true
+            };
+        }
+
+        // **FALLBACK: Use original logic**
+        if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
-        // Get tier from session data (which has the correct admin tier)
-        const tier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
-        const isAdmin = session.user.isAdmin || false;
-
-        console.log('🔍 INVENTORY: Using session tier data:', {
-            tier: tier,
-            isAdmin: isAdmin,
-            subscriptionTier: session.user.subscriptionTier,
-            effectiveTier: session.user.effectiveTier
-        });
-
+        const tier = subscription.tier || 'free';
         return {
             current: inventory.length,
             limit: tier === 'free' ? 50 :
                 tier === 'gold' ? 250 :
                     tier === 'admin' ? 'unlimited' :
-                        tier === 'platinum' ? 'unlimited' :
-                            'unlimited',
+                        'unlimited',
             isUnlimited: tier === 'platinum' || tier === 'admin',
-            tier: tier,
-            isAdmin: isAdmin
+            tier
         };
     };
 
     // Add limit checking functions
     const getUsageColor = (isActive = false) => {
+        // Use isForceAdmin instead of subscription checks
+        if (isForceAdmin) {
+            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
+        }
+
         if (subscription.loading) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
@@ -158,13 +173,13 @@ function InventoryContent() {
         const percentage = usage.isUnlimited ? 0 : (usage.current / (typeof usage.limit === 'number' ? usage.limit : 999999)) * 100;
 
         if (isActive) {
-            if (percentage >= 100) return 'bg-red-100 text-red-600'; // At limit
-            if (percentage >= 80) return 'bg-orange-100 text-orange-600'; // Near limit
-            return 'bg-indigo-100 text-indigo-600'; // Normal
+            if (percentage >= 100) return 'bg-red-100 text-red-600';
+            if (percentage >= 80) return 'bg-orange-100 text-orange-600';
+            return 'bg-indigo-100 text-indigo-600';
         } else {
-            if (percentage >= 100) return 'bg-red-200 text-red-700'; // At limit
-            if (percentage >= 80) return 'bg-orange-200 text-orange-700'; // Near limit
-            return 'bg-gray-200 text-gray-600'; // Normal
+            if (percentage >= 100) return 'bg-red-200 text-red-700';
+            if (percentage >= 80) return 'bg-orange-200 text-orange-700';
+            return 'bg-gray-200 text-gray-600';
         }
     };
 
