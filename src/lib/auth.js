@@ -36,13 +36,19 @@ export const authOptions = {
                         return null;
                     }
 
-                    // FIXED: Include ALL user data needed for the session
+                    // Get effective tier
+                    const effectiveTier = user.getEffectiveTier?.() || 'free';
+                    const subscriptionTier = user.subscription?.tier || 'free';
+
+                    // **FIXED: Set isAdmin based on subscription tier**
+                    const isAdmin = subscriptionTier === 'admin' || effectiveTier === 'admin' || subscriptionTier === 'platinum' || effectiveTier === 'platinum';
+
                     console.log('🔐 Authorizing user:', {
                         id: user._id.toString(),
                         email: user.email,
-                        effectiveTier: user.getEffectiveTier?.() || 'free',
-                        subscriptionStatus: user.subscription?.status,
-                        subscriptionTier: user.subscription?.tier
+                        effectiveTier: effectiveTier,
+                        subscriptionTier: subscriptionTier,
+                        isAdmin: isAdmin  // This should now be true for admin users
                     });
 
                     return {
@@ -51,14 +57,11 @@ export const authOptions = {
                         name: user.name,
                         emailVerified: user.emailVerified || false,
                         avatar: user.avatar || '',
-                        // ADDED: Include subscription/admin information
-                        subscriptionTier: user.subscription?.tier || 'free',
+                        subscriptionTier: subscriptionTier,
                         subscriptionStatus: user.subscription?.status || 'free',
-                        effectiveTier: user.getEffectiveTier?.() || 'free',
-                        // Include raw subscription data for debugging
+                        effectiveTier: effectiveTier,
                         subscription: user.subscription || null,
-                        // Include any admin flags if they exist
-                        isAdmin: user.isAdmin || false,
+                        isAdmin: isAdmin,  // **FIXED: This will now be true for admin/platinum users**
                         roles: user.roles || [],
                     };
                 } catch (error) {
