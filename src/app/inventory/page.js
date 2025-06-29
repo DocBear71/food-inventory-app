@@ -41,7 +41,6 @@ function InventoryContent() {
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
-    const isAdminEmail = session?.user?.email === 'e.g.mckeown@gmail.com';
     const subscription = useSubscription();
 
     // Advanced filtering and search
@@ -77,26 +76,6 @@ function InventoryContent() {
     }, [session]);
 
     useEffect(() => {
-        if (session?.user?.email === 'e.g.mckeown@gmail.com') {
-            console.log('🔄 Admin user detected, clearing signout flags and refreshing...');
-
-            // Clear all signout flags that block API calls
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem('prevent-session-calls');
-                sessionStorage.removeItem('signout-in-progress');
-                sessionStorage.removeItem('just-signed-out');
-                console.log('🧹 Cleared signout flags');
-            }
-
-            // Force refresh subscription data
-            setTimeout(() => {
-                subscription.forceRefresh?.();
-                console.log('🔄 Forced subscription refresh');
-            }, 100);
-        }
-    }, [session?.user?.email]);
-
-    useEffect(() => {
         const shouldOpenWizard = searchParams.get('wizard') === 'true';
         if (shouldOpenWizard) {
             setShowCommonItemsWizard(true);
@@ -126,32 +105,12 @@ function InventoryContent() {
         });
     }, [subscription.tier, subscription.isAdmin, subscription.loading, subscription.error]);
 
-    const effectiveSubscription = isAdminEmail ? {
-        tier: 'admin',
-        status: 'active',
-        isAdmin: true,
-        loading: false,
-        error: null,
-        isActive: true,
-        isTrialActive: false,
-        isFree: false,
-        isGold: false,
-        isPlatinum: true,
-        isGoldOrHigher: true,
-        checkFeature: () => true,
-        checkLimit: () => true,
-        // Keep original functions
-        refetch: subscription.refetch,
-        forceRefresh: subscription.forceRefresh,
-        clearCache: subscription.clearCache
-    } : subscription;
-
     const getUsageInfo = () => {
-        if (!effectiveSubscription || effectiveSubscription.loading) {
+        if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
-        const tier = effectiveSubscription.tier || 'free';
+        const tier = subscription.tier || 'free';
         return {
             current: inventory.length,
             limit: tier === 'free' ? 50 :

@@ -186,6 +186,23 @@ export function SubscriptionProvider({ children }) {
         }
     }, [session?.user?.id, retryCount, clearSubscriptionCache]);
 
+    useEffect(() => {
+        if (session?.user?.email === 'e.g.mckeown@gmail.com') {
+            console.log('🧹 SubscriptionProvider: Clearing signout flags for admin user');
+
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('prevent-session-calls');
+                sessionStorage.removeItem('signout-in-progress');
+                sessionStorage.removeItem('just-signed-out');
+            }
+
+            // Also force refresh subscription data
+            setTimeout(() => {
+                fetchSubscriptionData(true);
+            }, 100);
+        }
+    }, [session?.user?.email]);
+
     // Effect to fetch subscription data when session changes
     useEffect(() => {
         if (status === 'loading') {
