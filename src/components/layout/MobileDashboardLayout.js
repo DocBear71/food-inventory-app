@@ -177,15 +177,39 @@ export default function MobileDashboardLayout({children}) {
                                     src={`/api/user/avatar/${session.user.avatar}`}
                                     alt="Profile"
                                     className="profile-image"
+                                    style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        objectFit: 'cover',
+                                        borderRadius: '50%',
+                                        position: 'absolute',
+                                        top: '0',
+                                        left: '0'
+                                    }}
                                     onError={(e) => {
                                         e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
+                                        const fallback = e.target.parentElement.querySelector('.profile-fallback');
+                                        if (fallback) {
+                                            fallback.style.display = 'flex';
+                                        }
                                     }}
                                 />
                             ) : null}
-                            <span className={`profile-fallback ${session?.user?.avatar ? 'hidden' : 'visible'}`}>
-                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                            </span>
+                            <span
+                                className="profile-fallback"
+                                style={{
+                                    color: '#4f46e5',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    width: '100%',
+                                    height: '100%',
+                                    display: session?.user?.avatar ? 'none' : 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+    </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -330,6 +354,49 @@ export default function MobileDashboardLayout({children}) {
             <PWAInstallBanner/>
 
             <style jsx>{`
+                .profile-button {
+                    width: 40px;
+                    height: 40px;
+                    min-width: 40px;
+                    min-height: 40px;
+                    max-width: 40px;
+                    max-height: 40px;
+                    background: #e0e7ff;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                    position: relative;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .profile-button:hover {
+                    background: #c7d2fe;
+                }
+
+                .profile-image {
+                    width: 40px;
+                    height: 40px;
+                    object-fit: cover;
+                    border-radius: 50%;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                }
+
+                .profile-fallback {
+                    color: #4f46e5;
+                    font-size: 14px;
+                    font-weight: 600;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
                 .mobile-dashboard-container {
                     position: fixed;
                     top: 0;
