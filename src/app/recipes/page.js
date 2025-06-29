@@ -503,7 +503,7 @@ function RecipesContent() {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
-        const tier = subscription.tier || 'free';
+        const tier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
 
         switch (tabType) {
             case 'my-recipes':

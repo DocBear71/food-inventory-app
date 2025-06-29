@@ -233,7 +233,7 @@ const RecipeCollections = ({
             return { current: collections.length, limit: '...', tier: 'free' };
         }
 
-        const tier = subscription.tier || 'free';
+        const tier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
         const limits = {
             free: 2,
             gold: 10,

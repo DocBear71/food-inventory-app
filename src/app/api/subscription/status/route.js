@@ -35,8 +35,22 @@ export async function GET(request) {
             );
         }
 
+        // **ADD THESE DEBUG LOGS:**
+        console.log('🔍 === USER DEBUG INFO ===');
+        console.log('📧 User email:', user.email);
+        console.log('👤 User isAdmin field:', user.isAdmin);
+        console.log('📊 User subscription:', user.subscription);
+        console.log('🎯 Session user info:', {
+            id: session.user.id,
+            email: session.user.email,
+            subscriptionTier: session.user.subscriptionTier,
+            isAdmin: session.user.isAdmin
+        });
+        console.log('🔍 === END USER DEBUG ===');
+
         // FIXED: Admin detection logic
         let isUserAdmin = user.isAdmin === true;
+        console.log('🔍 Initial isUserAdmin from database:', isUserAdmin);
 
         // Double-check with email if isAdmin field is not set correctly
         if (!isUserAdmin) {
@@ -46,8 +60,11 @@ export async function GET(request) {
                 // Add more admin emails as needed
             ];
 
+            console.log('🔍 Checking email against admin list:', user.email.toLowerCase());
+            console.log('🔍 Admin emails:', adminEmails);
+
             if (adminEmails.includes(user.email.toLowerCase())) {
-                console.log('🔧 User email matches admin list, setting admin status:', user.email);
+                console.log('🔧 ✅ User email matches admin list, setting admin status:', user.email);
                 isUserAdmin = true;
 
                 // Update the user record to have correct admin status
@@ -61,11 +78,20 @@ export async function GET(request) {
                 try {
                     await user.save();
                     console.log('✅ User admin status updated in database');
+
+                    // **VERIFY THE SAVE WORKED:**
+                    const verifyUser = await User.findById(session.user.id).select('+isAdmin');
+                    console.log('🔍 Verification after save - isAdmin:', verifyUser.isAdmin);
+                    console.log('🔍 Verification after save - subscription:', verifyUser.subscription);
                 } catch (saveError) {
                     console.error('❌ Error saving admin status:', saveError);
                 }
+            } else {
+                console.log('❌ Email does not match admin list');
             }
         }
+
+        console.log('🎯 Final isUserAdmin decision:', isUserAdmin);
 
         if (isUserAdmin) {
             console.log('✅ Admin user confirmed:', user.email);
@@ -284,6 +310,14 @@ export async function GET(request) {
             savedRecipes: subscriptionData.usage.savedRecipes,
             collections: subscriptionData.usage.recipeCollections
         });
+
+        console.log('🔍 === FINAL RESPONSE DEBUG ===');
+        console.log('📊 Returning subscription data:', {
+            tier: subscriptionData.tier,
+            isAdmin: subscriptionData.isAdmin,
+            status: subscriptionData.status
+        });
+        console.log('🔍 === END RESPONSE DEBUG ===');
 
         return Response.json(subscriptionData);
 

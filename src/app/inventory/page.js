@@ -117,19 +117,34 @@ function InventoryContent() {
     }, []);
 
     const getUsageInfo = () => {
-        if (!subscription || subscription.loading) {
+        // **FIXED: Use session data instead of broken useSubscription hook**
+        const {data: session} = useSafeSession();
+
+        if (!session?.user) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
 
-        const tier = subscription.tier || 'free';
+        // Get tier from session data (which has the correct admin tier)
+        const tier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
+        const isAdmin = session.user.isAdmin || false;
+
+        console.log('🔍 INVENTORY: Using session tier data:', {
+            tier: tier,
+            isAdmin: isAdmin,
+            subscriptionTier: session.user.subscriptionTier,
+            effectiveTier: session.user.effectiveTier
+        });
+
         return {
             current: inventory.length,
             limit: tier === 'free' ? 50 :
-                   tier === 'gold' ? 250 :
-                   tier === 'admin' ? 'unlimited' :
-                   'unlimited',
+                tier === 'gold' ? 250 :
+                    tier === 'admin' ? 'unlimited' :
+                        tier === 'platinum' ? 'unlimited' :
+                            'unlimited',
             isUnlimited: tier === 'platinum' || tier === 'admin',
-            tier
+            tier: tier,
+            isAdmin: isAdmin
         };
     };
 

@@ -254,6 +254,13 @@ export function SubscriptionProvider({ children }) {
 }
 
 export function useSubscription() {
+
+    useEffect(() => {
+        if (subscriptionData) {
+            debugSubscriptionVsSession();
+        }
+    }, [subscriptionData]);
+
     const context = useContext(SubscriptionContext);
     if (!context) {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
@@ -315,45 +322,102 @@ export function useSubscription() {
         }
     };
 
-    const DEBUG_SUBSCRIPTION = false;
+    const DEBUG_SUBSCRIPTION = true;
 
-    // NEW: Admin status checks
+    // UPDATE the isAdmin function to check session data:
     const isAdmin = () => {
-        const adminStatus = subscriptionData?.isAdmin === true;
+        // **FIXED: Check session data first, then subscriptionData**
+        const { data: session } = useSafeSession();
+        const sessionAdmin = session?.user?.isAdmin === true;
+        const subscriptionAdmin = subscriptionData?.isAdmin === true;
+
+        const adminStatus = sessionAdmin || subscriptionAdmin;
+
         if (DEBUG_SUBSCRIPTION) {
-            console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
+            console.log('🔍 Admin status check:', {
+                sessionAdmin,
+                subscriptionAdmin,
+                finalStatus: adminStatus,
+                sessionTier: session?.user?.subscriptionTier,
+                subscriptionTier: subscriptionData?.tier
+            });
         }
         return adminStatus;
     };
 
     const getEffectiveTier = () => {
+        // **FIXED: Check session data first for admin status**
+        const { data: session } = useSafeSession();
+
         if (DEBUG_SUBSCRIPTION) {
-            console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
+            console.log('🔍 Getting effective tier:', {
+                sessionUser: session?.user,
+                subscriptionData: subscriptionData
+            });
         }
-        if (subscriptionData?.isAdmin) {
+
+        // Check admin status from both sources
+        const sessionAdmin = session?.user?.isAdmin === true;
+        const subscriptionAdmin = subscriptionData?.isAdmin === true;
+
+        if (sessionAdmin || subscriptionAdmin) {
             if (DEBUG_SUBSCRIPTION) {
-                console.log('✅ User is admin, returning admin tier');
+                console.log('✅ User is admin (session:', sessionAdmin, ', subscription:', subscriptionAdmin, '), returning admin tier');
             }
             return 'admin';
         }
-        const tier = subscriptionData?.tier || 'free';
+
+        // Get tier from session first, then fallback to subscriptionData
+        const sessionTier = session?.user?.subscriptionTier || session?.user?.effectiveTier;
+        const tier = sessionTier || subscriptionData?.tier || 'free';
+
         if (DEBUG_SUBSCRIPTION) {
-            console.log('📊 Returning tier:', tier);
+            console.log('📊 Returning tier:', tier, '(session:', sessionTier, ', subscription:', subscriptionData?.tier, ')');
         }
         return tier;
     };
 
-    // Rest of existing functions...
+    // UPDATE the isGoldOrHigher function:
     const isGoldOrHigher = () => {
-        if (subscriptionData?.isAdmin) return true; // Admin is higher than gold
-        const tier = subscriptionData?.tier || 'free';
+        // **FIXED: Use the updated isAdmin and getEffectiveTier functions**
+        if (isAdmin()) return true; // Admin is higher than gold
+        const tier = getEffectiveTier();
         return tier === 'gold' || tier === 'platinum';
     };
 
+// UPDATE the isPlatinum function:
     const isPlatinum = () => {
-        if (subscriptionData?.isAdmin) return true; // Admin is higher than platinum
-        return subscriptionData?.tier === 'platinum';
+        // **FIXED: Use the updated isAdmin and getEffectiveTier functions**
+        if (isAdmin()) return true; // Admin is higher than platinum
+        const tier = getEffectiveTier();
+        return tier === 'platinum';
     };
+
+    // **ADD THIS DEBUG FUNCTION to see what's happening:**
+    const debugSubscriptionVsSession = () => {
+        if (DEBUG_SUBSCRIPTION) {
+            const { data: session } = useSafeSession();
+            console.log('🔍 === SUBSCRIPTION VS SESSION DEBUG ===');
+            console.log('📊 subscriptionData:', {
+                tier: subscriptionData?.tier,
+                isAdmin: subscriptionData?.isAdmin,
+                status: subscriptionData?.status
+            });
+            console.log('👤 session.user:', {
+                subscriptionTier: session?.user?.subscriptionTier,
+                effectiveTier: session?.user?.effectiveTier,
+                isAdmin: session?.user?.isAdmin,
+                subscriptionStatus: session?.user?.subscriptionStatus
+            });
+            console.log('🎯 Final decisions:', {
+                effectiveTier: getEffectiveTier(),
+                isAdmin: isAdmin(),
+                isGoldOrHigher: isGoldOrHigher()
+            });
+            console.log('🔍 === END SUBSCRIPTION DEBUG ===');
+        }
+    };
+
 
     // FIXED: Map feature gates to correct usage tracking fields with SAVE_RECIPE support
     const getCurrentUsageCount = (feature) => {
