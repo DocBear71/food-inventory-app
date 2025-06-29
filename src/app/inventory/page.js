@@ -63,6 +63,28 @@ function InventoryContent() {
     const subscription = useSubscription();
 
     useEffect(() => {
+        console.log('🔍 INVENTORY DEBUG: useSubscription returned:', {
+            subscription: subscription,
+            tier: subscription?.tier,
+            loading: subscription?.loading,
+            isAdmin: subscription?.isAdmin,
+            status: subscription?.status,
+            allKeys: subscription ? Object.keys(subscription) : 'null'
+        });
+    }, [subscription]);
+
+// **ALSO ADD THIS TO COMPARE WITH SESSION:**
+
+    useEffect(() => {
+        console.log('🔍 INVENTORY DEBUG: useSafeSession returned:', {
+            user: session?.user,
+            subscriptionTier: session?.user?.subscriptionTier,
+            effectiveTier: session?.user?.effectiveTier,
+            isAdmin: session?.user?.isAdmin
+        });
+    }, [session]);
+
+    useEffect(() => {
         if (status === 'unauthenticated') {
             redirect('/auth/signin');
         }
