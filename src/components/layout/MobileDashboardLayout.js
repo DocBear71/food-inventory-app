@@ -1,5 +1,5 @@
 'use client';
-// file: src/components/layout/MobileDashboardLayout.js v7 - Fixed stacking and positioning issues
+// file: /src/components/layout/MobileDashboardLayout.js v6 - Fixed sign-out functionality with proper session clearing
 
 import {useState, useEffect} from 'react';
 import { handleMobileSignOut } from '@/lib/mobile-signout';
@@ -24,11 +24,8 @@ export default function MobileDashboardLayout({children}) {
             setIsScrolled(window.scrollY > 10);
         };
 
-        const mainContent = document.querySelector('.mobile-main-content');
-        if (mainContent) {
-            mainContent.addEventListener('scroll', handleScroll, {passive: true});
-            return () => mainContent.removeEventListener('scroll', handleScroll);
-        }
+        window.addEventListener('scroll', handleScroll, {passive: true});
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // Check if PWA banner should be shown
@@ -39,6 +36,7 @@ export default function MobileDashboardLayout({children}) {
                 document.referrer.includes('android-app://');
             const wasDismissed = sessionStorage.getItem('pwa-install-dismissed') === 'true';
 
+            // Show banner if not standalone and not dismissed
             setShowPWABanner(!isStandalone && !wasDismissed);
         };
 
@@ -58,6 +56,7 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
+    // Additional menu items for hamburger menu only - UPDATED: Added Receipt Scanner
     const additionalMenuItems = [
         {
             name: 'Receipt Scanner',
@@ -70,7 +69,7 @@ export default function MobileDashboardLayout({children}) {
             name: 'Common Items Wizard',
             href: '/inventory?wizard=true',
             icon: '🏠',
-            current: false,
+            current: false, // This doesn't have its own page, it's a modal
             description: 'Quickly add common household items to your inventory'
         },
         {
@@ -92,15 +91,40 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
+    // Add this to your mobile layout or create a settings page
+    const clearPWACache = async () => {
+        try {
+            // Clear service worker caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+            }
+
+            // Clear localStorage and sessionStorage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Force reload
+            window.location.reload();
+        } catch (error) {
+            console.error('Error clearing PWA cache:', error);
+        }
+    };
+
+    // FIXED: Enhanced mobile sign-out that properly handles PWA environments
     const handleSignOut = async () => {
-        if (isSigningOut) return;
+        if (isSigningOut) return; // Prevent double-clicks
 
         try {
             setIsSigningOut(true);
-            MobileHaptics?.medium();
-            setMobileMenuOpen(false);
+            MobileHaptics?.medium(); // Only call if available
+            setMobileMenuOpen(false); // Close mobile menu
 
             console.log('Mobile dashboard sign-out initiated');
+
+            // Use the specialized mobile sign-out handler
             await handleMobileSignOut({
                 callbackUrl: '/'
             });
@@ -109,6 +133,7 @@ export default function MobileDashboardLayout({children}) {
             console.error('Mobile dashboard sign-out error:', error);
             setIsSigningOut(false);
 
+            // Emergency fallback
             try {
                 localStorage.clear();
                 sessionStorage.clear();
@@ -120,15 +145,20 @@ export default function MobileDashboardLayout({children}) {
         }
     };
 
+    // Calculate bottom padding based on whether PWA banner is shown
+    const bottomPadding = showPWABanner ? 'pb-32' : 'pb-20'; // pb-32 = bottom nav (64px) + banner (64px), pb-20 = just bottom nav
+
     return (
-        <div className="mobile-dashboard-container">
-            {/* Mobile Header */}
-            <header className={`mobile-header ${isScrolled ? 'scrolled' : ''}`}>
-                <div className="header-content">
-                    <div className="header-left">
+        <div className="min-h-screen bg-gray-50">
+            {/* Mobile Header - back at top */}
+            <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-200 ${
+                isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
+            }`}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className="menu-button"
+                            className="p-2 rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0"
                             aria-label="Open menu"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,16 +167,22 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        <div className="app-title">
-                            <div className="title-main">Doc Bear's</div>
-                            <div className="title-sub">Comfort Kitchen</div>
+                        {/* Two-line title */}
+                        <div className="flex-1 min-w-0">
+                            <div className="text-lg font-bold text-gray-900 leading-tight">
+                                Doc Bear's
+                            </div>
+                            <div className="text-sm font-semibold text-gray-700 leading-tight">
+                                Comfort Kitchen
+                            </div>
                         </div>
                     </div>
 
-                    <div className="header-right">
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                        {/* Receipt Scanner Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
-                            className="action-button receipt-button"
+                            className="p-2 rounded-lg bg-purple-600 text-white shadow-md hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Scan receipt"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,9 +191,10 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
+                        {/* Quick add Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add')}
-                            className="action-button add-button"
+                            className="p-2 rounded-lg bg-green-600 text-white shadow-md hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,9 +203,10 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
+                        {/* User avatar with profile link - FIXED DISPLAY LOGIC */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
-                            className="profile-button"
+                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden flex-shrink-0 relative"
                             aria-label="Go to profile"
                             title="Profile"
                         >
@@ -176,40 +214,21 @@ export default function MobileDashboardLayout({children}) {
                                 <img
                                     src={`/api/user/avatar/${session.user.avatar}`}
                                     alt="Profile"
-                                    className="profile-image"
-                                    style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        objectFit: 'cover',
-                                        borderRadius: '50%',
-                                        position: 'absolute',
-                                        top: '0',
-                                        left: '0'
-                                    }}
+                                    className="absolute inset-0 w-full h-full object-cover rounded-full"
                                     onError={(e) => {
+                                        // Fallback if image fails to load
                                         e.target.style.display = 'none';
-                                        const fallback = e.target.parentElement.querySelector('.profile-fallback');
-                                        if (fallback) {
-                                            fallback.style.display = 'flex';
-                                        }
+                                        e.target.parentElement.classList.add('show-fallback');
                                     }}
                                 />
                             ) : null}
                             <span
-                                className="profile-fallback"
-                                style={{
-                                    color: '#4f46e5',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    width: '100%',
-                                    height: '100%',
-                                    display: session?.user?.avatar ? 'none' : 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
+                                className={`text-indigo-600 text-sm font-medium w-full h-full flex items-center justify-center ${
+                                    session?.user?.avatar ? 'hidden' : 'block'
+                                }`}
                             >
-        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-    </span>
+                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                            </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -217,15 +236,15 @@ export default function MobileDashboardLayout({children}) {
 
             {/* Mobile Menu Overlay */}
             {mobileMenuOpen && (
-                <div className="mobile-menu-overlay">
-                    <div className="menu-backdrop" onClick={() => setMobileMenuOpen(false)}/>
-                    <div className="menu-panel">
-                        {/* Menu Header */}
-                        <div className="menu-header">
-                            <h2 className="menu-title">Menu</h2>
+                <div className="fixed inset-0 z-50 lg:hidden">
+                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
+                    <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
+                        {/* Menu Header - Fixed */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+                            <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
                             <TouchEnhancedButton
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="menu-close"
+                                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -234,91 +253,145 @@ export default function MobileDashboardLayout({children}) {
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Menu Content */}
-                        <div className="menu-content">
-                            <nav className="menu-nav">
-                                {/* Main navigation */}
-                                <div className="nav-section">
-                                    <h3 className="nav-section-title">Main Navigation</h3>
+                        {/* Scrollable Navigation Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            <nav className="px-4 py-6 space-y-2">
+                                {/* Main navigation items */}
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                        Main Navigation
+                                    </h3>
                                     {navigation.map((item) => (
                                         <TouchEnhancedButton
                                             key={item.name}
                                             onClick={() => handleNavigation(item.href)}
-                                            className={`nav-item ${item.current ? 'current' : ''}`}
+                                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                item.current
+                                                    ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                            }`}
                                         >
-                                            <span className="nav-icon">{item.icon}</span>
-                                            <span className="nav-text">{item.name}</span>
-                                            {item.current && <div className="nav-indicator"/>}
+                                            <span className="text-xl">{item.icon}</span>
+                                            <span className="font-medium">{item.name}</span>
+                                            {item.current && (
+                                                <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"/>
+                                            )}
                                         </TouchEnhancedButton>
                                     ))}
                                 </div>
 
-                                {/* Additional menu items */}
-                                <div className="nav-section">
-                                    <h3 className="nav-section-title">Tools & Features</h3>
+                                {/* Additional menu items - UPDATED: Now includes Receipt Scanner */}
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                        Tools & Features
+                                    </h3>
                                     {additionalMenuItems.map((item) => (
                                         <TouchEnhancedButton
                                             key={item.name}
                                             onClick={() => handleNavigation(item.href)}
-                                            className={`nav-item detailed ${item.current ? 'current' : ''}`}
+                                            className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                item.current
+                                                    ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                            }`}
                                         >
-                                            <span className="nav-icon">{item.icon}</span>
-                                            <div className="nav-text-container">
-                                                <div className="nav-text">{item.name}</div>
+                                            <span className="text-xl mt-0.5">{item.icon}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium">{item.name}</div>
                                                 {item.description && (
-                                                    <div className="nav-description">{item.description}</div>
+                                                    <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
                                                 )}
                                             </div>
-                                            {item.current && <div className="nav-indicator"/>}
+                                            {item.current && (
+                                                <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                            )}
                                         </TouchEnhancedButton>
                                     ))}
                                 </div>
+
+                                {/* Add some bottom padding to ensure last items are accessible */}
+                                <div className="h-4"></div>
                             </nav>
                         </div>
 
-                        {/* Menu Footer */}
-                        <div className="menu-footer">
+                        {/* User Profile & Sign Out Section - Fixed at bottom */}
+                        <div className="border-t bg-gray-50 flex-shrink-0">
+                            {/* User Info */}
                             {session && (
-                                <div className="user-info">
-                                    <div className="user-avatar">
-                                        {session?.user?.avatar ? (
-                                            <img
-                                                src={`/api/user/avatar/${session.user.avatar}`}
-                                                alt="Profile"
-                                                className="avatar-image"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                }}
-                                            />
-                                        ) : (
-                                            <span className="avatar-fallback">
-                                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="user-details">
-                                        <div className="user-name">{session.user.name}</div>
-                                        <div className="user-email">{session.user.email}</div>
+                                <div className="px-4 py-3 border-b border-gray-200">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {session?.user?.avatar ? (
+                                                <img
+                                                    src={`/api/user/avatar/${session.user.avatar}`}
+                                                    alt="Profile"
+                                                    className="w-10 h-10 object-cover rounded-full"
+                                                    onError={(e) => {
+                                                        // Hide the image and show fallback
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-indigo-600 text-sm font-medium">
+            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+        </span>
+                                            )}
+
+                                            {/* Fallback span that shows when image fails to load */}
+                                            {session?.user?.avatar && (
+                                                <span
+                                                    className="text-indigo-600 text-sm font-medium"
+                                                    style={{ display: 'none' }}
+                                                    ref={(el) => {
+                                                        if (el && session?.user?.avatar) {
+                                                            // This will be shown if the image fails to load
+                                                            const img = el.parentElement.querySelector('img');
+                                                            if (img) {
+                                                                img.onerror = () => {
+                                                                    img.style.display = 'none';
+                                                                    el.style.display = 'flex';
+                                                                };
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+        </span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-gray-900 truncate">
+                                                {session.user.name}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {session.user.email}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="footer-actions">
+                            {/* Navigation Buttons */}
+                            <div className="p-4 space-y-2">
                                 <TouchEnhancedButton
                                     onClick={() => handleNavigation('/account')}
-                                    className="footer-button settings"
+                                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
                                 >
-                                    <span className="button-icon">⚙️</span>
-                                    <span className="button-text">Account Settings</span>
+                                    <span className="text-xl">⚙️</span>
+                                    <span className="font-medium">Account Settings</span>
                                 </TouchEnhancedButton>
 
                                 <TouchEnhancedButton
                                     onClick={handleSignOut}
                                     disabled={isSigningOut}
-                                    className={`footer-button signout ${isSigningOut ? 'disabled' : ''}`}
+                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all touch-friendly ${
+                                        isSigningOut
+                                            ? 'text-white bg-gray-400 cursor-not-allowed'
+                                            : 'text-white bg-red-600 hover:bg-red-700 active:bg-red-800'
+                                    }`}
                                 >
-                                    <span className="button-icon">{isSigningOut ? '⏳' : '🚪'}</span>
-                                    <span className="button-text">{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
+                                    <span className="text-xl">{isSigningOut ? '⏳' : '🚪'}</span>
+                                    <span className="font-medium">{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
                                 </TouchEnhancedButton>
                             </div>
                         </div>
@@ -326,553 +399,41 @@ export default function MobileDashboardLayout({children}) {
                 </div>
             )}
 
-            {/* Main Content */}
-            <main className="mobile-main-content">
-                <div className="content-wrapper">
+            {/* Main Content - Right amount of padding to clear header */}
+            <main className="mobile-main-content"
+                  style={{paddingTop: '20px', paddingBottom: showPWABanner ? '128px' : '80px'}}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
             </main>
 
             {/* Bottom Navigation */}
-            <nav className="bottom-navigation">
-                <div className="bottom-nav-grid">
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
+                <div className="grid grid-cols-5 h-16">
                     {navigation.map((item) => (
                         <TouchEnhancedButton
                             key={item.name}
                             onClick={() => handleNavigation(item.href)}
-                            className={`bottom-nav-item ${item.current ? 'current' : ''}`}
+                            className={`flex flex-col items-center justify-center space-y-1 transition-all touch-friendly ${
+                                item.current
+                                    ? 'text-indigo-600 bg-indigo-50'
+                                    : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
+                            }`}
                         >
-                            <span className="bottom-nav-icon">{item.icon}</span>
-                            <span className="bottom-nav-text">{item.name}</span>
-                            {item.current && <div className="bottom-nav-indicator"/>}
+                            <span className="text-lg">{item.icon}</span>
+                            <span className="text-xs font-medium truncate max-w-full px-1">
+                {item.name}
+              </span>
+                            {item.current && (
+                                <div
+                                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
+                            )}
                         </TouchEnhancedButton>
                     ))}
                 </div>
             </nav>
-
-            {/* PWA Install Banner */}
+            {/* PWA Install Banner - back at bottom */}
             <PWAInstallBanner/>
-
-            <style jsx>{`
-                .profile-button {
-                    width: 40px;
-                    height: 40px;
-                    min-width: 40px;
-                    min-height: 40px;
-                    max-width: 40px;
-                    max-height: 40px;
-                    background: #e0e7ff;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                    position: relative;
-                    transition: all 0.2s;
-                    flex-shrink: 0;
-                }
-
-                .profile-button:hover {
-                    background: #c7d2fe;
-                }
-
-                .profile-image {
-                    width: 40px;
-                    height: 40px;
-                    object-fit: cover;
-                    border-radius: 50%;
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                }
-
-                .profile-fallback {
-                    color: #4f46e5;
-                    font-size: 14px;
-                    font-weight: 600;
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .mobile-dashboard-container {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    display: flex;
-                    flex-direction: column;
-                    background: #f9fafb;
-                    z-index: 1;
-                }
-
-                .mobile-header {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 64px;
-                    background: white;
-                    border-bottom: 1px solid #e5e7eb;
-                    z-index: 40;
-                    transition: all 0.2s;
-                }
-
-                .mobile-header.scrolled {
-                    background: rgba(255, 255, 255, 0.95);
-                    backdrop-filter: blur(12px);
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                }
-
-                .header-content {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px 16px;
-                    height: 100%;
-                }
-
-                .header-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    flex: 1;
-                    min-width: 0;
-                }
-
-                .menu-button {
-                    padding: 8px;
-                    border-radius: 8px;
-                    background: #4f46e5;
-                    color: white;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                    transition: all 0.2s;
-                    flex-shrink: 0;
-                }
-
-                .menu-button:hover {
-                    background: #4338ca;
-                }
-
-                .app-title {
-                    flex: 1;
-                    min-width: 0;
-                }
-
-                .title-main {
-                    font-size: 18px;
-                    font-weight: 700;
-                    color: #111827;
-                    line-height: 1.2;
-                }
-
-                .title-sub {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #374151;
-                    line-height: 1.2;
-                }
-
-                .header-right {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    flex-shrink: 0;
-                }
-
-                .action-button {
-                    padding: 8px;
-                    border-radius: 8px;
-                    color: white;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                    transition: all 0.2s;
-                }
-
-                .receipt-button {
-                    background: #7c3aed;
-                }
-
-                .receipt-button:hover {
-                    background: #6d28d9;
-                }
-
-                .add-button {
-                    background: #059669;
-                }
-
-                .add-button:hover {
-                    background: #047857;
-                }
-
-                .profile-button {
-                    width: 40px;
-                    height: 40px;
-                    background: #e0e7ff;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                    position: relative;
-                    transition: all 0.2s;
-                }
-
-                .profile-button:hover {
-                    background: #c7d2fe;
-                }
-
-                .profile-image {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    border-radius: 50%;
-                }
-
-                .profile-fallback {
-                    color: #4f46e5;
-                    font-size: 14px;
-                    font-weight: 600;
-                }
-
-                .profile-fallback.hidden {
-                    display: none;
-                }
-
-                .profile-fallback.visible {
-                    display: flex;
-                }
-
-                .mobile-main-content {
-                    flex: 1;
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                    -webkit-overflow-scrolling: touch;
-                    padding-top: 64px;
-                    padding-bottom: 64px;
-                    position: relative;
-                    background: #f9fafb;
-                }
-
-                .content-wrapper {
-                    max-width: 1280px;
-                    margin: 0 auto;
-                    padding: 24px 16px;
-                    min-height: calc(100vh - 128px);
-                }
-
-                .bottom-navigation {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 64px;
-                    background: white;
-                    border-top: 1px solid #e5e7eb;
-                    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-                    z-index: 30;
-                }
-
-                .bottom-nav-grid {
-                    display: grid;
-                    grid-template-columns: repeat(5, 1fr);
-                    height: 100%;
-                }
-
-                .bottom-nav-item {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 4px;
-                    transition: all 0.2s;
-                    position: relative;
-                    color: #9ca3af;
-                }
-
-                .bottom-nav-item.current {
-                    color: #4f46e5;
-                    background: #f0f3ff;
-                }
-
-                .bottom-nav-item:hover {
-                    color: #6b7280;
-                }
-
-                .bottom-nav-icon {
-                    font-size: 18px;
-                }
-
-                .bottom-nav-text {
-                    font-size: 10px;
-                    font-weight: 600;
-                    text-align: center;
-                    max-width: 100%;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    padding: 0 4px;
-                }
-
-                .bottom-nav-indicator {
-                    position: absolute;
-                    bottom: 0;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 32px;
-                    height: 4px;
-                    background: #4f46e5;
-                    border-radius: 2px 2px 0 0;
-                }
-
-                /* Mobile Menu Styles */
-                .mobile-menu-overlay {
-                    position: fixed;
-                    inset: 0;
-                    z-index: 50;
-                }
-
-                .menu-backdrop {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                }
-
-                .menu-panel {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    bottom: 0;
-                    width: 320px;
-                    max-width: calc(100vw - 40px);
-                    background: white;
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .menu-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 16px 24px;
-                    border-bottom: 1px solid #e5e7eb;
-                    flex-shrink: 0;
-                }
-
-                .menu-title {
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #111827;
-                }
-
-                .menu-close {
-                    padding: 8px;
-                    border-radius: 8px;
-                    color: #9ca3af;
-                    transition: all 0.2s;
-                }
-
-                .menu-close:hover {
-                    color: #6b7280;
-                    background: #f3f4f6;
-                }
-
-                .menu-content {
-                    flex: 1;
-                    overflow-y: auto;
-                }
-
-                .menu-nav {
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 24px;
-                }
-
-                .nav-section-title {
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: #6b7280;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    margin-bottom: 12px;
-                    padding: 0 16px;
-                }
-
-                .nav-item {
-                    width: 100%;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px 16px;
-                    border-radius: 8px;
-                    text-align: left;
-                    transition: all 0.2s;
-                    color: #374151;
-                    position: relative;
-                }
-
-                .nav-item:hover {
-                    background: #f3f4f6;
-                }
-
-                .nav-item.current {
-                    background: #f0f3ff;
-                    color: #4f46e5;
-                    border-left: 4px solid #4f46e5;
-                }
-
-                .nav-icon {
-                    font-size: 20px;
-                    flex-shrink: 0;
-                }
-
-                .nav-text {
-                    font-weight: 600;
-                }
-
-                .nav-text-container {
-                    flex: 1;
-                    min-width: 0;
-                }
-
-                .nav-description {
-                    font-size: 12px;
-                    color: #6b7280;
-                    margin-top: 2px;
-                }
-
-                .nav-indicator {
-                    width: 8px;
-                    height: 8px;
-                    background: #4f46e5;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                }
-
-                .menu-footer {
-                    border-top: 1px solid #e5e7eb;
-                    background: #f9fafb;
-                    flex-shrink: 0;
-                }
-
-                .user-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e5e7eb;
-                }
-
-                .user-avatar {
-                    width: 40px;
-                    height: 40px;
-                    background: #e0e7ff;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                    flex-shrink: 0;
-                }
-
-                .avatar-image {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    border-radius: 50%;
-                }
-
-                .avatar-fallback {
-                    color: #4f46e5;
-                    font-size: 14px;
-                    font-weight: 600;
-                }
-
-                .user-details {
-                    flex: 1;
-                    min-width: 0;
-                }
-
-                .user-name {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #111827;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                }
-
-                .user-email {
-                    font-size: 12px;
-                    color: #6b7280;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                }
-
-                .footer-actions {
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .footer-button {
-                    width: 100%;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px 16px;
-                    border-radius: 8px;
-                    transition: all 0.2s;
-                }
-
-                .footer-button.settings {
-                    color: #374151;
-                    background: transparent;
-                }
-
-                .footer-button.settings:hover {
-                    background: #f3f4f6;
-                }
-
-                .footer-button.signout {
-                    color: white;
-                    background: #dc2626;
-                }
-
-                .footer-button.signout:hover {
-                    background: #b91c1c;
-                }
-
-                .footer-button.signout.disabled {
-                    background: #9ca3af;
-                    cursor: not-allowed;
-                }
-
-                .button-icon {
-                    font-size: 20px;
-                }
-
-                .button-text {
-                    font-weight: 600;
-                }
-
-                /* Responsive adjustments */
-                @media (max-width: 640px) {
-                    .menu-panel {
-                        width: 280px;
-                    }
-                    
-                    .content-wrapper {
-                        padding: 16px 12px;
-                    }
-                }
-            `}</style>
         </div>
     );
 }
