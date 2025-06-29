@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { getApiUrl } from '@/lib/api-config';
+import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
 
 function VerifyEmailContent() {
     const router = useRouter();
@@ -187,11 +188,15 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-lg">Loading...</div>
-            </div>
+            <MobileOptimizedLayout>
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div className="text-lg text-gray-600">Loading...</div>
+                    </div>
+                </div>
+            </MobileOptimizedLayout>
         }>
-            <VerifyEmailContent />
         </Suspense>
     );
 }

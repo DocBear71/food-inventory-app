@@ -7,6 +7,7 @@ import AdminDebug from "@/components/debug/AdminDebug";
 export default function MobileOptimizedLayout({ children }) {
     const [isMobile, setIsMobile] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -14,13 +15,22 @@ export default function MobileOptimizedLayout({ children }) {
         };
 
         checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        // Set mounted immediately
         setMounted(true);
 
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        // Add a small delay to ensure everything is ready
+        const readyTimer = setTimeout(() => {
+            setIsReady(true);
+        }, 100);
+
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            clearTimeout(readyTimer);
+        };
     }, []);
 
-    // Move this useEffect BEFORE the early return
     useEffect(() => {
         if (mounted) {
             document.body.style.overscrollBehavior = 'none';
@@ -33,20 +43,10 @@ export default function MobileOptimizedLayout({ children }) {
         }
     }, [mounted]);
 
-    // Now the early return comes AFTER all hooks
-    if (!mounted) {
+    // Show loading only if not mounted OR not ready
+    if (!mounted || !isReady) {
         return (
-            <div className="min-h-screen bg-gray-50" style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
         );
@@ -55,11 +55,9 @@ export default function MobileOptimizedLayout({ children }) {
     const LayoutComponent = isMobile ? MobileDashboardLayout : DashboardLayout;
 
     return (
-        <div style={{
-            minHeight: '100vh',
+        <div className="min-h-screen" style={{
             overscrollBehavior: 'none',
-            position: 'relative',
-            overflow: 'hidden auto'
+            position: 'relative'
         }}>
             <LayoutComponent>
                 {children}
