@@ -46,7 +46,103 @@ body {
 html, body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    height: 100vh;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    position: relative;
 }
+
+/* Fix for Capacitor apps - prevent content stacking */
+#__next {
+    min-height: 100vh;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Ensure main content containers take full height */
+.main-container {
+    min-height: 100vh;
+    height: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Fix loading screens to overlay properly instead of stacking */
+.loading-overlay {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Prevent multiple pages from showing at once */
+.page-container {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    background: white;
+}
+
+/* Fix for React transitions in Capacitor */
+.page-transition {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* Mobile-specific fixes */
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent zoom on inputs */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Fix viewport issues */
+    .mobile-container {
+        width: 100vw;
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+}
+
+/* Capacitor-specific fixes */
+.capacitor-app {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.capacitor-app .main-content {
+    height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for status bar and safe areas */
+.safe-area-top {
+    padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
 
 /* Ensure the main container doesn't allow over-scroll */
 .dashboard-container {
