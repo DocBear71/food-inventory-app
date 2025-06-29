@@ -1,7 +1,7 @@
 // file: /src/lib/mobile-signout.js - v2 - Clean version without warnings
 
 import { signOut } from 'next-auth/react';
-import { MobileSession } from '@/lib/mobile-session';
+import { MobileSession } from '@/lib/mobile-session-simple';
 
 // Helper function to safely check if we're on a native platform
 async function isNativePlatform() {
