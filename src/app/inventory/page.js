@@ -403,6 +403,9 @@ function InventoryContent() {
         e.preventDefault();
         setLoading(true);
 
+        console.log('🔍 CLIENT: Starting form submission');
+        console.log('🔍 CLIENT: Form data:', formData);
+
         if (!session?.user?.id) {
             alert('Session expired. Please sign in again.');
             setLoading(false);
@@ -410,11 +413,14 @@ function InventoryContent() {
         }
 
         try {
-            const url = '/api/inventory';
+            const url = getApiUrl('/api/inventory');
             const method = editingItem ? 'PUT' : 'POST';
             const body = editingItem
                 ? {itemId: editingItem._id, ...formData}
                 : formData;
+
+            console.log('🔍 CLIENT: Making request to:', url);
+            console.log('🔍 CLIENT: Request body:', JSON.stringify(body, null, 2));
 
             const response = await fetch(url, {
                 method,
@@ -426,9 +432,24 @@ function InventoryContent() {
                 body: JSON.stringify(body),
             });
 
+            console.log('🔍 CLIENT: Response status:', response.status);
+            console.log('🔍 CLIENT: Response headers:', Object.fromEntries(response.headers.entries()));
+
+            // Check if response is actually JSON
+            const contentType = response.headers.get('content-type');
+            console.log('🔍 CLIENT: Content-Type:', contentType);
+
+            if (!contentType || !contentType.includes('application/json')) {
+                const textResponse = await response.text();
+                console.error('❌ CLIENT: Non-JSON response:', textResponse);
+                throw new Error('Server returned non-JSON response: ' + textResponse.substring(0, 200));
+            }
+
             const data = await response.json();
+            console.log('🔍 CLIENT: Response data:', data);
 
             if (data.success) {
+                console.log('✅ CLIENT: Success! Refreshing inventory...');
                 await fetchInventory();
                 setFormData({
                     name: '',
@@ -445,6 +466,7 @@ function InventoryContent() {
                 setShowAddForm(false);
                 setEditingItem(null);
             } else {
+                console.error('❌ CLIENT: Server returned error:', data);
                 if (response.status === 401) {
                     alert('Session expired. Please refresh the page and sign in again.');
                 } else {
@@ -452,8 +474,8 @@ function InventoryContent() {
                 }
             }
         } catch (error) {
-            console.error('Error saving item:', error);
-            alert('Error saving item');
+            console.error('❌ CLIENT: Fetch error:', error);
+            alert('Error saving item: ' + error.message);
         } finally {
             setLoading(false);
         }
