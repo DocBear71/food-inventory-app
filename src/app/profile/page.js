@@ -4,6 +4,7 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import { MobileSession } from '@/lib/mobile-session-simple';
 
 export default function ProfilePage() {
     const { data: session, status } = useSafeSession();
@@ -36,6 +37,11 @@ export default function ProfilePage() {
             });
         }
     }, [status, session, router]);
+
+    const debugMobileSession = async () => {
+        console.log('🔍 Manual mobile session debug triggered...');
+        await MobileSession.debugSession();
+    };
 
     // Show loading state
     if (status === 'loading') {
@@ -85,6 +91,15 @@ export default function ProfilePage() {
                         <div>Tier: {session.user?.effectiveTier}</div>
                         <div>Debug: {debugInfo}</div>
                     </div>
+                </div>
+
+                <div className="mt-4">
+                    <button
+                        onClick={debugMobileSession}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                        Debug Mobile Session
+                    </button>
                 </div>
 
                 {/* Basic Profile Content */}

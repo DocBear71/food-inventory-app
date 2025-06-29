@@ -1,5 +1,4 @@
-// file: /src/lib/mobile-session-simple.js
-// Simplified mobile session that definitely works on Android
+// Enhanced mobile-session-simple.js with complete debugging
 
 const MOBILE_SESSION_KEY = 'mobile_session';
 const MOBILE_SESSION_EXPIRY_KEY = 'mobile_session_expiry';
@@ -48,10 +47,10 @@ class SimpleStorage {
 
         try {
             if (this.isCapacitor && this.preferences) {
-                console.log(`📱 Capacitor set: ${key}`);
+                console.log(`📱 Capacitor set: ${key} (length: ${value?.length || 0})`);
                 return await this.preferences.set({ key, value });
             } else {
-                console.log(`🌐 localStorage set: ${key}`);
+                console.log(`🌐 localStorage set: ${key} (length: ${value?.length || 0})`);
                 localStorage.setItem(key, value);
                 return Promise.resolve();
             }
@@ -69,10 +68,13 @@ class SimpleStorage {
             if (this.isCapacitor && this.preferences) {
                 console.log(`📱 Capacitor get: ${key}`);
                 const result = await this.preferences.get({ key });
+                console.log(`📱 Capacitor get result: ${key} = ${result.value ? 'found' : 'null'} (length: ${result.value?.length || 0})`);
                 return result.value;
             } else {
                 console.log(`🌐 localStorage get: ${key}`);
-                return localStorage.getItem(key);
+                const result = localStorage.getItem(key);
+                console.log(`🌐 localStorage get result: ${key} = ${result ? 'found' : 'null'} (length: ${result?.length || 0})`);
+                return result;
             }
         } catch (error) {
             console.error(`💥 Error getting ${key}:`, error);
@@ -124,7 +126,51 @@ class SimpleStorage {
 const storage = new SimpleStorage();
 
 export const MobileSession = {
-    // Store session data securely
+    // Enhanced debug function
+    async debugSession() {
+        try {
+            console.log('🔍 === MOBILE SESSION DEBUG START ===');
+
+            const sessionData = await storage.get(MOBILE_SESSION_KEY);
+            const expiryTime = await storage.get(MOBILE_SESSION_EXPIRY_KEY);
+
+            console.log('📊 Raw storage data:');
+            console.log('- Session data exists:', !!sessionData);
+            console.log('- Session data length:', sessionData?.length || 0);
+            console.log('- Expiry data exists:', !!expiryTime);
+
+            if (sessionData) {
+                try {
+                    const parsed = JSON.parse(sessionData);
+                    console.log('📋 Parsed session data:');
+                    console.log('- User ID:', parsed.user?.id);
+                    console.log('- User name:', parsed.user?.name);
+                    console.log('- User email:', parsed.user?.email);
+                    console.log('- Email verified:', parsed.user?.emailVerified);
+                    console.log('- Avatar:', parsed.user?.avatar);
+                    console.log('- Subscription tier:', parsed.user?.subscriptionTier);
+                    console.log('- Subscription status:', parsed.user?.subscriptionStatus);
+                    console.log('- Effective tier:', parsed.user?.effectiveTier);
+                    console.log('- Is admin:', parsed.user?.isAdmin);
+                    console.log('- Subscription object:', parsed.user?.subscription);
+                    console.log('- Session expires:', parsed.expires);
+                    console.log('- All user keys:', Object.keys(parsed.user || {}));
+                    console.log('- Full user object:', JSON.stringify(parsed.user, null, 2));
+                } catch (parseError) {
+                    console.error('💥 Failed to parse session data:', parseError);
+                    console.log('Raw session data:', sessionData.substring(0, 500));
+                }
+            }
+
+            console.log('🔍 === MOBILE SESSION DEBUG END ===');
+            return { sessionData, expiryTime };
+        } catch (error) {
+            console.error('💥 Debug session error:', error);
+            return null;
+        }
+    },
+
+    // Enhanced setSession with complete logging
     async setSession(sessionData) {
         try {
             if (!sessionData) {
@@ -132,7 +178,16 @@ export const MobileSession = {
                 return false;
             }
 
-            console.log('💾 Storing mobile session for user:', sessionData.user?.email);
+            console.log('💾 === STORING MOBILE SESSION ===');
+            console.log('📋 Input session data:');
+            console.log('- User email:', sessionData.user?.email);
+            console.log('- User ID:', sessionData.user?.id);
+            console.log('- Subscription tier:', sessionData.user?.subscriptionTier);
+            console.log('- Subscription status:', sessionData.user?.subscriptionStatus);
+            console.log('- Effective tier:', sessionData.user?.effectiveTier);
+            console.log('- Is admin:', sessionData.user?.isAdmin);
+            console.log('- All user keys:', Object.keys(sessionData.user || {}));
+            console.log('- Full user object to store:', JSON.stringify(sessionData.user, null, 2));
 
             // Set expiry to 24 hours from now (matching NextAuth)
             const expiryTime = new Date();
@@ -143,11 +198,19 @@ export const MobileSession = {
                 expires: expiryTime.toISOString()
             };
 
+            const sessionString = JSON.stringify(sessionWithExpiry);
+            console.log('📦 Serialized session length:', sessionString.length);
+
             // Store both pieces of data
-            await storage.set(MOBILE_SESSION_KEY, JSON.stringify(sessionWithExpiry));
+            await storage.set(MOBILE_SESSION_KEY, sessionString);
             await storage.set(MOBILE_SESSION_EXPIRY_KEY, expiryTime.toISOString());
 
             console.log('✅ Mobile session stored successfully');
+
+            // VERIFY what was actually stored
+            console.log('🔍 Verifying stored data...');
+            const verification = await this.debugSession();
+
             return true;
         } catch (error) {
             console.error('💥 Error storing mobile session:', error);
@@ -155,16 +218,16 @@ export const MobileSession = {
         }
     },
 
-    // Retrieve session data
+    // Enhanced getSession with complete logging
     async getSession() {
         try {
-            console.log('📖 Retrieving mobile session...');
+            console.log('📖 === RETRIEVING MOBILE SESSION ===');
 
             const sessionData = await storage.get(MOBILE_SESSION_KEY);
             const expiryTime = await storage.get(MOBILE_SESSION_EXPIRY_KEY);
 
             if (!sessionData || !expiryTime) {
-                console.log('❌ No mobile session found');
+                console.log('❌ No mobile session found (missing data or expiry)');
                 return null;
             }
 
@@ -179,7 +242,14 @@ export const MobileSession = {
             }
 
             const parsed = JSON.parse(sessionData);
-            console.log('✅ Retrieved valid mobile session for:', parsed.user?.email);
+            console.log('📋 Retrieved session data:');
+            console.log('- User email:', parsed.user?.email);
+            console.log('- Subscription tier:', parsed.user?.subscriptionTier);
+            console.log('- Effective tier:', parsed.user?.effectiveTier);
+            console.log('- Is admin:', parsed.user?.isAdmin);
+            console.log('- All user keys in retrieved session:', Object.keys(parsed.user || {}));
+
+            console.log('✅ Valid mobile session retrieved');
             return parsed;
         } catch (error) {
             console.error('💥 Error retrieving mobile session:', error);
@@ -187,7 +257,7 @@ export const MobileSession = {
         }
     },
 
-    // Clear session data
+    // Rest of your methods stay the same...
     async clearSession() {
         try {
             console.log('🗑️ Clearing mobile session...');
@@ -203,7 +273,6 @@ export const MobileSession = {
         }
     },
 
-    // Check if session exists and is valid
     async hasValidSession() {
         const session = await this.getSession();
         const hasSession = session !== null;
@@ -211,7 +280,6 @@ export const MobileSession = {
         return hasSession;
     },
 
-    // Update session expiry (for activity-based renewal)
     async renewSession() {
         try {
             console.log('🔄 Renewing mobile session...');
