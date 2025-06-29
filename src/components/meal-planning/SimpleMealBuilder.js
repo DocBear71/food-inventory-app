@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/SimpleMealBuilder.js v5 - TABBED INTERFACE for better mobile UX
+// file: /src/components/meal-planning/SimpleMealBuilder.js v6 - FIXED SCROLLABLE AREAS HEIGHT
 
 import {useState, useEffect} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -343,8 +343,8 @@ export default function SimpleMealBuilder({
             (category.includes('spice') || category.includes('seasoning')) ||
             (normalizedName.includes('salt') && !normalizedName.includes('salted')) ||
             (normalizedName.includes('pepper') && !normalizedName.includes('bell') &&
-             !normalizedName.includes('sweet') && !normalizedName.includes('red pepper') &&
-             !normalizedName.includes('green pepper'))) {
+                !normalizedName.includes('sweet') && !normalizedName.includes('red pepper') &&
+                !normalizedName.includes('green pepper'))) {
             return 'seasoning';
         }
 
@@ -381,7 +381,7 @@ export default function SimpleMealBuilder({
         if (starchKeywords.some(keyword => {
             const normalizedKeyword = keyword.replace(/\s+/g, ' ').trim();
             return normalizedName === normalizedKeyword ||
-                   normalizedName.includes(normalizedKeyword);
+                normalizedName.includes(normalizedKeyword);
         }) && !normalizedName.includes('vinegar') && !normalizedName.includes('sauce')) {
             return 'starch';
         }
@@ -407,7 +407,7 @@ export default function SimpleMealBuilder({
 
         if (vegetableKeywords.some(keyword => normalizedName.includes(keyword)) ||
             (category.includes('vegetable') && !normalizedName.includes('sauce') &&
-             !normalizedName.includes('soup'))) {
+                !normalizedName.includes('soup'))) {
             return 'vegetable';
         }
 
@@ -435,8 +435,8 @@ export default function SimpleMealBuilder({
 
         // General meat terms - but more specific
         if ((normalizedName.includes('chicken') || normalizedName.includes('beef') ||
-             normalizedName.includes('pork') || normalizedName.includes('turkey') ||
-             normalizedName.includes('fish') || normalizedName.includes('meat')) &&
+                normalizedName.includes('pork') || normalizedName.includes('turkey') ||
+                normalizedName.includes('fish') || normalizedName.includes('meat')) &&
             !normalizedName.includes('sauce') && !normalizedName.includes('gravy') &&
             !normalizedName.includes('soup') && !normalizedName.includes('helper') &&
             !normalizedName.includes('seasoning') && !normalizedName.includes('powder') &&
@@ -454,8 +454,8 @@ export default function SimpleMealBuilder({
 
         if (dairyKeywords.some(keyword => normalizedName.includes(keyword)) ||
             (normalizedName.includes('cheese') && !normalizedName.includes('lasagna') &&
-             !normalizedName.includes('helper') && !normalizedName.includes('sauce') &&
-             !normalizedName.includes('shells') && !normalizedName.includes('macaroni'))) {
+                !normalizedName.includes('helper') && !normalizedName.includes('sauce') &&
+                !normalizedName.includes('shells') && !normalizedName.includes('macaroni'))) {
             return 'dairy';
         }
 
@@ -736,23 +736,25 @@ export default function SimpleMealBuilder({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-                {/* Header */}
-                <div className="p-6 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                {/* Header - COMPACT */}
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                                <h2 className="text-lg font-semibold text-gray-900 mb-1">
                                     🍽️ Create Simple Meal
                                 </h2>
                                 <p className="text-sm text-gray-600">
-                                    Build a meal from your inventory items for {selectedSlot?.day} {selectedSlot?.mealType}
+                                    Build a meal from your inventory items
+                                    for {selectedSlot?.day} {selectedSlot?.mealType}
                                 </p>
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <span>Diet: {userDietaryRestrictions.join(', ')}</span>
                                         )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 && <span> • </span>}
+                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
+                                            <span> • </span>}
                                         {userAvoidIngredients.length > 0 && (
                                             <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
                                         )}
@@ -763,25 +765,26 @@ export default function SimpleMealBuilder({
                                 <TouchEnhancedButton
                                     onClick={suggestRandomMeal}
                                     disabled={filteredInventory.length === 0}
-                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400 transition-colors flex items-center gap-2"
+                                    className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400 transition-colors flex items-center gap-2"
                                 >
                                     <span>🎲</span>
-                                    <span>Suggest Random Meal</span>
+                                    <span className={isMobile ? "hidden" : ""}>Suggest Random Meal</span>
+                                    <span className={isMobile ? "" : "hidden"}>Random</span>
                                 </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
                     <TouchEnhancedButton
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 text-2xl p-1 ml-4"
+                        className="text-gray-400 hover:text-gray-600 text-xl p-1 ml-4"
                     >
                         ×
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Dietary Conflicts Warning */}
+                {/* Dietary Conflicts Warning - COMPACT */}
                 {showDietaryWarning && dietaryConflicts.length > 0 && (
-                    <div className="mx-6 mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3 flex-shrink-0">
+                    <div className="mx-4 mt-2 bg-orange-50 border border-orange-200 rounded-lg p-3 flex-shrink-0">
                         <div className="flex items-start">
                             <span className="text-orange-500 mr-2">⚠️</span>
                             <div className="flex-1">
@@ -802,16 +805,16 @@ export default function SimpleMealBuilder({
                     </div>
                 )}
 
-                {/* Main Content - RESPONSIVE: Tabbed for Mobile, Split for Desktop */}
-                <div className="flex-1 flex overflow-hidden">
+                {/* Main Content - MUCH TALLER */}
+                <div className="flex-1 flex overflow-hidden min-h-0">
                     {isMobile ? (
-                        // MOBILE: Tabbed Interface
-                        <div className="flex-1 flex flex-col overflow-hidden">
-                            {/* Tab Navigation */}
+                        // MOBILE: Tabbed Interface with BETTER HEIGHT MANAGEMENT
+                        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                            {/* Tab Navigation - COMPACT */}
                             <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
                                 <TouchEnhancedButton
                                     onClick={() => setActiveTab('inventory')}
-                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                                         activeTab === 'inventory'
                                             ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
                                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -826,7 +829,7 @@ export default function SimpleMealBuilder({
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
                                     onClick={() => setActiveTab('meal')}
-                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                                         activeTab === 'meal'
                                             ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
                                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -834,25 +837,27 @@ export default function SimpleMealBuilder({
                                 >
                                     🍽️ Build Meal
                                     {mealData.items.length > 0 && (
-                                        <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
+                                        <span
+                                            className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
                                             {mealData.items.length}
                                         </span>
                                     )}
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Tab Content - Full Height */}
-                            <div className="flex-1 overflow-hidden">
+                            {/* Tab Content - FULL HEIGHT WITH PROPER FLEXBOX */}
+                            <div className="flex-1 overflow-hidden min-h-0">
                                 {activeTab === 'inventory' ? (
-                                    // INVENTORY TAB - Full Width
-                                    <div className="h-full flex flex-col">
-                                        {/* Search and Filters */}
-                                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                                            <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
+                                    // INVENTORY TAB - FULL HEIGHT LAYOUT
+                                    <div className="h-full flex flex-col min-h-0">
+                                        {/* Search and Filters - COMPACT */}
+                                        <div className="p-3 border-b border-gray-100 flex-shrink-0">
+                                            <h3 className="font-medium text-gray-900 mb-2">Select from Inventory</h3>
 
                                             {inventory.length > 0 && filteredInventory.length < inventory.length && (
                                                 <div className="mb-2 text-sm text-orange-600">
-                                                    Showing {filteredInventory.length} of {inventory.length} items (filtered by dietary preferences)
+                                                    Showing {filteredInventory.length} of {inventory.length} items
+                                                    (filtered by dietary preferences)
                                                 </div>
                                             )}
 
@@ -862,7 +867,7 @@ export default function SimpleMealBuilder({
                                                 placeholder="Search inventory..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
                                             />
 
                                             {/* Category Filter */}
@@ -880,11 +885,12 @@ export default function SimpleMealBuilder({
                                             </select>
                                         </div>
 
-                                        {/* FULL-HEIGHT Inventory List */}
-                                        <div className="flex-1 overflow-y-auto p-4">
+                                        {/* FULL-HEIGHT Inventory List - THIS IS THE KEY FIX */}
+                                        <div className="flex-1 overflow-y-auto p-3 min-h-0">
                                             {loading ? (
                                                 <div className="text-center py-8">
-                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                                    <div
+                                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
                                                     <p className="text-gray-500">Loading inventory...</p>
                                                 </div>
                                             ) : filteredInventory.length === 0 ? (
@@ -896,12 +902,13 @@ export default function SimpleMealBuilder({
                                                     </p>
                                                     {inventory.length > filteredInventory.length && (
                                                         <p className="text-xs text-orange-600 mt-2">
-                                                            {inventory.length - filteredInventory.length} items filtered by dietary preferences
+                                                            {inventory.length - filteredInventory.length} items filtered
+                                                            by dietary preferences
                                                         </p>
                                                     )}
                                                 </div>
                                             ) : (
-                                                <div className="space-y-3">
+                                                <div className="space-y-2">
                                                     {filteredInventory.map(item => {
                                                         const itemCategory = categorizeInventoryItem(item);
                                                         const categoryInfo = MEAL_CATEGORIES.find(c => c.id === itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
@@ -910,19 +917,22 @@ export default function SimpleMealBuilder({
                                                             <TouchEnhancedButton
                                                                 key={item._id}
                                                                 onClick={() => addItemToMeal(item)}
-                                                                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                                                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
                                                             >
                                                                 <div className="flex items-start justify-between">
                                                                     <div className="flex-1">
-                                                                        <div className="font-medium text-gray-900">{item.name}</div>
+                                                                        <div
+                                                                            className="font-medium text-gray-900">{item.name}</div>
                                                                         {item.brand && (
-                                                                            <div className="text-sm text-gray-600">{item.brand}</div>
+                                                                            <div
+                                                                                className="text-sm text-gray-600">{item.brand}</div>
                                                                         )}
                                                                         <div className="text-sm text-gray-500">
                                                                             {item.quantity} {item.unit} • {item.location}
                                                                         </div>
                                                                     </div>
-                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
+                                                                    <span
+                                                                        className={`px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} flex-shrink-0`}>
                                                                         {categoryInfo.icon}
                                                                     </span>
                                                                 </div>
@@ -934,14 +944,14 @@ export default function SimpleMealBuilder({
                                         </div>
                                     </div>
                                 ) : (
-                                    // MEAL BUILDING TAB - Full Width
-                                    <div className="h-full flex flex-col">
-                                        {/* Compact Meal Info */}
-                                        <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                                            <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
+                                    // MEAL BUILDING TAB - FULL HEIGHT LAYOUT
+                                    <div className="h-full flex flex-col min-h-0">
+                                        {/* Compact Meal Info - SMALLER */}
+                                        <div className="p-3 border-b border-gray-100 flex-shrink-0">
+                                            <h3 className="font-medium text-gray-900 mb-2">Build Your Meal</h3>
 
                                             {/* Meal Name */}
-                                            <div className="mb-3">
+                                            <div className="mb-2">
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Meal Name
                                                 </label>
@@ -954,8 +964,8 @@ export default function SimpleMealBuilder({
                                                 />
                                             </div>
 
-                                            {/* Time & Difficulty */}
-                                            <div className="grid grid-cols-2 gap-3">
+                                            {/* Time & Difficulty - COMPACT ROW */}
+                                            <div className="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         Time (min)
@@ -992,8 +1002,8 @@ export default function SimpleMealBuilder({
                                             </div>
                                         </div>
 
-                                        {/* MUCH LARGER Selected Items Area */}
-                                        <div className="flex-1 overflow-y-auto p-4">
+                                        {/* MUCH LARGER Selected Items Area - THIS IS THE KEY FIX */}
+                                        <div className="flex-1 overflow-y-auto p-3 min-h-0">
                                             {mealData.items.length === 0 ? (
                                                 <div className="text-center py-12">
                                                     <div className="text-4xl mb-4">🍽️</div>
@@ -1006,7 +1016,7 @@ export default function SimpleMealBuilder({
                                                     </TouchEnhancedButton>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-4">
+                                                <div className="space-y-3">
                                                     {mealData.items.map((item, index) => {
                                                         const categoryInfo = MEAL_CATEGORIES.find(c => c.id === item.itemCategory) || MEAL_CATEGORIES.find(c => c.id === 'other');
 
@@ -1017,7 +1027,7 @@ export default function SimpleMealBuilder({
 
                                                         return (
                                                             <div key={index}
-                                                                 className={`border rounded-lg p-4 ${hasConflict ? 'border-orange-300 bg-orange-50' : 'border-gray-300 bg-gray-50'}`}>
+                                                                 className={`border rounded-lg p-3 ${hasConflict ? 'border-orange-300 bg-orange-50' : 'border-gray-300 bg-gray-50'}`}>
                                                                 <div className="flex items-start justify-between mb-3">
                                                                     <div className="flex-1">
                                                                         <div
@@ -1111,8 +1121,8 @@ export default function SimpleMealBuilder({
                                             )}
                                         </div>
 
-                                        {/* Description */}
-                                        <div className="p-4 border-t border-gray-100 flex-shrink-0">
+                                        {/* Description - COMPACT BOTTOM SECTION */}
+                                        <div className="p-3 border-t border-gray-100 flex-shrink-0">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Description (Optional)
                                             </label>
@@ -1132,12 +1142,12 @@ export default function SimpleMealBuilder({
                             </div>
                         </div>
                     ) : (
-                        // DESKTOP: Keep existing split layout
+                        // DESKTOP: Keep existing split layout BUT WITH BETTER HEIGHT MANAGEMENT
                         <>
                             {/* Left Panel - Inventory Selection */}
-                            <div className="w-1/2 border-r border-gray-200 flex flex-col">
-                                <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                                    <h3 className="font-medium text-gray-900 mb-3">Select from Inventory</h3>
+                            <div className="w-1/2 border-r border-gray-200 flex flex-col min-h-0">
+                                <div className="p-3 border-b border-gray-100 flex-shrink-0">
+                                    <h3 className="font-medium text-gray-900 mb-2">Select from Inventory</h3>
 
                                     {inventory.length > 0 && filteredInventory.length < inventory.length && (
                                         <div className="mb-2 text-sm text-orange-600">
@@ -1170,7 +1180,8 @@ export default function SimpleMealBuilder({
                                     </select>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-4">
+                                {/* FULL HEIGHT SCROLLABLE INVENTORY - KEY FIX */}
+                                <div className="flex-1 overflow-y-auto p-3 min-h-0">
                                     {loading ? (
                                         <div className="text-center py-8">
                                             <div
@@ -1229,9 +1240,9 @@ export default function SimpleMealBuilder({
                             </div>
 
                             {/* Right Panel - Meal Builder */}
-                            <div className="w-1/2 flex flex-col">
-                                <div className="p-4 border-b border-gray-100 flex-shrink-0">
-                                    <h3 className="font-medium text-gray-900 mb-3">Build Your Meal</h3>
+                            <div className="w-1/2 flex flex-col min-h-0">
+                                <div className="p-3 border-b border-gray-100 flex-shrink-0">
+                                    <h3 className="font-medium text-gray-900 mb-2">Build Your Meal</h3>
 
                                     {/* Meal Name */}
                                     <div className="mb-2">
@@ -1282,7 +1293,8 @@ export default function SimpleMealBuilder({
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-4">
+                                {/* FULL HEIGHT SCROLLABLE MEAL ITEMS - KEY FIX */}
+                                <div className="flex-1 overflow-y-auto p-3 min-h-0">
                                     {mealData.items.length === 0 ? (
                                         <div className="text-center py-8">
                                             <div className="text-4xl mb-4">🍽️</div>
@@ -1399,7 +1411,8 @@ export default function SimpleMealBuilder({
                                     )}
                                 </div>
 
-                                <div className="p-4 border-t border-gray-100 flex-shrink-0">
+                                {/* Description - COMPACT FOOTER */}
+                                <div className="p-3 border-t border-gray-100 flex-shrink-0">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Description (Optional)
                                     </label>
@@ -1417,7 +1430,7 @@ export default function SimpleMealBuilder({
                 </div>
 
                 {/* Footer - Fixed positioning */}
-                <div className="p-4 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0 bg-white">
+                <div className="p-3 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0 bg-white">
                     <TouchEnhancedButton
                         onClick={onClose}
                         className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -1438,6 +1451,5 @@ export default function SimpleMealBuilder({
                 </div>
             </div>
         </div>
-
     );
 }
