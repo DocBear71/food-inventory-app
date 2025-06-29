@@ -128,7 +128,6 @@ function SignInContent() {
                         // Log any admin/role fields
                         ...session.user
                     });
-                    console.log('Session confirmed, user data:', sessionData);
 
                     try {
                         console.log('💾 Storing session in mobile session storage...');

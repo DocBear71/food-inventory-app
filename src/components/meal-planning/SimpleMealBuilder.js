@@ -992,21 +992,6 @@ export default function SimpleMealBuilder({
                                                                     />
                                                                 </div>
 
-                                                                <div className="flex gap-1 mb-2 flex-wrap">
-                                                                    {COOKING_METHODS.slice(0, 4).map(method => (
-                                                                        <TouchEnhancedButton
-                                                                            key={method}
-                                                                            onClick={() => updateItemInMeal(index, 'notes', method)}
-                                                                            className={`px-2 py-1 rounded text-xs transition-colors ${
-                                                                                item.notes === method
-                                                                                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                                                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300 border border-gray-300'
-                                                                            }`}
-                                                                        >
-                                                                            {method}
-                                                                        </TouchEnhancedButton>
-                                                                    ))}
-                                                                </div>
                                                                 <input
                                                                     type="text"
                                                                     value={item.notes}
