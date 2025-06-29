@@ -124,6 +124,23 @@ export const authOptions = {
                     isAdmin: session.user.isAdmin,
                     allKeys: Object.keys(session.user)
                 });
+
+                // **NEW: Store in mobile session storage for cross-platform compatibility**
+                if (typeof window !== 'undefined' && session?.user) {
+                    try {
+                        console.log('💾 Storing session in mobile session from NextAuth callback...');
+                        const { MobileSession } = await import('@/lib/mobile-session-simple');
+                        const success = await MobileSession.setSession(session);
+
+                        if (success) {
+                            console.log('✅ Mobile session stored successfully from NextAuth callback');
+                        } else {
+                            console.error('❌ Failed to store mobile session from NextAuth callback');
+                        }
+                    } catch (error) {
+                        console.error('💥 Error storing mobile session in NextAuth callback:', error);
+                    }
+                }
             }
             return session;
         },
