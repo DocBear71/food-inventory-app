@@ -49,51 +49,63 @@ export async function GET(request) {
 // POST - Add item to inventory (with subscription limits)
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        console.log('🔍 API DEBUG: POST /api/inventory started');
 
-        console.log('POST /api/inventory - Session:', session);
+        const session = await getServerSession(authOptions);
+        console.log('🔍 API DEBUG: Session:', {
+            userId: session?.user?.id,
+            userEmail: session?.user?.email,
+            hasSession: !!session
+        });
 
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
+            console.log('❌ API DEBUG: No session or user ID found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
-        const {
-            name, brand, category, quantity, unit, location, upc, expirationDate, nutrition,
-            // Secondary units support
-            secondaryQuantity, secondaryUnit
-        } = body;
+        console.log('🔍 API DEBUG: Request body:', body);
 
-        console.log('POST /api/inventory - Body:', body);
-
-        // FIXED: Better validation
-        if (!name || name.trim().length === 0) {
+        // Validation
+        if (!body.name || body.name.trim().length === 0) {
+            console.log('❌ API DEBUG: Missing item name');
             return NextResponse.json(
                 { error: 'Item name is required and cannot be empty' },
                 { status: 400 }
             );
         }
 
-        // FIXED: Validate quantity
-        const validQuantity = parseFloat(quantity);
+        const validQuantity = parseFloat(body.quantity);
         if (isNaN(validQuantity) || validQuantity <= 0) {
+            console.log('❌ API DEBUG: Invalid quantity:', body.quantity);
             return NextResponse.json(
                 { error: 'Quantity must be a positive number' },
                 { status: 400 }
             );
         }
 
+        console.log('🔍 API DEBUG: Connecting to MongoDB...');
         await connectDB();
+        console.log('✅ API DEBUG: MongoDB connected');
 
-        // Get user and check subscription limits
+        console.log('🔍 API DEBUG: Looking up user...');
         const user = await User.findById(session.user.id);
         if (!user) {
-            console.error('User not found for ID:', session.user.id);
+            console.error('❌ API DEBUG: User not found for ID:', session.user.id);
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
+        console.log('✅ API DEBUG: User found:', user.email);
+
+        // ❌ THIS IS WHERE THE ERROR LIKELY OCCURS - when checking subscription
+        console.log('🔍 API DEBUG: Checking user subscription...');
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+        console.log('✅ API DEBUG: User subscription:', userSubscription);
 
         // Get current inventory count
+        console.log('🔍 API DEBUG: Getting inventory...');
         let inventory = await UserInventory.findOne({ userId: session.user.id });
         if (!inventory) {
             inventory = new UserInventory({
@@ -101,125 +113,29 @@ export async function POST(request) {
                 items: []
             });
         }
+        console.log('✅ API DEBUG: Inventory found, items:', inventory.items.length);
 
         const currentItemCount = inventory.items.length;
 
-        // FIXED: Better subscription checking
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
-
-        console.log('User subscription info:', {
-            tier: userSubscription.tier,
-            status: userSubscription.status,
-            currentItems: currentItemCount
-        });
-
-        // FIXED: Check if user has feature access
+        // ❌ THIS IS LIKELY WHERE IT FAILS - when using imported functions
+        console.log('🔍 API DEBUG: Checking usage limits...');
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, currentItemCount);
+        console.log('✅ API DEBUG: Has capacity:', hasCapacity);
 
-        if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
-            console.log('User exceeded inventory limits:', {
-                currentTier: userSubscription.tier,
-                requiredTier,
-                currentItems: currentItemCount
-            });
-
-            return NextResponse.json({
-                error: getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier),
-                code: 'USAGE_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.INVENTORY_LIMIT,
-                currentCount: currentItemCount,
-                currentTier: userSubscription.tier,
-                requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=inventory-limit&feature=${FEATURE_GATES.INVENTORY_LIMIT}&required=${requiredTier}`
-            }, { status: 403 });
-        }
-
-        // FIXED: Better item creation with validation
-        const newItem = {
-            name: name.trim(),
-            brand: brand ? brand.trim() : '',
-            category: category ? category.trim() : '',
-            quantity: validQuantity,
-            unit: unit || 'item',
-
-            // Secondary unit support with validation
-            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) ?
-                Math.max(parseFloat(secondaryQuantity), 0.1) : null,
-            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) && secondaryUnit ?
-                secondaryUnit.trim() : null,
-
-            location: location || 'pantry',
-            upc: upc ? upc.trim() : '',
-            expirationDate: expirationDate ? new Date(expirationDate) : null,
-            addedDate: new Date(),
-            nutrition: nutrition || null
-        };
-
-        // FIXED: Validate expiration date
-        if (expirationDate) {
-            const expDate = new Date(expirationDate);
-            if (isNaN(expDate.getTime())) {
-                return NextResponse.json(
-                    { error: 'Invalid expiration date format' },
-                    { status: 400 }
-                );
-            }
-            newItem.expirationDate = expDate;
-        }
-
-        console.log('Creating new item:', newItem);
-
-        try {
-            inventory.items.push(newItem);
-            inventory.lastUpdated = new Date();
-            await inventory.save();
-
-            // Update user's usage tracking
-            if (!user.usageTracking) {
-                user.usageTracking = {};
-            }
-            user.usageTracking.totalInventoryItems = inventory.items.length;
-            user.usageTracking.lastUpdated = new Date();
-            await user.save();
-
-            console.log('Item added successfully:', newItem);
-
-            // FIXED: Calculate remaining items properly
-            let remainingItems;
-            if (userSubscription.tier === 'platinum' || userSubscription.tier === 'admin') {
-                remainingItems = 'Unlimited';
-            } else if (userSubscription.tier === 'gold') {
-                remainingItems = Math.max(0, 250 - inventory.items.length);
-            } else {
-                remainingItems = Math.max(0, 50 - inventory.items.length);
-            }
-
-            return NextResponse.json({
-                success: true,
-                item: newItem,
-                message: 'Item added successfully',
-                remainingItems: remainingItems,
-                totalItems: inventory.items.length
-            });
-
-        } catch (saveError) {
-            console.error('Error saving item to inventory:', saveError);
-            return NextResponse.json(
-                { error: 'Failed to save item to database' },
-                { status: 500 }
-            );
-        }
+        // Continue with rest of your logic...
 
     } catch (error) {
-        console.error('POST inventory error:', error);
+        console.error('❌ API DEBUG: Unhandled error:', error);
+        console.error('❌ API DEBUG: Error stack:', error.stack);
+        console.error('❌ API DEBUG: Error name:', error.name);
+        console.error('❌ API DEBUG: Error message:', error.message);
+
         return NextResponse.json(
             {
                 error: 'Failed to add item',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                details: error.message,
+                stack: error.stack,
+                errorType: error.name
             },
             { status: 500 }
         );

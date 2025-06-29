@@ -1,6 +1,7 @@
 // file: /src/lib/models.js - v12 - FIXED with RecipeCollection model and proper exports - Updated for saved recipes fix
 
 import mongoose from 'mongoose';
+import { checkFeatureAccess, checkUsageLimit } from './subscription-config';
 const crypto = require('crypto');
 
 // Nutrition Schema
@@ -2017,9 +2018,6 @@ UserSchema.methods.canPerformAction = function(feature, currentCount = null) {
         }
 
         const subscription = this.subscription || { tier: 'free', status: 'free' };
-
-        // Import the functions
-        const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
 
         // First check if feature is available for their tier
         if (!checkFeatureAccess(subscription, feature)) {
