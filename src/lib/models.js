@@ -554,7 +554,7 @@ const UserSchema = new mongoose.Schema({
     subscription: {
         tier: {
             type: String,
-            enum: ['free', 'gold', 'platinum'],
+            enum: ['free', 'gold', 'platinum', 'admin'],
             default: 'free'
         },
         status: {
