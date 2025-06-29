@@ -7,6 +7,7 @@ import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
 export async function GET(request) {
     try {
+        console.log('🔍 === SUBSCRIPTION API DEBUG START ===');
         console.log('Subscription status API called');
 
         const session = await getServerSession(authOptions);
@@ -19,7 +20,13 @@ export async function GET(request) {
             );
         }
 
-        console.log('User ID:', session.user.id);
+        console.log('📧 Session user info:', {
+            id: session.user.id,
+            email: session.user.email,
+            subscriptionTier: session.user.subscriptionTier,
+            effectiveTier: session.user.effectiveTier,
+            isAdmin: session.user.isAdmin
+        });
 
         await connectDB();
         console.log('Database connected');
@@ -36,17 +43,12 @@ export async function GET(request) {
         }
 
         // **ADD THESE DEBUG LOGS:**
-        console.log('🔍 === USER DEBUG INFO ===');
-        console.log('📧 User email:', user.email);
-        console.log('👤 User isAdmin field:', user.isAdmin);
-        console.log('📊 User subscription:', user.subscription);
-        console.log('🎯 Session user info:', {
-            id: session.user.id,
-            email: session.user.email,
-            subscriptionTier: session.user.subscriptionTier,
-            isAdmin: session.user.isAdmin
-        });
-        console.log('🔍 === END USER DEBUG ===');
+        console.log('🔍 === USER DATABASE INFO ===');
+        console.log('📧 Database user email:', user.email);
+        console.log('👤 Database user isAdmin field:', user.isAdmin);
+        console.log('📊 Database user subscription:', user.subscription);
+        console.log('🆔 User ID match check:', session.user.id === user._id.toString());
+        console.log('🔍 === END USER DATABASE INFO ===');
 
         // FIXED: Admin detection logic
         let isUserAdmin = user.isAdmin === true;
@@ -60,14 +62,16 @@ export async function GET(request) {
                 // Add more admin emails as needed
             ];
 
-            console.log('🔍 Checking email against admin list:', user.email.toLowerCase());
-            console.log('🔍 Admin emails:', adminEmails);
+            console.log('🔍 Checking email against admin list...');
+            console.log('📧 User email (lowercase):', user.email.toLowerCase());
+            console.log('📋 Admin emails list:', adminEmails);
 
             if (adminEmails.includes(user.email.toLowerCase())) {
-                console.log('🔧 ✅ User email matches admin list, setting admin status:', user.email);
+                console.log('🔧 ✅ User email matches admin list, setting admin status');
                 isUserAdmin = true;
 
                 // Update the user record to have correct admin status
+                console.log('💾 Updating user admin status in database...');
                 user.isAdmin = true;
                 if (!user.subscription) {
                     user.subscription = {};
@@ -77,17 +81,21 @@ export async function GET(request) {
 
                 try {
                     await user.save();
-                    console.log('✅ User admin status updated in database');
+                    console.log('✅ User admin status updated and saved to database');
 
                     // **VERIFY THE SAVE WORKED:**
                     const verifyUser = await User.findById(session.user.id).select('+isAdmin');
-                    console.log('🔍 Verification after save - isAdmin:', verifyUser.isAdmin);
-                    console.log('🔍 Verification after save - subscription:', verifyUser.subscription);
+                    console.log('🔍 Verification after save:');
+                    console.log('   - isAdmin:', verifyUser.isAdmin);
+                    console.log('   - subscription.tier:', verifyUser.subscription?.tier);
+                    console.log('   - subscription.status:', verifyUser.subscription?.status);
                 } catch (saveError) {
                     console.error('❌ Error saving admin status:', saveError);
                 }
             } else {
                 console.log('❌ Email does not match admin list');
+                console.log('📧 Provided email:', user.email.toLowerCase());
+                console.log('📋 Expected admin emails:', adminEmails);
             }
         }
 
@@ -311,13 +319,17 @@ export async function GET(request) {
             collections: subscriptionData.usage.recipeCollections
         });
 
-        console.log('🔍 === FINAL RESPONSE DEBUG ===');
+        console.log('🔍 === FINAL API RESPONSE DEBUG ===');
         console.log('📊 Returning subscription data:', {
             tier: subscriptionData.tier,
             isAdmin: subscriptionData.isAdmin,
-            status: subscriptionData.status
+            status: subscriptionData.status,
+            usage: {
+                inventoryItems: subscriptionData.usage.inventoryItems
+            }
         });
-        console.log('🔍 === END RESPONSE DEBUG ===');
+        console.log('🔍 === END API RESPONSE DEBUG ===');
+        console.log('🔍 === SUBSCRIPTION API DEBUG END ===');
 
         return Response.json(subscriptionData);
 
