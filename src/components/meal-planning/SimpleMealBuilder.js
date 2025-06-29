@@ -734,32 +734,20 @@ export default function SimpleMealBuilder({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-                {/* Header - COMPACT */}
-                <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+            {/* MUCH TALLER MODAL - 95vh instead of 90vh */}
+            <div className="bg-white rounded-lg w-full max-w-6xl h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+                {/* MINIMAL Header */}
+                <div className="p-3 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                                <h2 className="text-lg font-semibold text-gray-900">
                                     🍽️ Create Simple Meal
                                 </h2>
                                 <p className="text-sm text-gray-600">
-                                    Build a meal from your inventory items
-                                    for {selectedSlot?.day} {selectedSlot?.mealType}
+                                    {selectedSlot?.day} {selectedSlot?.mealType}
                                 </p>
-                                {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {userDietaryRestrictions.length > 0 && (
-                                            <span>Diet: {userDietaryRestrictions.join(', ')}</span>
-                                        )}
-                                        {userDietaryRestrictions.length > 0 && userAvoidIngredients.length > 0 &&
-                                            <span> • </span>}
-                                        {userAvoidIngredients.length > 0 && (
-                                            <span>Avoiding: {userAvoidIngredients.join(', ')}</span>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                             <div className="ml-4">
                                 <TouchEnhancedButton
@@ -768,8 +756,7 @@ export default function SimpleMealBuilder({
                                     className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400 transition-colors flex items-center gap-2"
                                 >
                                     <span>🎲</span>
-                                    <span className={isMobile ? "hidden" : ""}>Suggest Random Meal</span>
-                                    <span className={isMobile ? "" : "hidden"}>Random</span>
+                                    <span className={isMobile ? "hidden" : ""}>Random</span>
                                 </TouchEnhancedButton>
                             </div>
                         </div>
@@ -782,18 +769,13 @@ export default function SimpleMealBuilder({
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Dietary Conflicts Warning - COMPACT */}
+                {/* MINIMAL Dietary Conflicts Warning */}
                 {showDietaryWarning && dietaryConflicts.length > 0 && (
-                    <div className="mx-4 mt-2 bg-orange-50 border border-orange-200 rounded-lg p-3 flex-shrink-0">
-                        <div className="flex items-start">
+                    <div className="mx-3 bg-orange-50 border border-orange-200 rounded p-2 flex-shrink-0">
+                        <div className="flex items-center">
                             <span className="text-orange-500 mr-2">⚠️</span>
-                            <div className="flex-1">
-                                <h4 className="text-sm font-medium text-orange-800">Dietary Conflicts Detected</h4>
-                                <ul className="text-sm text-orange-700 mt-1 space-y-1">
-                                    {dietaryConflicts.map((conflict, index) => (
-                                        <li key={index}>• {conflict}</li>
-                                    ))}
-                                </ul>
+                            <div className="flex-1 text-sm text-orange-700">
+                                Dietary conflicts detected
                             </div>
                             <TouchEnhancedButton
                                 onClick={() => setShowDietaryWarning(false)}
@@ -805,63 +787,42 @@ export default function SimpleMealBuilder({
                     </div>
                 )}
 
-                {/* Main Content - MUCH TALLER */}
-                <div className="flex-1 flex overflow-hidden min-h-0">
+                {/* MASSIVE Main Content Area - This gets almost all the height */}
+                <div className="flex-1 flex overflow-hidden min-h-0" style={{minHeight: '0px'}}>
                     {isMobile ? (
-                        // MOBILE: Tabbed Interface with BETTER HEIGHT MANAGEMENT
+                        // MOBILE: Tabbed Interface with MAXIMUM HEIGHT
                         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                            {/* Tab Navigation - COMPACT */}
+                            {/* MINIMAL Tab Navigation */}
                             <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
                                 <TouchEnhancedButton
                                     onClick={() => setActiveTab('inventory')}
-                                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                                         activeTab === 'inventory'
                                             ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
                                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                     }`}
                                 >
-                                    📦 Select Items
-                                    {filteredInventory.length < inventory.length && (
-                                        <div className="text-xs text-orange-600 mt-1">
-                                            ({inventory.length - filteredInventory.length} filtered)
-                                        </div>
-                                    )}
+                                    📦 Items ({filteredInventory.length})
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
                                     onClick={() => setActiveTab('meal')}
-                                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                                         activeTab === 'meal'
                                             ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
                                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                     }`}
                                 >
-                                    🍽️ Build Meal
-                                    {mealData.items.length > 0 && (
-                                        <span
-                                            className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full text-xs">
-                                            {mealData.items.length}
-                                        </span>
-                                    )}
+                                    🍽️ Meal ({mealData.items.length})
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Tab Content - FULL HEIGHT WITH PROPER FLEXBOX */}
+                            {/* MASSIVE Tab Content Area */}
                             <div className="flex-1 overflow-hidden min-h-0">
                                 {activeTab === 'inventory' ? (
-                                    // INVENTORY TAB - FULL HEIGHT LAYOUT
+                                    // INVENTORY TAB - MAXIMUM HEIGHT
                                     <div className="h-full flex flex-col min-h-0">
-                                        {/* Search and Filters - COMPACT */}
-                                        <div className="p-3 border-b border-gray-100 flex-shrink-0">
-                                            <h3 className="font-medium text-gray-900 mb-2">Select from Inventory</h3>
-
-                                            {inventory.length > 0 && filteredInventory.length < inventory.length && (
-                                                <div className="mb-2 text-sm text-orange-600">
-                                                    Showing {filteredInventory.length} of {inventory.length} items
-                                                    (filtered by dietary preferences)
-                                                </div>
-                                            )}
-
-                                            {/* Search */}
+                                        {/* MINIMAL Filters */}
+                                        <div className="p-2 border-b border-gray-100 flex-shrink-0">
                                             <input
                                                 type="text"
                                                 placeholder="Search inventory..."
@@ -869,8 +830,6 @@ export default function SimpleMealBuilder({
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
                                             />
-
-                                            {/* Category Filter */}
                                             <select
                                                 value={selectedCategory}
                                                 onChange={(e) => setSelectedCategory(e.target.value)}
@@ -885,8 +844,8 @@ export default function SimpleMealBuilder({
                                             </select>
                                         </div>
 
-                                        {/* FULL-HEIGHT Inventory List - THIS IS THE KEY FIX */}
-                                        <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                                        {/* MASSIVE Inventory List - Gets almost all remaining height */}
+                                        <div className="flex-1 overflow-y-auto p-2 min-h-0" style={{height: '1px'}}>
                                             {loading ? (
                                                 <div className="text-center py-8">
                                                     <div
@@ -900,12 +859,6 @@ export default function SimpleMealBuilder({
                                                             ? "No inventory items found"
                                                             : "No items match your current filters"}
                                                     </p>
-                                                    {inventory.length > filteredInventory.length && (
-                                                        <p className="text-xs text-orange-600 mt-2">
-                                                            {inventory.length - filteredInventory.length} items filtered
-                                                            by dietary preferences
-                                                        </p>
-                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2">
@@ -944,66 +897,35 @@ export default function SimpleMealBuilder({
                                         </div>
                                     </div>
                                 ) : (
-                                    // MEAL BUILDING TAB - FULL HEIGHT LAYOUT
+                                    // MEAL BUILDING TAB - MAXIMUM HEIGHT
                                     <div className="h-full flex flex-col min-h-0">
-                                        {/* Compact Meal Info - SMALLER */}
-                                        <div className="p-3 border-b border-gray-100 flex-shrink-0">
-                                            <h3 className="font-medium text-gray-900 mb-2">Build Your Meal</h3>
-
-                                            {/* Meal Name */}
-                                            <div className="mb-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Meal Name
-                                                </label>
+                                        {/* MINIMAL Meal Info at top */}
+                                        <div className="p-2 border-b border-gray-100 flex-shrink-0">
+                                            <div className="grid grid-cols-3 gap-2 mb-2">
                                                 <input
                                                     type="text"
                                                     value={mealData.name}
                                                     onChange={(e) => setMealData({...mealData, name: e.target.value})}
-                                                    placeholder="Auto-generated from items"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                    placeholder="Meal name..."
+                                                    className="col-span-2 px-2 py-1 border border-gray-300 rounded text-sm"
                                                 />
-                                            </div>
-
-                                            {/* Time & Difficulty - COMPACT ROW */}
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Time (min)
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min="5"
-                                                        max="180"
-                                                        value={mealData.totalEstimatedTime}
-                                                        onChange={(e) => setMealData({
-                                                            ...mealData,
-                                                            totalEstimatedTime: parseInt(e.target.value)
-                                                        })}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Difficulty
-                                                    </label>
-                                                    <select
-                                                        value={mealData.difficulty}
-                                                        onChange={(e) => setMealData({
-                                                            ...mealData,
-                                                            difficulty: e.target.value
-                                                        })}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                                    >
-                                                        <option value="easy">Easy</option>
-                                                        <option value="medium">Medium</option>
-                                                        <option value="hard">Hard</option>
-                                                    </select>
-                                                </div>
+                                                <input
+                                                    type="number"
+                                                    min="5"
+                                                    max="180"
+                                                    value={mealData.totalEstimatedTime}
+                                                    onChange={(e) => setMealData({
+                                                        ...mealData,
+                                                        totalEstimatedTime: parseInt(e.target.value)
+                                                    })}
+                                                    placeholder="Time"
+                                                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
                                             </div>
                                         </div>
 
-                                        {/* MUCH LARGER Selected Items Area - THIS IS THE KEY FIX */}
-                                        <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                                        {/* MASSIVE Selected Items Area */}
+                                        <div className="flex-1 overflow-y-auto p-2 min-h-0" style={{height: '1px'}}>
                                             {mealData.items.length === 0 ? (
                                                 <div className="text-center py-12">
                                                     <div className="text-4xl mb-4">🍽️</div>
@@ -1012,7 +934,7 @@ export default function SimpleMealBuilder({
                                                         onClick={() => setActiveTab('inventory')}
                                                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                                                     >
-                                                        ← Go to Select Items
+                                                        ← Select Items
                                                     </TouchEnhancedButton>
                                                 </div>
                                             ) : (
@@ -1042,12 +964,6 @@ export default function SimpleMealBuilder({
                                                                             className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
                                                                             {categoryInfo.icon} {categoryInfo.name}
                                                                         </span>
-                                                                        {hasConflict && (
-                                                                            <div
-                                                                                className="text-xs text-orange-600 mt-2">
-                                                                                {itemConflicts[0]}
-                                                                            </div>
-                                                                        )}
                                                                     </div>
                                                                     <TouchEnhancedButton
                                                                         onClick={() => removeItemFromMeal(index)}
@@ -1058,105 +974,63 @@ export default function SimpleMealBuilder({
                                                                 </div>
 
                                                                 <div className="grid grid-cols-2 gap-3 mb-3">
-                                                                    <div>
-                                                                        <label
-                                                                            className="block text-sm font-medium text-gray-700 mb-1">
-                                                                            Quantity
-                                                                        </label>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0.1"
-                                                                            step="0.1"
-                                                                            value={item.quantity}
-                                                                            onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                                                                        />
-                                                                    </div>
-                                                                    <div>
-                                                                        <label
-                                                                            className="block text-sm font-medium text-gray-700 mb-1">
-                                                                            Unit
-                                                                        </label>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={item.unit}
-                                                                            onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div>
-                                                                    <label
-                                                                        className="block text-sm font-medium text-gray-700 mb-2">
-                                                                        Cooking Method/Notes
-                                                                    </label>
-                                                                    <div className="flex gap-2 mb-2 flex-wrap">
-                                                                        {COOKING_METHODS.map(method => (
-                                                                            <TouchEnhancedButton
-                                                                                key={method}
-                                                                                onClick={() => updateItemInMeal(index, 'notes', method)}
-                                                                                className={`px-3 py-1 rounded text-sm transition-colors ${
-                                                                                    item.notes === method
-                                                                                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                                                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300 border border-gray-300'
-                                                                                }`}
-                                                                            >
-                                                                                {method}
-                                                                            </TouchEnhancedButton>
-                                                                        ))}
-                                                                    </div>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0.1"
+                                                                        step="0.1"
+                                                                        value={item.quantity}
+                                                                        onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
+                                                                        placeholder="Qty"
+                                                                        className="px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                    />
                                                                     <input
                                                                         type="text"
-                                                                        value={item.notes}
-                                                                        onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
-                                                                        placeholder="e.g., grilled, seasoned with salt"
-                                                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                        value={item.unit}
+                                                                        onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
+                                                                        placeholder="Unit"
+                                                                        className="px-3 py-2 border border-gray-300 rounded text-sm"
                                                                     />
                                                                 </div>
+
+                                                                <div className="flex gap-1 mb-2 flex-wrap">
+                                                                    {COOKING_METHODS.slice(0, 4).map(method => (
+                                                                        <TouchEnhancedButton
+                                                                            key={method}
+                                                                            onClick={() => updateItemInMeal(index, 'notes', method)}
+                                                                            className={`px-2 py-1 rounded text-xs transition-colors ${
+                                                                                item.notes === method
+                                                                                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                                                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300 border border-gray-300'
+                                                                            }`}
+                                                                        >
+                                                                            {method}
+                                                                        </TouchEnhancedButton>
+                                                                    ))}
+                                                                </div>
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.notes}
+                                                                    onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
+                                                                    placeholder="Cooking method/notes..."
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                                />
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Description - COMPACT BOTTOM SECTION */}
-                                        <div className="p-3 border-t border-gray-100 flex-shrink-0">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Description (Optional)
-                                            </label>
-                                            <textarea
-                                                value={mealData.description}
-                                                onChange={(e) => setMealData({
-                                                    ...mealData,
-                                                    description: e.target.value
-                                                })}
-                                                placeholder="Brief description of the meal..."
-                                                rows="2"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                            />
-                                        </div>
                                     </div>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        // DESKTOP: Keep existing split layout BUT WITH BETTER HEIGHT MANAGEMENT
+                        // DESKTOP: Split Layout with MAXIMUM HEIGHT
                         <>
                             {/* Left Panel - Inventory Selection */}
                             <div className="w-1/2 border-r border-gray-200 flex flex-col min-h-0">
-                                <div className="p-3 border-b border-gray-100 flex-shrink-0">
-                                    <h3 className="font-medium text-gray-900 mb-2">Select from Inventory</h3>
-
-                                    {inventory.length > 0 && filteredInventory.length < inventory.length && (
-                                        <div className="mb-2 text-sm text-orange-600">
-                                            Showing {filteredInventory.length} of {inventory.length} items (filtered by
-                                            dietary preferences)
-                                        </div>
-                                    )}
-
-                                    {/* Search */}
+                                {/* MINIMAL search area */}
+                                <div className="p-2 border-b border-gray-100 flex-shrink-0">
                                     <input
                                         type="text"
                                         placeholder="Search inventory..."
@@ -1164,8 +1038,6 @@ export default function SimpleMealBuilder({
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
                                     />
-
-                                    {/* Category Filter */}
                                     <select
                                         value={selectedCategory}
                                         onChange={(e) => setSelectedCategory(e.target.value)}
@@ -1180,8 +1052,8 @@ export default function SimpleMealBuilder({
                                     </select>
                                 </div>
 
-                                {/* FULL HEIGHT SCROLLABLE INVENTORY - KEY FIX */}
-                                <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                                {/* MASSIVE inventory list */}
+                                <div className="flex-1 overflow-y-auto p-2 min-h-0" style={{height: '1px'}}>
                                     {loading ? (
                                         <div className="text-center py-8">
                                             <div
@@ -1195,12 +1067,6 @@ export default function SimpleMealBuilder({
                                                     ? "No inventory items found"
                                                     : "No items match your current filters"}
                                             </p>
-                                            {inventory.length > filteredInventory.length && (
-                                                <p className="text-xs text-orange-600 mt-2">
-                                                    {inventory.length - filteredInventory.length} items filtered by
-                                                    dietary preferences
-                                                </p>
-                                            )}
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
@@ -1241,70 +1107,38 @@ export default function SimpleMealBuilder({
 
                             {/* Right Panel - Meal Builder */}
                             <div className="w-1/2 flex flex-col min-h-0">
-                                <div className="p-3 border-b border-gray-100 flex-shrink-0">
-                                    <h3 className="font-medium text-gray-900 mb-2">Build Your Meal</h3>
-
-                                    {/* Meal Name */}
-                                    <div className="mb-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Meal Name
-                                        </label>
+                                {/* MINIMAL meal info */}
+                                <div className="p-2 border-b border-gray-100 flex-shrink-0">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <input
                                             type="text"
                                             value={mealData.name}
                                             onChange={(e) => setMealData({...mealData, name: e.target.value})}
-                                            placeholder="Auto-generated from items"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="Meal name..."
+                                            className="px-2 py-1 border border-gray-300 rounded text-sm"
                                         />
-                                    </div>
-
-                                    {/* Estimated Time & Difficulty */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Time (min)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="5"
-                                                max="180"
-                                                value={mealData.totalEstimatedTime}
-                                                onChange={(e) => setMealData({
-                                                    ...mealData,
-                                                    totalEstimatedTime: parseInt(e.target.value)
-                                                })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Difficulty
-                                            </label>
-                                            <select
-                                                value={mealData.difficulty}
-                                                onChange={(e) => setMealData({...mealData, difficulty: e.target.value})}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                            >
-                                                <option value="easy">Easy</option>
-                                                <option value="medium">Medium</option>
-                                                <option value="hard">Hard</option>
-                                            </select>
-                                        </div>
+                                        <input
+                                            type="number"
+                                            min="5"
+                                            max="180"
+                                            value={mealData.totalEstimatedTime}
+                                            onChange={(e) => setMealData({
+                                                ...mealData,
+                                                totalEstimatedTime: parseInt(e.target.value)
+                                            })}
+                                            placeholder="Time (min)"
+                                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                        />
                                     </div>
                                 </div>
 
-                                {/* FULL HEIGHT SCROLLABLE MEAL ITEMS - KEY FIX */}
-                                <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                                {/* MASSIVE meal items area */}
+                                <div className="flex-1 overflow-y-auto p-2 min-h-0" style={{height: '1px'}}>
                                     {mealData.items.length === 0 ? (
                                         <div className="text-center py-8">
                                             <div className="text-4xl mb-4">🍽️</div>
                                             <p className="text-gray-500">Add items from your inventory to build your
                                                 meal</p>
-                                            {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
-                                                <p className="text-xs text-gray-500 mt-2">
-                                                    Items are filtered based on your dietary preferences
-                                                </p>
-                                            )}
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
@@ -1333,11 +1167,6 @@ export default function SimpleMealBuilder({
                                                                     className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color}`}>
                                                                     {categoryInfo.icon} {categoryInfo.name}
                                                                 </span>
-                                                                {hasConflict && (
-                                                                    <div className="text-xs text-orange-600 mt-1">
-                                                                        {itemConflicts[0]}
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                             <TouchEnhancedButton
                                                                 onClick={() => removeItemFromMeal(index)}
@@ -1348,88 +1177,58 @@ export default function SimpleMealBuilder({
                                                         </div>
 
                                                         <div className="grid grid-cols-2 gap-2 mb-2">
-                                                            <div>
-                                                                <label
-                                                                    className="block text-xs font-medium text-gray-700 mb-1">
-                                                                    Quantity
-                                                                </label>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0.1"
-                                                                    step="0.1"
-                                                                    value={item.quantity}
-                                                                    onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
-                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    className="block text-xs font-medium text-gray-700 mb-1">
-                                                                    Unit
-                                                                </label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={item.unit}
-                                                                    onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
-                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label
-                                                                className="block text-xs font-medium text-gray-700 mb-1">
-                                                                Cooking Method/Notes
-                                                            </label>
-                                                            <div className="flex gap-1 mb-1 flex-wrap">
-                                                                {COOKING_METHODS.map(method => (
-                                                                    <TouchEnhancedButton
-                                                                        key={method}
-                                                                        onClick={() => updateItemInMeal(index, 'notes', method)}
-                                                                        className={`px-2 py-1 rounded text-xs ${
-                                                                            item.notes === method
-                                                                                ? 'bg-indigo-100 text-indigo-700'
-                                                                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                                                        }`}
-                                                                    >
-                                                                        {method}
-                                                                    </TouchEnhancedButton>
-                                                                ))}
-                                                            </div>
+                                                            <input
+                                                                type="number"
+                                                                min="0.1"
+                                                                step="0.1"
+                                                                value={item.quantity}
+                                                                onChange={(e) => updateItemInMeal(index, 'quantity', parseFloat(e.target.value))}
+                                                                placeholder="Quantity"
+                                                                className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                            />
                                                             <input
                                                                 type="text"
-                                                                value={item.notes}
-                                                                onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
-                                                                placeholder="e.g., grilled, seasoned with salt"
-                                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                                value={item.unit}
+                                                                onChange={(e) => updateItemInMeal(index, 'unit', e.target.value)}
+                                                                placeholder="Unit"
+                                                                className="px-2 py-1 border border-gray-300 rounded text-sm"
                                                             />
                                                         </div>
+
+                                                        <div className="flex gap-1 mb-1 flex-wrap">
+                                                            {COOKING_METHODS.slice(0, 4).map(method => (
+                                                                <TouchEnhancedButton
+                                                                    key={method}
+                                                                    onClick={() => updateItemInMeal(index, 'notes', method)}
+                                                                    className={`px-2 py-1 rounded text-xs ${
+                                                                        item.notes === method
+                                                                            ? 'bg-indigo-100 text-indigo-700'
+                                                                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    {method}
+                                                                </TouchEnhancedButton>
+                                                            ))}
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={item.notes}
+                                                            onChange={(e) => updateItemInMeal(index, 'notes', e.target.value)}
+                                                            placeholder="Cooking method/notes..."
+                                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        />
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Description - COMPACT FOOTER */}
-                                <div className="p-3 border-t border-gray-100 flex-shrink-0">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Description (Optional)
-                                    </label>
-                                    <textarea
-                                        value={mealData.description}
-                                        onChange={(e) => setMealData({...mealData, description: e.target.value})}
-                                        placeholder="Brief description of the meal..."
-                                        rows="2"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                    />
-                                </div>
                             </div>
                         </>
                     )}
                 </div>
 
-                {/* Footer - Fixed positioning */}
+                {/* MINIMAL Footer */}
                 <div className="p-3 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0 bg-white">
                     <TouchEnhancedButton
                         onClick={onClose}
