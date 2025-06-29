@@ -1,11 +1,11 @@
 'use client';
-// file: src/app/dashboard/page.js v14 - Added Receipt Scanner to Quick Actions
-
+// file: src/app/dashboard/page.js v15 - FIXED: Proper Link components and auth handling
 
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
+import {useRouter} from 'next/navigation'; // Add this import
+import Link from 'next/link'; // Add this import
 import ExpirationNotifications from '@/components/notifications/ExpirationNotifications';
-import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
@@ -13,6 +13,7 @@ import {getApiUrl} from '@/lib/api-config';
 
 export default function Dashboard() {
     const {data: session, status} = useSafeSession();
+    const router = useRouter(); // Add this
     const [inventoryStats, setInventoryStats] = useState({
         totalItems: 0,
         expiringItems: 0,
@@ -21,11 +22,12 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [showNotifications, setShowNotifications] = useState(false);
 
+    // FIXED: Use router.push instead of redirect
     useEffect(() => {
         if (status === 'unauthenticated') {
-            redirect('/auth/signin');
+            router.push('/auth/signin');
         }
-    }, [status]);
+    }, [status, router]);
 
     useEffect(() => {
         if (session) {
@@ -176,7 +178,7 @@ export default function Dashboard() {
                     <ExpirationNotifications onItemsUpdated={handleItemsUpdated}/>
                 )}
 
-                {/* Quick actions - Fixed mobile layout with Receipt Scanner */}
+                {/* Quick actions - FIXED: Using Link components instead of <a> tags */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -184,8 +186,8 @@ export default function Dashboard() {
                         </h3>
                         {/* Mobile: 1 column, MD: 2 columns, LG: 4 columns - Custom CSS */}
                         <div className="mobile-stack">
-                            {/* Receipt Scanner - NEW */}
-                            <a
+                            {/* Receipt Scanner - FIXED: Using Link */}
+                            <Link
                                 href="/inventory/receipt-scan"
                                 className="flex items-center p-6 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors min-h-[100px]"
                             >
@@ -194,9 +196,9 @@ export default function Dashboard() {
                                     <div className="font-medium text-purple-900 text-base">Scan Receipt</div>
                                     <div className="text-sm text-purple-700">Add items from receipt</div>
                                 </div>
-                            </a>
+                            </Link>
 
-                            <a
+                            <Link
                                 href="/inventory?action=add"
                                 className="flex items-center p-6 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[100px]"
                             >
@@ -205,9 +207,9 @@ export default function Dashboard() {
                                     <div className="font-medium text-indigo-900 text-base">Add Item</div>
                                     <div className="text-sm text-indigo-700">Add to inventory</div>
                                 </div>
-                            </a>
+                            </Link>
 
-                            <a
+                            <Link
                                 href="/inventory"
                                 className="flex items-center p-6 bg-green-50 rounded-lg hover:bg-green-100 transition-colors min-h-[100px]"
                             >
@@ -216,9 +218,9 @@ export default function Dashboard() {
                                     <div className="font-medium text-green-900 text-base">View Inventory</div>
                                     <div className="text-sm text-green-700">See all items</div>
                                 </div>
-                            </a>
+                            </Link>
 
-                            <a
+                            <Link
                                 href="/recipes"
                                 className="flex items-center p-6 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors min-h-[100px]"
                             >
@@ -227,9 +229,9 @@ export default function Dashboard() {
                                     <div className="font-medium text-yellow-900 text-base">Browse Recipes</div>
                                     <div className="text-sm text-yellow-700">Find recipes</div>
                                 </div>
-                            </a>
+                            </Link>
 
-                            <a
+                            <Link
                                 href="/recipes/suggestions"
                                 className="flex items-center p-6 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors min-h-[100px]"
                             >
@@ -238,7 +240,7 @@ export default function Dashboard() {
                                     <div className="font-medium text-orange-900 text-base">What Can I Make?</div>
                                     <div className="text-sm text-orange-700">Recipe suggestions</div>
                                 </div>
-                            </a>
+                            </Link>
 
                             {/* Expiration Management Quick Action */}
                             <TouchEnhancedButton

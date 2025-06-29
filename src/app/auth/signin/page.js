@@ -124,7 +124,16 @@ function SignInContent() {
                 console.log('Session after login:', session);
 
                 if (session) {
-                    console.log('Session confirmed, redirecting...');
+                    console.log('Session confirmed');
+
+                    // ADDED: Store session for mobile use
+                    if (isNative) {
+                        console.log('Storing session for mobile platform');
+                        const { MobileSession } = await import('@/lib/mobile-session');
+                        await MobileSession.setSession(session);
+                    }
+
+                    console.log('Redirecting to dashboard...');
 
                     if (isNative) {
                         console.log('Using native platform redirect');

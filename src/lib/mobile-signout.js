@@ -1,7 +1,19 @@
-// file: /src/lib/mobile-signout.js - v1 - Mobile-specific sign-out handler for PWA environments
+// file: /src/lib/mobile-signout.js - v2 - Clean version without warnings
 
 import { signOut } from 'next-auth/react';
-import { Capacitor } from '@capacitor/core';
+import { MobileSession } from '@/lib/mobile-session';
+
+// Helper function to safely check if we're on a native platform
+async function isNativePlatform() {
+    try {
+        if (typeof window === 'undefined') return false;
+
+        const { Capacitor } = await import('@capacitor/core');
+        return Capacitor.isNativePlatform();
+    } catch (e) {
+        return false;
+    }
+}
 
 export async function handleMobileSignOut(options = {}) {
     console.log('Mobile sign-out initiated');
@@ -15,7 +27,7 @@ export async function handleMobileSignOut(options = {}) {
         console.log('Could not set signout flags:', storageError);
     }
 
-    const isNative = Capacitor.isNativePlatform();
+    const isNative = await isNativePlatform();
     const isPWA = !isNative && (
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator?.standalone === true ||
@@ -43,6 +55,16 @@ async function performMobileSignOut(options = {}) {
     console.log('Performing mobile/PWA sign-out');
 
     try {
+        // Step 0: Clear mobile session storage first
+        console.log('Clearing mobile session storage...');
+        try {
+            await MobileSession.clearSession();
+            console.log('Mobile session storage cleared successfully');
+        } catch (mobileSessionError) {
+            console.log('Mobile session clearing failed:', mobileSessionError);
+            // Continue with other cleanup
+        }
+
         // Step 1: Clear all local storage first (except signout flags)
         const signoutFlags = {
             'signout-in-progress': sessionStorage.getItem('signout-in-progress'),
@@ -72,7 +94,10 @@ async function performMobileSignOut(options = {}) {
         // Step 3: Clear PWA-specific storage
         await clearPWAStorage();
 
-        // Step 4: Call NextAuth signOut with mobile-specific options
+        // Step 4: Clear Capacitor-specific storage
+        await clearCapacitorStorage();
+
+        // Step 5: Call NextAuth signOut with mobile-specific options
         try {
             console.log('Calling NextAuth signOut for mobile');
             await signOut({
@@ -85,7 +110,7 @@ async function performMobileSignOut(options = {}) {
             // Continue anyway - we've already cleared storage
         }
 
-        // Step 5: Additional API cleanup call
+        // Step 6: Additional API cleanup call
         try {
             console.log('Making manual signout API call');
             const response = await fetch('/api/auth/signout', {
@@ -103,11 +128,11 @@ async function performMobileSignOut(options = {}) {
             console.log('Manual signout API failed:', apiError);
         }
 
-        // Step 6: Wait longer for mobile environments
+        // Step 7: Wait longer for mobile environments
         console.log('Waiting for mobile sign-out to complete...');
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Step 7: Force redirect
+        // Step 8: Force redirect
         const redirectUrl = options.callbackUrl || '/';
         console.log('Redirecting to:', redirectUrl);
         window.location.href = redirectUrl;
@@ -130,6 +155,28 @@ async function performBrowserSignOut(options = {}) {
     } catch (error) {
         console.error('Browser sign-out failed:', error);
         emergencySignOut(options.callbackUrl || '/');
+    }
+}
+
+// Clear Capacitor-specific storage
+async function clearCapacitorStorage() {
+    console.log('Clearing Capacitor storage');
+
+    try {
+        // Clear all Capacitor Preferences (includes our mobile session)
+        try {
+            const { Preferences } = await import('@capacitor/preferences');
+            await Preferences.clear();
+            console.log('Capacitor Preferences cleared');
+        } catch (e) {
+            console.log('Capacitor Preferences not available (normal for web builds)');
+        }
+
+        // Note: Removed @capacitor/storage as it's not installed
+        // If you need it later, install it first: npm install @capacitor/storage
+
+    } catch (error) {
+        console.log('Capacitor storage clearing failed:', error);
     }
 }
 
@@ -229,6 +276,9 @@ function emergencySignOut(redirectUrl = '/') {
     console.log('Emergency sign-out fallback');
 
     try {
+        // Emergency clear mobile session too
+        MobileSession.clearSession().catch(e => console.log('Emergency mobile session clear failed:', e));
+
         localStorage.clear();
         sessionStorage.clear();
     } catch (error) {
