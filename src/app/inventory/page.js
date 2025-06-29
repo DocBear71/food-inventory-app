@@ -41,8 +41,7 @@ function InventoryContent() {
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
-    const isAdminEmail = session?.user?.email === 'e.g.mckeown@gmail.com';
-    const originalSubscription = useSubscription();
+    const subscription = useSubscription();
 
     // Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
@@ -77,6 +76,13 @@ function InventoryContent() {
     }, [session]);
 
     useEffect(() => {
+        if (session?.user?.email === 'e.g.mckeown@gmail.com') {
+            console.log('🔄 Admin user detected, force refreshing subscription data...');
+            subscription.forceRefresh?.();
+        }
+    }, [session?.user?.email]);
+
+    useEffect(() => {
         const shouldOpenWizard = searchParams.get('wizard') === 'true';
         if (shouldOpenWizard) {
             setShowCommonItemsWizard(true);
@@ -96,77 +102,16 @@ function InventoryContent() {
         };
     }, []);
 
-    const subscription = isAdminEmail ? {
-        // Override with admin values
-        tier: 'admin',
-        status: 'active',
-        isAdmin: true,
-        loading: false,
-        error: null,
-        isActive: true,
-        isTrialActive: false,
-        isFree: false,
-        isGold: false,
-        isPlatinum: true, // Admin counts as platinum+
-        isGoldOrHigher: true,
-
-        // Override all feature checks to return true
-        checkFeature: () => true,
-        checkLimit: () => true,
-        canAddInventoryItem: true,
-        canScanUPC: true,
-        canScanReceipt: true,
-        canAddPersonalRecipe: true,
-        canSaveRecipe: true,
-        canCreateCollection: true,
-        canWriteReviews: true,
-        canMakeRecipesPublic: true,
-        hasNutritionAccess: true,
-        hasMealPlanning: true,
-        hasEmailNotifications: true,
-        hasEmailSharing: true,
-        hasCommonItemsWizard: true,
-        hasConsumptionHistory: true,
-        hasRecipeCollections: true,
-
-        // Override remaining counts to unlimited
-        remainingInventoryItems: 'Unlimited',
-        remainingPersonalRecipes: 'Unlimited',
-        remainingUPCScans: 'Unlimited',
-        remainingReceiptScans: 'Unlimited',
-        remainingSavedRecipes: 'Unlimited',
-        remainingCollections: 'Unlimited',
-
-        // Keep original functions
-        refetch: originalSubscription.refetch,
-        forceRefresh: originalSubscription.forceRefresh,
-        clearCache: originalSubscription.clearCache
-    } : originalSubscription; // Use original for non-admin users
-
-
     useEffect(() => {
-        console.log('🔍 ADMIN EMAIL CHECK:', {
-            email: session?.user?.email,
-            isAdminEmail: isAdminEmail,
-            subscriptionTier: subscription.tier,
-            usageInfo: getUsageInfo()
+        console.log('🔍 SUBSCRIPTION HOOK DATA:', {
+            tier: subscription.tier,
+            isAdmin: subscription.isAdmin,
+            loading: subscription.loading,
+            error: subscription.error
         });
-    }, [session, isAdminEmail, subscription.tier]);
-
+    }, [subscription.tier, subscription.isAdmin, subscription.loading]);
 
     const getUsageInfo = () => {
-        // Force admin for your email
-        if (isAdminEmail) {
-            return {
-                current: inventory.length,
-                limit: 'unlimited',
-                isUnlimited: true,
-                tier: 'admin',
-                isAdmin: true
-            };
-        }
-
-        // Original logic for everyone else
         if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
@@ -185,10 +130,6 @@ function InventoryContent() {
 
     // Add limit checking functions
     const getUsageColor = (isActive = false) => {
-        if (isAdminEmail) {
-            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
-        }
-
         if (subscription.loading) {
             return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
         }
@@ -726,18 +667,18 @@ function InventoryContent() {
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
                                 📦 Inventory ({(() => {
                                 const usage = getUsageInfo(); // Call the function to get the object
-                                if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
+                                if (usage.isUnlimited || usage.tier === 'admin') {
                                     return `${usage.current}`;
                                 }
                                 return `${usage.current}/${usage.limit}`; // Fixed the syntax here
                             })()})
                             </h2>
 
-                            {(isAdminEmail || !subscription.loading) && (
+                            {!subscription.loading && (
                                 <p className="text-sm text-gray-600 mt-1">
                                     {(() => {
                                         const usage = getUsageInfo(); // Get usage info consistently
-                                        if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
+                                        if (usage.isUnlimited || usage.tier === 'admin') {
                                             return `Unlimited inventory on ${usage.tier} plan`;
                                         } else if (usage.current >= usage.limit) {
                                             return (
@@ -787,14 +728,12 @@ function InventoryContent() {
                                                 {usage.tier === 'free' && ' Upgrade to Gold for 250 items or Platinum for unlimited.'}
                                                 {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
                                             </p>
-                                            {!isAdminEmail && (
                                                 <TouchEnhancedButton
                                                     onClick={() => window.location.href = '/pricing'}
                                                     className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
                                                 >
                                                     🚀 Upgrade Now
                                                 </TouchEnhancedButton>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -957,11 +896,11 @@ function InventoryContent() {
                             <p className="text-sm text-blue-700 mt-1">
                                 Track your food and ingredients to reduce waste and always know what you have on hand.
                             </p>
-                            {(isAdminEmail || !subscription.loading) && (
+                            {!subscription.loading && (
                                 <div className="mt-2 text-xs text-purple-600">
                                     {(() => {
                                         const usage = getUsageInfo('inventory');
-                                        if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
+                                        if (usage.isUnlimited || usage.tier === 'admin') {
                                             return `${usage.current} saved • Unlimited on ${usage.tier} plan`;
                                         }
                                         const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
