@@ -41,7 +41,7 @@ function InventoryContent() {
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
 
-    const isForceAdmin = session?.user?.email === 'e.g.mckeown@gmail.com';
+    const isAdminEmail = session?.user?.email === 'e.g.mckeown@gmail.com';
 
     // Advanced filtering and search
     const [filterStatus, setFilterStatus] = useState('all');
@@ -65,22 +65,13 @@ function InventoryContent() {
     const originalSubscription = useSubscription();
 
     useEffect(() => {
-        console.log('🔍 INVENTORY ADMIN CHECK:', {
+        console.log('🔍 ADMIN EMAIL CHECK:', {
             email: session?.user?.email,
-            isForceAdmin: isForceAdmin,
-            tier: getUsageInfo().tier
-        });
-    }, [session, isForceAdmin]);
-
-    useEffect(() => {
-        console.log('🔍 COMPREHENSIVE OVERRIDE CHECK:', {
-            email: session?.user?.email,
-            isForceAdmin: isForceAdmin,
+            isAdminEmail: isAdminEmail,
             subscriptionTier: subscription.tier,
-            subscriptionLoading: subscription.loading,
-            usageInfoTier: getUsageInfo().tier
+            usageInfo: getUsageInfo()
         });
-    }, [session, isForceAdmin, subscription.tier]);
+    }, [session, isAdminEmail, subscription.tier]);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -162,8 +153,8 @@ function InventoryContent() {
     } : originalSubscription; // Use original for non-admin users
 
     const getUsageInfo = () => {
-        if (isForceAdmin) {
-            console.log('🔧 FORCE ADMIN: Overriding tier for', session.user.email);
+        // Force admin for your email
+        if (isAdminEmail) {
             return {
                 current: inventory.length,
                 limit: 'unlimited',
@@ -173,6 +164,7 @@ function InventoryContent() {
             };
         }
 
+        // Original logic for everyone else
         if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
         }
@@ -733,18 +725,18 @@ function InventoryContent() {
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
                                 📦 Inventory ({(() => {
                                 const usage = getUsageInfo(); // Call the function to get the object
-                                if (usage.isUnlimited || usage.tier === 'admin') {
+                                if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
                                     return `${usage.current}`;
                                 }
                                 return `${usage.current}/${usage.limit}`; // Fixed the syntax here
                             })()})
                             </h2>
 
-                            {!subscription.loading && (
+                            {(isAdminEmail || !subscription.loading) && (
                                 <p className="text-sm text-gray-600 mt-1">
                                     {(() => {
                                         const usage = getUsageInfo(); // Get usage info consistently
-                                        if (usage.isUnlimited || usage.tier === 'admin') {
+                                        if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
                                             return `Unlimited inventory on ${usage.tier} plan`;
                                         } else if (usage.current >= usage.limit) {
                                             return (
@@ -794,12 +786,14 @@ function InventoryContent() {
                                                 {usage.tier === 'free' && ' Upgrade to Gold for 250 items or Platinum for unlimited.'}
                                                 {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
                                             </p>
-                                            <TouchEnhancedButton
-                                                onClick={() => window.location.href = `/pricing?source=inventory-limit&tier=${usage.tier}`}
-                                                className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
-                                            >
-                                                🚀 Upgrade Now
-                                            </TouchEnhancedButton>
+                                            {!isAdminEmail && (
+                                                <TouchEnhancedButton
+                                                    onClick={() => window.location.href = '/pricing'}
+                                                    className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
+                                                >
+                                                    🚀 Upgrade Now
+                                                </TouchEnhancedButton>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -962,11 +956,11 @@ function InventoryContent() {
                             <p className="text-sm text-blue-700 mt-1">
                                 Track your food and ingredients to reduce waste and always know what you have on hand.
                             </p>
-                            {!subscription.loading && (
+                            {(isAdminEmail || !subscription.loading) && (
                                 <div className="mt-2 text-xs text-purple-600">
                                     {(() => {
                                         const usage = getUsageInfo('inventory');
-                                        if (usage.isUnlimited || usage.tier === 'admin') {
+                                        if (isAdminEmail || usage.isUnlimited || usage.tier === 'admin') {
                                             return `${usage.current} saved • Unlimited on ${usage.tier} plan`;
                                         }
                                         const remaining = Math.max(0, (typeof usage.limit === 'number' ? usage.limit : 0) - usage.current);
