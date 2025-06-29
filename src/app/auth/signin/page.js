@@ -352,6 +352,7 @@ export default function SignIn() {
                 </div>
             </MobileOptimizedLayout>
         }>
+            <SignInContent />
         </Suspense>
     );
 }

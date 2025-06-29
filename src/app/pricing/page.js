@@ -445,6 +445,7 @@ export default function PricingPage() {
                 </div>
             </MobileOptimizedLayout>
         }>
+            <PricingContent />
         </Suspense>
     );
 }

@@ -197,6 +197,7 @@ export default function VerifyEmailPage() {
                 </div>
             </MobileOptimizedLayout>
         }>
+            <VerifyEmailContent />
         </Suspense>
     );
 }

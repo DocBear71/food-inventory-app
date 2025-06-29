@@ -1508,6 +1508,7 @@ export default function Inventory() {
                 </div>
             </MobileOptimizedLayout>
         }>
+            <InventoryContent />
         </Suspense>
     );
 }
