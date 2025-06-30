@@ -463,12 +463,17 @@ function InventoryContent() {
             if (data.success) {
                 console.log('✅ CLIENT: Success! Refreshing inventory...');
                 await fetchInventory();
+
                 // Show different messages based on whether item was merged or added
                 if (data.merged) {
-                    alert(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}`);
+                    // FIXED: Use data.item.unit instead of just 'unit'
+                    alert(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${data.item.unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}${data.item.secondaryQuantity ? ` (${data.item.secondaryQuantity} ${data.item.secondaryUnit})` : ''}`);
                 } else {
-                    alert(`✅ Item created successfully!\n\nAdded ${data.addedQuantity} ${unit}`)
+                    // Normal success message for new items
+                    alert('✅ Item added successfully!');
                 }
+
+                // Reset form (existing code)
                 setFormData({
                     name: '',
                     brand: '',
