@@ -164,22 +164,37 @@ export async function POST(request) {
                     newSecondaryQuantity = parseFloat(secondaryQuantity);
                 }
 
-                // Update the existing item
-                inventory.items[existingItemIndex] = {
-                    ...existingItem,
-                    quantity: newPrimaryQuantity,
-                    secondaryQuantity: newSecondaryQuantity,
-                    secondaryUnit: newSecondaryQuantity ? (secondaryUnit || existingItem.secondaryUnit) : null,
-                    // Update fields that might be empty in existing item
-                    brand: existingItem.brand || brand || '',
-                    category: existingItem.category || category || '',
-                    upc: existingItem.upc || upc || '',
-                    expirationDate: expirationDate ? new Date(expirationDate) : existingItem.expirationDate,
-                    nutrition: nutrition || existingItem.nutrition,
-                    lastUpdated: new Date()
-                };
+                // FIXED: Update the existing item properly
+                inventory.items[existingItemIndex].quantity = newPrimaryQuantity;
 
+                if (newSecondaryQuantity !== null) {
+                    inventory.items[existingItemIndex].secondaryQuantity = newSecondaryQuantity;
+                    inventory.items[existingItemIndex].secondaryUnit = secondaryUnit || existingItem.secondaryUnit;
+                }
+
+                inventory.items[existingItemIndex].lastUpdated = new Date();
+
+                // Only update fields if the existing field is empty/null AND we have new data
+                if (!existingItem.brand && brand) {
+                    inventory.items[existingItemIndex].brand = brand;
+                }
+                if (!existingItem.category && category) {
+                    inventory.items[existingItemIndex].category = category;
+                }
+                if (!existingItem.upc && upc) {
+                    inventory.items[existingItemIndex].upc = upc;
+                }
+                if (!existingItem.expirationDate && expirationDate) {
+                    inventory.items[existingItemIndex].expirationDate = new Date(expirationDate);
+                }
+                if (!existingItem.nutrition && nutrition) {
+                    inventory.items[existingItemIndex].nutrition = nutrition;
+                }
+
+                // Mark the inventory as modified and save
+                inventory.markModified('items');
                 inventory.lastUpdated = new Date();
+
                 await inventory.save();
 
                 // Update user's usage tracking
