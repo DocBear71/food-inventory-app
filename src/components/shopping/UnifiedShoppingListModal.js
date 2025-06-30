@@ -351,20 +351,20 @@ export default function UnifiedShoppingListModal({
                     checkboxes.forEach(checkbox => {
                         const replacement = document.createElement('span');
                         replacement.style.cssText = `
-                        display: inline-block;
-                        width: 16px;
-                        height: 16px;
-                        border: 2px solid #000;
-                        margin-right: 10px;
-                        text-align: center;
-                        line-height: 12px;
-                        font-size: 12px;
-                        vertical-align: top;
-                        margin-top: 2px;
-                        font-weight: bold;
-                        background: ${checkbox.checked ? '#000' : 'white'};
-                        color: ${checkbox.checked ? 'white' : 'transparent'};
-                    `;
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid #000;
+                margin-right: 10px;
+                text-align: center;
+                line-height: 12px;
+                font-size: 12px;
+                vertical-align: top;
+                margin-top: 2px;
+                font-weight: bold;
+                background: ${checkbox.checked ? '#000' : 'white'};
+                color: ${checkbox.checked ? 'white' : 'transparent'};
+            `;
                         replacement.textContent = '✓';
                         checkbox.parentNode.replaceChild(replacement, checkbox);
                     });
@@ -482,25 +482,32 @@ export default function UnifiedShoppingListModal({
         .actions {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            gap: 10px;
+            gap: 15px;
             z-index: 1000;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         
         .action-btn {
             background: #3b82f6;
             color: white;
             border: none;
-            border-radius: 50px;
-            padding: 15px 20px;
+            border-radius: 12px;
+            padding: 12px 20px;
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
             gap: 8px;
+            min-width: 80px;
+            justify-content: center;
+            touch-action: manipulation;
         }
         
         .pdf-btn {
@@ -511,6 +518,10 @@ export default function UnifiedShoppingListModal({
             background: #6b7280;
         }
         
+        .print-btn {
+            background: #10b981;
+        }
+        
         @media print {
             .actions { display: none; }
             body { font-size: 12pt; padding: 0; }
@@ -519,6 +530,8 @@ export default function UnifiedShoppingListModal({
     </style>
 </head>
 <body>
+    <button class="action-btn close-btn" onclick="closeWindow()" style="position: fixed; top: 20px; right: 20px; z-index: 1001;">✕</button>
+    
     <div class="header">
         <h1>${title}</h1>
         ${subtitle ? `<p>${subtitle}</p>` : ''}
@@ -527,51 +540,184 @@ export default function UnifiedShoppingListModal({
     ${contentClone.innerHTML}
     
     <div class="actions">
-        <button class="action-btn pdf-btn" onclick="downloadAsPDF()">📄 Save PDF</button>
-        <button class="action-btn" onclick="window.print()">🖨️ Print</button>
-        <button class="action-btn close-btn" onclick="window.close()">✕ Close</button>
+        <button class="action-btn pdf-btn" onclick="savePDF()">📄 Save PDF</button>
+        <button class="action-btn print-btn" onclick="printPage()">🖨️ Print</button>
+        <button class="action-btn close-btn" onclick="closeWindow()">✕ Close</button>
     </div>
     
     <script>
-        function downloadAsPDF() {
-            // Hide actions for PDF
-            document.querySelector('.actions').style.display = 'none';
+        // Enhanced PDF saving for Android
+        function savePDF() {
+            console.log('Attempting to save PDF...');
             
-            // Trigger print (which should offer PDF option on Android)
-            window.print();
+            // Hide actions for cleaner PDF
+            const actions = document.querySelector('.actions');
+            const closeBtn = document.querySelector('.action-btn.close-btn[style*="position: fixed"]');
+            if (actions) actions.style.display = 'none';
+            if (closeBtn) closeBtn.style.display = 'none';
             
-            // Show actions again after a delay
+            // Try multiple PDF generation methods
+            try {
+                // Method 1: Try direct print (should offer PDF on Android)
+                window.print();
+                
+                // Method 2: If available, try to trigger download
+                setTimeout(() => {
+                    try {
+                        // Create a downloadable version
+                        const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'shopping-list-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.html';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } catch (downloadError) {
+                        console.log('Download fallback failed:', downloadError);
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('PDF save error:', error);
+                alert('Unable to save PDF. Please use the Print button and select "Save as PDF" from your device options.');
+            }
+            
+            // Restore actions after delay
             setTimeout(() => {
-                document.querySelector('.actions').style.display = 'flex';
-            }, 1000);
+                if (actions) actions.style.display = 'flex';
+                if (closeBtn) closeBtn.style.display = 'flex';
+            }, 2000);
         }
         
-        // Also handle back button
-        window.addEventListener('beforeunload', function() {
-            if (window.opener) {
-                window.opener.focus();
+        // Enhanced print function
+        function printPage() {
+            console.log('Attempting to print...');
+            
+            try {
+                // Hide actions for cleaner print
+                const actions = document.querySelector('.actions');
+                const closeBtn = document.querySelector('.action-btn.close-btn[style*="position: fixed"]');
+                if (actions) actions.style.display = 'none';
+                if (closeBtn) closeBtn.style.display = 'none';
+                
+                // Trigger print
+                window.print();
+                
+                // Restore actions after delay
+                setTimeout(() => {
+                    if (actions) actions.style.display = 'flex';
+                    if (closeBtn) closeBtn.style.display = 'flex';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Print error:', error);
+                alert('Unable to print. Please try using your device\\'s native print function.');
             }
+        }
+        
+        // Enhanced close function for Android WebView
+        function closeWindow() {
+            console.log('Attempting to close window...');
+            
+            try {
+                // Method 1: Try postMessage to parent (for WebView communication)
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ action: 'close' }, '*');
+                }
+                
+                // Method 2: Try Android WebView interface
+                if (window.Android && window.Android.closeWindow) {
+                    window.Android.closeWindow();
+                    return;
+                }
+                
+                // Method 3: Try history back
+                if (window.history.length > 1) {
+                    window.history.back();
+                    return;
+                }
+                
+                // Method 4: Try window.close() (may not work in WebView)
+                try {
+                    window.close();
+                } catch (closeError) {
+                    console.log('window.close() not allowed:', closeError);
+                }
+                
+                // Method 5: Navigate to blank page as fallback
+                setTimeout(() => {
+                    window.location.href = 'about:blank';
+                }, 100);
+                
+            } catch (error) {
+                console.error('Close error:', error);
+                // Last resort: reload parent or navigate away
+                try {
+                    if (window.opener) {
+                        window.opener.focus();
+                        window.close();
+                    } else {
+                        window.location.href = 'about:blank';
+                    }
+                } catch (finalError) {
+                    console.error('All close methods failed:', finalError);
+                }
+            }
+        }
+        
+        // Handle Android back button
+        document.addEventListener('backbutton', closeWindow, false);
+        
+        // Handle browser back button
+        window.addEventListener('popstate', closeWindow);
+        
+        // Handle message from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'close') {
+                closeWindow();
+            }
+        });
+        
+        // Auto-focus for better UX
+        window.addEventListener('load', function() {
+            document.body.focus();
         });
     </script>
 </body>
 </html>`;
 
                     // Create blob and open in new tab
-                    const blob = new Blob([htmlContent], {type: 'text/html'});
+                    const blob = new Blob([htmlContent], { type: 'text/html' });
                     const url = URL.createObjectURL(blob);
-                    const newTab = window.open(url, '_blank');
+
+                    // Try to open with target="_blank" for better Android compatibility
+                    const newTab = window.open(url, '_blank', 'noopener,noreferrer');
 
                     if (!newTab) {
-                        alert('Please allow popups to view the PDF-ready shopping list');
-                    } else {
-                        // Clean up the blob URL after a delay
-                        setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                        }, 10000);
+                        // Fallback: try without window.open
+                        try {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        } catch (fallbackError) {
+                            alert('Please allow popups to view the PDF-ready shopping list');
+                        }
                     }
+
+                    // Clean up the blob URL after a longer delay for Android
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 15000);
+
                 } catch (error) {
                     console.error('PDF generation error:', error);
-                    alert('Error creating PDF version: ' + error.message);
+                    alert('Error creating PDF version. Please try the Print option instead.');
                 }
             }
 
