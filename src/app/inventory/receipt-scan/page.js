@@ -1112,19 +1112,229 @@ export default function ReceiptScan() {
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
-        if (nameLower.includes('milk') || nameLower.includes('yogurt')) {
-            return 'Dairy';
-        }
-        if (nameLower.includes('bread') || nameLower.includes('bagel')) {
-            return 'Breads';
-        }
-        if (nameLower.includes('apple') || nameLower.includes('banana')) {
-            return 'Fresh Fruits';
-        }
-        if (nameLower.includes('chicken') || nameLower.includes('beef')) {
-            return 'Fresh/Frozen Meat';
+        // Baking & Cooking Ingredients
+        if (nameLower.includes('flour') || nameLower.includes('sugar') || nameLower.includes('brown sugar') ||
+            nameLower.includes('baking powder') || nameLower.includes('baking soda') || nameLower.includes('yeast') ||
+            nameLower.includes('vanilla') || nameLower.includes('extract') || nameLower.includes('oil') ||
+            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') || nameLower.includes('vinegar') ||
+            nameLower.includes('breadcrumb') || nameLower.includes('cornstarch') || nameLower.includes('honey') ||
+            nameLower.includes('maple syrup') || nameLower.includes('molasses') || nameLower.includes('cocoa')) {
+            return 'Baking & Cooking Ingredients';
         }
 
+        // Beans (dried)
+        if (nameLower.includes('dried bean') || nameLower.includes('black bean') && !nameLower.includes('can') ||
+            nameLower.includes('kidney bean') && !nameLower.includes('can') || nameLower.includes('pinto bean') ||
+            nameLower.includes('navy bean') || nameLower.includes('lima bean') || nameLower.includes('lentil') ||
+            nameLower.includes('chickpea') && !nameLower.includes('can') || nameLower.includes('split pea')) {
+            return 'Beans';
+        }
+
+        // Beverages
+        if (nameLower.includes('soda') || nameLower.includes('juice') || nameLower.includes('water') ||
+            nameLower.includes('coffee') || nameLower.includes('tea') || nameLower.includes('energy drink') ||
+            nameLower.includes('soft drink') || nameLower.includes('cola') || nameLower.includes('sprite') ||
+            nameLower.includes('pepsi') || nameLower.includes('coke') || nameLower.includes('dr pepper')) {
+            return 'Beverages';
+        }
+
+        // Bouillon
+        if (nameLower.includes('bouillon') || nameLower.includes('bouillon cube') || nameLower.includes('stock cube')) {
+            return 'Bouillon';
+        }
+
+        // Boxed Meals
+        if (nameLower.includes('hamburger helper') || nameLower.includes('mac and cheese') ||
+            nameLower.includes('boxed dinner') || nameLower.includes('meal kit') || nameLower.includes('kraft dinner')) {
+            return 'Boxed Meals';
+        }
+
+        // Breads
+        if (nameLower.includes('bread') || nameLower.includes('bun') || nameLower.includes('roll') ||
+            nameLower.includes('bagel') || nameLower.includes('tortilla') || nameLower.includes('pita') ||
+            nameLower.includes('croissant') || nameLower.includes('baguette') || nameLower.includes('muffin')) {
+            return 'Breads';
+        }
+
+        // Canned/Jarred items
+        if (nameLower.includes('can') || nameLower.includes('canned') || nameLower.includes('jar')) {
+            if (nameLower.includes('bean') || nameLower.includes('chickpea') || nameLower.includes('black bean') ||
+                nameLower.includes('kidney bean') || nameLower.includes('baked bean')) {
+                return 'Canned Beans';
+            }
+            if (nameLower.includes('peach') || nameLower.includes('pear') || nameLower.includes('fruit cocktail') ||
+                nameLower.includes('pineapple') || nameLower.includes('mandarin')) {
+                return 'Canned Fruit';
+            }
+            if (nameLower.includes('soup') || nameLower.includes('chili') || nameLower.includes('stew') ||
+                nameLower.includes('ravioli') || nameLower.includes('spaghetti')) {
+                return 'Canned Meals';
+            }
+            if (nameLower.includes('tuna') || nameLower.includes('salmon') || nameLower.includes('chicken') ||
+                nameLower.includes('spam') || nameLower.includes('sardine')) {
+                return 'Canned Meat';
+            }
+            if (nameLower.includes('pasta sauce') || nameLower.includes('marinara') || nameLower.includes('alfredo') ||
+                nameLower.includes('sauce')) {
+                return 'Canned Sauces';
+            }
+            if (nameLower.includes('tomato') || nameLower.includes('diced tomato') || nameLower.includes('crushed tomato') ||
+                nameLower.includes('tomato paste') || nameLower.includes('tomato sauce')) {
+                return 'Canned Tomatoes';
+            }
+            if (nameLower.includes('corn') || nameLower.includes('peas') || nameLower.includes('carrot') ||
+                nameLower.includes('green bean') || nameLower.includes('vegetable')) {
+                return 'Canned Vegetables';
+            }
+        }
+
+        // Cheese
+        if (nameLower.includes('cheese') || nameLower.includes('cheddar') || nameLower.includes('mozzarella') ||
+            nameLower.includes('parmesan') || nameLower.includes('swiss') || nameLower.includes('provolone') ||
+            nameLower.includes('cream cheese') || nameLower.includes('feta') || nameLower.includes('gouda')) {
+            return 'Cheese';
+        }
+
+        // Condiments
+        if (nameLower.includes('ketchup') || nameLower.includes('mustard') || nameLower.includes('mayo') ||
+            nameLower.includes('mayonnaise') || nameLower.includes('relish') || nameLower.includes('pickle') ||
+            nameLower.includes('salad dressing') || nameLower.includes('ranch') || nameLower.includes('italian dressing')) {
+            return 'Condiments';
+        }
+
+        // Dairy
+        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('butter') ||
+            nameLower.includes('cream') || nameLower.includes('sour cream') || nameLower.includes('half and half') ||
+            nameLower.includes('heavy cream') || nameLower.includes('whipping cream')) {
+            return 'Dairy';
+        }
+
+        // Eggs
+        if (nameLower.includes('egg') || nameLower.includes('dozen egg')) {
+            return 'Eggs';
+        }
+
+        // Fresh Fruits
+        if ((nameLower.includes('apple') || nameLower.includes('banana') || nameLower.includes('orange') ||
+                nameLower.includes('grape') || nameLower.includes('strawberry') || nameLower.includes('blueberry') ||
+                nameLower.includes('raspberry') || nameLower.includes('lemon') || nameLower.includes('lime') ||
+                nameLower.includes('peach') || nameLower.includes('pear') || nameLower.includes('cherry') ||
+                nameLower.includes('pineapple') || nameLower.includes('mango') || nameLower.includes('avocado')) &&
+            !nameLower.includes('frozen') && !nameLower.includes('can')) {
+            return 'Fresh Fruits';
+        }
+
+        // Fresh Spices
+        if (nameLower.includes('fresh basil') || nameLower.includes('fresh cilantro') || nameLower.includes('fresh parsley') ||
+            nameLower.includes('fresh mint') || nameLower.includes('fresh ginger') || nameLower.includes('fresh herb')) {
+            return 'Fresh Spices';
+        }
+
+        // Fresh Vegetables
+        if ((nameLower.includes('lettuce') || nameLower.includes('spinach') || nameLower.includes('tomato') ||
+                nameLower.includes('onion') || nameLower.includes('carrot') || nameLower.includes('potato') ||
+                nameLower.includes('pepper') || nameLower.includes('broccoli') || nameLower.includes('cauliflower') ||
+                nameLower.includes('celery') || nameLower.includes('cucumber') || nameLower.includes('zucchini') ||
+                nameLower.includes('mushroom') || nameLower.includes('cabbage') || nameLower.includes('kale')) &&
+            !nameLower.includes('frozen') && !nameLower.includes('can')) {
+            return 'Fresh Vegetables';
+        }
+
+        // Fresh/Frozen Meats
+        if (nameLower.includes('beef') || nameLower.includes('steak') || nameLower.includes('ground beef') ||
+            nameLower.includes('roast') || nameLower.includes('brisket')) {
+            return 'Fresh/Frozen Beef';
+        }
+        if (nameLower.includes('fish') || nameLower.includes('salmon') || nameLower.includes('tuna') ||
+            nameLower.includes('cod') || nameLower.includes('tilapia') || nameLower.includes('shrimp') ||
+            nameLower.includes('crab') || nameLower.includes('lobster') || nameLower.includes('seafood')) {
+            return 'Fresh/Frozen Fish & Seafood';
+        }
+        if (nameLower.includes('lamb') || nameLower.includes('mutton')) {
+            return 'Fresh/Frozen Lamb';
+        }
+        if (nameLower.includes('pork') || nameLower.includes('bacon') || nameLower.includes('ham') ||
+            nameLower.includes('sausage') || nameLower.includes('ground pork')) {
+            return 'Fresh/Frozen Pork';
+        }
+        if (nameLower.includes('chicken') || nameLower.includes('turkey') || nameLower.includes('duck') ||
+            nameLower.includes('poultry') || nameLower.includes('wing') || nameLower.includes('breast') ||
+            nameLower.includes('thigh') || nameLower.includes('drumstick')) {
+            return 'Fresh/Frozen Poultry';
+        }
+        if (nameLower.includes('rabbit')) {
+            return 'Fresh/Frozen Rabbit';
+        }
+        if (nameLower.includes('venison') || nameLower.includes('deer')) {
+            return 'Fresh/Frozen Venison';
+        }
+
+        // Frozen items
+        if (nameLower.includes('frozen')) {
+            if (nameLower.includes('fruit') || nameLower.includes('berry') || nameLower.includes('strawberry') ||
+                nameLower.includes('blueberry') || nameLower.includes('mango')) {
+                return 'Frozen Fruit';
+            }
+            if (nameLower.includes('vegetable') || nameLower.includes('peas') || nameLower.includes('corn') ||
+                nameLower.includes('broccoli') || nameLower.includes('spinach') || nameLower.includes('carrot')) {
+                return 'Frozen Vegetables';
+            }
+        }
+
+        // Grains
+        if (nameLower.includes('rice') || nameLower.includes('quinoa') || nameLower.includes('oats') ||
+            nameLower.includes('barley') || nameLower.includes('bulgur') || nameLower.includes('cereal') ||
+            nameLower.includes('rice-a-roni') || nameLower.includes('rice mix')) {
+            return 'Grains';
+        }
+
+        // Pasta
+        if (nameLower.includes('pasta') || nameLower.includes('spaghetti') || nameLower.includes('macaroni') ||
+            nameLower.includes('penne') || nameLower.includes('linguine') || nameLower.includes('fettuccine') ||
+            nameLower.includes('ravioli') || nameLower.includes('lasagna') || nameLower.includes('noodle')) {
+            return 'Pasta';
+        }
+
+        // Seasonings
+        if (nameLower.includes('salt') || nameLower.includes('pepper') || nameLower.includes('garlic powder') ||
+            nameLower.includes('onion powder') || nameLower.includes('seasoning mix') || nameLower.includes('seasoning')) {
+            return 'Seasonings';
+        }
+
+        // Snacks
+        if (nameLower.includes('chips') || nameLower.includes('crackers') || nameLower.includes('cookies') ||
+            nameLower.includes('nuts') || nameLower.includes('pretzels') || nameLower.includes('popcorn') ||
+            nameLower.includes('granola bar') || nameLower.includes('candy') || nameLower.includes('chocolate')) {
+            return 'Snacks';
+        }
+
+        // Soups & Soup Mixes
+        if (nameLower.includes('soup') || nameLower.includes('soup mix') || nameLower.includes('ramen') ||
+            nameLower.includes('instant noodle') || nameLower.includes('broth mix') || nameLower.includes('bisque')) {
+            return 'Soups & Soup Mixes';
+        }
+
+        // Spices
+        if (nameLower.includes('cinnamon') || nameLower.includes('paprika') || nameLower.includes('cumin') ||
+            nameLower.includes('oregano') || nameLower.includes('thyme') || nameLower.includes('rosemary') ||
+            nameLower.includes('bay leaves') || nameLower.includes('spice') || nameLower.includes('herb')) {
+            return 'Spices';
+        }
+
+        // Stock/Broth
+        if (nameLower.includes('broth') || nameLower.includes('stock') || nameLower.includes('chicken broth') ||
+            nameLower.includes('beef broth') || nameLower.includes('vegetable broth') || nameLower.includes('bone broth')) {
+            return 'Stock/Broth';
+        }
+
+        // Stuffing & Sides
+        if (nameLower.includes('stuffing') || nameLower.includes('stuffing mix') || nameLower.includes('mashed potato') ||
+            nameLower.includes('instant potato') || nameLower.includes('au gratin') || nameLower.includes('cornbread mix') ||
+            nameLower.includes('biscuit mix') || nameLower.includes('gravy mix')) {
+            return 'Stuffing & Sides';
+        }
+
+        // Default fallback
         return 'Other';
     }
 
@@ -1588,7 +1798,7 @@ export default function ReceiptScan() {
                                     })()}
 
                                     {/* Camera and Upload buttons */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <TouchEnhancedButton
                                             onClick={startCamera}
                                             className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
@@ -1921,14 +2131,44 @@ export default function ReceiptScan() {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
                                                                     <option value="">Select category</option>
-                                                                    <option value="Dairy">Dairy</option>
+                                                                    <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
+                                                                    <option value="Beans">Beans</option>
+                                                                    <option value="Beverages">Beverages</option>
+                                                                    <option value="Bouillon">Bouillon</option>
+                                                                    <option value="Boxed Meals">Boxed Meals</option>
                                                                     <option value="Breads">Breads</option>
+                                                                    <option value="Canned Beans">Canned/Jarred Beans</option>
+                                                                    <option value="Canned Fruit">Canned/Jarred Fruit</option>
+                                                                    <option value="Canned Meals">Canned/Jarred Meals</option>
+                                                                    <option value="Canned Meat">Canned/Jarred Meat</option>
+                                                                    <option value="Canned Sauces">Canned/Jarred Sauces</option>
+                                                                    <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
+                                                                    <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
+                                                                    <option value="Cheese">Cheese</option>
+                                                                    <option value="Condiments">Condiments</option>
+                                                                    <option value="Dairy">Dairy</option>
+                                                                    <option value="Eggs">Eggs</option>
                                                                     <option value="Fresh Fruits">Fresh Fruits</option>
-                                                                    <option value="Fresh Vegetables">Fresh Vegetables
-                                                                    </option>
-                                                                    <option value="Fresh/Frozen Meat">Fresh/Frozen Meat
-                                                                    </option>
+                                                                    <option value="Fresh Spices">Fresh Spices</option>
+                                                                    <option value="Fresh Vegetables">Fresh Vegetables</option>
+                                                                    <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
+                                                                    <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                                                    <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
+                                                                    <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
+                                                                    <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
+                                                                    <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
+                                                                    <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
+                                                                    <option value="Frozen Fruit">Frozen Fruit</option>
+                                                                    <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                                                    <option value="Grains">Grains</option>
                                                                     <option value="Other">Other</option>
+                                                                    <option value="Pasta">Pasta</option>
+                                                                    <option value="Seasonings">Seasonings</option>
+                                                                    <option value="Snacks">Snacks</option>
+                                                                    <option value="Soups & Soup Mixes">Soups & Soup Mixes</option>
+                                                                    <option value="Spices">Spices</option>
+                                                                    <option value="Stock/Broth">Stock/Broth</option>
+                                                                    <option value="Stuffing & Sides">Stuffing & Sides</option>
                                                                 </select>
                                                             </div>
 

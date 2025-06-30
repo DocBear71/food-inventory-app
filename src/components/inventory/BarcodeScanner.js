@@ -17,6 +17,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const [isScanning, setIsScanning] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [permissionState, setPermissionState] = useState('unknown'); // 'unknown', 'requesting', 'granted', 'denied'
+    const [manualScanMode, setManualScanMode] = useState(false);
+    const [scanButtonReady, setScanButtonReady] = useState(false);
     const cooldownRef = useRef(false);
     const quaggaRef = useRef(null);
     const mountedRef = useRef(true);
@@ -293,6 +295,13 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             return;
         }
 
+        // If in manual mode, don't auto-detect - wait for button press
+        if (manualScanMode && !scanButtonReady) {
+            console.log('⏩ Manual scan mode - waiting for scan button');
+            setScanButtonReady(true);
+            return;
+        }
+
         const code = result.codeResult.code;
         const format = result.codeResult.format;
         scanCountRef.current += 1;
@@ -303,8 +312,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             const avgError = result.codeResult.decodedCodes.reduce((sum, code) => sum + (code.error || 0), 0) / result.codeResult.decodedCodes.length;
             console.log(`📊 Average decode error: ${avgError.toFixed(3)}`);
 
-            if (avgError > 0.1) {
-                console.log(`❌ High error rate rejected: ${avgError.toFixed(3)} > 0.1`);
+            if (avgError > 0.15) { // Slightly more lenient
+                console.log(`❌ High error rate rejected: ${avgError.toFixed(3)} > 0.15`);
                 return;
             }
         }
@@ -338,6 +347,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         cooldownRef.current = true;
         setIsScanning(false);
+        setScanButtonReady(false);
+        setManualScanMode(false);
 
         playBeepSound();
 
@@ -368,7 +379,47 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }, 800);
 
-    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo]);
+    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]);
+
+    const triggerManualScan = useCallback(() => {
+        console.log('🔘 Manual scan button pressed');
+        setScanButtonReady(true);
+
+        // Simulate a detection event if we have a valid frame
+        if (quaggaRef.current && videoRef.current) {
+            // Force a scan attempt
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            ctx.drawImage(videoRef.current, 0, 0);
+
+            // This will trigger Quagga to process the current frame
+            try {
+                quaggaRef.current.decodeSingle({
+                    src: canvas.toDataURL(),
+                    numOfWorkers: 0,
+                    inputStream: {
+                        size: canvas.width
+                    },
+                    decoder: {
+                        readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader", "upc_e_reader"]
+                    }
+                }, (result) => {
+                    if (result && result.codeResult) {
+                        handleBarcodeDetection(result);
+                    } else {
+                        console.log('❌ Manual scan failed - no barcode detected');
+                        setScanButtonReady(false);
+                        alert('No barcode detected. Please position the barcode within the frame and try again.');
+                    }
+                });
+            } catch (error) {
+                console.log('❌ Manual scan error:', error);
+                setScanButtonReady(false);
+            }
+        }
+    }, [handleBarcodeDetection]);
 
     useEffect(() => {
         if (isActive) {
@@ -780,24 +831,51 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                             </div>
                                         </div>
 
-                                        {/* Instruction overlay */}
-                                        <div
-                                            className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
+                                        {/* Instruction overlay with manual scan button */}
+                                        <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
                                             <div className="text-center">
                                                 {isScanning ? (
                                                     <>
-                                                        <div className="text-sm font-medium mb-1">📱 Position barcode
-                                                            within the frame
+                                                        <div className="text-sm font-medium mb-2">📱 Position barcode within the frame</div>
+                                                        <div className="text-xs opacity-75 mb-3">Enhanced validation active • Hold steady</div>
+
+                                                        {/* Manual Scan Button */}
+                                                        <div className="flex justify-center space-x-2">
+                                                            <TouchEnhancedButton
+                                                                onClick={() => setManualScanMode(!manualScanMode)}
+                                                                className={`px-3 py-1 text-xs rounded ${
+                                                                    manualScanMode
+                                                                        ? 'bg-blue-600 text-white'
+                                                                        : 'bg-gray-600 text-white'
+                                                                }`}
+                                                            >
+                                                                {manualScanMode ? 'Auto Mode' : 'Manual Mode'}
+                                                            </TouchEnhancedButton>
+
+                                                            {manualScanMode && (
+                                                                <TouchEnhancedButton
+                                                                    onClick={triggerManualScan}
+                                                                    disabled={!scanButtonReady && !isScanning}
+                                                                    className={`px-4 py-1 text-xs rounded font-medium ${
+                                                                        scanButtonReady || isScanning
+                                                                            ? 'bg-green-600 text-white hover:bg-green-700'
+                                                                            : 'bg-gray-500 text-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    📸 Scan Now
+                                                                </TouchEnhancedButton>
+                                                            )}
                                                         </div>
-                                                        <div className="text-xs opacity-75">Enhanced validation active •
-                                                            Hold steady
-                                                        </div>
+
+                                                        {manualScanMode && (
+                                                            <div className="text-xs mt-2 opacity-75">
+                                                                Position barcode in frame, then tap "Scan Now"
+                                                            </div>
+                                                        )}
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <div className="text-sm font-medium mb-1">✅ Valid barcode
-                                                            detected!
-                                                        </div>
+                                                        <div className="text-sm font-medium mb-1">✅ Valid barcode detected!</div>
                                                         <div className="text-xs opacity-75">Processing...</div>
                                                     </>
                                                 )}
@@ -846,6 +924,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         }
                     `}</style>
                 </div>
+
 
             ) : (
                 // Desktop version with enhanced usage display and close button

@@ -1,7 +1,6 @@
 'use client';
 // file: /src/app/inventory/page.js - v12
 
-
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
@@ -160,6 +159,104 @@ function InventoryContent() {
             return () => clearTimeout(scrollTimeout);
         }
     }, [searchParams, showAddForm]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        let originalViewportHeight = window.visualViewport?.height || window.innerHeight;
+        let activeInput = null;
+
+        const handleFocusIn = (event) => {
+            activeInput = event.target;
+
+            // Only handle input and textarea elements
+            if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(activeInput.tagName)) {
+                return;
+            }
+
+            console.log('📱 Input focused, setting up keyboard handling');
+
+            // Wait for keyboard to appear
+            setTimeout(() => {
+                const currentHeight = window.visualViewport?.height || window.innerHeight;
+                const keyboardHeight = originalViewportHeight - currentHeight;
+
+                if (keyboardHeight > 100) { // Keyboard is likely open
+                    console.log(`⌨️ Keyboard detected (${keyboardHeight}px), scrolling to input`);
+
+                    // Get the position of the focused element
+                    const rect = activeInput.getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+
+                    // Calculate if input is hidden by keyboard
+                    const hiddenByKeyboard = rect.bottom > (viewportHeight - keyboardHeight - 20);
+
+                    if (hiddenByKeyboard) {
+                        // Scroll the input into view above the keyboard
+                        const scrollOffset = rect.top - (viewportHeight - keyboardHeight - rect.height - 60);
+
+                        window.scrollBy({
+                            top: scrollOffset,
+                            behavior: 'smooth'
+                        });
+
+                        // Alternative: scroll element into view
+                        setTimeout(() => {
+                            activeInput.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'nearest'
+                            });
+                        }, 100);
+                    }
+                }
+            }, 300); // Wait for keyboard animation
+        };
+
+        const handleFocusOut = (event) => {
+            activeInput = null;
+            console.log('📱 Input unfocused');
+        };
+
+        const handleViewportResize = () => {
+            const currentHeight = window.visualViewport?.height || window.innerHeight;
+            const keyboardHeight = originalViewportHeight - currentHeight;
+
+            if (keyboardHeight < 100 && activeInput) {
+                // Keyboard likely closed, scroll back to a reasonable position
+                console.log('⌨️ Keyboard closed, adjusting scroll');
+                setTimeout(() => {
+                    if (activeInput) {
+                        activeInput.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                }, 100);
+            }
+        };
+
+        // Add event listeners
+        document.addEventListener('focusin', handleFocusIn);
+        document.addEventListener('focusout', handleFocusOut);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+        } else {
+            window.addEventListener('resize', handleViewportResize);
+        }
+
+        return () => {
+            document.removeEventListener('focusin', handleFocusIn);
+            document.removeEventListener('focusout', handleFocusOut);
+
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleViewportResize);
+            } else {
+                window.removeEventListener('resize', handleViewportResize);
+            }
+        };
+    }, []);
 
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {

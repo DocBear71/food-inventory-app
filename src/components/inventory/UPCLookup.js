@@ -290,24 +290,41 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setShowAutocomplete(false);
 
         try {
-            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query)}&page=${page}&page_size=15`);
-            const response = await fetch(searchUrl);
-            const data = await response.json();
+            // FIXED: Use absolute URL with proper encoding
+            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=${page}&page_size=15`);
+            console.log('🔍 Making search request to:', searchUrl);
+
+            const response = await fetch(searchUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                },
+                // Add credentials if needed
+                credentials: 'include'
+            });
+
+            console.log('🔍 Search response status:', response.status);
 
             if (!response.ok) {
-                throw new Error(data.error || `Search API returned ${response.status}`);
+                const errorText = await response.text();
+                console.error('❌ Search API error:', errorText);
+                throw new Error(`Search API returned ${response.status}: ${errorText}`);
             }
+
+            const data = await response.json();
+            console.log('🔍 Search response data:', data);
 
             if (data.success) {
                 const results = data.results || [];
                 setSearchResults(results);
-                // FIXED: Handle missing pagination data gracefully
+                // Handle missing pagination data gracefully
                 setTotalPages(data.pagination?.totalPages || Math.ceil(results.length / 15) || 1);
 
-                // FIXED: Search was successful, make the usage update permanent
-                console.log('✅ Search successful - making usage update permanent');
+                console.log(`✅ Search successful: ${results.length} results found`);
 
-                // Update real usage state immediately
+                // Make the usage update permanent
                 setUsageInfo(prev => {
                     if (!prev) return prev;
 
@@ -325,25 +342,24 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     return newUsage;
                 });
 
-                // Clear optimistic update since we updated the real state
+                // Clear optimistic update
                 setOptimisticUsage(null);
                 setIsUpdatingUsage(false);
 
-                // Cancel any pending server refresh
                 if (usageUpdateTimeoutRef.current) {
                     clearTimeout(usageUpdateTimeoutRef.current);
                 }
 
             } else {
-                throw new Error(data.error || 'Search failed');
+                throw new Error(data.error || 'Search failed - no success flag');
             }
 
         } catch (error) {
-            console.error('Text search error:', error);
+            console.error('❌ Text search error:', error);
             setSearchResults([]);
             setTotalPages(0);
 
-            // If API fails, revert the optimistic update
+            // Revert optimistic update
             console.log('❌ Search API failed, reverting optimistic update');
             setOptimisticUsage(null);
             setIsUpdatingUsage(false);
@@ -351,10 +367,15 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 clearTimeout(usageUpdateTimeoutRef.current);
             }
 
+            // Show user-friendly error messages
             if (error.message.includes('429') || error.message.includes('Rate limit')) {
-                alert('Search service is busy. Please wait a moment before searching again.');
+                alert('❌ Search service is temporarily busy. Please wait a moment before searching again.');
             } else if (error.message.includes('timeout')) {
-                alert('Search is taking longer than usual. Please try again.');
+                alert('❌ Search is taking longer than usual. Please try again.');
+            } else if (error.message.includes('404')) {
+                alert('❌ Search service not available. Please try again later.');
+            } else {
+                alert(`❌ Search failed: ${error.message}. Please try again.`);
             }
         } finally {
             setIsSearching(false);
@@ -583,30 +604,49 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         try {
-            // Use our API endpoint with smaller page size for autocomplete
-            const searchUrl = `/api/upc/search?query=${encodeURIComponent(query)}&page=1&page_size=3`;
+            // FIXED: Use absolute URL and proper encoding
+            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=1&page_size=5`);
+            console.log('🔍 Making autocomplete request to:', searchUrl);
 
-            const response = await fetch(searchUrl);
-            const data = await response.json();
+            const response = await fetch(searchUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            });
 
-            if (response.ok && data.success) {
-                const suggestions = data.results?.slice(0, 3).map(product => ({
-                    name: product.name,
-                    brand: product.brand,
-                    image: product.image,
-                })) || [];
+            console.log('🔍 Autocomplete response status:', response.status);
 
-                setAutocompleteResults(suggestions);
-                setShowAutocomplete(suggestions.length > 0);
+            if (response.ok) {
+                const data = await response.json();
+                console.log('🔍 Autocomplete response:', data);
+
+                if (data.success && data.results) {
+                    const suggestions = data.results.slice(0, 3).map(product => ({
+                        name: product.name,
+                        brand: product.brand,
+                        image: product.image,
+                    }));
+
+                    setAutocompleteResults(suggestions);
+                    setShowAutocomplete(suggestions.length > 0);
+                    console.log(`✅ Autocomplete: ${suggestions.length} suggestions`);
+                } else {
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                }
             } else {
-                // Don't show errors for autocomplete - just silently fail
+                // Silently fail for autocomplete
+                console.log('❌ Autocomplete failed, status:', response.status);
                 setAutocompleteResults([]);
                 setShowAutocomplete(false);
             }
 
         } catch (error) {
-            // Silently handle autocomplete errors to avoid user disruption
-            console.log('Autocomplete skipped due to rate limiting or network issue');
+            // Silently handle autocomplete errors
+            console.log('❌ Autocomplete error (silent):', error.message);
             setAutocompleteResults([]);
             setShowAutocomplete(false);
         }
@@ -625,28 +665,30 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             clearTimeout(autocompleteTimeoutRef.current);
         }
 
-        // Debounced autocomplete with longer delay to avoid rate limiting
-        if (query.length >= 3) {
-            autocompleteTimeoutRef.current = setTimeout(() => {
-                performAutocomplete(query);
-            }, 800);
-        } else {
-            setShowAutocomplete(false);
-            setAutocompleteResults([]);
-        }
-
-        // Debounced search with longer delay
-        if (query.trim() && query.length >= 3) {
-            searchTimeoutRef.current = setTimeout(() => {
-                setSearchPage(1);
-                performTextSearchWithImmediateUpdate(query, 1);
-            }, 1200);
-        } else {
+        // Clear results if query is too short
+        if (query.length < 3) {
             setSearchResults([]);
             setTotalPages(0);
             setShowAutocomplete(false);
             setAutocompleteResults([]);
+            return;
         }
+
+        // Debounced autocomplete
+        autocompleteTimeoutRef.current = setTimeout(() => {
+            if (query.length >= 3) {
+                performAutocomplete(query);
+            }
+        }, 500);
+
+        // Debounced search
+        searchTimeoutRef.current = setTimeout(() => {
+            if (query.trim() && query.length >= 3) {
+                console.log('🔍 Triggering search for:', query);
+                setSearchPage(1);
+                performTextSearchWithImmediateUpdate(query, 1);
+            }
+        }, 1000);
     };
 
 // Handle autocomplete selection
