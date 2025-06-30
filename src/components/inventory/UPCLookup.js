@@ -373,6 +373,24 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
         setShowScanner(false);
 
+        // ENHANCED: Scroll to UPC input after scanner closes
+        setTimeout(() => {
+            const upcInput = document.querySelector('input[name="upc"]') ||
+                document.querySelector('input[id="upc"]') ||
+                document.querySelector('#upc');
+
+            if (upcInput) {
+                console.log('📍 Scrolling to UPC input after scan');
+                upcInput.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+                // Optional: Focus the input to show the scanned value
+                upcInput.focus();
+            }
+        }, 500); // Wait for scanner to close and UPC to be filled
+
         // Auto-lookup the scanned barcode with immediate UI update
         await handleUPCLookupWithImmediateUpdate(barcode);
     };

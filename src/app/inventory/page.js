@@ -522,16 +522,36 @@ function InventoryContent() {
         });
         setShowAddForm(true);
 
-        // Auto-scroll to the form after a brief delay to ensure it's rendered
+        // ENHANCED: Auto-scroll to the UPC/form section
         setTimeout(() => {
-            const formElement = document.querySelector('form');
+            // Try multiple selectors to find the form section
+            const formElement = document.querySelector('form') ||
+                document.querySelector('[data-section="add-form"]') ||
+                document.querySelector('.add-item-form') ||
+                // Look for UPC input specifically
+                document.querySelector('input[name="upc"]')?.closest('form') ||
+                // Look for the form container
+                document.querySelector('.space-y-6');
+
             if (formElement) {
+                console.log('📍 Scrolling to edit form');
                 formElement.scrollIntoView({
                     behavior: 'smooth',
-                    block: 'start'
+                    block: 'start',
+                    inline: 'nearest'
                 });
+            } else {
+                // Fallback: scroll to UPC lookup section specifically
+                const upcSection = document.querySelector('label[for="upc"]')?.closest('div');
+                if (upcSection) {
+                    console.log('📍 Scrolling to UPC section (fallback)');
+                    upcSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
             }
-        }, 100);
+        }, 150); // Slightly longer delay to ensure form is rendered
     };
 
     const handleDelete = async (itemId) => {
@@ -878,7 +898,28 @@ function InventoryContent() {
                             }
                         >
                             <TouchEnhancedButton
-                                onClick={() => setShowAddForm(!showAddForm)}
+                                onClick={() => {
+                                    const newShowAddForm = !showAddForm;
+                                    setShowAddForm(newShowAddForm);
+
+                                    // If opening the form, scroll to it
+                                    if (newShowAddForm) {
+                                        console.log('📍 Opening add form and scrolling');
+                                        setTimeout(() => {
+                                            const formElement = document.querySelector('form') ||
+                                                document.querySelector('input[name="upc"]')?.closest('div') ||
+                                                document.querySelector('label[for="upc"]')?.closest('div');
+
+                                            if (formElement) {
+                                                formElement.scrollIntoView({
+                                                    behavior: 'smooth',
+                                                    block: 'start',
+                                                    inline: 'nearest'
+                                                });
+                                            }
+                                        }, 100);
+                                    }
+                                }}
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                                 {showAddForm ? 'Cancel' : 'Add Item'}
@@ -1077,7 +1118,7 @@ function InventoryContent() {
 
                 {/* Add/Edit Item Form */}
                 {showAddForm && (
-                    <div className="bg-white shadow rounded-lg">
+                    <div className="bg-white shadow rounded-lg" data-section="add-form">
                         <div className="px-4 py-5 sm:p-6">
                             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                 {editingItem ? 'Edit Item' : 'Add New Item'}

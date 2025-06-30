@@ -7,7 +7,7 @@ import {Camera} from '@capacitor/camera';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
-import { getApiUrl } from '@/lib/api-config';
+import {getApiUrl} from '@/lib/api-config';
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const scannerRef = useRef(null);
@@ -434,17 +434,19 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         type: "LiveStream",
                         target: scannerRef.current,
                         constraints: {
-                            width: isMobile ? Math.min(window.innerWidth, 800) : 640,
-                            height: isMobile ? Math.min(window.innerHeight * 0.6, 480) : 480,
+                            // FIXED: Better mobile camera constraints
+                            width: isMobile ? { min: 320, ideal: window.innerWidth, max: 1920 } : 640,
+                            height: isMobile ? { min: 240, ideal: window.innerHeight - 200, max: 1080 } : 480,
                             facingMode: "environment",
-                            aspectRatio: isMobile ? 16 / 9 : 4 / 3,
-                            frameRate: {ideal: 15, max: 30}
+                            aspectRatio: isMobile ? { ideal: 16/9, min: 4/3, max: 2/1 } : 4/3,
+                            frameRate: { ideal: 15, max: 30 }
                         },
                         area: {
-                            top: "20%",
-                            right: "10%",
-                            left: "10%",
-                            bottom: "20%"
+                            // FIXED: Adjust scanning area for better mobile experience
+                            top: "15%",
+                            right: "15%",
+                            left: "15%",
+                            bottom: "15%"
                         },
                         singleChannel: false
                     },
@@ -644,8 +646,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         <>
                                             <span className="font-medium">{usageInfo.remaining} scans remaining</span>
                                             <span className="text-gray-400 ml-2">
-                                                ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
-                                            </span>
+                                    ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
+                                </span>
                                         </>
                                     )}
                                 </div>
@@ -654,9 +656,11 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 <div className="text-sm text-gray-400">Loading usage...</div>
                             )}
                         </div>
-                        {/* FIXED: Always visible close button */}
+                        {/* Always visible close button */}
                         <TouchEnhancedButton
                             onClick={() => {
+                                console.log('🚫 Header close (×) button pressed');
+                                setIsScanning(false);
                                 cleanupScanner();
                                 onClose();
                             }}
@@ -666,7 +670,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* FIXED: Enhanced error handling */}
+                    {/* Enhanced error handling */}
                     {error ? (
                         <div className="flex-1 flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
@@ -709,11 +713,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         </div>
                     ) : (
                         <>
-                            {/* FIXED: Loading State with close button */}
+                            {/* Loading State with close button */}
                             {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
                                     <div className="text-center text-white">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                         <div className="text-lg">
                                             {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting camera...'}
                                         </div>
@@ -724,8 +729,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 </div>
                             )}
 
-                            {/* Camera Container */}
-                            <div className="flex-1 relative bg-black">
+                            {/* FIXED: Camera Container - Full screen with proper sizing */}
+                            <div className="flex-1 relative bg-black overflow-hidden">
                                 <div
                                     ref={scannerRef}
                                     className="absolute inset-0 w-full h-full bg-black"
@@ -736,20 +741,32 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         top: 0,
                                         left: 0,
                                         zIndex: 1,
-                                        minHeight: '400px'
+                                        // FIXED: Ensure minimum height and proper sizing
+                                        minHeight: '100%',
+                                        minWidth: '100%'
                                     }}
                                 />
 
                                 {/* Scanner reticle overlay */}
                                 {!isLoading && (
-                                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                                    <div
+                                        className="absolute inset-0 pointer-events-none"
+                                        style={{zIndex: 10}}
+                                    >
+                                        {/* Center the scanning frame */}
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="relative w-64 h-64 border-2 border-transparent">
-                                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-red-500"></div>
-                                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-red-500"></div>
-                                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-red-500"></div>
-                                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-red-500"></div>
+                                                {/* Corner brackets */}
+                                                <div
+                                                    className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-red-500"></div>
+                                                <div
+                                                    className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-red-500"></div>
+                                                <div
+                                                    className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-red-500"></div>
+                                                <div
+                                                    className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-red-500"></div>
 
+                                                {/* Scanning line animation */}
                                                 {isScanning && (
                                                     <div
                                                         className="absolute inset-x-4 h-1 bg-red-500 opacity-80"
@@ -764,16 +781,23 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         </div>
 
                                         {/* Instruction overlay */}
-                                        <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
+                                        <div
+                                            className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
                                             <div className="text-center">
                                                 {isScanning ? (
                                                     <>
-                                                        <div className="text-sm font-medium mb-1">📱 Position barcode within the frame</div>
-                                                        <div className="text-xs opacity-75">Enhanced validation active • Hold steady</div>
+                                                        <div className="text-sm font-medium mb-1">📱 Position barcode
+                                                            within the frame
+                                                        </div>
+                                                        <div className="text-xs opacity-75">Enhanced validation active •
+                                                            Hold steady
+                                                        </div>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <div className="text-sm font-medium mb-1">✅ Valid barcode detected!</div>
+                                                        <div className="text-sm font-medium mb-1">✅ Valid barcode
+                                                            detected!
+                                                        </div>
                                                         <div className="text-xs opacity-75">Processing...</div>
                                                     </>
                                                 )}
@@ -787,13 +811,18 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             <div className="flex-shrink-0 bg-black px-4 py-3">
                                 <TouchEnhancedButton
                                     onClick={() => {
+                                        console.log('🚫 Cancel scan button pressed');
+                                        // Immediately stop scanning
+                                        setIsScanning(false);
+                                        // Clean up scanner resources
                                         cleanupScanner();
+                                        // Close the scanner modal
                                         onClose();
                                     }}
                                     className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
-                                    disabled={!isScanning && !error}
+                                    // FIXED: Remove the disabled condition that was preventing the button from working
                                 >
-                                    {isScanning ? 'Cancel Scan' : error ? 'Close' : 'Processing...'}
+                                    {isScanning ? 'Cancel Scan' : error ? 'Close' : 'Cancel'}
                                 </TouchEnhancedButton>
                             </div>
                         </>
@@ -817,6 +846,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         }
                     `}</style>
                 </div>
+
             ) : (
                 // Desktop version with enhanced usage display and close button
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
@@ -830,7 +860,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                             <span className="text-green-600">✨ Unlimited scans available</span>
                                         ) : (
                                             <>
-                                                <span className="font-medium">{usageInfo.remaining} scans remaining</span>
+                                                <span
+                                                    className="font-medium">{usageInfo.remaining} scans remaining</span>
                                                 <span className="text-gray-400 ml-2">
                                                     ({usageInfo.currentMonth}/{usageInfo.monthlyLimit} used)
                                                 </span>
@@ -842,10 +873,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             {/* FIXED: Always visible close button */}
                             <TouchEnhancedButton
                                 onClick={() => {
+                                    console.log('🚫 Header close (×) button pressed');
+                                    setIsScanning(false);
                                     cleanupScanner();
                                     onClose();
                                 }}
-                                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700"
                             >
                                 ×
                             </TouchEnhancedButton>
@@ -893,7 +926,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             <>
                                 {isLoading && (
                                     <div className="text-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                                         <div className="text-gray-600">
                                             {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting camera...'}
                                         </div>
@@ -905,26 +939,34 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     <div
                                         ref={scannerRef}
                                         className="w-full h-64 bg-gray-200 rounded-lg overflow-hidden"
-                                        style={{ display: isLoading ? 'none' : 'block' }}
+                                        style={{display: isLoading ? 'none' : 'block'}}
                                     />
 
                                     {!isLoading && (
                                         <>
-                                            <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
+                                            <div
+                                                className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
                                                 <div className="absolute inset-4 border-2 border-red-500 rounded-lg">
                                                     {isScanning && (
-                                                        <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
+                                                        <div
+                                                            className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 animate-pulse"></div>
                                                     )}
-                                                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
-                                                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
-                                                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
-                                                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
+                                                    <div
+                                                        className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
+                                                    <div
+                                                        className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
+                                                    <div
+                                                        className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
+                                                    <div
+                                                        className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
                                                 </div>
                                             </div>
 
-                                            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+                                            <div
+                                                className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                                                 {isScanning ? (
-                                                    <>📱 Position barcode within the red frame • ✅ Enhanced validation active</>
+                                                    <>📱 Position barcode within the red frame • ✅ Enhanced validation
+                                                        active</>
                                                 ) : (
                                                     <>✅ Valid barcode detected! Processing...</>
                                                 )}
@@ -937,13 +979,15 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     <div className="mt-4 text-center">
                                         <TouchEnhancedButton
                                             onClick={() => {
+                                                console.log('🚫 Desktop cancel scan button pressed');
+                                                setIsScanning(false);
                                                 cleanupScanner();
                                                 onClose();
                                             }}
                                             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
-                                            disabled={!isScanning && !error}
+                                            // FIXED: Remove disabled condition
                                         >
-                                            {isScanning ? 'Cancel' : error ? 'Close' : 'Processing...'}
+                                            {isScanning ? 'Cancel Scan' : error ? 'Close' : 'Cancel'}
                                         </TouchEnhancedButton>
                                     </div>
                                 )}
