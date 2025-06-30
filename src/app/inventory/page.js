@@ -40,6 +40,7 @@ function InventoryContent() {
     const [consumingItem, setConsumingItem] = useState(null);
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
+    const [mergeDuplicates, setMergeDuplicates] = useState(true);
 
     const subscription = useSubscription();
 
@@ -428,7 +429,7 @@ function InventoryContent() {
             const method = editingItem ? 'PUT' : 'POST';
             const body = editingItem
                 ? {itemId: editingItem._id, ...formData}
-                : formData;
+                : {...formData, mergeDuplicates};
 
             console.log('🔍 CLIENT: Making request to:', url);
             console.log('🔍 CLIENT: Request body:', JSON.stringify(body, null, 2));
@@ -462,6 +463,12 @@ function InventoryContent() {
             if (data.success) {
                 console.log('✅ CLIENT: Success! Refreshing inventory...');
                 await fetchInventory();
+                // Show different messages based on whether item was merged or added
+                if (data.merged) {
+                    alert(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}`);
+                } else {
+                    alert(`✅ Item created successfully!\n\nAdded ${data.addedQuantity} ${unit}`)
+                }
                 setFormData({
                     name: '',
                     brand: '',
@@ -1070,6 +1077,18 @@ function InventoryContent() {
                             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                 {editingItem ? 'Edit Item' : 'Add New Item'}
                             </h3>
+                            <div className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="mergeDuplicates"
+                                    checked={mergeDuplicates}
+                                    onChange={(e) => setMergeDuplicates(e.target.checked)}
+                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="mergeDuplicates" className="ml-2 block text-sm text-gray-700">
+                                    Merge with existing items (recommended for barcode scanning)
+                                </label>
+                            </div>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* UPC Lookup Section - FIXED PROP NAME */}

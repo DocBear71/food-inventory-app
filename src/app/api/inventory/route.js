@@ -1,11 +1,11 @@
 // file: /src/app/api/inventory/route.js v5 - Fixed subscription limits and error handling
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import {NextResponse} from 'next/server';
+import {getServerSession} from 'next-auth/next';
+import {authOptions} from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { UserInventory, User } from '@/lib/models';
-import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
+import {UserInventory, User} from '@/lib/models';
+import {FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier} from '@/lib/subscription-config';
 
 // GET - Fetch user's inventory
 export async function GET(request) {
@@ -16,12 +16,12 @@ export async function GET(request) {
 
         if (!session?.user?.id) {
             console.log('No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
         }
 
         await connectDB();
 
-        let inventory = await UserInventory.findOne({ userId: session.user.id });
+        let inventory = await UserInventory.findOne({userId: session.user.id});
 
         if (!inventory) {
             // Create empty inventory if doesn't exist
@@ -40,8 +40,8 @@ export async function GET(request) {
     } catch (error) {
         console.error('GET inventory error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch inventory' },
-            { status: 500 }
+            {error: 'Failed to fetch inventory'},
+            {status: 500}
         );
     }
 }
@@ -60,7 +60,7 @@ export async function POST(request) {
 
         if (!session?.user?.id) {
             console.log('❌ No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
         }
 
         console.log('🔍 Reading request body...');
@@ -69,15 +69,16 @@ export async function POST(request) {
 
         const {
             name, brand, category, quantity, unit, location, upc, expirationDate, nutrition,
-            secondaryQuantity, secondaryUnit
+            secondaryQuantity, secondaryUnit, mergeDuplicates = true
         } = body;
+
 
         // Validation
         if (!name || name.trim().length === 0) {
             console.log('❌ Validation failed: missing name');
             return NextResponse.json(
-                { error: 'Item name is required and cannot be empty' },
-                { status: 400 }
+                {error: 'Item name is required and cannot be empty'},
+                {status: 400}
             );
         }
 
@@ -85,9 +86,78 @@ export async function POST(request) {
         if (isNaN(validQuantity) || validQuantity <= 0) {
             console.log('❌ Validation failed: invalid quantity:', quantity);
             return NextResponse.json(
-                { error: 'Quantity must be a positive number' },
-                { status: 400 }
+                {error: 'Quantity must be a positive number'},
+                {status: 400}
             );
+        }
+        if (mergeDuplicates) {
+            const existingItemIndex = inventory.items.findIndex(item => {
+                // Primary matching criteria
+                const nameMatch = item.name.toLowerCase().trim() === name.toLowerCase().trim();
+                const brandMatch = (item.brand || '').toLowerCase().trim() === (brand || '').toLowerCase().trim();
+                const upcMatch = upc && item.upc && item.upc.replace(/\D/g, '') === upc.replace(/\D/g, '');
+
+                // If UPC exists and matches, that's a definitive match
+                if (upcMatch) return true;
+
+                // If no UPC, match on name + brand + category
+                const categoryMatch = (item.category || '').toLowerCase().trim() === (category || '').toLowerCase().trim();
+
+                return nameMatch && brandMatch && categoryMatch;
+            });
+
+            if (existingItemIndex !== -1) {
+                // Item exists, merge quantities instead of creating new item
+                const existingItem = inventory.items[existingItemIndex];
+
+                // Add quantities (handle both primary and secondary units)
+                const newQuantity = (existingItem.quantity || 0) + (quantity || 1);
+                const newSecondaryQuantity = existingItem.secondaryQuantity && secondaryQuantity ?
+                    (existingItem.secondaryQuantity + parseFloat(secondaryQuantity)) :
+                    existingItem.secondaryQuantity || (secondaryQuantity ? parseFloat(secondaryQuantity) : null);
+
+                // Update the existing item
+                inventory.items[existingItemIndex] = {
+                    ...existingItem,
+                    quantity: newQuantity,
+                    secondaryQuantity: newSecondaryQuantity,
+                    secondaryUnit: newSecondaryQuantity ? (secondaryUnit || existingItem.secondaryUnit) : null,
+                    // Update other fields if they were empty before
+                    brand: existingItem.brand || brand || '',
+                    category: existingItem.category || category || '',
+                    upc: existingItem.upc || upc || '',
+                    expirationDate: expirationDate ? new Date(expirationDate) : existingItem.expirationDate,
+                    nutrition: nutrition || existingItem.nutrition,
+                    lastUpdated: new Date()
+                };
+
+                inventory.lastUpdated = new Date();
+                await inventory.save();
+
+                // Update usage tracking (same as before)
+                await User.updateOne(
+                    {_id: session.user.id},
+                    {
+                        $set: {
+                            'usageTracking.totalInventoryItems': inventory.items.length,
+                            'usageTracking.lastUpdated': new Date()
+                        }
+                    },
+                    {runValidators: false}
+                );
+
+                return NextResponse.json({
+                    success: true,
+                    item: inventory.items[existingItemIndex],
+                    message: `Merged with existing item. New quantity: ${newQuantity} ${unit}`,
+                    merged: true,
+                    previousQuantity: existingItem.quantity,
+                    addedQuantity: quantity || 1,
+                    remainingItems: userSubscription.tier === 'free' ? Math.max(0, 50 - inventory.items.length) :
+                        userSubscription.tier === 'gold' ? Math.max(0, 250 - inventory.items.length) : 'Unlimited',
+                    currentItemCount: inventory.items.length
+                });
+            }
         }
 
         console.log('🔍 Connecting to MongoDB...');
@@ -98,7 +168,7 @@ export async function POST(request) {
         const user = await User.findById(session.user.id);
         if (!user) {
             console.error('❌ User not found for ID:', session.user.id);
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return NextResponse.json({error: 'User not found'}, {status: 404});
         }
         console.log('✅ User found:', user.email);
 
@@ -110,7 +180,7 @@ export async function POST(request) {
         console.log('✅ User subscription:', userSubscription);
 
         console.log('🔍 Finding user inventory...');
-        let inventory = await UserInventory.findOne({ userId: session.user.id });
+        let inventory = await UserInventory.findOne({userId: session.user.id});
         if (!inventory) {
             console.log('🔧 Creating new inventory for user');
             inventory = new UserInventory({
@@ -172,8 +242,8 @@ export async function POST(request) {
             if (isNaN(expDate.getTime())) {
                 console.log('❌ Invalid expiration date:', expirationDate);
                 return NextResponse.json(
-                    { error: 'Invalid expiration date format' },
-                    { status: 400 }
+                    {error: 'Invalid expiration date format'},
+                    {status: 400}
                 );
             }
             newItem.expirationDate = expDate;
@@ -233,7 +303,7 @@ export async function POST(request) {
                 details: error.message,
                 stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
             },
-            { status: 500 }
+            {status: 500}
         );
     }
 }
@@ -247,29 +317,29 @@ export async function PUT(request) {
 
         if (!session?.user?.id) {
             console.log('PUT: No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
         }
 
         const body = await request.json();
-        const { itemId, ...updateData } = body;
+        const {itemId, ...updateData} = body;
 
         console.log('PUT /api/inventory - Body:', body);
 
         if (!itemId) {
             return NextResponse.json(
-                { error: 'Item ID is required' },
-                { status: 400 }
+                {error: 'Item ID is required'},
+                {status: 400}
             );
         }
 
         await connectDB();
 
-        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        const inventory = await UserInventory.findOne({userId: session.user.id});
 
         if (!inventory) {
             return NextResponse.json(
-                { error: 'Inventory not found' },
-                { status: 404 }
+                {error: 'Inventory not found'},
+                {status: 404}
             );
         }
 
@@ -279,8 +349,8 @@ export async function PUT(request) {
 
         if (itemIndex === -1) {
             return NextResponse.json(
-                { error: 'Item not found' },
-                { status: 404 }
+                {error: 'Item not found'},
+                {status: 404}
             );
         }
 
@@ -320,8 +390,8 @@ export async function PUT(request) {
     } catch (error) {
         console.error('PUT inventory error:', error);
         return NextResponse.json(
-            { error: 'Failed to update item' },
-            { status: 500 }
+            {error: 'Failed to update item'},
+            {status: 500}
         );
     }
 }
@@ -335,29 +405,29 @@ export async function DELETE(request) {
 
         if (!session?.user?.id) {
             console.log('DELETE: No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
         }
 
-        const { searchParams } = new URL(request.url);
+        const {searchParams} = new URL(request.url);
         const itemId = searchParams.get('itemId');
 
         console.log('DELETE /api/inventory - ItemId:', itemId);
 
         if (!itemId) {
             return NextResponse.json(
-                { error: 'Item ID is required' },
-                { status: 400 }
+                {error: 'Item ID is required'},
+                {status: 400}
             );
         }
 
         await connectDB();
 
-        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        const inventory = await UserInventory.findOne({userId: session.user.id});
 
         if (!inventory) {
             return NextResponse.json(
-                { error: 'Inventory not found' },
-                { status: 404 }
+                {error: 'Inventory not found'},
+                {status: 404}
             );
         }
 
@@ -368,8 +438,8 @@ export async function DELETE(request) {
 
         if (inventory.items.length === initialLength) {
             return NextResponse.json(
-                { error: 'Item not found' },
-                { status: 404 }
+                {error: 'Item not found'},
+                {status: 404}
             );
         }
 
@@ -397,8 +467,8 @@ export async function DELETE(request) {
     } catch (error) {
         console.error('DELETE inventory error:', error);
         return NextResponse.json(
-            { error: 'Failed to remove item' },
-            { status: 500 }
+            {error: 'Failed to remove item'},
+            {status: 500}
         );
     }
 }
