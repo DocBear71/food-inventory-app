@@ -1,371 +1,305 @@
-// file: /src/app/api/inventory/route.js v5 - FIXED: Use correct feature gate for inventory limits
+// file: /src/app/api/upc/search/route.js - v3 RESTORED with Open Food Facts API
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { UserInventory, User } from '@/lib/models';
+import { User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
-// GET - Fetch user's inventory
+// RESTORED: Open Food Facts V1 Search API endpoint
+const OPEN_FOOD_FACTS_SEARCH_API = 'https://world.openfoodfacts.org/cgi/search.pl';
+
 export async function GET(request) {
     try {
+        // Authentication and usage limit checking
         const session = await getServerSession(authOptions);
 
-        console.log('GET /api/inventory - Session:', session);
-
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
         await connectDB();
 
-        let inventory = await UserInventory.findOne({ userId: session.user.id });
-
-        if (!inventory) {
-            // Create empty inventory if doesn't exist
-            inventory = new UserInventory({
-                userId: session.user.id,
-                items: []
-            });
-            await inventory.save();
-        }
-
-        return NextResponse.json({
-            success: true,
-            inventory: inventory.items
-        });
-
-    } catch (error) {
-        console.error('GET inventory error:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch inventory' },
-            { status: 500 }
-        );
-    }
-}
-
-// POST - Add item to inventory (with subscription limits)
-export async function POST(request) {
-    try {
-        const session = await getServerSession(authOptions);
-
-        console.log('POST /api/inventory - Session:', session);
-
-        if (!session?.user?.id) {
-            console.log('No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await request.json();
-        const {
-            name, brand, category, quantity, unit, location, upc, expirationDate, nutrition,
-            // Add support for secondary units
-            secondaryQuantity, secondaryUnit
-        } = body;
-
-        console.log('POST /api/inventory - Body:', body);
-
-        if (!name) {
-            return NextResponse.json(
-                { error: 'Item name is required' },
-                { status: 400 }
-            );
-        }
-
-        await connectDB();
-
-        // Get user and check subscription limits
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Get current inventory count
-        let inventory = await UserInventory.findOne({ userId: session.user.id });
-        if (!inventory) {
-            inventory = new UserInventory({
-                userId: session.user.id,
-                items: []
-            });
-        }
-
-        const currentItemCount = inventory.items.length;
-
-        // Check subscription limits
+        // Get current subscription info
         const userSubscription = {
             tier: user.getEffectiveTier(),
             status: user.subscription?.status || 'free'
         };
 
-        // FIXED: Use INVENTORY_LIMIT feature gate, not ADD_INVENTORY_ITEM
-        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, currentItemCount);
+        // Reset monthly counter if needed
+        const now = new Date();
+        try {
+            if (!user.usageTracking ||
+                user.usageTracking.currentMonth !== now.getMonth() ||
+                user.usageTracking.currentYear !== now.getFullYear()) {
+
+                if (!user.usageTracking) {
+                    user.usageTracking = {};
+                }
+
+                user.usageTracking.currentMonth = now.getMonth();
+                user.usageTracking.currentYear = now.getFullYear();
+                user.usageTracking.monthlyUPCScans = 0;
+                user.usageTracking.lastUpdated = now;
+
+                await User.updateOne(
+                    { _id: session.user.id },
+                    {
+                        $set: {
+                            'usageTracking.currentMonth': now.getMonth(),
+                            'usageTracking.currentYear': now.getFullYear(),
+                            'usageTracking.monthlyUPCScans': 0,
+                            'usageTracking.lastUpdated': now
+                        }
+                    },
+                    { runValidators: false }
+                );
+            }
+        } catch (trackingError) {
+            console.error('Error resetting search usage tracking:', trackingError);
+        }
+
+        const currentScans = user.usageTracking?.monthlyUPCScans || 0;
+
+        // Check if user can perform UPC scan/search
+        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
 
         if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
-
-            // FIXED: Better error message for inventory limits
-            let errorMessage;
-            if (userSubscription.tier === 'free') {
-                errorMessage = `You've reached the free plan limit of 50 inventory items. Upgrade to Gold for 250 items or Platinum for unlimited items.`;
-            } else if (userSubscription.tier === 'gold') {
-                errorMessage = `You've reached the Gold plan limit of 250 inventory items. Upgrade to Platinum for unlimited items.`;
-            } else {
-                errorMessage = getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier);
-            }
-
+            const requiredTier = getRequiredTier(FEATURE_GATES.UPC_SCANNING);
             return NextResponse.json({
-                error: errorMessage,
-                code: 'INVENTORY_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.INVENTORY_LIMIT,
-                currentCount: currentItemCount,
+                error: getUpgradeMessage(FEATURE_GATES.UPC_SCANNING, requiredTier),
+                code: 'USAGE_LIMIT_EXCEEDED',
+                feature: FEATURE_GATES.UPC_SCANNING,
+                currentCount: currentScans,
                 currentTier: userSubscription.tier,
                 requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=inventory-limit&feature=inventory&required=${requiredTier}`
+                upgradeUrl: `/pricing?source=upc-limit&feature=${FEATURE_GATES.UPC_SCANNING}&required=${requiredTier}`
             }, { status: 403 });
         }
 
-        const newItem = {
-            name,
-            brand: brand || '',
-            category: category || '',
-            quantity: quantity || 1,
-            unit: unit || 'item',
-
-            // Add secondary unit support
-            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' ?
-                Math.max(parseFloat(secondaryQuantity), 0.1) : null,
-            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' ?
-                secondaryUnit : null,
-
-            location: location || 'pantry',
-            upc: upc || '',
-            expirationDate: expirationDate ? new Date(expirationDate) : null,
-            addedDate: new Date(),
-            // Add nutrition data if provided
-            nutrition: nutrition || null
-        };
-
-        inventory.items.push(newItem);
-        inventory.lastUpdated = new Date();
-
-        await inventory.save();
-
-        // Update user's usage tracking
-        if (!user.usageTracking) {
-            user.usageTracking = {};
-        }
-        user.usageTracking.totalInventoryItems = inventory.items.length;
-        user.usageTracking.lastUpdated = new Date();
-
-        // FIXED: Use updateOne to avoid validation issues
-        await User.updateOne(
-            { _id: session.user.id },
-            {
-                $set: {
-                    'usageTracking.totalInventoryItems': inventory.items.length,
-                    'usageTracking.lastUpdated': new Date()
-                }
-            },
-            { runValidators: false }
-        );
-
-        console.log('Item added successfully:', newItem);
-
-        // FIXED: Calculate remaining based on correct limits
-        let remainingItems;
-        if (userSubscription.tier === 'free') {
-            remainingItems = Math.max(0, 50 - inventory.items.length);
-        } else if (userSubscription.tier === 'gold') {
-            remainingItems = Math.max(0, 250 - inventory.items.length);
-        } else {
-            remainingItems = 'Unlimited';
-        }
-
-        return NextResponse.json({
-            success: true,
-            item: newItem,
-            message: 'Item added successfully',
-            remainingItems: remainingItems,
-            currentItemCount: inventory.items.length
-        });
-
-    } catch (error) {
-        console.error('POST inventory error:', error);
-        return NextResponse.json(
-            { error: 'Failed to add item' },
-            { status: 500 }
-        );
-    }
-}
-
-// PUT - Update inventory item
-export async function PUT(request) {
-    try {
-        const session = await getServerSession(authOptions);
-
-        console.log('PUT /api/inventory - Session:', session);
-
-        if (!session?.user?.id) {
-            console.log('PUT: No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await request.json();
-        const { itemId, ...updateData } = body;
-
-        console.log('PUT /api/inventory - Body:', body);
-
-        if (!itemId) {
-            return NextResponse.json(
-                { error: 'Item ID is required' },
-                { status: 400 }
-            );
-        }
-
-        await connectDB();
-
-        const inventory = await UserInventory.findOne({ userId: session.user.id });
-
-        if (!inventory) {
-            return NextResponse.json(
-                { error: 'Inventory not found' },
-                { status: 404 }
-            );
-        }
-
-        const itemIndex = inventory.items.findIndex(
-            item => item._id.toString() === itemId
-        );
-
-        if (itemIndex === -1) {
-            return NextResponse.json(
-                { error: 'Item not found' },
-                { status: 404 }
-            );
-        }
-
-        // Update the item (including secondary unit data if provided)
-        Object.keys(updateData).forEach(key => {
-            if (updateData[key] !== undefined) {
-                // Handle secondary quantity specially
-                if (key === 'secondaryQuantity') {
-                    inventory.items[itemIndex][key] = updateData[key] && updateData[key] !== '' ?
-                        Math.max(parseFloat(updateData[key]), 0.1) : null;
-                } else if (key === 'secondaryUnit') {
-                    inventory.items[itemIndex][key] = updateData[key] && updateData[key] !== '' ?
-                        updateData[key] : null;
-                } else {
-                    inventory.items[itemIndex][key] = updateData[key];
-                }
-            }
-        });
-
-        inventory.lastUpdated = new Date();
-        await inventory.save();
-
-        console.log('PUT: Item updated successfully:', inventory.items[itemIndex]);
-
-        return NextResponse.json({
-            success: true,
-            item: inventory.items[itemIndex],
-            message: 'Item updated successfully'
-        });
-
-    } catch (error) {
-        console.error('PUT inventory error:', error);
-        return NextResponse.json(
-            { error: 'Failed to update item' },
-            { status: 500 }
-        );
-    }
-}
-
-// DELETE - Remove item from inventory
-export async function DELETE(request) {
-    try {
-        const session = await getServerSession(authOptions);
-
-        console.log('DELETE /api/inventory - Session:', session);
-
-        if (!session?.user?.id) {
-            console.log('DELETE: No session or user ID found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
-        const itemId = searchParams.get('itemId');
+        const query = searchParams.get('query');
+        const page = searchParams.get('page') || '1';
+        const pageSize = searchParams.get('page_size') || '15';
 
-        console.log('DELETE /api/inventory - ItemId:', itemId);
+        console.log(`🔍 Text search request for: "${query}" (page ${page})`);
 
-        if (!itemId) {
+        if (!query || query.trim().length < 2) {
             return NextResponse.json(
-                { error: 'Item ID is required' },
+                { error: 'Search query must be at least 2 characters long' },
                 { status: 400 }
             );
         }
 
-        await connectDB();
+        // Clean and validate query
+        const cleanQuery = query.trim();
+        const pageNum = Math.max(1, parseInt(page));
+        const pageSizeNum = Math.min(50, Math.max(5, parseInt(pageSize))); // Limit between 5-50
 
-        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        // Track the search usage BEFORE processing
+        try {
+            if (!user.usageTracking) {
+                user.usageTracking = {
+                    currentMonth: now.getMonth(),
+                    currentYear: now.getFullYear(),
+                    monthlyUPCScans: 0,
+                    lastUpdated: now
+                };
+            }
 
-        if (!inventory) {
-            return NextResponse.json(
-                { error: 'Inventory not found' },
-                { status: 404 }
-            );
-        }
+            user.usageTracking.monthlyUPCScans = (user.usageTracking.monthlyUPCScans || 0) + 1;
+            user.usageTracking.lastUpdated = now;
 
-        const initialLength = inventory.items.length;
-        inventory.items = inventory.items.filter(
-            item => item._id.toString() !== itemId
-        );
-
-        if (inventory.items.length === initialLength) {
-            return NextResponse.json(
-                { error: 'Item not found' },
-                { status: 404 }
-            );
-        }
-
-        inventory.lastUpdated = new Date();
-        await inventory.save();
-
-        // Update user's usage tracking
-        const user = await User.findById(session.user.id);
-        if (user) {
-            // FIXED: Use updateOne to avoid validation issues
             await User.updateOne(
                 { _id: session.user.id },
                 {
                     $set: {
-                        'usageTracking.totalInventoryItems': inventory.items.length,
-                        'usageTracking.lastUpdated': new Date()
+                        'usageTracking.monthlyUPCScans': user.usageTracking.monthlyUPCScans,
+                        'usageTracking.lastUpdated': now
                     }
                 },
                 { runValidators: false }
             );
+
+            console.log(`✅ Text search tracked. User ${user.email} now has ${user.usageTracking.monthlyUPCScans} scans this month.`);
+        } catch (trackingError) {
+            console.error('❌ Error tracking text search:', trackingError);
+            // Continue with the request even if tracking fails
         }
 
-        console.log('DELETE: Item removed successfully');
+        // RESTORED: Build search URL with parameters for Open Food Facts
+        const searchUrl = new URL(OPEN_FOOD_FACTS_SEARCH_API);
+        searchUrl.searchParams.set('search_terms', cleanQuery);
+        searchUrl.searchParams.set('search_simple', '1');
+        searchUrl.searchParams.set('action', 'process');
+        searchUrl.searchParams.set('json', '1');
+        searchUrl.searchParams.set('page_size', pageSizeNum.toString());
+        searchUrl.searchParams.set('page', pageNum.toString());
+
+        console.log(`🌍 Fetching from Open Food Facts: ${searchUrl.toString()}`);
+
+        // RESTORED: Make request to Open Food Facts with proper headers
+        const response = await fetch(searchUrl.toString(), {
+            headers: {
+                'User-Agent': 'DocBearsComfortKitchen/1.0 (food-inventory@docbear.com)',
+                'Accept': 'application/json',
+            },
+            // Add timeout to prevent hanging requests
+            signal: AbortSignal.timeout(10000), // 10 second timeout
+        });
+
+        console.log(`🌍 Open Food Facts search response status: ${response.status}`);
+
+        if (!response.ok) {
+            console.error(`❌ Open Food Facts API error: ${response.status} ${response.statusText}`);
+            throw new Error(`Open Food Facts API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`📊 Search returned ${data.count || 0} total results for "${cleanQuery}"`);
+
+        // Check if we got valid results
+        if (!data.products || !Array.isArray(data.products)) {
+            return NextResponse.json({
+                success: true,
+                results: [],
+                pagination: {
+                    page: pageNum,
+                    pageSize: pageSizeNum,
+                    totalResults: 0,
+                    totalPages: 0
+                },
+                query: cleanQuery
+            });
+        }
+
+        // RESTORED: Transform results to match our standardized format
+        const transformedResults = data.products.map(product => {
+            // Extract nutrition data
+            const nutrition = product.nutriments ? {
+                energy_100g: product.nutriments['energy-kcal_100g'] || product.nutriments.energy_100g || 0,
+                fat_100g: product.nutriments.fat_100g || 0,
+                carbohydrates_100g: product.nutriments.carbohydrates_100g || 0,
+                proteins_100g: product.nutriments.proteins_100g || 0,
+                salt_100g: product.nutriments.salt_100g || 0,
+                sugars_100g: product.nutriments.sugars_100g || 0,
+                fiber_100g: product.nutriments.fiber_100g || 0,
+            } : null;
+
+            // Use the same category mapping from your UPC lookup
+            const category = mapCategory(product.categories_tags);
+
+            return {
+                found: true,
+                upc: product.code || '',
+                name: product.product_name || product.product_name_en || product.abbreviated_product_name || 'Unknown Product',
+                brand: product.brands || product.brand_owner || '',
+                category: category,
+                ingredients: product.ingredients_text || product.ingredients_text_en || '',
+                image: product.image_front_url || product.image_front_small_url || product.image_url || '',
+                nutrition: nutrition,
+                scores: {
+                    nutriscore: product.nutriscore_grade || product.nutrition_grade_fr || null,
+                    nova_group: product.nova_group || null,
+                    ecoscore: product.ecoscore_grade || null,
+                },
+                allergens: product.allergens_tags || [],
+                packaging: product.packaging || product.packaging_text || '',
+                quantity: product.quantity || product.product_quantity || '',
+                stores: product.stores || '',
+                countries: product.countries || product.countries_tags?.join(', ') || '',
+                labels: product.labels_tags || [],
+                openFoodFactsUrl: `https://world.openfoodfacts.org/product/${product.code}`,
+                lastModified: product.last_modified_t ? new Date(product.last_modified_t * 1000).toISOString() : null,
+            };
+        });
+
+        // Prioritize results with images (as requested)
+        const resultsWithImages = transformedResults.filter(r => r.image);
+        const resultsWithoutImages = transformedResults.filter(r => !r.image);
+        const prioritizedResults = [...resultsWithImages, ...resultsWithoutImages];
+
+        // Calculate pagination info
+        const totalResults = data.count || 0;
+        const totalPages = Math.ceil(totalResults / pageSizeNum);
+
+        console.log(`✅ Successfully processed ${prioritizedResults.length} products for "${cleanQuery}"`);
 
         return NextResponse.json({
             success: true,
-            message: 'Item removed successfully'
+            results: prioritizedResults,
+            pagination: {
+                page: pageNum,
+                pageSize: pageSizeNum,
+                totalResults: totalResults,
+                totalPages: totalPages,
+                hasNextPage: pageNum < totalPages,
+                hasPreviousPage: pageNum > 1
+            },
+            query: cleanQuery,
+            // Include usage information in response
+            usageInfo: {
+                scansUsed: user.usageTracking.monthlyUPCScans,
+                scansRemaining: userSubscription.tier === 'free' ? Math.max(0, 10 - user.usageTracking.monthlyUPCScans) : 'unlimited'
+            }
         });
 
     } catch (error) {
-        console.error('DELETE inventory error:', error);
+        console.error('❌ Text search error:', error);
+        console.error('Error stack:', error.stack);
+
+        // Handle rate limiting errors specifically
+        if (error.message.includes('429') || error.message.includes('Rate limit')) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Search service is busy. Please wait a moment and try again.',
+                    details: 'Rate limit exceeded'
+                },
+                { status: 429 }
+            );
+        }
+        if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Search request timed out. Please try again.',
+                    details: 'The search service is temporarily slow'
+                },
+                { status: 408 }
+            );
+        }
+
+        // Handle fetch errors
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Unable to connect to search service',
+                    details: 'Network connectivity issue'
+                },
+                { status: 503 }
+            );
+        }
+
         return NextResponse.json(
-            { error: 'Failed to remove item' },
+            {
+                success: false,
+                error: 'Failed to search for products',
+                details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            },
             { status: 500 }
         );
     }
 }
 
-// Helper function to map Open Food Facts categories to our detailed categories
-// This matches the same function in your UPC lookup route
+// RESTORED: Helper function to map Open Food Facts categories to our detailed categories
 function mapCategory(categoriesTags) {
     if (!categoriesTags || !Array.isArray(categoriesTags)) return 'Other';
 

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/inventory/receipt-scan/page.js - v13 Updated with proper feature gating for admin tier
+// file: /src/app/inventory/receipt-scan/page.js - v14 Complete integration with all features
 
 import {useState, useRef, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -9,7 +9,6 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {getApiUrl} from '@/lib/api-config';
-// NEW: Import proper feature gating
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
@@ -24,7 +23,6 @@ export default function ReceiptScan() {
 
     // State management - ALL HOOKS FIRST
     const {data: session, status} = useSafeSession();
-    // NEW: Use subscription hook instead of manual usage checking
     const subscription = useSubscription();
 
     const [isProcessing, setIsProcessing] = useState(false);
@@ -98,7 +96,7 @@ export default function ReceiptScan() {
         };
     }, []);
 
-    // NEW: Get usage info from subscription hook
+    // Get usage info from subscription hook
     const getReceiptScanUsage = () => {
         if (subscription.loading) {
             return {
@@ -206,7 +204,7 @@ export default function ReceiptScan() {
         };
     };
 
-    // UPDATED: Simplified usage check using subscription hook
+    // Simplified usage check using subscription hook
     function checkUsageLimitsBeforeScan() {
         if (subscription.loading) {
             alert('⏳ Please wait while we check your scan limits...');
@@ -890,75 +888,438 @@ export default function ReceiptScan() {
         }
     }
 
+    // ENHANCED parseReceiptText function with comprehensive skip patterns from v11/v12
     function parseReceiptText(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
 
+        // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
         const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
+        // COMPREHENSIVE skip patterns from v11/v12
         const skipPatterns = [
-            /^walmart$/i, /^target$/i, /^kroger$/i, /^publix$/i, /^safeway$/i,
-            /^hy-vee$/i, /^hyvee$/i, /^sam's club$/i, /^sams club$/i, /^costco$/i,
-            /^trader joe's$/i, /^trader joes$/i, /^smith's$/i, /^smiths$/i,
-            /^save money live better$/i, /^supercenter$/i,
-            /^neighborhood\s+grocery\s+store$/i, /^your\s+neighborhood$/i,
+            // ============ STORE NAMES AND HEADERS (More precise) ============
+            /^walmart$/i,  // Only "walmart" by itself, not lines containing walmart
+            /^target$/i,   // Only "target" by itself
+            /^kroger$/i,   // Only "kroger" by itself
+            /^publix$/i,   // Only "publix" by itself
+            /^safeway$/i,  // Only "safeway" by itself
+            /^hy-vee$/i,   // Only "hy-vee" by itself
+            /^hyvee$/i,    // Only "hyvee" by itself
+            /^sam's club$/i, // Only "sam's club" by itself, not lines with products
+            /^sams club$/i,  // Only "sams club" by itself
+            /^costco$/i,     // Only "costco" by itself
+            /^trader joe's$/i, // Only "trader joe's" by itself
+            /^trader joes$/i,  // Only "trader joes" by itself
+            /^smith's$/i,      // Only "smith's" by itself
+            /^smiths$/i,       // Only "smiths" by itself
+
+            // Store taglines and headers
+            /^save money live better$/i,
+            /^supercenter$/i,
+            /^neighborhood\s+grocery\s+store$/i,
+            /^your\s+neighborhood$/i,
+
+            // Receipt metadata
             /^(thank you|receipt|store|phone|address)$/i,
-            /^\d{2}\/\d{2}\/\d{4}$/, /^[\d\s\-\(\)]+$/,
+            /^\d{2}\/\d{2}\/\d{4}$/,
+            /^[\d\s\-\(\)]+$/,
+
+            // ============ PAYMENT AND TRANSACTION LINES ============
             /^(debit|credit|card|cash|tend|tender)$/i,
             /^(debit tend|credit tend|cash tend)$/i,
             /^(payment|transaction|approval)$/i,
             /^(ref|reference|auth|authorization)$/i,
             /^(visa|mastercard|amex|discover|american express)$/i,
             /^(visa credit|visa debit|mastercard credit)$/i,
+
+            // ============ TOTALS AND SUMMARIES - ENHANCED ============
+            /^total\s+purchase$/i,           // NEW: "Total Purchase"
+            /^total\s+amount$/i,             // NEW: "Total Amount"
+            /^grand\s+total$/i,              // NEW: "Grand Total"
+            /^final\s+total$/i,              // NEW: "Final Total"
+            /^order\s+total$/i,              // NEW: "Order Total"
+            /^(sub-total|subtotal|sub total)$/i,  // EXISTING: Subtotal variations
+            /^(net amount|netamount|net)$/i,      // EXISTING: Net amount
+            /^(total|amount)$/i,                  // EXISTING: Generic total
+            /^subtotal\s*\[\d+\]$/i,             // EXISTING: Subtotal with numbers
+
+            // ============ PRICING AND COMPARISON LINES - ENHANCED ============
+            /^regular\s+price$/i,            // NEW: "Regular Price"
+            /^reg\s+price$/i,               // NEW: "Reg Price"
+            /^was\s+\$?\d+\.\d{2}$/i,       // NEW: "Was $X.XX"
+            /^sale\s+price$/i,              // NEW: "Sale Price"
+            /^compare\s+at$/i,              // NEW: "Compare At"
+            /^retail\s+price$/i,            // NEW: "Retail Price"
+
+            // ============ TAX LINES - ENHANCED ============
+            /^t\s+s\s+ia\s+tax\s+.*$/i,      // NEW: "T S IA TAX ..." pattern
+            /^[a-z]\s+s\s+[a-z]{2}\s+tax\s+.*$/i, // NEW: Generic state tax pattern
+            /^tax\s+[\d\s]+$/i,              // EXISTING: Tax with numbers
+            /^tex\s+[\d\s]+$/i,              // EXISTING: Tax misspelling
+            /^t\s+[\d\s]+$/i,                // EXISTING: Short tax
+            /^\d+\.\d+\s+on\s+\$?\d+\.\d{2}$/i, // NEW: Tax calculation format
+
+            // ============ TAX CALCULATION PATTERNS - NEW ============
+            /^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i, // "E X 23.93 @ 6.0008 144"
+            /^[a-z]\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,      // "E 23.93 @ 6.000% = 1.44"
+            /^t\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,          // "T 23.93 @ 6.000% = 1.44"
+            /^\d+\.\d+\s+@\s+\d+\.\d+%\s*=\s*\d+\.\d+$/i,                 // "23.93 @ 6.000% = 1.44"
+            /^[a-z]\s+x\s+\d+\.\d+\s+@\s+\d+\s+\d+\s+\d+$/i,             // OCR garbled tax line
+
+            // ============ PRODUCT CODES AND UPC PATTERNS - ENHANCED ============
+            /^[a-z]\s+x\s+\d+\s+\d+\s+\d+\s+\d+$/i,  // NEW: "E X 6 0008 144" pattern
+            /^[a-z]\s+[a-z]\s+\d+\s+\d+\s+\d+$/i,    // NEW: Similar product code patterns
+            /^[\d\s]{15,}$/,                          // EXISTING: Long number strings
+            /^\d{10,}$/,                             // NEW: Long product codes
+
+            // ============ QUANTITY CONTINUATION LINES - ENHANCED ============
+            /^\d+\s+ea\s+\d+$/i,             // NEW: "4 Ea 3" pattern
+            /^\d+\s+each\s+\d+$/i,           // NEW: "4 Each 3" pattern
+            /^\d+\s+@\s+\$?\d+\.\d{2}\s+ea$/i,  // EXISTING: Quantity @ price ea
+            /^\d+\s+@\s+\$?\d+\.\d{2}$/i,       // EXISTING: Quantity @ price
+            /^\d+\s+ea$/i,                      // EXISTING: Just quantity ea
+            /^ea$/i,                            // EXISTING: Just "ea"
+
+            // ============ WALMART SPECIFIC PATTERNS ============
+            /^manager\s+/i,
+            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i, // Store number + date
+            /^st#\s*\d+/i, // Store number
+            /^op#\s*\d+/i, // Operator number
+            /^te#\s*\d+/i, // Terminal number
+            /^tr#\s*\d+/i, // Transaction number
+            /walmart\.com/i,
+            /^balance\s+\$/i,
+            /^change\s+\$/i,
+            /^total\s+tax/i,
+            /^account\s+#/i,
+            /^approval\s+#/i,
+
+            // ============ SAM'S CLUB SPECIFIC PATTERNS (More precise) ============
+            /^membership$/i,
+            /^advantage$/i,
+            /^plus$/i,
+            /^edward$/i, // Location names - but only by themselves
+            /^cedar\s+rapids$/i, // Only address lines, not product lines
+            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}$/i, // Phone numbers only
+            /^\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/i, // Date/time stamps
+            /^\d{4}\s+\d{5}\s+\d{3}\s+\d{4}$/i, // Transaction numbers only
+
+            // FIXED: More specific instant savings patterns
+            /^[ev]?\s*inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // Only discount lines ending with amount-N/T
+            /^s\s+inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // S instant savings with discount
+            /^[ev]\s+[ev]\s+inst\s+sv/i, // Multi-character instant savings
+
+            /member\s*(ship|#|savings)$/i, // Only membership lines at end
+            /you\s+saved$/i,               // Only "you saved" by itself
+            /total\s+savings$/i,           // Only "total savings" by itself
+
+            // TRADER JOE'S SPECIFIC PAYMENT PATTERNS
+            /^visa\s*$/i,
+            /^payment\s+card\s+purchase\s+transaction$/i,
+            /^customer\s+copy$/i,
+            /^type:\s+contactless$/i,
+            /^aid:\s*\*+\d+$/i,
+            /^tid:\s*\*+\d+$/i,
+            /^no\s+cardholder\s+verification$/i,
+            /^please\s+retain\s+for\s+your\s+records$/i,
             /^total\s+purchase$/i,
-            /^total\s+amount$/i, /^grand\s+total$/i, /^final\s+total$/i,
-            /^order\s+total$/i, /^(sub-total|subtotal|sub total)$/i,
-            /^(net amount|netamount|net)$/i, /^(total|amount)$/i,
-            /^subtotal\s*\[\d+\]$/i, /^regular\s+price$/i, /^reg\s+price$/i,
-            /^was\s+\$?\d+\.\d{2}$/i, /^sale\s+price$/i, /^compare\s+at$/i,
-            /^retail\s+price$/i, /^t\s+s\s+ia\s+tax\s+.*$/i,
-            /^[a-z]\s+s\s+[a-z]{2}\s+tax\s+.*$/i, /^tax\s+[\d\s]+$/i,
-            /^tex\s+[\d\s]+$/i, /^t\s+[\d\s]+$/i,
-            /^\d+\.\d+\s+on\s+\$?\d+\.\d{2}$/i,
-            /^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
-            /^[a-z]\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
-            /^t\s+\d+\.\d+\s+@\s+\d+\.\d+%?\s*=?\s*\d*\.?\d*$/i,
-            /^\d+\.\d+\s+@\s+\d+\.\d+%\s*=\s*\d+\.\d+$/i,
-            /^[a-z]\s+x\s+\d+\.\d+\s+@\s+\d+\s+\d+\s+\d+$/i,
-            /^[a-z]\s+x\s+\d+\s+\d+\s+\d+\s+\d+$/i,
-            /^[a-z]\s+[a-z]\s+\d+\s+\d+\s+\d+$/i,
-            /^[\d\s]{15,}$/, /^\d{10,}$/,
-            /^\d+\s+ea\s+\d+$/i, /^\d+\s+each\s+\d+$/i,
-            /^\d+\s+@\s+\$?\d+\.\d{2}\s+ea$/i, /^\d+\s+@\s+\$?\d+\.\d{2}$/i,
-            /^\d+\s+ea$/i, /^ea$/i, /^\d+%?\s*(off|discount|save)$/i,
-            /^\(\$\d+\.\d{2}\)$/i, /^-\$?\d+\.\d{2}$/i,
-            /^\d+\.\d{2}-[nt]$/i, /^.*-\$?\d+\.\d{2}$/i,
+            /^\*+\d{4}$/i, // Card number fragments
+
+            // SMITH'S (KROGER) SPECIFIC PAYMENT PATTERNS
+            /^your\s+cashier\s+was/i,
+            /^fresh\s+value\s+customer$/i,
+            /^\*+\s*balance$/i,
+            /^\d{3}-\d{3}-\d{4}$/i, // Phone numbers
+
+            // ============ RECEIPT FOOTER INFORMATION ============
+            /^(change due|amount due|balance)$/i,
+            /^(customer|member|rewards)$/i,
+            /^(save|saved|you saved)$/i,
+            /^(coupon|discount|promotion)$/i,
+            /^items\s+in\s+transaction$/i,
+            /^balance\s+to\s+pay$/i,
+
+            // ============ STORE OPERATION CODES AND IDS ============
+            /^(st#|store|op|operator|te|terminal)$/i,
+            /^(tc#|transaction|seq|sequence)$/i,
+            /^[\d\s]{10,}$/,
+
+            // ============ ITEMS SOLD COUNTER ============
+            /^#?\s*items?\s+sold$/i,
+            /^\d+\s+items?\s+sold$/i,
+
+            // ============ BARCODE NUMBERS (STANDALONE) ============
+            /^[\d\s]{15,}$/,
+
+            // ============ HY-VEE SPECIFIC PATTERNS ============
+            /btl\s+dep/i,
+            /btl\.\s+dep/i,
+            /bottle\s+deposit/i,
+            /deposit/i,
+            /^\.?\d+\s*fs?\s*btl\s*dep/i,
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^manual\s*weight$/i,
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb$/i,
+            /^x\s+\d+\s+\d+\s+\d+$/i,
+            /^[tx]\s+\d+(\s+\d+)*$/i,
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
+            /^[\d\s]+\d{2}$/i,
+            /^[a-z]\s+[\d\s]+$/i,
+            /^@\s*\d+\.\d+%/i,
+            /^=\s*[\d\s]+$/i,
+            /^\d+\.\d+%\s*=?$/i,
+            /employee\s*owned/i,
+            /storeman/i,
+            /group.*hy.*vee/i,
+            /^[\d\s]{3,}$/,
+            /^[a-z]{1,2}\s+[\d\s]+$/i,
+
+            // ============ TARGET SPECIFIC PATTERNS ============
+            /^regular\s+price$/i,
+            /^reg\s+price$/i,
+            /^was\s+\$?\d+\.\d{2}$/i,
+            /^t\s*=\s*ia\s+tax$/i,
+            /^[t]\s*-\s*ia\s+tax$/i,
+            /^\*?\d{4}\s+debit\s+total$/i,
+            /^aid[:;]\s*[a-z0-9]+$/i,
+            /^auth\s+code[:;]$/i,
+            /^us\s+debit$/i,
+            /when\s+you\s+return/i,
+            /return\s+credit/i,
+            /promotional\s+discount/i,
+            /applied\s+to\s+the/i,
+            /saving\s+with\s+target/i,
+            /target\s+circle/i,
+            /got\s+easier/i,
+            /open\s+the\s+target/i,
+            /target\.com/i,
+            /see\s+your\s+savings/i,
+            /find\s+more\s+benefits/i,
+            /\bapp\b.*\bvisit\b/i,
+            /benefits/i,
+            /blairs\s+ferry/i,
+            /^nf$/i,
+            /^t$/i,
+            /^[a-z]$/i,
+            /^[nt]$/i,
+            /^grocery$/i,
+            /^home$/i,
+            /^electronics$/i,
+            /^clothing$/i,
+
+            // ============ TRADER JOE'S SPECIFIC PATTERNS ============
+            /^items\s+in\s+transaction[:;]?\s*\d+$/i,
+            /^balance\s+to\s+pay$/i,
+            /^merchant\s+copy$/i,
+            /^type[:;]\s*(contactless|chip|swipe)$/i,
+            /^aid[:;]\s*\*+$/i,
+            /^tid[:;]\s*\*+$/i,
+            /^nid[:;]\s*\*+$/i,
+            /^mid[:;]\s*\*+$/i,
+            /^auth\s+code[:;]$/i,
+            /^approval\s+code$/i,
+            /^please\s+retain$/i,
+            /^retain\s+for$/i,
+            /^for\s+your\s+records$/i,
+
+            // ============ SMITH'S (KROGER) SPECIFIC PATTERNS ============
+            /^\d+\s+s\.\s+maryland\s+pkwy$/i,
+            /^chec\s+\d+$/i,
+            /^kroger\s+plus$/i,
+            /^fuel\s+points$/i,
+            /^you\s+earned$/i,
+            /^points\s+earned$/i,
+            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb$/i,
+            /^wt\s+.*lb$/i,
+            /^\d+\.\d+\s*\/\s*lb$/i,
+            /^\*+\s*balance$/i,
+            /^balance\s*\*+$/i,
+            /^f$/i,
+            /^[f|t]\s*$/i,
+            /^ro\s+lrg$/i,
+            /^darnc[n|g]$/i,
+            /^spwd\s+gr$/i,
+
+            // ============ GENERIC PATTERNS ============
+            /^\d+\.\d+\s*x\s*\$?\d+\.\d{2}$/i,
+            /^\d+\.?\d*x?$/i,
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
+            /fuel\s*saver/i,
+            /fuel\s*reward/i,
+            /\d+\s+fuel\s+saver/i,
+            /hormel\s*loins/i,
+            /\d+\s+hormel\s*loins/i,
+            /^(ia|iowa)\s+state$/i,
+            /^linn\s+county$/i,
+            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%$/i,
+            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%$/i,
+            /bottom\s*of\s*cart/i,
+            /spend\s*\$?\d+/i,
+            /\d+x\s*\d+of\d+/i,
+            /^payment\s*information$/i,
+            /^total\s*paid$/i,
+            /^[a-z]\s*—?\s*$/i,
+            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
+            /deals\s*&?\s*coupons/i,
+            /view\s*coupons/i,
+
+            // ============ DISCOUNT AND NEGATIVE AMOUNT PATTERNS ============
+            /^\d+%?\s*(off|discount|save)$/i,
+            /^\(\$\d+\.\d{2}\)$/i,
+            /^-\$?\d+\.\d{2}$/i,
+            /^\d+\.\d{2}-[nt]$/i,
+            /\d+\.\d{2}-n$/i,
+            /\d+\.\d{2}-t$/i,
+            /^.*-\$?\d+\.\d{2}$/i,
+            /^.*\s+-\$?\d+\.\d{2}$/i,
+            /^.*\s+\$?-\d+\.\d{2}$/i,
+
+            // ============ ADDITIONAL COMMON PATTERNS ============
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=$/i,
+            /^[tx]\s+\d+\.\d+\s*@$/i,
+            /^\d+\.\d+%\s*=$/i,
+            /^=\s*\d+\.\d+$/i,
+            /^\d+\.\d+\s*lb\s*@$/i,
+            /^\d+\.\d+\s*usd\/lb$/i,
+            /voided\s*bankcard/i,
+            /bank\s*card/i,
+            /transaction\s*not\s*complete/i,
+            /transaction\s*complete/i,
+            /tenbe\s*due/i,
+            /tender\s*due/i,
+            /change\s*due/i,
+            /amount\s*due/i,
+            /balance\s*due/i,
+            /debit\s*tend/i,
+            /cash\s*tend/i,
+            /terminal\s*#/i,
+            /pay\s+from\s+primary/i,
+            /purchase$/i,
+            /^.*\s+tax\s+[\d\s]+$/i,
+            /^.*\s+savings\s+[\d\s]+$/i,
+            /^total\s+purchase\s+[\d\s]+$/i,
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
 
+        // Process lines with enhanced context awareness from v11/v12
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
             const next2Line = i < lines.length - 2 ? lines[i + 2] : '';
             const prevLine = i > 0 ? lines[i - 1] : '';
 
+            // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
                 console.log(`📋 Skipping pattern match: ${line}`);
                 continue;
             }
 
+            // ENHANCED: Skip specific problematic lines BEFORE price processing
+            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)$/i)) {
+                console.log(`📋 Skipping known problematic line: ${line}`);
+                continue;
+            }
+
+            // ENHANCED: Skip lines that contain these words even with additional text
+            if (line.match(/^(subtotal|sub-total|sub total|total purchase|regular price|reg price)\s+/i)) {
+                console.log(`📋 Skipping problematic line with additional text: ${line}`);
+                continue;
+            }
+
+            // ENHANCED: Skip if next line looks like quantity continuation that should be combined
+            if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
+                console.log(`📋 Detected quantity continuation in next line, will process with current line: ${line} + ${nextLine}`);
+                // Continue processing this line, the quantity logic below will handle the combination
+            }
+
+            // Skip bottle deposit lines specifically
+            if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
+                console.log(`📋 Skipping bottle deposit: ${line}`);
+                continue;
+            }
+
+            // Skip tax calculation lines - ENHANCED
+            if (line.match(/^\d+\.\d+\s*@\s*\d+\.\d+%\s*=/i)) {
+                console.log(`📋 Skipping tax calculation: ${line}`);
+                continue;
+            }
+
+            // NEW: Skip OCR-garbled tax calculation lines
+            if (line.match(/^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+/i)) {
+                console.log(`📋 Skipping OCR-garbled tax line: ${line}`);
+                continue;
+            }
+
+            // Skip weight information lines
+            if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
+                console.log(`📋 Skipping weight info: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just mathematical calculations or references
+            if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
+                console.log(`📋 Skipping calculation line: ${line}`);
+                continue;
+            }
+
+            // Skip lines that are clearly instant savings (discounts)
+            if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
+                console.log(`📋 Skipping instant savings: ${line}`);
+                continue;
+            }
+
+            // Skip lines with negative amounts (discounts)
+            if (line.match(/\d+\.\d{2}-[nt]$/i)) {
+                console.log(`📋 Skipping negative amount: ${line}`);
+                continue;
+            }
+
+            // Skip zero-amount lines
+            if (line.match(/\$?0\.00/i)) {
+                console.log(`📋 Skipping zero amount: ${line}`);
+                continue;
+            }
+
+            // Skip payment/tender related lines
+            if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
+                console.log(`📋 Skipping payment line: ${line}`);
+                continue;
+            }
+
+            // ENHANCED: Skip if this line is a quantity continuation that should have been combined with previous
+            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
+                console.log(`📋 Skipping quantity line (part of previous item): ${line}`);
+                continue;
+            }
+
+            // Skip lines that are just whitespace or tax codes
+            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
+                console.log(`📋 Skipping tax code or whitespace: ${line}`);
+                continue;
+            }
+
+            // Check if line contains a price
             const priceMatch = line.match(pricePattern);
             if (priceMatch) {
                 const price = parseFloat(priceMatch[1]);
 
+                // Skip very high prices that are likely totals (over $100)
                 if (price > 100) {
                     console.log(`📋 Skipping high price line (likely total): ${line}`);
                     continue;
                 }
 
+                // Skip very low prices that are likely tax or fees (under $0.10)
                 if (price < 0.10) {
                     console.log(`📋 Skipping very low price (likely fee): ${line}`);
                     continue;
@@ -969,19 +1330,177 @@ export default function ReceiptScan() {
                 let quantity = 1;
                 let unitPrice = price;
 
+                // ENHANCED: Check for quantity continuation in next line (like "4 Ea 3")
                 if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
                     const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
+                        // Calculate unit price: total price divided by quantity
                         unitPrice = price / quantity;
-                        itemPrice = price;
+                        itemPrice = price; // Keep the line price as the actual paid amount
                         console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
                     }
                 }
+                // ENHANCED: Check for "+ 4 @ $3.99 ea 3" pattern (Frosty Paws style)
+                else if (nextLine && nextLine.match(/^\+?\s*\d+\s+@\s+\$?\d+\.\d{2}\s+ea\s+\d+$/i)) {
+                    const qtyMatch = nextLine.match(/^\+?\s*(\d+)\s+@\s+\$?(\d+\.\d{2})\s+ea\s+(\d+)/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        // Verify the math: quantity * unitPrice should equal the line price
+                        const calculatedTotal = quantity * unitPrice;
+                        if (Math.abs(calculatedTotal - price) < 0.01) {
+                            itemPrice = price; // Use the actual line price
+                            console.log(`📋 Found Frosty Paws style quantity: ${quantity} @ ${unitPrice} = ${itemPrice} (verified)`);
+                        } else {
+                            // Fall back to individual calculation
+                            quantity = 1;
+                            unitPrice = price;
+                            itemPrice = price;
+                            console.log(`📋 Frosty Paws quantity math didn't match, using single item: ${price}`);
+                        }
+                    }
+                }
+                // Check if next line contains quantity information (existing logic)
+                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        itemPrice = price; // Keep the line price as the actual paid amount
+                        console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
+                    }
+                }
+                // Check for Trader Joe's quantity continuation pattern
+                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
+                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
+                    if (qtyMatch) {
+                        quantity = parseInt(qtyMatch[1]);
+                        unitPrice = parseFloat(qtyMatch[2]);
+                        itemPrice = quantity * unitPrice;
+                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
 
-                nameMatch = line.replace(pricePattern, '').trim();
+                        // Verify the math matches the price on the main line
+                        if (Math.abs(itemPrice - price) < 0.01) {
+                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
+                        } else {
+                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
+                            itemPrice = price;
+                            quantity = 1;
+                            unitPrice = price;
+                        }
+                    }
+                }
+
+                // Check if current line contains embedded quantity information
+                const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
+                if (embeddedQtyMatch) {
+                    nameMatch = embeddedQtyMatch[1];
+                    quantity = parseInt(embeddedQtyMatch[2]);
+                    unitPrice = parseFloat(embeddedQtyMatch[3]);
+                    itemPrice = quantity * unitPrice;
+                } else {
+                    // Remove price from name
+                    nameMatch = line.replace(pricePattern, '').trim();
+                }
+
+                // Clean up the item name
                 nameMatch = cleanItemName(nameMatch);
 
+                // Enhanced ground beef detection and cleaning
+                if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
+                    const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
+                    if (percentMatch) {
+                        nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
+                    }
+                }
+
+                if (nameMatch.match(/^tax\s+\d+/i)) {
+                    console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
+                    continue;
+                }
+
+                // Handle Smith's specific abbreviations and OCR issues
+                if (nameMatch.match(/^ro\s+lrg\s+white\s+bak/i)) {
+                    nameMatch = "King's Hawaiian White Bread";
+                } else if (nameMatch.match(/^darn?c?n?\s+l[ef]\s+yogu?rt/i)) {
+                    nameMatch = "Dannon Light & Fit Yogurt";
+                } else if (nameMatch.match(/^spwd\s+gr\s+mwc/i)) {
+                    nameMatch = "Ground Turkey";
+                } else if (nameMatch.match(/^silk\s+alm?ond/i)) {
+                    nameMatch = "Silk Almond Milk";
+                } else if (nameMatch.match(/^sara\s+ml?tgrn\s+bread/i)) {
+                    nameMatch = "Sara Lee Multigrain Bread";
+                } else if (nameMatch.match(/^csdt\s+tomato/i)) {
+                    nameMatch = "Crushed Tomatoes";
+                } else if (nameMatch.match(/^org\s+hummus/i)) {
+                    nameMatch = "Organic Hummus";
+                } else if (nameMatch.match(/^veggiecraft\s+pasta/i)) {
+                    nameMatch = "Veggiecraft Pasta";
+                } else if (nameMatch.match(/^kroger\s+carrots/i)) {
+                    nameMatch = "Kroger Carrots";
+                } else if (nameMatch.match(/^onions?\s+shallots?/i)) {
+                    nameMatch = "Onions & Shallots";
+                } else if (nameMatch.match(/^sto\s+parsley/i)) {
+                    nameMatch = "Fresh Parsley";
+                }
+
+                // Handle common Trader Joe's item names and OCR issues
+                if (nameMatch.match(/^org\s+mini\s+peanut\s+butter/i)) {
+                    nameMatch = "Organic Mini Peanut Butter Cups";
+                } else if (nameMatch.match(/^peanut\s+crunchy\s+crispy/i)) {
+                    nameMatch = "Peanut Butter Crunchy & Crispy";
+                } else if (nameMatch.match(/^cold\s+brew\s+coffee\s+bags/i)) {
+                    nameMatch = "Cold Brew Coffee Bags";
+                } else if (nameMatch.match(/^popcorn\s+synergistically/i)) {
+                    nameMatch = "Synergistically Seasoned Popcorn";
+                } else if (nameMatch.match(/^crackers\s+sandwich\s+every/i)) {
+                    nameMatch = "Sandwich Crackers";
+                }
+
+                // Handle Sam's Club specific product name patterns
+                if (nameMatch.match(/bath\s+tissue/i)) {
+                    nameMatch = "Bath Tissue";
+                } else if (nameMatch.match(/klnx\s+12pk/i)) {
+                    nameMatch = "Kleenex 12-Pack";
+                } else if (nameMatch.match(/\$50gplay/i)) {
+                    nameMatch = "$50 Google Play Card";
+                } else if (nameMatch.match(/\$25gplay/i)) {
+                    nameMatch = "$25 Google Play Card";
+                } else if (nameMatch.match(/buffalosauce/i)) {
+                    nameMatch = "Buffalo Sauce";
+                } else if (nameMatch.match(/teriyaki/i)) {
+                    nameMatch = "Teriyaki Sauce";
+                } else if (nameMatch.match(/kndrhbsbbq/i)) {
+                    nameMatch = "BBQ Sauce";
+                } else if (nameMatch.match(/mm\s+minced\s+gf/i)) {
+                    nameMatch = "Minced Garlic";
+                } else if (nameMatch.match(/tones\s+italnf/i)) {
+                    nameMatch = "Italian Seasoning";
+                } else if (nameMatch.match(/mm\s+chives/i)) {
+                    nameMatch = "Chives";
+                } else if (nameMatch.match(/stckyhoney/i)) {
+                    nameMatch = "Sticky Honey";
+                } else if (nameMatch.match(/roasted\s+wine/i)) {
+                    nameMatch = "Roasted Wine";
+                } else if (nameMatch.match(/korbbqwingsf/i)) {
+                    nameMatch = "Korean BBQ Wings";
+                } else if (nameMatch.match(/mm\s+coq10/i)) {
+                    nameMatch = "CoQ10 Supplement";
+                } else if (nameMatch.match(/ns\s+shin\s+blaf/i)) {
+                    nameMatch = "Shin Black Noodles";
+                } else if (nameMatch.match(/picnic\s+packf/i)) {
+                    nameMatch = "Picnic Pack";
+                } else if (nameMatch.match(/fruit\s+tray/i)) {
+                    nameMatch = "Fruit Tray";
+                }
+
+                // Check for UPC in current or nearby lines
+                const upcMatch = line.match(upcPattern) ||
+                    (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
+                    (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
+
+                // Only process if we have a meaningful item name
                 if (nameMatch && nameMatch.length > 2 &&
                     !nameMatch.match(/^\d+\.?\d*$/) &&
                     !nameMatch.match(/^[tx]\s*\d/i) &&
@@ -995,18 +1514,19 @@ export default function ReceiptScan() {
                         price: itemPrice,
                         quantity: quantity,
                         unitPrice: unitPrice,
-                        upc: '',
+                        upc: upcMatch ? upcMatch[0] : '',
                         category: guessCategory(nameMatch),
                         location: guessLocation(nameMatch),
-                        rawText: line + (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i) ? ` + ${nextLine}` : ''),
+                        rawText: line + (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i)) ? ` + ${nextLine}` : ''),
                         selected: true,
                         needsReview: false
                     };
 
                     items.push(item);
 
-                    if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
-                        i++;
+                    // ENHANCED: Skip the next line if it was a quantity continuation line that we just processed
+                    if (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i))) {
+                        i++; // Skip the next line since we already processed it
                         console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
                     }
                 } else {
@@ -1019,10 +1539,12 @@ export default function ReceiptScan() {
         return combineDuplicateItems(items);
     }
 
+    // Combine duplicate items function from v11/v12
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
 
+        // Group by UPC code first (most reliable)
         items.forEach(item => {
             if (item.upc && item.upc.length >= 11) {
                 const cleanUPC = item.upc.replace(/\D/g, '');
@@ -1031,6 +1553,7 @@ export default function ReceiptScan() {
                 }
                 upcGroups[cleanUPC].push(item);
             } else {
+                // Items without UPC codes - check for name matching
                 const cleanName = item.name.toLowerCase().trim();
                 if (!nameGroups[cleanName]) {
                     nameGroups[cleanName] = [];
@@ -1041,6 +1564,7 @@ export default function ReceiptScan() {
 
         const combinedItems = [];
 
+        // Process UPC groups
         Object.values(upcGroups).forEach(group => {
             if (group.length === 1) {
                 combinedItems.push(group[0]);
@@ -1064,6 +1588,7 @@ export default function ReceiptScan() {
             }
         });
 
+        // Process name groups (items without UPC)
         Object.values(nameGroups).forEach(group => {
             if (group.length === 1) {
                 combinedItems.push(group[0]);
@@ -1090,25 +1615,44 @@ export default function ReceiptScan() {
         return combinedItems;
     }
 
+    // Enhanced cleanItemName function with support for all stores from v11/v12
     function cleanItemName(name) {
-        name = name.replace(/\s+NF\s*$/i, '');
-        name = name.replace(/\s+T\s*$/i, '');
-        name = name.replace(/\s+HOME\s*$/i, '');
+        // Remove common store tax codes and artifacts
+        name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
+        name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
+        name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
+
+        // Remove quantity patterns that might have been missed
         name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
-        name = name.replace(/^\d{10,}/, '').trim();
-        name = name.replace(/\d+%:?/, '').trim();
-        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim();
-        name = name.replace(/[-\s]*[nt]$/i, '').trim();
-        name = name.replace(/\s*-\s*$/, '').trim();
-        name = name.replace(/[^\w\s\-&']/g, ' ');
-        name = name.replace(/\s+/g, ' ');
+
+        // Remove long product codes and discount info
+        name = name.replace(/^\d{10,}/, '').trim(); // Remove long product codes
+        name = name.replace(/\d+%:?/, '').trim(); // Remove percentage info
+        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim(); // Remove discount amounts
+        name = name.replace(/[-\s]*[nt]$/i, '').trim(); // Remove -N or -T suffixes
+        name = name.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash
+
+        // Handle specific brand conversions for Target
+        if (name.match(/birds?\s*eye/i)) {
+            name = "Birds Eye";
+        } else if (name.match(/frosty\s*paws/i)) {
+            name = "Frosty Paws";
+        } else if (name.match(/gg\s+vegetable/i)) {
+            name = "Great Grains Vegetable";
+        }
+
+        // Clean up common OCR artifacts
+        name = name.replace(/[^\w\s\-&']/g, ' '); // Remove special chars except common ones
+        name = name.replace(/\s+/g, ' '); // Normalize whitespace
         name = name.trim();
 
+        // Capitalize properly
         return name.split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     }
 
+    // Enhanced guessCategory function from v13 with comprehensive categories
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
@@ -1198,7 +1742,8 @@ export default function ReceiptScan() {
         // Condiments
         if (nameLower.includes('ketchup') || nameLower.includes('mustard') || nameLower.includes('mayo') ||
             nameLower.includes('mayonnaise') || nameLower.includes('relish') || nameLower.includes('pickle') ||
-            nameLower.includes('salad dressing') || nameLower.includes('ranch') || nameLower.includes('italian dressing')) {
+            nameLower.includes('salad dressing') || nameLower.includes('ranch') || nameLower.includes('italian dressing') ||
+            nameLower.includes('buffalo') || nameLower.includes('teriyaki') || nameLower.includes('bbq') || nameLower.includes('sauce')){
             return 'Condiments';
         }
 
@@ -1226,7 +1771,10 @@ export default function ReceiptScan() {
 
         // Fresh Spices
         if (nameLower.includes('fresh basil') || nameLower.includes('fresh cilantro') || nameLower.includes('fresh parsley') ||
-            nameLower.includes('fresh mint') || nameLower.includes('fresh ginger') || nameLower.includes('fresh herb')) {
+            nameLower.includes('fresh mint') || nameLower.includes('fresh ginger') || nameLower.includes('fresh herb') ||
+            nameLower.includes('fresh oregano') || nameLower.includes('fresh rosemary') || nameLower.includes('fresh dill') ||
+            nameLower.includes('fresh bay leaf') || nameLower.includes('fresh bay leaves') || nameLower.includes('fresh thyme') ||
+            nameLower.includes('fresh coriander')) {
             return 'Fresh Spices';
         }
 
@@ -1295,9 +1843,11 @@ export default function ReceiptScan() {
             return 'Pasta';
         }
 
-        // Seasonings
+        // Seasonings (salt, pepper, garlic powder, onion powder, and blended seasonings)
         if (nameLower.includes('salt') || nameLower.includes('pepper') || nameLower.includes('garlic powder') ||
-            nameLower.includes('onion powder') || nameLower.includes('seasoning mix') || nameLower.includes('seasoning')) {
+            nameLower.includes('onion powder') || nameLower.includes('seasoning mix') || nameLower.includes('seasoning') ||
+            nameLower.includes('chili powder') || nameLower.includes('curry powder') || nameLower.includes('cayenne pepper') ||
+            nameLower.includes('cayenne') || nameLower.includes('crushed red pepper') || nameLower.includes('red pepper flakes')) {
             return 'Seasonings';
         }
 
@@ -1314,10 +1864,21 @@ export default function ReceiptScan() {
             return 'Soups & Soup Mixes';
         }
 
-        // Spices
-        if (nameLower.includes('cinnamon') || nameLower.includes('paprika') || nameLower.includes('cumin') ||
-            nameLower.includes('oregano') || nameLower.includes('thyme') || nameLower.includes('rosemary') ||
-            nameLower.includes('bay leaves') || nameLower.includes('spice') || nameLower.includes('herb')) {
+        // Spices (individual herbs and spices, both ground and whole)
+        if (nameLower.includes('cinnamon') || nameLower.includes('ground cinnamon') || nameLower.includes('cinnamon stick') ||
+            nameLower.includes('paprika') || nameLower.includes('cumin') || nameLower.includes('ground cumin') ||
+            nameLower.includes('whole cumin') || nameLower.includes('oregano') || nameLower.includes('thyme') ||
+            nameLower.includes('rosemary') || nameLower.includes('bay leaves') || nameLower.includes('bay leaf') ||
+            nameLower.includes('ginger') || nameLower.includes('ground ginger') || nameLower.includes('anise') ||
+            nameLower.includes('basil') || nameLower.includes('clove') || nameLower.includes('cloves') ||
+            nameLower.includes('ground clove') || nameLower.includes('whole clove') || nameLower.includes('nutmeg') ||
+            nameLower.includes('ground nutmeg') || nameLower.includes('whole nutmeg') || nameLower.includes('allspice') ||
+            nameLower.includes('ground allspice') || nameLower.includes('cardamom') || nameLower.includes('ground cardamom') ||
+            nameLower.includes('coriander') || nameLower.includes('ground coriander') || nameLower.includes('fennel') ||
+            nameLower.includes('fennel seed') || nameLower.includes('caraway') || nameLower.includes('caraway seed') ||
+            nameLower.includes('mustard seed') || nameLower.includes('mustard seeds') || nameLower.includes('turmeric') ||
+            nameLower.includes('ground turmeric') || nameLower.includes('dill') || nameLower.includes('dill seed') ||
+            nameLower.includes('spice') || nameLower.includes('herb')) {
             return 'Spices';
         }
 
@@ -1341,11 +1902,24 @@ export default function ReceiptScan() {
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
 
-        if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
+        if (nameLower.includes('frozen') || nameLower.includes('ice cream') || nameLower.includes('frosty paws')) {
             return 'freezer';
         }
-        if (nameLower.includes('milk') || nameLower.includes('yogurt')) {
+        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
             return 'fridge';
+        }
+        // Kitchen cabinets for spices, seasonings, and cooking essentials
+        if (nameLower.includes('spice') || nameLower.includes('seasoning') ||
+            nameLower.includes('salt') || nameLower.includes('pepper') ||
+            nameLower.includes('garlic powder') || nameLower.includes('onion powder') ||
+            nameLower.includes('cumin') || nameLower.includes('paprika') ||
+            nameLower.includes('oregano') || nameLower.includes('thyme') ||
+            nameLower.includes('vanilla') || nameLower.includes('extract') ||
+            nameLower.includes('baking soda') || nameLower.includes('baking powder') ||
+            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') ||
+            nameLower.includes('vinegar') || nameLower.includes('soy sauce') ||
+            nameLower.includes('hot sauce') || nameLower.includes('honey')) {
+            return 'kitchen';
         }
 
         return 'pantry';
@@ -1370,9 +1944,9 @@ export default function ReceiptScan() {
         for (let i = 0; i < 12; i++) {
             const digit = parseInt(upc12[i]);
             if (i % 2 === 0) {
-                sum += digit * 1;
+                sum += digit * 1; // Even positions (0,2,4,6,8,10) multiply by 1
             } else {
-                sum += digit * 3;
+                sum += digit * 3; // Odd positions (1,3,5,7,9,11) multiply by 3
             }
         }
 
@@ -1383,31 +1957,159 @@ export default function ReceiptScan() {
     async function lookupByUPC(item) {
         if (!item.upc) return;
 
-        try {
-            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${item.upc}`));
+        // Function to try UPC lookup with a specific code
+        async function tryUPCLookup(upcCode) {
+            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${upcCode}`));
             if (!response.ok) {
-                throw new Error('UPC lookup failed');
+                return null;
             }
             const data = await response.json();
+            return data;
+        }
 
-            if (data && data.success && data.product && data.product.found) {
-                if (data.product.name && data.product.name !== 'Unknown Product') {
-                    updateItem(item.id, 'name', data.product.name);
+        try {
+            const originalUPC = item.upc;
+            const upcVariations = [];
+            let calculatedVariation = null;
+
+            // Strategy 1: Try original UPC first
+            upcVariations.push(originalUPC);
+
+            // Strategy 2: If 12 digits, calculate the correct check digit
+            if (originalUPC.length === 12) {
+                const checkDigit = calculateUPCCheckDigit(originalUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = originalUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
                 }
-                if (data.product.category && data.product.category !== 'Other') {
-                    updateItem(item.id, 'category', data.product.category);
-                }
-                if (data.product.brand) {
-                    updateItem(item.id, 'brand', data.product.brand);
-                }
-                updateItem(item.id, 'needsReview', false);
-                alert(`✅ Product found: ${data.product.name}`);
-            } else {
-                alert(`❌ Product not found for UPC ${item.upc}`);
             }
+
+            // Strategy 3: If 11 digits, pad with zero and calculate check digit
+            if (originalUPC.length === 11) {
+                const paddedUPC = '0' + originalUPC;
+                upcVariations.push(paddedUPC);
+
+                const checkDigit = calculateUPCCheckDigit(paddedUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = paddedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
+                }
+            }
+
+            // Strategy 4: If 13 digits, try removing last digit and recalculating
+            if (originalUPC.length === 13) {
+                const truncatedUPC = originalUPC.slice(0, -1);
+                const checkDigit = calculateUPCCheckDigit(truncatedUPC);
+                if (checkDigit !== null) {
+                    calculatedVariation = truncatedUPC + checkDigit;
+                    upcVariations.push(calculatedVariation);
+                }
+            }
+
+            console.log(`Smart UPC lookup for ${originalUPC}. Calculated variation: ${calculatedVariation}`);
+
+            // Try the smart variations first (original + calculated)
+            for (const upcCode of upcVariations) {
+                try {
+                    const data = await tryUPCLookup(upcCode);
+
+                    if (data && data.success && data.product && data.product.found) {
+                        // Update item with product information
+                        if (data.product.name && data.product.name !== 'Unknown Product') {
+                            updateItem(item.id, 'name', data.product.name);
+                        }
+
+                        if (data.product.category && data.product.category !== 'Other') {
+                            updateItem(item.id, 'category', data.product.category);
+                        }
+
+                        if (data.product.brand) {
+                            updateItem(item.id, 'brand', data.product.brand);
+                        }
+
+                        // Update the UPC with the working version
+                        updateItem(item.id, 'upc', upcCode);
+                        updateItem(item.id, 'needsReview', false);
+
+                        // Show success message
+                        let successMessage = `✅ Product found: ${data.product.name}`;
+                        if (data.product.brand) {
+                            successMessage += ` (${data.product.brand})`;
+                        }
+                        if (data.product.category && data.product.category !== 'Other') {
+                            successMessage += `\nCategory: ${data.product.category}`;
+                        }
+                        if (upcCode !== originalUPC) {
+                            successMessage += `\nCorrected UPC: ${originalUPC} → ${upcCode}`;
+                        }
+
+                        alert(successMessage);
+                        return; // Success, exit function
+                    }
+                } catch (error) {
+                    console.log(`UPC ${upcCode} failed:`, error.message);
+                    continue;
+                }
+            }
+
+            // Strategy 5: Only if smart calculation fails, try brute force (with user confirmation)
+            const shouldTryAll = confirm(`❓ Smart UPC lookup failed for ${originalUPC}.\n\nTry checking all possible check digits? This will make multiple API calls.`);
+
+            if (shouldTryAll && originalUPC.length === 12) {
+                console.log('User approved brute force UPC search');
+
+                // Try all possible check digits 0-9 (excluding calculated one already tried)
+                for (let i = 0; i <= 9; i++) {
+                    const testUPC = originalUPC + i;
+
+                    // Skip if we already tried this one
+                    if (calculatedVariation && testUPC === calculatedVariation) {
+                        continue;
+                    }
+
+                    try {
+                        const data = await tryUPCLookup(testUPC);
+
+                        if (data && data.success && data.product && data.product.found) {
+                            // Update item with product information
+                            if (data.product.name && data.product.name !== 'Unknown Product') {
+                                updateItem(item.id, 'name', data.product.name);
+                            }
+
+                            if (data.product.category && data.product.category !== 'Other') {
+                                updateItem(item.id, 'category', data.product.category);
+                            }
+
+                            if (data.product.brand) {
+                                updateItem(item.id, 'brand', data.product.brand);
+                            }
+
+                            updateItem(item.id, 'upc', testUPC);
+                            updateItem(item.id, 'needsReview', false);
+
+                            let successMessage = `✅ Product found: ${data.product.name}`;
+                            if (data.product.brand) {
+                                successMessage += ` (${data.product.brand})`;
+                            }
+                            successMessage += `\nCorrected UPC: ${originalUPC} → ${testUPC}`;
+                            successMessage += `\n(Found via brute force search)`;
+
+                            alert(successMessage);
+                            return;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+            }
+
+            // If we get here, nothing worked
+            const attemptedCount = shouldTryAll ? 'all variations' : `${upcVariations.length} smart variations`;
+            alert(`❌ Product not found for UPC ${originalUPC} (tried ${attemptedCount})`);
+
         } catch (error) {
             console.error('UPC lookup error:', error);
-            alert('❌ Network error during UPC lookup.');
+            alert('❌ Network error during UPC lookup. Please check your connection and try again.');
         }
     }
 
@@ -1536,8 +2238,10 @@ export default function ReceiptScan() {
     }
 
     function resetScan() {
+        // Stop camera first
         stopCamera();
 
+        // Reset all state
         setStep('upload');
         setCapturedImage(prevImage => {
             if (prevImage) {
@@ -1552,6 +2256,7 @@ export default function ReceiptScan() {
         setCameraError(null);
         setShowIOSPWAModal(false);
 
+        // Clear file input
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -1559,7 +2264,7 @@ export default function ReceiptScan() {
 
     return (
         <MobileOptimizedLayout>
-            {/* NEW: Wrap the entire receipt scanner in a feature gate */}
+            {/* Wrap the entire receipt scanner in a feature gate */}
             <FeatureGate
                 feature={FEATURE_GATES.RECEIPT_SCAN}
                 fallback={
@@ -1579,7 +2284,6 @@ export default function ReceiptScan() {
                                 </TouchEnhancedButton>
                             </div>
                         </div>
-
 
                         {/* Premium Feature Showcase */}
                         <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
@@ -1680,7 +2384,7 @@ export default function ReceiptScan() {
                     </div>
                 }
             >
-                {/* EXISTING: Your full receipt scanner interface goes here */}
+                {/* Your full receipt scanner interface goes here */}
                 <div className="space-y-6">
                     {/* Header */}
                     <div className="space-y-4">
@@ -1768,7 +2472,7 @@ export default function ReceiptScan() {
                                         </p>
                                     </div>
 
-                                    {/* NEW: Usage display using subscription hook */}
+                                    {/* Usage display using subscription hook */}
                                     {(() => {
                                         const usage = getReceiptScanUsage();
                                         if (!usage.loading && usage.remaining !== 'unlimited') {
@@ -1811,11 +2515,7 @@ export default function ReceiptScan() {
                                         </TouchEnhancedButton>
 
                                         <TouchEnhancedButton
-                                            onClick={() => {
-                                                if (checkUsageLimitsBeforeScan() && fileInputRef.current) {
-                                                    fileInputRef.current.click();
-                                                }
-                                            }}
+                                            onClick={handleUploadButtonClick}
                                             className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                                         >
                                             <div className="text-4xl mb-2">📁</div>
@@ -1828,86 +2528,54 @@ export default function ReceiptScan() {
                                         ref={fileInputRef}
                                         type="file"
                                         accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files[0];
-                                            if (file && file.type.startsWith('image/')) {
-                                                const imageUrl = URL.createObjectURL(file);
-                                                setCapturedImage(imageUrl);
-                                                processImage(file);
-                                            } else {
-                                                alert('Please select a valid image file.');
-                                                if (fileInputRef.current) {
-                                                    fileInputRef.current.value = '';
-                                                }
-                                            }
-                                        }}
+                                        onChange={handleReceiptFileUpload}
                                         className="hidden"
                                     />
 
-                                    {/* iOS PWA specific guidance - Reframed positively */}
+                                    {/* iOS PWA specific guidance */}
                                     {deviceInfo.isIOSPWA && (
-                                        <div
-                                            className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                             <h4 className="text-sm font-medium text-blue-900 mb-2">
                                                 📱 iOS PWA Camera Tips
                                             </h4>
                                             <p className="text-sm text-blue-800 mb-3">
-                                                <strong>Quick tip:</strong> If the
-                                                camera doesn't work immediately, the
-                                                "Upload Image" option
-                                                works perfectly! Just take a photo with
-                                                your iPhone camera first, then
-                                                upload it here.
+                                                <strong>Quick tip:</strong> If the camera doesn't work immediately, the
+                                                "Upload Image" option works perfectly! Just take a photo with
+                                                your iPhone camera first, then upload it here.
                                             </p>
                                             <div className="text-xs text-blue-700">
-                                                Both methods provide identical OCR
-                                                processing and results.
+                                                Both methods provide identical OCR processing and results.
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Error display */}
                                     {cameraError && !deviceInfo.isIOSPWA && (
-                                        <div
-                                            className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                            <div
-                                                className="text-red-700">❌ {cameraError}</div>
+                                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                            <div className="text-red-700">❌ {cameraError}</div>
                                             <div className="text-sm text-red-600 mt-2">
-                                                Please try using the upload option
-                                                instead, or check your camera
-                                                permissions.
+                                                Please try using the upload option instead, or check your camera permissions.
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Tips */}
-                                    <div
-                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📝
-                                            Tips for Best Results:</h4>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
                                         <ul className="text-sm text-blue-800 space-y-1">
-                                            <li>• Ensure receipt is flat and well-lit
-                                            </li>
+                                            <li>• Ensure receipt is flat and well-lit</li>
                                             <li>• Avoid shadows and glare</li>
-                                            <li>• Include the entire receipt in the
-                                                frame
-                                            </li>
-                                            <li>• Higher resolution images work better
-                                            </li>
-                                            {deviceInfo.isIOS &&
-                                                <li>• iOS PWA may take longer to
-                                                    initialize camera</li>}
+                                            <li>• Include the entire receipt in the frame</li>
+                                            <li>• Higher resolution images work better</li>
+                                            {deviceInfo.isIOS && <li>• iOS PWA may take longer to initialize camera</li>}
                                         </ul>
                                     </div>
 
                                     {/* Report Issue Section */}
-                                    <div
-                                        className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛
-                                            Having Issues?</h4>
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                         <p className="text-sm text-yellow-800 mb-3">
-                                            If the receipt scanner isn't working
-                                            properly with your receipt, you can report
+                                            If the receipt scanner isn't working properly with your receipt, you can report
                                             the issue to help us improve it.
                                         </p>
                                         <TouchEnhancedButton
@@ -1920,23 +2588,19 @@ export default function ReceiptScan() {
                                 </div>
                             )}
 
-                            {/* Camera View - Enhanced with iOS detection and auto-scroll ref */}
+                            {/* Camera View */}
                             {showCamera && (
                                 <div ref={cameraContainerRef} className="space-y-4">
                                     <div className="text-center">
-                                        <h3 className="text-lg font-medium mb-4">📷
-                                            Camera View</h3>
+                                        <h3 className="text-lg font-medium mb-4">📷 Camera View</h3>
                                         {deviceInfo.isIOS && (
                                             <p className="text-sm text-yellow-600 mb-2">
-                                                iOS device detected - using optimized
-                                                camera settings
+                                                iOS device detected - using optimized camera settings
                                             </p>
                                         )}
                                     </div>
 
-                                    <div
-                                        className="relative bg-black rounded-lg overflow-hidden">
-                                        {/* Clean video container for iOS PWA compatibility */}
+                                    <div className="relative bg-black rounded-lg overflow-hidden">
                                         <video
                                             ref={videoRef}
                                             autoPlay
@@ -1951,19 +2615,15 @@ export default function ReceiptScan() {
                                         />
 
                                         {/* Camera overlay */}
-                                        <div
-                                            className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
-                                            <div
-                                                className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
+                                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                 📱 Position receipt here
                                             </div>
-                                            <div
-                                                className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                 📏 Fill frame completely
                                             </div>
                                             {deviceInfo.isIOS && (
-                                                <div
-                                                    className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                                <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                     📱 iOS Mode
                                                 </div>
                                             )}
@@ -1987,8 +2647,7 @@ export default function ReceiptScan() {
 
                                     {/* Debug info for camera */}
                                     {process.env.NODE_ENV === 'development' && (
-                                        <div
-                                            className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
+                                        <div className="text-xs text-center bg-gray-100 p-2 rounded text-gray-600">
                                             Camera: {videoRef.current?.videoWidth || 0} x {videoRef.current?.videoHeight || 0}
                                             {deviceInfo.isIOS ? ' (iOS optimized)' : ''}
                                         </div>
@@ -2000,16 +2659,11 @@ export default function ReceiptScan() {
                             {step === 'processing' && (
                                 <div className="text-center space-y-6">
                                     <div className="text-6xl mb-4">🔍</div>
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Processing Receipt
-                                    </h3>
-                                    <p className="text-gray-600 mb-6">
-                                        {processingStatus}
-                                    </p>
+                                    <h3 className="text-lg font-medium text-gray-900">Processing Receipt</h3>
+                                    <p className="text-gray-600 mb-6">{processingStatus}</p>
 
                                     {/* Progress Bar */}
-                                    <div
-                                        className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                                    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                                         <div
                                             className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
                                             style={{width: `${ocrProgress}%`}}
@@ -2026,8 +2680,7 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
 
@@ -2036,12 +2689,9 @@ export default function ReceiptScan() {
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900">
-                                                Review Extracted Items
-                                            </h3>
+                                            <h3 className="text-lg font-medium text-gray-900">Review Extracted Items</h3>
                                             <p className="text-gray-600">
-                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
-                                                selected
+                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected
                                             </p>
                                         </div>
                                         <div className="flex space-x-2">
@@ -2080,11 +2730,8 @@ export default function ReceiptScan() {
                                     {/* Items List */}
                                     <div className="space-y-4">
                                         {extractedItems.length === 0 ? (
-                                            <div
-                                                className="text-center py-8 text-gray-500">
-                                                No items were extracted from the
-                                                receipt. Please try again with a
-                                                clearer image.
+                                            <div className="text-center py-8 text-gray-500">
+                                                No items were extracted from the receipt. Please try again with a clearer image.
                                             </div>
                                         ) : (
                                             extractedItems.map((item) => (
@@ -2092,8 +2739,7 @@ export default function ReceiptScan() {
                                                     key={item.id}
                                                     className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
                                                 >
-                                                    <div
-                                                        className="flex items-start space-x-3">
+                                                    <div className="flex items-start space-x-3">
                                                         {/* Selection Checkbox */}
                                                         <input
                                                             type="checkbox"
@@ -2103,12 +2749,10 @@ export default function ReceiptScan() {
                                                         />
 
                                                         {/* Item Details */}
-                                                        <div
-                                                            className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                             {/* Name */}
                                                             <div>
-                                                                <label
-                                                                    className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Item Name
                                                                 </label>
                                                                 <input
@@ -2121,8 +2765,7 @@ export default function ReceiptScan() {
 
                                                             {/* Category */}
                                                             <div>
-                                                                <label
-                                                                    className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Category
                                                                 </label>
                                                                 <select
@@ -2175,8 +2818,7 @@ export default function ReceiptScan() {
                                                             {/* Quantity & Location */}
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <div>
-                                                                    <label
-                                                                        className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Qty
                                                                     </label>
                                                                     <input
@@ -2188,8 +2830,7 @@ export default function ReceiptScan() {
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label
-                                                                        className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Location
                                                                     </label>
                                                                     <select
@@ -2198,8 +2839,7 @@ export default function ReceiptScan() {
                                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                     >
                                                                         <option value="pantry">Pantry</option>
-                                                                        <option value="kitchen">Kitchen Cabinets
-                                                                        </option>
+                                                                        <option value="kitchen">Kitchen Cabinets</option>
                                                                         <option value="fridge">Fridge</option>
                                                                         <option value="freezer">Freezer</option>
                                                                         <option value="other">Other</option>
@@ -2221,13 +2861,12 @@ export default function ReceiptScan() {
                                                     </div>
 
                                                     {/* Additional Info */}
-                                                    <div
-                                                        className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
+                                                    <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                         <span>Price: ${item.price.toFixed(2)}</span>
                                                         {item.upc && <span>UPC: {item.upc}</span>}
                                                         <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-                                                        {item.rawText}
-                                                    </span>
+                                                            {item.rawText}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             ))
@@ -2240,20 +2879,15 @@ export default function ReceiptScan() {
                             {step === 'adding' && (
                                 <div className="text-center space-y-6">
                                     <div className="text-6xl mb-4">📦</div>
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Adding Items to Inventory
-                                    </h3>
-                                    <p className="text-gray-600 mb-6">
-                                        {processingStatus}
-                                    </p>
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <h3 className="text-lg font-medium text-gray-900">Adding Items to Inventory</h3>
+                                    <p className="text-gray-600 mb-6">{processingStatus}</p>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Hidden canvas for photo capture - Always rendered */}
+                    {/* Hidden canvas for photo capture */}
                     <canvas ref={canvasRef} className="hidden"/>
 
                     {/* iOS PWA Camera Modal */}
@@ -2281,15 +2915,11 @@ export default function ReceiptScan() {
                                             </label>
                                             <select
                                                 value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    issue: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, issue: e.target.value}))}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Select an issue...</option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
-                                                </option>
+                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
                                                 <option value="camera-not-working">Camera not working</option>
                                                 <option value="ocr-poor-accuracy">Poor text recognition</option>
                                                 <option value="wrong-items-detected">Wrong items detected</option>
@@ -2307,10 +2937,7 @@ export default function ReceiptScan() {
                                             </label>
                                             <textarea
                                                 value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    description: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, description: e.target.value}))}
                                                 placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 rows={4}
@@ -2324,10 +2951,7 @@ export default function ReceiptScan() {
                                             <input
                                                 type="email"
                                                 value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    email: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, email: e.target.value}))}
                                                 placeholder="your.email@example.com"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
@@ -2359,9 +2983,7 @@ export default function ReceiptScan() {
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 />
                                                 <p className="text-xs text-gray-500">
-                                                    Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP
-                                                    (max
-                                                    10MB each)
+                                                    Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max 10MB each)
                                                 </p>
 
                                                 {reportData.additionalFiles.length > 0 && (
@@ -2370,16 +2992,13 @@ export default function ReceiptScan() {
                                                             Files to be sent ({reportData.additionalFiles.length}):
                                                         </p>
                                                         {reportData.additionalFiles.map((file, index) => (
-                                                            <div key={index}
-                                                                 className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                                                 <div className="flex items-center space-x-2">
                                                                     <span className="text-sm">📸</span>
-                                                                    <span className="text-sm text-gray-700 truncate">
-                                                    {file.name}
-                                                </span>
+                                                                    <span className="text-sm text-gray-700 truncate">{file.name}</span>
                                                                     <span className="text-xs text-gray-500">
-                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
-                                                </span>
+                                                                        ({(file.size / 1024 / 1024).toFixed(1)}MB)
+                                                                    </span>
                                                                 </div>
                                                                 <TouchEnhancedButton
                                                                     onClick={() => removeFile(index)}
@@ -2400,12 +3019,10 @@ export default function ReceiptScan() {
                                             </p>
                                             <ul className="text-sm text-blue-700 mt-1 space-y-1">
                                                 <li>• Your issue description</li>
-                                                <li>• Device
-                                                    info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
+                                                <li>• Device info: {deviceInfo.isIOSPWA ? 'iOS PWA Mode' : deviceInfo.isIOS ? 'iOS Browser' : 'Standard Browser'}</li>
                                                 {capturedImage && <li>• Receipt image</li>}
                                                 {reportData.additionalFiles.length > 0 && (
-                                                    <li>• {reportData.additionalFiles.length} additional
-                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                    <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
                                                 )}
                                                 <li>• Browser and device information</li>
                                                 <li>• No personal information from your account</li>
