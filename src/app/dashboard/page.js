@@ -199,7 +199,7 @@ export default function Dashboard() {
                             </Link>
 
                             <Link
-                                href="/inventory?action=add"
+                                href="/inventory?action=add&scroll=form"
                                 className="flex items-center p-6 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors min-h-[100px]"
                             >
                                 <div className="text-4xl mr-4 flex-shrink-0">➕</div>

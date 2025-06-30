@@ -106,6 +106,61 @@ function InventoryContent() {
         });
     }, [subscription.tier, subscription.isAdmin, subscription.loading, subscription.error]);
 
+    // Add this new useEffect to handle auto-scrolling from dashboard
+    useEffect(() => {
+        const shouldAutoScroll = searchParams.get('scroll') === 'form';
+
+        if (shouldAutoScroll && showAddForm) {
+            console.log('📍 Auto-scrolling to form from dashboard link');
+
+            // Wait a bit longer to ensure the form is fully rendered
+            const scrollTimeout = setTimeout(() => {
+                const scrollToForm = () => {
+                    // Try multiple selectors to find the form
+                    const formElement = document.querySelector('form') ||
+                        document.querySelector('[data-section="add-form"]') ||
+                        document.querySelector('.add-item-form') ||
+                        document.querySelector('input[name="upc"]')?.closest('div') ||
+                        document.querySelector('label[for="upc"]')?.closest('div');
+
+                    if (formElement) {
+                        console.log('✅ Found form element, scrolling...');
+                        formElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                            inline: 'nearest'
+                        });
+
+                        // Optional: Focus the first input in the form
+                        const firstInput = formElement.querySelector('input[type="text"]');
+                        if (firstInput) {
+                            setTimeout(() => firstInput.focus(), 500);
+                        }
+                    } else {
+                        console.log('❌ Form element not found for auto-scroll');
+                        // Fallback: scroll to bottom of page where form likely is
+                        window.scrollTo({
+                            top: document.body.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }
+                };
+
+                scrollToForm();
+
+                // Retry after a longer delay if first attempt didn't work
+                setTimeout(() => {
+                    if (document.querySelector('form')) {
+                        scrollToForm();
+                    }
+                }, 1000);
+
+            }, 300); // Wait for form to be rendered
+
+            return () => clearTimeout(scrollTimeout);
+        }
+    }, [searchParams, showAddForm]);
+
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {
             return {current: 0, limit: '...', isUnlimited: false, tier: 'free'};
@@ -905,19 +960,32 @@ function InventoryContent() {
                                     // If opening the form, scroll to it
                                     if (newShowAddForm) {
                                         console.log('📍 Opening add form and scrolling');
-                                        setTimeout(() => {
-                                            const formElement = document.querySelector('form') ||
-                                                document.querySelector('input[name="upc"]')?.closest('div') ||
-                                                document.querySelector('label[for="upc"]')?.closest('div');
 
-                                            if (formElement) {
-                                                formElement.scrollIntoView({
-                                                    behavior: 'smooth',
-                                                    block: 'start',
-                                                    inline: 'nearest'
-                                                });
-                                            }
-                                        }, 100);
+                                        // Use a longer timeout to ensure form is rendered
+                                        const scrollTimeout = setTimeout(() => {
+                                            const scrollToForm = () => {
+                                                const formElement = document.querySelector('form') ||
+                                                    document.querySelector('[data-section="add-form"]') ||
+                                                    document.querySelector('input[name="upc"]')?.closest('div') ||
+                                                    document.querySelector('label[for="upc"]')?.closest('div');
+
+                                                if (formElement) {
+                                                    formElement.scrollIntoView({
+                                                        behavior: 'smooth',
+                                                        block: 'start',
+                                                        inline: 'nearest'
+                                                    });
+                                                }
+                                            };
+
+                                            scrollToForm();
+
+                                            // Retry if needed
+                                            setTimeout(scrollToForm, 500);
+                                        }, 150);
+
+                                        // Cleanup timeout if component unmounts
+                                        return () => clearTimeout(scrollTimeout);
                                     }
                                 }}
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
