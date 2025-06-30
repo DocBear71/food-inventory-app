@@ -46,83 +46,131 @@ export async function GET(request) {
     }
 }
 
-// POST - Add item to inventory (with subscription limits)
+// POST - Add item to inventory (with subscription limits and duplicate detection)
 export async function POST(request) {
-    console.log('🔍 POST /api/inventory - START');
-
     try {
         const session = await getServerSession(authOptions);
-        console.log('🔍 Session check:', {
-            hasSession: !!session,
-            userId: session?.user?.id,
-            userEmail: session?.user?.email
-        });
+
+        console.log('POST /api/inventory - Session:', session);
 
         if (!session?.user?.id) {
-            console.log('❌ No session or user ID found');
-            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+            console.log('No session or user ID found');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        console.log('🔍 Reading request body...');
         const body = await request.json();
-        console.log('🔍 Request body:', JSON.stringify(body, null, 2));
-
         const {
-            name, brand, category, quantity, unit, location, upc, expirationDate, nutrition,
-            secondaryQuantity, secondaryUnit, mergeDuplicates = true
+            name,
+            brand,
+            category,
+            quantity,
+            unit,
+            location,
+            upc,
+            expirationDate,
+            nutrition,
+            secondaryQuantity,
+            secondaryUnit,
+            mergeDuplicates = true  // Default to true
         } = body;
 
+        console.log('POST /api/inventory - Body:', body);
 
-        // Validation
-        if (!name || name.trim().length === 0) {
-            console.log('❌ Validation failed: missing name');
+        if (!name) {
             return NextResponse.json(
-                {error: 'Item name is required and cannot be empty'},
-                {status: 400}
+                { error: 'Item name is required' },
+                { status: 400 }
             );
         }
 
-        const validQuantity = parseFloat(quantity);
-        if (isNaN(validQuantity) || validQuantity <= 0) {
-            console.log('❌ Validation failed: invalid quantity:', quantity);
-            return NextResponse.json(
-                {error: 'Quantity must be a positive number'},
-                {status: 400}
-            );
+        await connectDB();
+
+        // Get user and check subscription limits
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
+
+        // Get current inventory count
+        let inventory = await UserInventory.findOne({ userId: session.user.id });
+        if (!inventory) {
+            inventory = new UserInventory({
+                userId: session.user.id,
+                items: []
+            });
+        }
+
+        const currentItemCount = inventory.items.length;
+
+        // Check subscription limits
+        const userSubscription = {
+            tier: user.getEffectiveTier(),
+            status: user.subscription?.status || 'free'
+        };
+
+        // DUPLICATE DETECTION LOGIC
         if (mergeDuplicates) {
-            const existingItemIndex = inventory.items.findIndex(item => {
-                // Primary matching criteria
-                const nameMatch = item.name.toLowerCase().trim() === name.toLowerCase().trim();
-                const brandMatch = (item.brand || '').toLowerCase().trim() === (brand || '').toLowerCase().trim();
-                const upcMatch = upc && item.upc && item.upc.replace(/\D/g, '') === upc.replace(/\D/g, '');
+            console.log('🔍 Checking for duplicate items...');
 
-                // If UPC exists and matches, that's a definitive match
-                if (upcMatch) return true;
+            const existingItemIndex = inventory.items.findIndex(existingItem => {
+                // Ensure we have valid strings for comparison
+                const existingName = (existingItem.name || '').toLowerCase().trim();
+                const newName = (name || '').toLowerCase().trim();
+                const existingBrand = (existingItem.brand || '').toLowerCase().trim();
+                const newBrand = (brand || '').toLowerCase().trim();
+                const existingCategory = (existingItem.category || '').toLowerCase().trim();
+                const newCategory = (category || '').toLowerCase().trim();
 
-                // If no UPC, match on name + brand + category
-                const categoryMatch = (item.category || '').toLowerCase().trim() === (category || '').toLowerCase().trim();
+                // UPC matching (strongest indicator)
+                if (upc && existingItem.upc) {
+                    const existingUPC = existingItem.upc.replace(/\D/g, '');
+                    const newUPC = upc.replace(/\D/g, '');
+                    if (existingUPC && newUPC && existingUPC === newUPC) {
+                        console.log('📦 Found UPC match:', existingUPC);
+                        return true;
+                    }
+                }
 
-                return nameMatch && brandMatch && categoryMatch;
+                // Name + Brand + Category matching
+                const nameMatch = existingName === newName;
+                const brandMatch = existingBrand === newBrand;
+                const categoryMatch = existingCategory === newCategory;
+
+                if (nameMatch && brandMatch && categoryMatch) {
+                    console.log('📦 Found name/brand/category match:', newName);
+                    return true;
+                }
+
+                return false;
             });
 
             if (existingItemIndex !== -1) {
-                // Item exists, merge quantities instead of creating new item
+                console.log('✅ Merging with existing item at index:', existingItemIndex);
+
                 const existingItem = inventory.items[existingItemIndex];
 
-                // Add quantities (handle both primary and secondary units)
-                const newQuantity = (existingItem.quantity || 0) + (quantity || 1);
-                const newSecondaryQuantity = existingItem.secondaryQuantity && secondaryQuantity ?
-                    (existingItem.secondaryQuantity + parseFloat(secondaryQuantity)) :
-                    existingItem.secondaryQuantity || (secondaryQuantity ? parseFloat(secondaryQuantity) : null);
+                // Calculate new quantities
+                const newPrimaryQuantity = (existingItem.quantity || 0) + (parseFloat(quantity) || 1);
+
+                let newSecondaryQuantity = null;
+                if (existingItem.secondaryQuantity && secondaryQuantity) {
+                    // Both have secondary quantities, add them
+                    newSecondaryQuantity = existingItem.secondaryQuantity + parseFloat(secondaryQuantity);
+                } else if (existingItem.secondaryQuantity) {
+                    // Keep existing secondary quantity
+                    newSecondaryQuantity = existingItem.secondaryQuantity;
+                } else if (secondaryQuantity) {
+                    // Use new secondary quantity
+                    newSecondaryQuantity = parseFloat(secondaryQuantity);
+                }
 
                 // Update the existing item
                 inventory.items[existingItemIndex] = {
                     ...existingItem,
-                    quantity: newQuantity,
+                    quantity: newPrimaryQuantity,
                     secondaryQuantity: newSecondaryQuantity,
                     secondaryUnit: newSecondaryQuantity ? (secondaryUnit || existingItem.secondaryUnit) : null,
-                    // Update other fields if they were empty before
+                    // Update fields that might be empty in existing item
                     brand: existingItem.brand || brand || '',
                     category: existingItem.category || category || '',
                     upc: existingItem.upc || upc || '',
@@ -134,176 +182,132 @@ export async function POST(request) {
                 inventory.lastUpdated = new Date();
                 await inventory.save();
 
-                // Update usage tracking (same as before)
+                // Update user's usage tracking
                 await User.updateOne(
-                    {_id: session.user.id},
+                    { _id: session.user.id },
                     {
                         $set: {
                             'usageTracking.totalInventoryItems': inventory.items.length,
                             'usageTracking.lastUpdated': new Date()
                         }
                     },
-                    {runValidators: false}
+                    { runValidators: false }
                 );
+
+                // Calculate remaining items
+                let remainingItems;
+                if (userSubscription.tier === 'free') {
+                    remainingItems = Math.max(0, 50 - inventory.items.length);
+                } else if (userSubscription.tier === 'gold') {
+                    remainingItems = Math.max(0, 250 - inventory.items.length);
+                } else {
+                    remainingItems = 'Unlimited';
+                }
+
+                console.log('✅ Item merged successfully');
 
                 return NextResponse.json({
                     success: true,
                     item: inventory.items[existingItemIndex],
-                    message: `Merged with existing item. New quantity: ${newQuantity} ${unit}`,
+                    message: `Merged with existing item. New quantity: ${newPrimaryQuantity} ${unit}`,
                     merged: true,
                     previousQuantity: existingItem.quantity,
-                    addedQuantity: quantity || 1,
-                    remainingItems: userSubscription.tier === 'free' ? Math.max(0, 50 - inventory.items.length) :
-                        userSubscription.tier === 'gold' ? Math.max(0, 250 - inventory.items.length) : 'Unlimited',
+                    addedQuantity: parseFloat(quantity) || 1,
+                    remainingItems: remainingItems,
                     currentItemCount: inventory.items.length
                 });
             }
+
+            console.log('🆕 No duplicates found, creating new item');
         }
 
-        console.log('🔍 Connecting to MongoDB...');
-        await connectDB();
-        console.log('✅ MongoDB connected successfully');
-
-        console.log('🔍 Finding user in database...');
-        const user = await User.findById(session.user.id);
-        if (!user) {
-            console.error('❌ User not found for ID:', session.user.id);
-            return NextResponse.json({error: 'User not found'}, {status: 404});
-        }
-        console.log('✅ User found:', user.email);
-
-        console.log('🔍 Getting user subscription info...');
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
-        console.log('✅ User subscription:', userSubscription);
-
-        console.log('🔍 Finding user inventory...');
-        let inventory = await UserInventory.findOne({userId: session.user.id});
-        if (!inventory) {
-            console.log('🔧 Creating new inventory for user');
-            inventory = new UserInventory({
-                userId: session.user.id,
-                items: []
-            });
-        }
-        console.log('✅ Inventory found/created, current items:', inventory.items.length);
-
-        const currentItemCount = inventory.items.length;
-
-        // TEMPORARILY BYPASS SUBSCRIPTION CHECKING
-        console.log('🔧 BYPASSING subscription limits for debugging');
-        const hasCapacity = true;
-
-        /*
-        // ORIGINAL SUBSCRIPTION CHECK (commented out for debugging)
-        console.log('🔍 Checking subscription limits...');
+        // Check subscription limits BEFORE creating new item
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, currentItemCount);
-        console.log('✅ Has capacity:', hasCapacity);
 
         if (!hasCapacity) {
             const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
-            console.log('❌ User exceeded inventory limits');
+
+            let errorMessage;
+            if (userSubscription.tier === 'free') {
+                errorMessage = `You've reached the free plan limit of 50 inventory items. Upgrade to Gold for 250 items or Platinum for unlimited items.`;
+            } else if (userSubscription.tier === 'gold') {
+                errorMessage = `You've reached the Gold plan limit of 250 inventory items. Upgrade to Platinum for unlimited items.`;
+            } else {
+                errorMessage = getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier);
+            }
+
             return NextResponse.json({
-                error: getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier),
-                code: 'USAGE_LIMIT_EXCEEDED',
+                error: errorMessage,
+                code: 'INVENTORY_LIMIT_EXCEEDED',
                 feature: FEATURE_GATES.INVENTORY_LIMIT,
                 currentCount: currentItemCount,
                 currentTier: userSubscription.tier,
                 requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=inventory-limit&feature=${FEATURE_GATES.INVENTORY_LIMIT}&required=${requiredTier}`
+                upgradeUrl: `/pricing?source=inventory-limit&feature=inventory&required=${requiredTier}`
             }, { status: 403 });
         }
-        */
 
-        console.log('🔍 Creating new item object...');
+        // CREATE NEW ITEM (no duplicates found or mergeDuplicates is false)
         const newItem = {
-            name: name.trim(),
-            brand: brand ? brand.trim() : '',
-            category: category ? category.trim() : '',
-            quantity: validQuantity,
+            name,
+            brand: brand || '',
+            category: category || '',
+            quantity: parseFloat(quantity) || 1,
             unit: unit || 'item',
-            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) ?
+            secondaryQuantity: secondaryQuantity && secondaryQuantity !== '' ?
                 Math.max(parseFloat(secondaryQuantity), 0.1) : null,
-            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' && !isNaN(parseFloat(secondaryQuantity)) && secondaryUnit ?
-                secondaryUnit.trim() : null,
+            secondaryUnit: secondaryQuantity && secondaryQuantity !== '' ?
+                secondaryUnit : null,
             location: location || 'pantry',
-            upc: upc ? upc.trim() : '',
+            upc: upc || '',
             expirationDate: expirationDate ? new Date(expirationDate) : null,
             addedDate: new Date(),
             nutrition: nutrition || null
         };
 
-        console.log('✅ New item created:', JSON.stringify(newItem, null, 2));
-
-        if (expirationDate) {
-            const expDate = new Date(expirationDate);
-            if (isNaN(expDate.getTime())) {
-                console.log('❌ Invalid expiration date:', expirationDate);
-                return NextResponse.json(
-                    {error: 'Invalid expiration date format'},
-                    {status: 400}
-                );
-            }
-            newItem.expirationDate = expDate;
-        }
-
-        console.log('🔍 Adding item to inventory...');
         inventory.items.push(newItem);
         inventory.lastUpdated = new Date();
 
-        console.log('🔍 Saving inventory to database...');
         await inventory.save();
-        console.log('✅ Inventory saved successfully');
 
-        console.log('🔍 Updating user usage tracking...');
-        if (!user.usageTracking) {
-            user.usageTracking = {};
-        }
-        user.usageTracking.totalInventoryItems = inventory.items.length;
-        user.usageTracking.lastUpdated = new Date();
+        // Update user's usage tracking
+        await User.updateOne(
+            { _id: session.user.id },
+            {
+                $set: {
+                    'usageTracking.totalInventoryItems': inventory.items.length,
+                    'usageTracking.lastUpdated': new Date()
+                }
+            },
+            { runValidators: false }
+        );
 
-        console.log('🔍 Saving user...');
-        await user.save();
-        console.log('✅ User saved successfully');
+        console.log('Item added successfully:', newItem);
 
-        console.log('🔍 Calculating remaining items...');
+        // Calculate remaining items
         let remainingItems;
-        if (userSubscription.tier === 'platinum' || userSubscription.tier === 'admin') {
-            remainingItems = 'Unlimited';
+        if (userSubscription.tier === 'free') {
+            remainingItems = Math.max(0, 50 - inventory.items.length);
         } else if (userSubscription.tier === 'gold') {
             remainingItems = Math.max(0, 250 - inventory.items.length);
         } else {
-            remainingItems = Math.max(0, 50 - inventory.items.length);
+            remainingItems = 'Unlimited';
         }
 
-        console.log('✅ SUCCESS - Preparing response...');
-        const response = {
+        return NextResponse.json({
             success: true,
             item: newItem,
             message: 'Item added successfully',
+            merged: false,
             remainingItems: remainingItems,
-            totalItems: inventory.items.length
-        };
-
-        console.log('✅ Sending response:', JSON.stringify(response, null, 2));
-        return NextResponse.json(response);
+            currentItemCount: inventory.items.length
+        });
 
     } catch (error) {
-        console.error('❌❌❌ CRITICAL ERROR in POST /api/inventory:');
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('Error name:', error.name);
-
-        // Return a proper JSON error response
+        console.error('POST inventory error:', error);
         return NextResponse.json(
-            {
-                error: 'Failed to add item',
-                details: error.message,
-                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-            },
-            {status: 500}
+            { error: 'Failed to add item' },
+            { status: 500 }
         );
     }
 }
