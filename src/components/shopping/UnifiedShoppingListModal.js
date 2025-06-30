@@ -1,12 +1,12 @@
 'use client';
 // file: /src/components/shopping/UnifiedShoppingListModal.js v1 - Standardized shopping list modal
 
-import { useState, useEffect } from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {useState, useEffect} from 'react';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import EmailSharingModal from '@/components/sharing/EmailSharingModal'; // Using newer subscription-gated version
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import {getApiUrl} from '@/lib/api-config';
 
 export default function UnifiedShoppingListModal({
                                                      isOpen,
@@ -19,7 +19,7 @@ export default function UnifiedShoppingListModal({
                                                      onRefresh = null,
                                                      showRefresh = false
                                                  }) {
-    const { data: session } = useSafeSession();
+    const {data: session} = useSafeSession();
     const [filter, setFilter] = useState('all');
     const [purchasedItems, setPurchasedItems] = useState({});
     const [showEmailModal, setShowEmailModal] = useState(false);
@@ -43,7 +43,7 @@ export default function UnifiedShoppingListModal({
 
     // Normalize shopping list structure to ensure consistency
     const normalizeShoppingList = (list) => {
-        if (!list) return { items: {}, summary: { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 } };
+        if (!list) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
 
         let normalizedItems = {};
         let summary = list.summary || list.stats || {};
@@ -149,7 +149,7 @@ export default function UnifiedShoppingListModal({
     // Calculate statistics including purchased count
     const getStats = () => {
         if (!normalizedList.items) {
-            return { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 };
+            return {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0};
         }
 
         const allItems = Object.values(normalizedList.items).flat();
@@ -178,79 +178,198 @@ export default function UnifiedShoppingListModal({
                 return;
             }
 
-            // Check if we're on mobile
+            // Check if we're in Android app vs web
+            const isAndroidApp = window.location.protocol === 'file:' ||
+                window.Android ||
+                navigator.userAgent.includes('wv') || // WebView
+                (window.ReactNativeWebView !== undefined);
+
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                 window.innerWidth <= 768;
 
-            if (isMobile) {
-                // Mobile: Try Web Share API first, then fallback to blob URL
+            console.log('Print context:', {isAndroidApp, isMobile, userAgent: navigator.userAgent});
+
+            if (isAndroidApp) {
+                // Android app: Show options for PDF or share
+                handleAndroidPrint();
+            } else if (isMobile) {
+                // Mobile web: Try Web Share API first, then fallback
                 if (navigator.share) {
                     shareShoppingList();
                 } else {
                     openInNewTab();
                 }
             } else {
-                // Desktop: Use popup window (original approach)
+                // Desktop: Use popup window
                 desktopPrint();
             }
 
-            function shareShoppingList() {
-                // Create text version for sharing
-                const textContent = `Shopping List - ${title}\n` +
-                    `Generated: ${new Date().toLocaleDateString()}\n\n` +
-                    Object.entries(getGroupedItems())
-                        .map(([category, items]) => {
-                            const categoryItems = items.map(item => {
-                                const checkbox = item.purchased ? '☑' : '☐';
-                                const status = item.purchased ? ' [PURCHASED]' :
-                                    item.inInventory ? ' [IN INVENTORY]' : '';
-                                const recipes = item.recipes && item.recipes.length > 0 ?
-                                    ` (${item.recipes.join(', ')})` : '';
-                                return `  ${checkbox} ${item.amount ? `${item.amount} ` : ''}${item.ingredient || item.name}${status}${recipes}`;
-                            });
-                            return `${category.toUpperCase()}:\n${categoryItems.join('\n')}`;
-                        })
-                        .join('\n\n');
+            function handleAndroidPrint() {
+                // Create a modal with print options for Android
+                const modalHtml = createAndroidPrintModal();
 
-                navigator.share({
-                    title: `Shopping List - ${title}`,
-                    text: textContent
-                }).catch((error) => {
-                    console.log('Share failed, trying fallback:', error);
-                    openInNewTab();
-                });
+                // Create modal container
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = modalHtml;
+                modalContainer.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.8);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            `;
+
+                document.body.appendChild(modalContainer);
+
+                // Add event listeners
+                const closeModal = () => {
+                    document.body.removeChild(modalContainer);
+                };
+
+                modalContainer.querySelector('.close-modal').onclick = closeModal;
+                modalContainer.querySelector('.pdf-option').onclick = () => {
+                    generatePDF();
+                    closeModal();
+                };
+                modalContainer.querySelector('.share-option').onclick = () => {
+                    shareShoppingList();
+                    closeModal();
+                };
+                modalContainer.querySelector('.print-option').onclick = () => {
+                    openPrintableVersion();
+                    closeModal();
+                };
+
+                // Close on background click
+                modalContainer.onclick = (e) => {
+                    if (e.target === modalContainer) {
+                        closeModal();
+                    }
+                };
             }
 
-            function openInNewTab() {
-                // Create HTML content for mobile viewing/printing
-                const contentClone = printContent.cloneNode(true);
+            function createAndroidPrintModal() {
+                return `
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    padding: 24px;
+                    max-width: 320px;
+                    width: 100%;
+                    text-align: center;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                ">
+                    <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">
+                        📋 Share Shopping List
+                    </h3>
+                    <p style="margin: 0 0 24px 0; color: #666; font-size: 14px;">
+                        Choose how you'd like to save or share your shopping list:
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button class="pdf-option" style="
+                            background: #ef4444;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 14px 20px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                        ">
+                            📄 Save as PDF
+                        </button>
+                        
+                        <button class="share-option" style="
+                            background: #10b981;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 14px 20px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                        ">
+                            📤 Share as Text
+                        </button>
+                        
+                        <button class="print-option" style="
+                            background: #3b82f6;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 14px 20px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                        ">
+                            🖨️ Open Printable Version
+                        </button>
+                        
+                        <button class="close-modal" style="
+                            background: #6b7280;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 12px 20px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            margin-top: 8px;
+                        ">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            }
 
-                // Replace checkboxes with print-friendly symbols
-                const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
-                checkboxes.forEach(checkbox => {
-                    const replacement = document.createElement('span');
-                    replacement.style.cssText = `
+            function generatePDF() {
+                try {
+                    // Create a clean HTML version for PDF generation
+                    const contentClone = printContent.cloneNode(true);
+
+                    // Replace checkboxes with PDF-friendly symbols
+                    const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(checkbox => {
+                        const replacement = document.createElement('span');
+                        replacement.style.cssText = `
                         display: inline-block;
-                        width: 14px;
-                        height: 14px;
+                        width: 16px;
+                        height: 16px;
                         border: 2px solid #000;
                         margin-right: 10px;
                         text-align: center;
-                        line-height: 10px;
-                        font-size: 10pt;
+                        line-height: 12px;
+                        font-size: 12px;
                         vertical-align: top;
                         margin-top: 2px;
                         font-weight: bold;
+                        background: ${checkbox.checked ? '#000' : 'white'};
+                        color: ${checkbox.checked ? 'white' : 'transparent'};
                     `;
-                    replacement.textContent = checkbox.checked ? '✓' : '';
-                    if (checkbox.checked) {
-                        replacement.style.backgroundColor = '#000';
-                        replacement.style.color = 'white';
-                    }
-                    checkbox.parentNode.replaceChild(replacement, checkbox);
-                });
+                        replacement.textContent = '✓';
+                        checkbox.parentNode.replaceChild(replacement, checkbox);
+                    });
 
-                const htmlContent = `<!DOCTYPE html>
+                    const htmlContent = `<!DOCTYPE html>
 <html>
 <head>
     <title>Shopping List - ${title}</title>
@@ -259,7 +378,240 @@ export default function UnifiedShoppingListModal({
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
-            line-height: 1.5;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #000;
+            background: white;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #333;
+        }
+        
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .header p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .category {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        
+        .category h3 {
+            color: #333;
+            border-bottom: 2px solid #666;
+            padding-bottom: 8px;
+            margin: 20px 0 15px 0;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .category:first-child h3 {
+            margin-top: 0;
+        }
+        
+        .item {
+            margin: 12px 0;
+            display: flex;
+            align-items: flex-start;
+            page-break-inside: avoid;
+            min-height: 24px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e5e5e5;
+        }
+        
+        .item-text {
+            flex: 1;
+            margin-left: 8px;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        
+        .inventory-note {
+            color: #16a34a;
+            font-size: 13px;
+            margin-top: 4px;
+            font-style: italic;
+            background: #f0fdf4;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .recipe-note {
+            color: #666;
+            font-size: 12px;
+            margin-top: 4px;
+            font-style: italic;
+            background: #f8fafc;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .purchased {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        
+        .actions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .action-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pdf-btn {
+            background: #ef4444;
+        }
+        
+        .close-btn {
+            background: #6b7280;
+        }
+        
+        @media print {
+            .actions { display: none; }
+            body { font-size: 12pt; padding: 0; }
+            .item { background: white; border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${title}</h1>
+        ${subtitle ? `<p>${subtitle}</p>` : ''}
+        <p>Generated: ${new Date().toLocaleDateString()}</p>
+    </div>
+    ${contentClone.innerHTML}
+    
+    <div class="actions">
+        <button class="action-btn pdf-btn" onclick="downloadAsPDF()">📄 Save PDF</button>
+        <button class="action-btn" onclick="window.print()">🖨️ Print</button>
+        <button class="action-btn close-btn" onclick="window.close()">✕ Close</button>
+    </div>
+    
+    <script>
+        function downloadAsPDF() {
+            // Hide actions for PDF
+            document.querySelector('.actions').style.display = 'none';
+            
+            // Trigger print (which should offer PDF option on Android)
+            window.print();
+            
+            // Show actions again after a delay
+            setTimeout(() => {
+                document.querySelector('.actions').style.display = 'flex';
+            }, 1000);
+        }
+        
+        // Also handle back button
+        window.addEventListener('beforeunload', function() {
+            if (window.opener) {
+                window.opener.focus();
+            }
+        });
+    </script>
+</body>
+</html>`;
+
+                    // Create blob and open in new tab
+                    const blob = new Blob([htmlContent], {type: 'text/html'});
+                    const url = URL.createObjectURL(blob);
+                    const newTab = window.open(url, '_blank');
+
+                    if (!newTab) {
+                        alert('Please allow popups to view the PDF-ready shopping list');
+                    } else {
+                        // Clean up the blob URL after a delay
+                        setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                        }, 10000);
+                    }
+                } catch (error) {
+                    console.error('PDF generation error:', error);
+                    alert('Error creating PDF version: ' + error.message);
+                }
+            }
+
+            function openPrintableVersion() {
+                try {
+                    const contentClone = printContent.cloneNode(true);
+
+                    // Replace checkboxes with print-friendly symbols
+                    const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(checkbox => {
+                        const replacement = document.createElement('span');
+                        replacement.style.cssText = `
+                        display: inline-block;
+                        width: 16px;
+                        height: 16px;
+                        border: 2px solid #000;
+                        margin-right: 10px;
+                        text-align: center;
+                        line-height: 12px;
+                        font-size: 12px;
+                        vertical-align: top;
+                        margin-top: 2px;
+                        font-weight: bold;
+                        background: ${checkbox.checked ? '#000' : 'white'};
+                        color: ${checkbox.checked ? 'white' : 'transparent'};
+                    `;
+                        replacement.textContent = '✓';
+                        checkbox.parentNode.replaceChild(replacement, checkbox);
+                    });
+
+                    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Shopping List - ${title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
             margin: 0;
             padding: 20px;
             color: #000;
@@ -287,9 +639,6 @@ export default function UnifiedShoppingListModal({
         
         .category {
             margin-bottom: 25px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            overflow: hidden;
         }
         
         .category h3 {
@@ -299,33 +648,16 @@ export default function UnifiedShoppingListModal({
             margin: 20px 0 15px 0;
             font-size: 18px;
             font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .category:first-child h3 {
-            margin-top: 0;
         }
         
         .item {
             margin: 10px 0;
             display: flex;
             align-items: flex-start;
-            page-break-inside: avoid;
             min-height: 20px;
             padding: 8px;
             background: #fafafa;
             border-radius: 6px;
-        }
-        
-        .item:last-child {
-            border-bottom: none;
-        }
-        
-        .item.in-inventory {
-            background: #f0f9ff;
-            border-left: 4px solid #0ea5e9;
         }
         
         .item-text {
@@ -366,53 +698,250 @@ export default function UnifiedShoppingListModal({
             opacity: 0.6;
         }
         
-        .print-button {
+        .close-button {
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             right: 20px;
-            background: #2563eb;
+            background: #ef4444;
             color: white;
             border: none;
             border-radius: 50px;
-            padding: 15px 20px;
-            font-size: 16px;
+            padding: 12px 16px;
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             z-index: 1000;
         }
         
+        .print-actions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .action-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
         @media print {
-            .print-button { display: none; }
+            .close-button, .print-actions { display: none; }
             body { font-size: 12pt; }
             .item { background: white; border: 1px solid #ddd; }
         }
     </style>
 </head>
 <body>
+    <button class="close-button" onclick="closeWindow()">✕</button>
+    
     <div class="header">
         <h1>${title}</h1>
         ${subtitle ? `<p>${subtitle}</p>` : ''}
         <p>Generated: ${new Date().toLocaleDateString()}</p>
     </div>
     ${contentClone.innerHTML}
-    <button class="print-button" onclick="window.print()">🖨️ Print</button>
+    
+    <div class="print-actions">
+        <button class="action-btn" onclick="window.print()" style="background: #10b981;">🖨️ Print</button>
+        <button class="action-btn" onclick="closeWindow()" style="background: #6b7280;">Close</button>
+    </div>
+    
+    <script>
+        function closeWindow() {
+            // Try multiple methods to close
+            if (window.history.length > 1) {
+                window.history.back();
+            } else if (window.opener) {
+                window.close();
+            } else {
+                // Fallback: navigate back to app
+                window.location.href = 'about:blank';
+            }
+        }
+        
+        // Handle Android back button
+        document.addEventListener('backbutton', closeWindow, false);
+        
+        // Also handle browser back button
+        window.addEventListener('popstate', closeWindow);
+    </script>
 </body>
 </html>`;
 
-                // Create blob and open in new tab
-                const blob = new Blob([htmlContent], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const newTab = window.open(url, '_blank');
+                    // Create blob and open in new tab
+                    const blob = new Blob([htmlContent], {type: 'text/html'});
+                    const url = URL.createObjectURL(blob);
+                    const newTab = window.open(url, '_blank');
 
-                if (!newTab) {
-                    alert('Please allow popups to view the printable shopping list');
-                } else {
-                    // Clean up the blob URL after a delay
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                    }, 5000);
+                    if (!newTab) {
+                        alert('Please allow popups to view the printable shopping list');
+                    } else {
+                        // Clean up the blob URL after a delay
+                        setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                        }, 10000);
+                    }
+                } catch (error) {
+                    console.error('Print error:', error);
+                    alert('Error creating printable version: ' + error.message);
                 }
+            }
+
+            function shareShoppingList() {
+                try {
+                    // Create text version for sharing
+                    const textContent = `Shopping List - ${title}\n` +
+                        `Generated: ${new Date().toLocaleDateString()}\n\n` +
+                        Object.entries(getGroupedItems())
+                            .map(([category, items]) => {
+                                const categoryItems = items.map(item => {
+                                    const checkbox = item.purchased ? '☑' : '☐';
+                                    const status = item.purchased ? ' [PURCHASED]' :
+                                        item.inInventory ? ' [IN INVENTORY]' : '';
+                                    const recipes = item.recipes && item.recipes.length > 0 ?
+                                        ` (${item.recipes.join(', ')})` : '';
+                                    return `  ${checkbox} ${item.amount ? `${item.amount} ` : ''}${item.ingredient || item.name}${status}${recipes}`;
+                                });
+                                return `${category.toUpperCase()}:\n${categoryItems.join('\n')}`;
+                            })
+                            .join('\n\n');
+
+                    if (navigator.share) {
+                        navigator.share({
+                            title: `Shopping List - ${title}`,
+                            text: textContent
+                        }).catch((error) => {
+                            console.log('Share failed:', error);
+                            // Fallback to copying to clipboard
+                            copyToClipboard(textContent);
+                        });
+                    } else {
+                        // Fallback to copying to clipboard
+                        copyToClipboard(textContent);
+                    }
+                } catch (error) {
+                    console.error('Share error:', error);
+                    alert('Error sharing shopping list: ' + error.message);
+                }
+            }
+
+            function copyToClipboard(text) {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert('Shopping list copied to clipboard!');
+                    }).catch(() => {
+                        fallbackCopyToClipboard(text);
+                    });
+                } else {
+                    fallbackCopyToClipboard(text);
+                }
+            }
+
+            function fallbackCopyToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Shopping list copied to clipboard!');
+                } catch (err) {
+                    alert('Could not copy shopping list. Please copy manually.');
+                }
+                document.body.removeChild(textArea);
+            }
+
+            function openInNewTab() {
+                // Original web functionality
+                const contentClone = printContent.cloneNode(true);
+
+                // Replace checkboxes with print-friendly symbols
+                const checkboxes = contentClone.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    const replacement = document.createElement('span');
+                    replacement.style.cssText = `
+                    display: inline-block;
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid #000;
+                    margin-right: 10px;
+                    text-align: center;
+                    line-height: 10px;
+                    font-size: 10pt;
+                    vertical-align: top;
+                    margin-top: 2px;
+                    font-weight: bold;
+                `;
+                    replacement.textContent = checkbox.checked ? '✓' : '';
+                    if (checkbox.checked) {
+                        replacement.style.backgroundColor = '#000';
+                        replacement.style.color = 'white';
+                    }
+                    checkbox.parentNode.replaceChild(replacement, checkbox);
+                });
+
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+                if (!printWindow) {
+                    alert('Please allow popups to print the shopping list');
+                    return;
+                }
+
+                printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Shopping List - ${title}</title>
+                    <style>
+                        @page { margin: 0.75in; size: letter; }
+                        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; margin: 0; padding: 0; color: #000; background: white; }
+                        .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #333; }
+                        .header h1 { margin: 0 0 5px 0; font-size: 16pt; font-weight: bold; }
+                        .header p { margin: 0; font-size: 10pt; color: #666; }
+                        .category { margin-bottom: 20px; page-break-inside: avoid; }
+                        .category h3 { color: #333; border-bottom: 1px solid #666; padding-bottom: 3px; margin: 15px 0 8px 0; font-size: 12pt; font-weight: bold; page-break-after: avoid; }
+                        .category:first-child h3 { margin-top: 0; }
+                        .item { margin: 4px 0; display: flex; align-items: flex-start; page-break-inside: avoid; min-height: 16px; }
+                        .item-text { flex: 1; margin-left: 0; }
+                        .inventory-note { color: #16a34a; font-size: 9pt; margin-top: 1px; font-style: italic; }
+                        .recipe-note { color: #666; font-size: 9pt; margin-top: 1px; font-style: italic; }
+                        .purchased { text-decoration: line-through; opacity: 0.6; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>${title}</h1>
+                        ${subtitle ? `<p>${subtitle}</p>` : ''}
+                        <p>Generated: ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    ${contentClone.innerHTML}
+                </body>
+                </html>
+            `);
+
+                printWindow.document.close();
+                printWindow.onload = function () {
+                    setTimeout(() => {
+                        printWindow.print();
+                        printWindow.close();
+                    }, 300);
+                };
             }
 
             function desktopPrint() {
@@ -482,7 +1011,7 @@ export default function UnifiedShoppingListModal({
                 `);
 
                 printWindow.document.close();
-                printWindow.onload = function() {
+                printWindow.onload = function () {
                     setTimeout(() => {
                         printWindow.print();
                         printWindow.close();
@@ -499,9 +1028,9 @@ export default function UnifiedShoppingListModal({
                 button.disabled = false;
             }, 2000);
         }
-    };
+    }; // END of handleAdvancedPrint function
 
-    // Determine list context for saving
+// Determine list context for saving
     const getListContext = () => {
         if (sourceRecipeIds && sourceRecipeIds.length === 1) {
             return {
@@ -574,7 +1103,7 @@ export default function UnifiedShoppingListModal({
                         backgroundColor: '#f8fafc',
                         flexShrink: 0
                     }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{flex: 1, minWidth: 0}}>
                             <h2 style={{
                                 margin: 0,
                                 fontSize: '1rem',
@@ -638,10 +1167,10 @@ export default function UnifiedShoppingListModal({
                                 textAlign: 'center',
                                 border: '1px solid #e5e7eb'
                             }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1e293b' }}>
+                                <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#1e293b'}}>
                                     {stats.totalItems}
                                 </div>
-                                <div style={{ fontSize: '0.625rem', color: '#64748b' }}>
+                                <div style={{fontSize: '0.625rem', color: '#64748b'}}>
                                     Total
                                 </div>
                             </div>
@@ -652,10 +1181,10 @@ export default function UnifiedShoppingListModal({
                                 textAlign: 'center',
                                 border: '1px solid #bfdbfe'
                             }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#0369a1' }}>
+                                <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#0369a1'}}>
                                     {stats.inInventory}
                                 </div>
-                                <div style={{ fontSize: '0.625rem', color: '#0284c7' }}>
+                                <div style={{fontSize: '0.625rem', color: '#0284c7'}}>
                                     Have
                                 </div>
                             </div>
@@ -666,10 +1195,10 @@ export default function UnifiedShoppingListModal({
                                 textAlign: 'center',
                                 border: '1px solid #fed7aa'
                             }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#d97706' }}>
+                                <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#d97706'}}>
                                     {stats.needToBuy}
                                 </div>
-                                <div style={{ fontSize: '0.625rem', color: '#f59e0b' }}>
+                                <div style={{fontSize: '0.625rem', color: '#f59e0b'}}>
                                     Need
                                 </div>
                             </div>
@@ -680,10 +1209,10 @@ export default function UnifiedShoppingListModal({
                                 textAlign: 'center',
                                 border: '1px solid #e9d5ff'
                             }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#7c3aed' }}>
+                                <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#7c3aed'}}>
                                     {stats.purchased}
                                 </div>
-                                <div style={{ fontSize: '0.625rem', color: '#8b5cf6' }}>
+                                <div style={{fontSize: '0.625rem', color: '#8b5cf6'}}>
                                     Bought
                                 </div>
                             </div>
@@ -863,7 +1392,7 @@ export default function UnifiedShoppingListModal({
                                                 })
                                                 .join('\n\n');
 
-                                        const blob = new Blob([textContent], { type: 'text/plain' });
+                                        const blob = new Blob([textContent], {type: 'text/plain'});
                                         const url = URL.createObjectURL(blob);
                                         const a = document.createElement('a');
                                         a.href = url;
@@ -905,11 +1434,11 @@ export default function UnifiedShoppingListModal({
                                 padding: '2rem 1rem',
                                 color: '#6b7280'
                             }}>
-                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🛒</div>
+                                <div style={{fontSize: '2rem', marginBottom: '1rem'}}>🛒</div>
                                 <p>No items match the current filter</p>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 {Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category}>
                                         <h3 style={{
@@ -935,7 +1464,7 @@ export default function UnifiedShoppingListModal({
                                                 {items.length}
                                             </span>
                                         </h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
                                             {items.map((item, index) => {
                                                 const itemKey = item.itemKey || `${item.ingredient || item.name}-${category}`;
                                                 const isPurchased = item.purchased;
@@ -969,7 +1498,7 @@ export default function UnifiedShoppingListModal({
                                                         />
 
                                                         {/* Item Details */}
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{flex: 1, minWidth: 0}}>
                                                             <div style={{
                                                                 fontWeight: '500',
                                                                 color: '#374151',
@@ -1081,8 +1610,12 @@ export default function UnifiedShoppingListModal({
 
             <style jsx>{`
                 @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                    0% {
+                        transform: rotate(0deg);
+                    }
+                    100% {
+                        transform: rotate(360deg);
+                    }
                 }
             `}</style>
         </>
