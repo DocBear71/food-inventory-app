@@ -149,29 +149,45 @@ export async function POST(request) {
 
                 const existingItem = inventory.items[existingItemIndex];
 
-                // Calculate new quantities
+                // Calculate new PRIMARY quantity (this is what gets added)
                 const newPrimaryQuantity = (existingItem.quantity || 0) + (parseFloat(quantity) || 1);
 
+                // FIXED: Secondary quantity logic - it represents size per unit, not additive quantity
                 let newSecondaryQuantity = null;
+                let newSecondaryUnit = null;
+
                 if (existingItem.secondaryQuantity && secondaryQuantity) {
-                    // Both have secondary quantities, add them
-                    newSecondaryQuantity = existingItem.secondaryQuantity + parseFloat(secondaryQuantity);
+                    // Both have secondary quantities - check if they match
+                    const existingSecondary = parseFloat(existingItem.secondaryQuantity);
+                    const newSecondary = parseFloat(secondaryQuantity);
+
+                    if (Math.abs(existingSecondary - newSecondary) < 0.01) {
+                        // They match (within rounding), keep the existing one
+                        newSecondaryQuantity = existingItem.secondaryQuantity;
+                        newSecondaryUnit = existingItem.secondaryUnit;
+                        console.log(`📦 Secondary quantities match (${existingSecondary} ${existingItem.secondaryUnit}), keeping existing`);
+                    } else {
+                        // They don't match - keep existing and warn
+                        newSecondaryQuantity = existingItem.secondaryQuantity;
+                        newSecondaryUnit = existingItem.secondaryUnit;
+                        console.log(`⚠️ Secondary quantity mismatch: existing ${existingSecondary} ${existingItem.secondaryUnit} vs new ${newSecondary} ${secondaryUnit}, keeping existing`);
+                    }
                 } else if (existingItem.secondaryQuantity) {
                     // Keep existing secondary quantity
                     newSecondaryQuantity = existingItem.secondaryQuantity;
+                    newSecondaryUnit = existingItem.secondaryUnit;
+                    console.log(`📦 Keeping existing secondary quantity: ${newSecondaryQuantity} ${newSecondaryUnit}`);
                 } else if (secondaryQuantity) {
-                    // Use new secondary quantity
+                    // Use new secondary quantity (existing item didn't have one)
                     newSecondaryQuantity = parseFloat(secondaryQuantity);
+                    newSecondaryUnit = secondaryUnit;
+                    console.log(`📦 Adding new secondary quantity: ${newSecondaryQuantity} ${newSecondaryUnit}`);
                 }
 
-                // FIXED: Update the existing item properly
+                // Update the existing item
                 inventory.items[existingItemIndex].quantity = newPrimaryQuantity;
-
-                if (newSecondaryQuantity !== null) {
-                    inventory.items[existingItemIndex].secondaryQuantity = newSecondaryQuantity;
-                    inventory.items[existingItemIndex].secondaryUnit = secondaryUnit || existingItem.secondaryUnit;
-                }
-
+                inventory.items[existingItemIndex].secondaryQuantity = newSecondaryQuantity;
+                inventory.items[existingItemIndex].secondaryUnit = newSecondaryUnit;
                 inventory.items[existingItemIndex].lastUpdated = new Date();
 
                 // Only update fields if the existing field is empty/null AND we have new data
@@ -221,10 +237,16 @@ export async function POST(request) {
 
                 console.log('✅ Item merged successfully');
 
+                // FIXED: Better message that explains the secondary quantity logic
+                let mergeMessage = `Merged with existing item. New quantity: ${newPrimaryQuantity} ${unit}`;
+                if (newSecondaryQuantity) {
+                    mergeMessage += ` (${newSecondaryQuantity} ${newSecondaryUnit} each)`;
+                }
+
                 return NextResponse.json({
                     success: true,
                     item: inventory.items[existingItemIndex],
-                    message: `Merged with existing item. New quantity: ${newPrimaryQuantity} ${unit}`,
+                    message: mergeMessage,
                     merged: true,
                     previousQuantity: existingItem.quantity,
                     addedQuantity: parseFloat(quantity) || 1,
