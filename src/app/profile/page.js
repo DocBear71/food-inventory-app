@@ -387,6 +387,42 @@ export default function ProfilePage() {
             if (data.error) {
                 setError(data.error);
             } else {
+                // **FIXED: Use static default values instead of formData**
+                const defaultNotificationSettings = {
+                    email: {
+                        enabled: false,
+                        dailyDigest: false,
+                        expirationAlerts: true,
+                        daysBeforeExpiration: 3
+                    },
+                    dashboard: {
+                        showExpirationPanel: true,
+                        showQuickStats: true,
+                        alertThreshold: 7
+                    }
+                };
+
+                const defaultMealPlanningPreferences = {
+                    weekStartDay: 'monday',
+                    defaultMealTypes: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'],
+                    planningHorizon: 'week',
+                    shoppingDay: 'sunday',
+                    mealPrepDays: ['sunday'],
+                    dietaryRestrictions: [],
+                    avoidIngredients: [],
+                    preferredCuisines: [],
+                    cookingTimePreference: 'any'
+                };
+
+                const defaultNutritionGoals = {
+                    dailyCalories: 2000,
+                    protein: 150,
+                    fat: 65,
+                    carbs: 250,
+                    fiber: 25,
+                    sodium: 2300
+                };
+
                 const userData = {
                     name: data.user?.name || '',
                     avatar: data.user?.avatar || '',
@@ -395,14 +431,14 @@ export default function ProfilePage() {
                         cookingLevel: data.user?.profile?.cookingLevel || 'beginner',
                         favoritesCuisines: data.user?.profile?.favoritesCuisines || []
                     },
-                    notificationSettings: data.user?.notificationSettings || formData.notificationSettings,
+                    notificationSettings: data.user?.notificationSettings || defaultNotificationSettings,
                     mealPlanningPreferences: {
-                        ...formData.mealPlanningPreferences,
+                        ...defaultMealPlanningPreferences,
                         ...(data.user?.mealPlanningPreferences || {}),
                         // UPDATED: Apply migration for meal types
                         defaultMealTypes: migrateOldMealTypes(data.user?.mealPlanningPreferences?.defaultMealTypes)
                     },
-                    nutritionGoals: data.user?.nutritionGoals || formData.nutritionGoals
+                    nutritionGoals: data.user?.nutritionGoals || defaultNutritionGoals
                 };
 
                 setFormData(userData);
@@ -418,14 +454,40 @@ export default function ProfilePage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, []); // **FIXED: Empty dependency array to prevent infinite loops**
 
-    // FIXED: Only fetch profile on mount if user is authenticated
+
     useEffect(() => {
-        if (session?.user?.id && status === 'authenticated') {
+        console.log('🔍 Session effect triggered:', { status, hasSession: !!session, userId: session?.user?.id });
+
+        if (status === 'authenticated' && session?.user?.id) {
+            console.log('🔍 Calling fetchProfile...');
             fetchProfile();
+        } else if (status === 'loading') {
+            console.log('🔍 Session still loading, waiting...');
+        } else {
+            console.log('🔍 Not authenticated, stopping loading');
+            setLoading(false);
         }
-    }, []); // Empty dependency array to only run on mount
+    }, [session?.user?.id, status, fetchProfile]); // Add dependencies so it runs when session changes
+
+// Also, let's update the redirect effect to be more specific:
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            console.log('🔍 Redirecting to signin - not authenticated');
+            router.push('/auth/signin');
+        }
+    }, [status, router]); // Only redirect on unauthenticated, not loading
+
+    // **ALSO ADD: Debug logging to see what's happening**
+    useEffect(() => {
+        console.log('🔍 PROFILE PAGE STATUS:', {
+            sessionStatus: status,
+            hasSession: !!session,
+            loading: loading,
+            userId: session?.user?.id
+        });
+    }, [session, status, loading]);
 
     // UPDATED: Migration function for existing users
     const migrateOldMealTypes = (mealTypes) => {
