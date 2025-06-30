@@ -991,7 +991,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 onChange={handleUPCInput}
                                 placeholder="Enter or scan UPC code"
                                 className="flex-1 mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            />
+                            /><br/>
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={handleScannerClick}
