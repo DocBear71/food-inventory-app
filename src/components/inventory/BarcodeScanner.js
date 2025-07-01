@@ -325,35 +325,24 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const handleBarcodeDetectedWithImmediateUpdate = useCallback(async (barcode) => {
         console.log('Barcode scanned:', barcode);
 
-        // Update both local and parent state
-        setLocalUPC(barcode);
-        if (onUPCChange) {
-            onUPCChange(barcode);
+        // Close the scanner
+        setIsScanning(false);
+        setManualScanMode(false);
+        setScanButtonReady(false);
+
+        // Call the parent's onBarcodeDetected function
+        if (onBarcodeDetected) {
+            onBarcodeDetected(barcode);
         }
 
-        setShowScanner(false);
-
-        // Enhanced: Scroll to UPC input after scanner closes
+        // Close the scanner modal
         setTimeout(() => {
-            const upcInput = document.querySelector('input[name="upc"]') ||
-                document.querySelector('input[id="upc"]') ||
-                document.querySelector('#upc');
-
-            if (upcInput) {
-                console.log('📍 Scrolling to UPC input after scan');
-                upcInput.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'nearest'
-                });
-                // Optional: Focus the input to show the scanned value
-                upcInput.focus();
+            if (onClose) {
+                onClose();
             }
-        }, 500); // Wait for scanner to close and UPC to be filled
+        }, 500);
 
-        // Auto-lookup the scanned barcode with immediate UI update
-        await handleUPCLookupWithImmediateUpdate(barcode);
-    }, [onUPCChange]); // Add onUPCChange as dependency
+    }, [onBarcodeDetected, onClose]);
 
 // Fix 4: Update the main barcode detection handler if it uses loadUsageInfo
     const handleBarcodeDetection = useCallback(async (result) => {
@@ -456,7 +445,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }, 800);
 
-    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]); // Include loadUsageInfo in dependencies
+    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady, handleBarcodeDetectedWithImmediateUpdate]);
 
     // FIXED: Manual scan trigger function
     const triggerManualScan = useCallback(() => {
