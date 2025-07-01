@@ -748,7 +748,7 @@ function InventoryContent() {
     const handleUPCChange = (upc) => {
         setFormData(prev => ({
             ...prev,
-            upc
+            upc: upc
         }));
     };
 
