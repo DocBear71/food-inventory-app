@@ -89,6 +89,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const autocompleteTimeoutRef = useRef(null);
     const searchInputRef = useRef(null);
     const autocompleteRef = useRef(null);
+    const processingBarcodeRef = useRef(false);
 
     // NEW: Usage tracking state
     const subscription = useSubscription();
@@ -137,62 +138,28 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
     // 3. ENHANCED: Usage check with immediate feedback - FIXED for timing issues
     const checkUsageLimitsWithImmediateUpdate = async () => {
+        // If we're still loading usage info, just proceed
+        // The server-side check will handle limits properly
+        if (isLoadingUsage) {
+            console.log('⏳ Usage still loading, proceeding with optimistic check');
+            return true; // Let the server handle the actual limit check
+        }
+
         const currentUsageData = optimisticUsage || usageInfo;
 
-        // FIXED: Handle loading state better
-        if (isLoadingUsage && !currentUsageData) {
-            console.log('⏳ Usage data still loading, waiting...');
-
-            // Wait a bit for usage data to load
-            let retries = 0;
-            while (retries < 5 && isLoadingUsage && !usageInfo) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                retries++;
-            }
-
-            // Check again after waiting
-            const finalUsageData = optimisticUsage || usageInfo;
-            if (!finalUsageData) {
-                console.log('❌ Usage data failed to load after waiting');
-                alert('⏳ Please wait a moment for the scanner to initialize, then try again.');
-                return false;
-            }
+        // If no usage data, proceed anyway - server will handle it
+        if (!currentUsageData) {
+            console.log('⚠️ No usage data available, proceeding (server will check)');
+            return true;
         }
 
-        // FIXED: Use the current data after potential wait
-        const workingUsageData = optimisticUsage || usageInfo;
-
-        if (isUpdatingUsage && !workingUsageData) {
-            alert('⏳ Please wait while we check your scan limits...');
-            return false;
-        }
-
-        if (!workingUsageData) {
-            console.log('❌ No usage data available');
-            // FIXED: Try to load usage data one more time
-            try {
-                const freshUsageData = await loadUsageInfo();
-                if (!freshUsageData) {
-                    alert('❌ Unable to check scan limits. Please refresh the page and try again.');
-                    return false;
-                }
-                // Update the working data
-                workingUsageData = freshUsageData;
-            } catch (error) {
-                console.error('Failed to load usage data:', error);
-                alert('❌ Unable to check scan limits. Please refresh the page and try again.');
-                return false;
-            }
-        }
-
-        if (!workingUsageData.canScan) {
-            const limitMessage = workingUsageData.monthlyLimit === 'unlimited'
+        // Only block if we're definitely over limit
+        if (currentUsageData.canScan === false) {
+            const limitMessage = currentUsageData.monthlyLimit === 'unlimited'
                 ? 'Unexpected limit reached'
-                : `You've reached your monthly limit of ${workingUsageData.monthlyLimit} UPC scans. Used: ${workingUsageData.currentMonth}/${workingUsageData.monthlyLimit}`;
+                : `You've reached your monthly limit of ${currentUsageData.monthlyLimit} UPC scans.`;
 
             alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
-
-            // Redirect to pricing
             window.location.href = `/pricing?source=upc-limit&feature=upc-scanning&required=gold`;
             return false;
         }
@@ -421,6 +388,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
         console.log('Barcode scanned:', barcode);
 
+        // FIXED: Prevent multiple rapid calls
+        if (processingBarcodeRef.current) {
+            console.log('Already processing a barcode, ignoring...');
+            return;
+        }
+
+        processingBarcodeRef.current = true;
+
         // Update both local and parent state
         setLocalUPC(barcode);
         if (onUPCChange) {
@@ -442,22 +417,26 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     block: 'center',
                     inline: 'nearest'
                 });
-                // Optional: Focus the input to show the scanned value
                 upcInput.focus();
             }
-        }, 500); // Wait for scanner to close and UPC to be filled
+        }, 500);
 
-        // FIXED: Better error handling for auto-lookup
+        // SIMPLIFIED: Just do the lookup without complex usage checking
+        // The lookup function will handle usage limits internally
         try {
-            // Auto-lookup the scanned barcode with immediate UI update
+            console.log('🔍 Starting auto-lookup for scanned barcode:', barcode);
             await handleUPCLookupWithImmediateUpdate(barcode);
         } catch (error) {
-            console.error('Auto-lookup failed after scan:', error);
-            // Don't show another alert here since the UPC is already filled
-            // User can manually click the lookup button if needed
-            console.log('User can manually lookup the scanned UPC:', barcode);
+            console.error('Auto-lookup failed:', error);
+            // Silently fail - UPC is already in the input field
+        } finally {
+            // Reset the processing flag after a delay
+            setTimeout(() => {
+                processingBarcodeRef.current = false;
+            }, 2000);
         }
     };
+
 
 
 // 7. ENHANCED: Display current usage (optimistic or real)
