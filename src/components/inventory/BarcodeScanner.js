@@ -64,13 +64,33 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [isActive, loadUsageInfo]);
 
-    // FIXED: Simplified, more reliable UPC validation
+    // FIXED: Enhanced UPC validation with leading zero padding
     const validateUPC = useCallback((code) => {
-        const cleanCode = code.replace(/\D/g, '');
+        let cleanCode = code.replace(/\D/g, '');
 
         // More permissive validation
-        if (cleanCode.length < 8 || cleanCode.length > 14) {
+        if (cleanCode.length < 6 || cleanCode.length > 14) {
             return { valid: false, reason: 'invalid_length' };
+        }
+
+        // FIXED: Auto-pad common UPC lengths with leading zeros
+        if (cleanCode.length === 11) {
+            // 11 digits -> pad to 12 (UPC-A)
+            cleanCode = '0' + cleanCode;
+            console.log(`🔧 Padded 11-digit code to UPC-A: ${cleanCode}`);
+        } else if (cleanCode.length === 12) {
+            // Already correct UPC-A length
+            console.log(`✅ Valid UPC-A length: ${cleanCode}`);
+        } else if (cleanCode.length === 13) {
+            // EAN-13 is fine as-is
+            console.log(`✅ Valid EAN-13 length: ${cleanCode}`);
+        } else if (cleanCode.length === 8) {
+            // UPC-E is fine as-is
+            console.log(`✅ Valid UPC-E length: ${cleanCode}`);
+        } else if (cleanCode.length >= 6 && cleanCode.length <= 10) {
+            // Pad shorter codes to 12 digits (common issue)
+            cleanCode = cleanCode.padStart(12, '0');
+            console.log(`🔧 Padded ${code} to standard UPC: ${cleanCode}`);
         }
 
         // Only reject obviously invalid patterns
@@ -297,22 +317,33 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
     }, []);
 
-    // FIXED: Enhanced scanner initialization with better cleanup
+    // FIXED: Enhanced scanner initialization with better reset handling
     useEffect(() => {
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current || initializationRef.current) {
                 return;
             }
 
+            // FIXED: Force cleanup before initialization
+            if (quaggaRef.current || streamRef.current) {
+                console.log('🔄 Forcing cleanup before new initialization...');
+                await cleanupScanner();
+                // Wait additional time for complete cleanup
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
             initializationRef.current = true;
 
             try {
-                // Reset session
+                // Reset session with unique ID
                 sessionIdRef.current = Date.now();
                 processedCodesRef.current = new Set();
 
                 setError(null);
                 setIsScanning(true);
+                setScanFeedback('');
+
+                console.log(`🚀 Starting new scanner session: ${sessionIdRef.current}`);
 
                 const hasPermission = await requestCameraPermission();
                 if (!hasPermission) {
@@ -324,29 +355,50 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 if (Capacitor.isNativePlatform()) {
                     setIsInitialized(true);
                     setIsLoading(false);
-                    // Auto-start MLKit scanning
-                    setTimeout(() => startMLKitScanning(), 500);
+                    // Auto-start MLKit scanning with delay
+                    setTimeout(() => startMLKitScanning(), 800);
                 } else {
-                    // Quagga setup
+                    // Enhanced Quagga setup with better error handling
                     const Quagga = (await import('quagga')).default;
                     quaggaRef.current = Quagga;
 
                     const config = getQuaggaConfig();
 
                     await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Scanner initialization timeout'));
+                        }, 10000); // 10 second timeout
+
                         Quagga.init(config, (err) => {
+                            clearTimeout(timeout);
+
                             if (err) {
                                 reject(new Error(`Scanner initialization failed: ${err.message}`));
                                 return;
                             }
 
-                            // Capture video element
-                            const videoElement = scannerRef.current?.querySelector('video');
-                            if (videoElement) {
-                                videoRef.current = videoElement;
-                                if (videoElement.srcObject) {
-                                    streamRef.current = videoElement.srcObject;
+                            // Capture video element with retry
+                            const captureVideoElement = () => {
+                                const videoElement = scannerRef.current?.querySelector('video');
+                                if (videoElement) {
+                                    videoRef.current = videoElement;
+                                    if (videoElement.srcObject) {
+                                        streamRef.current = videoElement.srcObject;
+                                    }
+                                    console.log('📹 Video element captured successfully');
+                                    return true;
                                 }
+                                return false;
+                            };
+
+                            // Try to capture video element immediately
+                            if (!captureVideoElement()) {
+                                // Retry after a short delay
+                                setTimeout(() => {
+                                    if (!captureVideoElement()) {
+                                        console.warn('⚠️ Could not capture video element');
+                                    }
+                                }, 500);
                             }
 
                             Quagga.onDetected(handleBarcodeDetection);
@@ -356,13 +408,14 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 setIsInitialized(true);
                                 setIsLoading(false);
                                 setError(null);
+                                console.log('✅ Scanner initialized successfully');
                             }
                             resolve();
                         });
                     });
                 }
             } catch (error) {
-                console.error('Scanner setup error:', error);
+                console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
                     setError(error.message || 'Camera scanner setup failed');
                     setIsLoading(false);
@@ -374,44 +427,66 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         if (isActive && mountedRef.current && scannerRef.current) {
             initializeScanner();
         }
-    }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, getQuaggaConfig, startMLKitScanning]);
+    }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, getQuaggaConfig, startMLKitScanning, cleanupScanner]);
 
-    // FIXED: Comprehensive cleanup
-    const cleanupScanner = useCallback(() => {
-        console.log('🧹 Starting scanner cleanup...');
 
-        // Stop and clean up video stream
+    // FIXED: Enhanced cleanup with proper async handling
+    const cleanupScanner = useCallback(async () => {
+        console.log('🧹 Starting comprehensive scanner cleanup...');
+
+        // Set flags immediately to prevent new operations
+        scanInProgressRef.current = false;
+        setIsScanning(false);
+
+        // Stop and clean up video stream with delay
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
+            console.log('📹 Stopping video stream...');
+            try {
+                streamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                    console.log(`📹 Stopped ${track.kind} track`);
+                });
+            } catch (error) {
+                console.log('Video track cleanup error:', error);
+            }
             streamRef.current = null;
+
+            // Wait for stream to fully stop
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
 
-        // Clean up Quagga
+        // Clean up Quagga with proper error handling
         if (quaggaRef.current) {
+            console.log('🛑 Stopping Quagga...');
             try {
                 quaggaRef.current.stop();
-                quaggaRef.current = null;
+                // Wait for Quagga to fully stop
+                await new Promise(resolve => setTimeout(resolve, 300));
             } catch (error) {
-                console.log('Quagga cleanup error:', error);
+                console.log('⚠️ Quagga cleanup error:', error);
             }
+            quaggaRef.current = null;
         }
 
-        // Clean up DOM
+        // Clean up DOM with delay
         if (scannerRef.current) {
-            scannerRef.current.innerHTML = '';
+            try {
+                scannerRef.current.innerHTML = '';
+                console.log('🧹 Cleared scanner container');
+            } catch (error) {
+                console.log('DOM cleanup error:', error);
+            }
         }
 
         // Reset all state
         videoRef.current = null;
         setIsInitialized(false);
-        setIsScanning(false);
         setIsLoading(true);
         setError(null);
         setPermissionState('unknown');
         setScanFeedback('');
 
         // Reset refs
-        scanInProgressRef.current = false;
         lastScanTimeRef.current = 0;
         initializationRef.current = false;
 
@@ -419,8 +494,23 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         processedCodesRef.current = new Set();
         sessionIdRef.current = Date.now();
 
-        console.log('✅ Scanner cleanup completed');
+        console.log('✅ Scanner cleanup completed with delays');
     }, []);
+
+    // FIXED: Better close handler with proper cleanup
+    const handleScannerClose = useCallback(async () => {
+        console.log('🚫 Scanner close requested');
+
+        // Immediate cleanup
+        await cleanupScanner();
+
+        // Wait a bit more before calling onClose to ensure complete cleanup
+        setTimeout(() => {
+            if (onClose) {
+                onClose();
+            }
+        }, 200);
+    }, [cleanupScanner, onClose]);
 
     // Detect mobile device
     useEffect(() => {
@@ -523,10 +613,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             )}
                         </div>
                         <TouchEnhancedButton
-                            onClick={() => {
-                                cleanupScanner();
-                                onClose();
-                            }}
+                            onClick={handleScannerClose}
                             className="text-white text-2xl font-bold w-8 h-8 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700"
                         >
                             ×
@@ -540,10 +627,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 <div className="text-red-600 mb-4 text-2xl">❌</div>
                                 <div className="text-red-600 font-medium mb-4">{error}</div>
                                 <TouchEnhancedButton
-                                    onClick={() => {
-                                        cleanupScanner();
-                                        onClose();
-                                    }}
+                                    onClick={handleScannerClose}
                                     className="bg-red-600 text-white px-4 py-2 rounded-md"
                                 >
                                     Close Scanner
@@ -642,10 +726,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             {/* Footer */}
                             <div className="flex-shrink-0 bg-black px-4 py-3">
                                 <TouchEnhancedButton
-                                    onClick={() => {
-                                        cleanupScanner();
-                                        onClose();
-                                    }}
+                                    onClick={handleScannerClose}
                                     className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
                                 >
                                     {isScanning ? 'Cancel Scan' : 'Close'}
@@ -692,10 +773,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 )}
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => {
-                                    cleanupScanner();
-                                    onClose();
-                                }}
+                                onClick={handleScannerClose}
                                 className="text-gray-600 hover:text-gray-800 text-2xl font-bold"
                             >
                                 ×
@@ -707,10 +785,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 <div className="text-red-600 mb-4 text-2xl">❌</div>
                                 <div className="text-red-600 font-medium mb-4">{error}</div>
                                 <TouchEnhancedButton
-                                    onClick={() => {
-                                        cleanupScanner();
-                                        onClose();
-                                    }}
+                                    onClick={handleScannerClose}
                                     className="bg-red-600 text-white px-4 py-2 rounded-md"
                                 >
                                     Close Scanner
@@ -763,10 +838,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 {!isLoading && (
                                     <div className="mt-4 text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => {
-                                                cleanupScanner();
-                                                onClose();
-                                            }}
+                                            onClick={handleScannerClose}
                                             className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
                                         >
                                             {isScanning ? 'Cancel Scan' : 'Close'}
