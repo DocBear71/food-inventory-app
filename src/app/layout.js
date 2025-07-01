@@ -7,6 +7,7 @@ import PWAWrapper from '@/components/PWAWrapper';
 import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider';
 import NativeAuthHandler from '@/components/NativeAuthHandler';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
+import ViewportHandler from '@/components/ViewportHandler';
 
 // ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
@@ -68,6 +69,7 @@ export default async function RootLayout({children}) {
     return (
         <html lang="en">
         <body className={inter.className}>
+        <ViewportHandler />
         <CapacitorAuthProvider>
             {isNativeMobileApp ? (
                 // FIXED: Native mobile apps with proper auth handling
