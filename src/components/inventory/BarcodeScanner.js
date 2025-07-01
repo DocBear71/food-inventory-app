@@ -148,7 +148,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 // Validate the barcode
                 const validation = validateUPC(barcode.rawValue);
                 if (validation.valid) {
-                    handleBarcodeDetectedWithImmediateUpdate(validation.cleanCode);
+                    await handleBarcodeDetectedWithImmediateUpdate(validation.cleanCode);
                 } else {
                     console.log('❌ Invalid barcode from MLKit:', validation.reason);
                     alert('Invalid barcode detected. Please try scanning again.');
