@@ -1,5 +1,5 @@
 'use client'
-// file: /src/components/providers/CapacitorAuthProvider.js - v3 - Fixed mobile sign-out by properly handling auth redirects
+// file: /src/components/CapacitorAuthProvider.js - v3 - Fixed mobile sign-out by properly handling auth redirects
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'

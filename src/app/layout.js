@@ -1,11 +1,15 @@
-// file: /src/app/layout.js v5 - Fixed PWA wrapper integration
+// file: /src/app/layout.js v7 - Added NativeAuthHandler
 
 import {Inter} from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import PWAWrapper from '@/components/PWAWrapper';
-import CapacitorAuthProvider from '@/components/CapacitorAuthProvider';
+import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider';
+import NativeAuthHandler from '@/components/NativeAuthHandler';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
+
+// ADDED: Import the auth fix for native apps
+import '@/lib/capacitor-auth-fix';
 
 const inter = Inter({subsets: ['latin']});
 
@@ -66,8 +70,14 @@ export default async function RootLayout({children}) {
         <body className={inter.className}>
         <CapacitorAuthProvider>
             {isNativeMobileApp ? (
-                // Native mobile apps - no PWA wrapper or SessionProvider needed
-                children
+                // FIXED: Native mobile apps with proper auth handling
+                <SessionProvider>
+                    <SubscriptionProvider>
+                        <NativeAuthHandler>
+                            {children}
+                        </NativeAuthHandler>
+                    </SubscriptionProvider>
+                </SessionProvider>
             ) : (
                 // Web builds (including PWA) - full PWA functionality
                 <SessionProvider>

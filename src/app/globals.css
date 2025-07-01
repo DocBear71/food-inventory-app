@@ -48,6 +48,27 @@ html, body {
     -webkit-overflow-scrolling: touch;
 }
 
+/* For camera components specifically */
+.camera-container {
+    /* Ensure camera view doesn't get hidden behind system UI */
+    margin-top: max(24px, env(safe-area-inset-top));
+    margin-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* For mobile scanner fullscreen mode */
+.scanner-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+
+    /* Use viewport units that account for system UI */
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height - better for mobile */
+}
+
 /* Ensure the main container doesn't allow over-scroll */
 .dashboard-container {
     overscroll-behavior: none;
@@ -2193,6 +2214,437 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
+/* ===== ANDROID SYSTEM UI SAFE AREA SUPPORT ===== */
+/* Add these rules to your existing globals.css file */
+
+/* Enhanced body styles with Android safe area support */
+body {
+    /* Your existing styles remain, add these: */
+
+    /* ADDED: Handle Android system UI safe areas */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: max(env(safe-area-inset-bottom), 20px) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+
+    /* ADDED: Ensure content doesn't get hidden behind system UI */
+    box-sizing: border-box !important;
+
+    /* Prevent horizontal scrolling on Android */
+    overflow-x: hidden !important;
+
+}
+
+/* Main app container adjustments for Android */
+#__next,
+.app-container,
+main {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+
+    /* Handle safe areas for main content */
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    box-sizing: border-box;
+}
+
+/* Enhanced camera container with Android system UI support */
+.camera-container {
+    /* Your existing styles, enhanced: */
+    margin-top: max(env(safe-area-inset-top), 24px);
+    margin-bottom: max(env(safe-area-inset-bottom), 24px);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    box-sizing: border-box;
+}
+
+/* Enhanced fullscreen scanner with Android support */
+.scanner-fullscreen {
+    /* Your existing styles, enhanced: */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+
+    /* Use dynamic viewport units for better mobile support */
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+
+    /* ADDED: Account for safe areas in fullscreen mode */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+    box-sizing: border-box !important;
+}
+
+/* Android-specific mobile adjustments */
+@media (max-width: 768px) {
+    /* Ensure mobile layouts don't overlap with system UI */
+    .mobile-header,
+    .dashboard-header {
+        padding-top: max(env(safe-area-inset-top), 16px) !important;
+        padding-left: max(env(safe-area-inset-left), 16px) !important;
+        padding-right: max(env(safe-area-inset-right), 16px) !important;
+    }
+
+    .mobile-footer,
+    .dashboard-footer {
+        padding-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+        padding-left: max(env(safe-area-inset-left), 16px) !important;
+        padding-right: max(env(safe-area-inset-right), 16px) !important;
+    }
+
+    /* Camera video element specific for Android */
+    video {
+        object-fit: cover !important;
+        max-width: 100% !important;
+        max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 100px) !important;
+    }
+
+    /* Receipt scanner specific for Android */
+    .receipt-camera-view {
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px) !important;
+        min-height: 300px !important;
+    }
+
+    /* Barcode scanner mobile adjustments */
+    .barcode-scanner-mobile {
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 9999 !important;
+
+        /* Account for Android system UI */
+        padding-top: env(safe-area-inset-top) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* Android-specific adjustments with fallbacks */
+@supports (padding: max(0px)) {
+    /* Modern browsers that support env() and max() */
+    .android-safe-content {
+        padding-top: max(env(safe-area-inset-top), 24px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom), 24px) !important;
+        padding-left: max(env(safe-area-inset-left), 16px) !important;
+        padding-right: max(env(safe-area-inset-right), 16px) !important;
+    }
+}
+
+/* Fallback for older Android browsers */
+@media screen and (max-width: 768px) {
+    body {
+        /* Fallback padding for older Android versions */
+        padding-top: 24px !important;
+        padding-bottom: 24px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    /* Override if safe-area-inset is supported */
+    @supports (padding: env(safe-area-inset-top)) {
+        body {
+            padding-top: env(safe-area-inset-top) !important;
+            padding-bottom: env(safe-area-inset-bottom) !important;
+            padding-left: env(safe-area-inset-left) !important;
+            padding-right: env(safe-area-inset-right) !important;
+        }
+    }
+}
+
+/* Enhanced modal and overlay support for Android */
+.modal-container,
+.fixed.inset-0.bg-black.bg-opacity-90,
+.fixed.inset-0.bg-black.z-50 {
+    /* Ensure modals respect safe areas */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+    box-sizing: border-box !important;
+}
+
+/* Specific fixes for your barcode scanner modal */
+.bg-black.z-50.flex.flex-col,
+.fixed.inset-0.bg-black.z-50 {
+    /* Ensure scanner modals respect safe areas */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    box-sizing: border-box !important;
+}
+
+/* Header adjustments for your app */
+.flex.items-center.justify-between {
+    /* Adjust header spacing for system UI */
+    padding-top: max(env(safe-area-inset-top), 12px) !important;
+    padding-left: max(env(safe-area-inset-left), 16px) !important;
+    padding-right: max(env(safe-area-inset-right), 16px) !important;
+}
+
+/* Button adjustments in scanner */
+.absolute.bottom-4,
+.flex-shrink-0.bg-black {
+    /* Ensure buttons aren't hidden behind navigation bar */
+    padding-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+    margin-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* Enhanced barcode scanner styles for Android */
+.barcode-scanner-overlay {
+    z-index: 9999 !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: black !important;
+
+    /* ADDED: Android safe area support */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+    box-sizing: border-box !important;
+}
+
+/* Enhanced scanner container for Android */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+
+    /* ADDED: Ensure proper sizing with safe areas */
+    box-sizing: border-box;
+    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+/* Android gesture navigation support */
+@media (max-width: 768px) and (min-height: 600px) {
+    /* For devices with gesture navigation */
+    .scanner-container {
+        /* Account for gesture areas */
+        padding-bottom: max(env(safe-area-inset-bottom), 20px);
+    }
+
+    .barcode-scanner-mobile {
+        /* Adjust for gesture navigation */
+        padding-bottom: max(env(safe-area-inset-bottom), 20px);
+    }
+}
+
+/* Landscape mode fixes for Android */
+@media (orientation: landscape) and (max-height: 600px) {
+    .scanner-container,
+    .barcode-scanner-mobile {
+        /* In landscape, prioritize left/right safe areas */
+        padding-left: max(env(safe-area-inset-left), 20px) !important;
+        padding-right: max(env(safe-area-inset-right), 20px) !important;
+        padding-top: max(env(safe-area-inset-top), 8px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom), 8px) !important;
+    }
+
+    .scanner-container video {
+        object-fit: cover !important;
+        height: 100% !important;
+        width: 100% !important;
+    }
+}
+
+/* Touch target accessibility for Android */
+button, .touchable, .touch-friendly {
+    min-height: max(44px, calc(44px + env(safe-area-inset-top) * 0.1)) !important;
+    min-width: max(44px, calc(44px + env(safe-area-inset-left) * 0.1)) !important;
+
+    /* Ensure touch targets are away from edges */
+    margin-left: max(env(safe-area-inset-left), 8px) !important;
+    margin-right: max(env(safe-area-inset-right), 8px) !important;
+}
+
+/* Enhanced PWA styles for Android */
+@media all and (display-mode: standalone) {
+    body {
+        /* Enhanced PWA support */
+        padding-top: max(env(safe-area-inset-top), 20px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom), 20px) !important;
+        padding-left: max(env(safe-area-inset-left), 8px) !important;
+        padding-right: max(env(safe-area-inset-right), 8px) !important;
+    }
+
+    .pwa-header {
+        padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+    }
+
+    /* PWA scanner adjustments */
+    .scanner-fullscreen,
+    .barcode-scanner-overlay {
+        /* In PWA mode, ensure full coverage */
+        top: 0 !important;
+        bottom: 0 !important;
+        padding: 0 !important;
+
+        /* Use internal padding for content */
+        padding-top: env(safe-area-inset-top) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        padding-left: env(safe-area-inset-left) !important;
+        padding-right: env(safe-area-inset-right) !important;
+    }
+}
+
+/* Debug helpers (remove in production) */
+@media (max-width: 768px) {
+    .debug-safe-areas::after {
+        content: "T:" attr(data-top) " B:" attr(data-bottom) " L:" attr(data-left) " R:" attr(data-right);
+        position: fixed;
+        top: env(safe-area-inset-top);
+        left: env(safe-area-inset-left);
+        background: rgba(255, 0, 0, 0.8);
+        color: white;
+        padding: 4px;
+        font-size: 10px;
+        z-index: 99999;
+        pointer-events: none;
+    }
+}
+
+/* Fixed bottom navigation/footer elements */
+.fixed.bottom-0,
+.absolute.bottom-0,
+footer,
+.mobile-footer,
+.bottom-navigation,
+nav[class*="bottom"],
+div[class*="bottom-nav"] {
+    /* Ensure bottom elements are above navigation bar */
+    bottom: max(env(safe-area-inset-bottom), 20px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+    margin-bottom: 0 !important;
+}
+
+/* Mobile layout adjustments */
+@media (max-width: 768px) {
+    /* Main content container */
+    .mobile-main-content,
+    main,
+    #__next {
+        padding-bottom: max(env(safe-area-inset-bottom), 24px) !important;
+        margin-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+    }
+
+    /* Dashboard container specific fix */
+    .dashboard-container {
+        padding-bottom: max(env(safe-area-inset-bottom), 32px) !important;
+        margin-bottom: max(env(safe-area-inset-bottom), 20px) !important;
+    }
+
+    /* Bottom buttons and actions */
+    .bottom-buttons,
+    .action-buttons,
+    .submit-buttons,
+    div[class*="bottom"][class*="button"] {
+        margin-bottom: max(env(safe-area-inset-bottom), 20px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+    }
+
+    /* Footer specific */
+    footer {
+        padding-bottom: max(env(safe-area-inset-bottom), 24px) !important;
+    }
+}
+
+/* Android gesture navigation specific fixes */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    /* For devices with gesture navigation */
+    @media (max-width: 768px) and (min-height: 600px) {
+        body {
+            /* Extra padding for gesture area */
+            padding-bottom: max(env(safe-area-inset-bottom), 32px) !important;
+        }
+
+        .mobile-layout,
+        .app-container {
+            /* Ensure content doesn't get hidden */
+            padding-bottom: max(env(safe-area-inset-bottom), 28px) !important;
+        }
+
+        /* Bottom navigation elements */
+        .fixed.bottom-0,
+        .absolute.bottom-0 {
+            bottom: max(env(safe-area-inset-bottom), 32px) !important;
+        }
+    }
+}
+
+/* Fallback for devices that don't support env() */
+@media (max-width: 768px) {
+    body {
+        padding-bottom: 32px !important;
+    }
+
+    .mobile-main-content,
+    .dashboard-container {
+        padding-bottom: 40px !important;
+        margin-bottom: 24px !important;
+    }
+
+    .fixed.bottom-0,
+    .absolute.bottom-0,
+    footer {
+        bottom: 32px !important;
+        padding-bottom: 20px !important;
+    }
+
+    /* Override if safe-area-inset is supported */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+        body {
+            padding-bottom: max(env(safe-area-inset-bottom), 32px) !important;
+        }
+
+        .mobile-main-content,
+        .dashboard-container {
+            padding-bottom: max(env(safe-area-inset-bottom), 40px) !important;
+            margin-bottom: max(env(safe-area-inset-bottom), 24px) !important;
+        }
+
+        .fixed.bottom-0,
+        .absolute.bottom-0,
+        footer {
+            bottom: max(env(safe-area-inset-bottom), 32px) !important;
+            padding-bottom: max(env(safe-area-inset-bottom), 20px) !important;
+        }
+    }
+}
+
+/* Specific component fixes */
+.mobile-dashboard-layout {
+    padding-bottom: max(env(safe-area-inset-bottom), 40px) !important;
+    min-height: calc(100vh - max(env(safe-area-inset-bottom), 40px)) !important;
+}
+
+/* Button and interactive element fixes */
+button,
+.touchable,
+a[role="button"] {
+    /* Ensure buttons are not hidden behind navigation */
+    margin-bottom: max(env(safe-area-inset-bottom), 8px) !important;
+}
+
+/* Last child elements get extra spacing */
+*:last-child {
+    margin-bottom: max(env(safe-area-inset-bottom), 16px) !important;
+}
+
+/* Container with bottom-positioned elements */
+.container:has(.fixed.bottom-0),
+.container:has(.absolute.bottom-0) {
+    padding-bottom: max(env(safe-area-inset-bottom), 80px) !important;
+}
 /* ===== END OF CLEANED GLOBALS.CSS ===== */
 
 /* Add this CSS to your BarcodeScanner component or global CSS */

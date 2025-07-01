@@ -2,8 +2,8 @@
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {Capacitor} from '@capacitor/core';
-import {Camera} from '@capacitor/camera';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
@@ -47,7 +47,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [isActive]);
 
-    const loadUsageInfo = async () => {
+    const loadUsageInfo = useCallback(async () => {
         try {
             setIsLoadingUsage(true);
             console.log('📊 Loading UPC usage information for scanner...');
@@ -77,51 +77,61 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         } finally {
             setIsLoadingUsage(false);
         }
-    };
+    }, []); // Empty dependency array since it doesn't depend on any props or state
+
 
     // ENHANCED: Permission request function with better error handling
-    const requestCameraPermission = async () => {
-        console.log('🔐 Requesting camera permission...');
+    const requestCameraPermission = useCallback(async () => {
+        console.log('🔐 Requesting camera permission (Capacitor 7.4.0)...');
         setPermissionState('requesting');
 
         if (Capacitor.isNativePlatform()) {
             try {
-                const permission = await Camera.requestPermissions({permissions: ['camera']});
-                console.log('📋 Camera permission result:', permission);
+                console.log('📱 Native platform detected, requesting camera permissions...');
 
-                if (permission.camera === 'granted') {
-                    console.log('✅ Camera permission granted via Capacitor');
+                // For Capacitor 7, use requestPermissions directly
+                const permissions = await Camera.requestPermissions();
+                console.log('📋 Camera permission result:', permissions);
+
+                if (permissions.camera === 'granted') {
+                    console.log('✅ Camera permission granted');
                     setPermissionState('granted');
                     return true;
-                } else if (permission.camera === 'denied') {
-                    console.log('❌ Camera permission denied via Capacitor');
+                } else if (permissions.camera === 'denied') {
+                    console.log('❌ Camera permission denied');
                     setPermissionState('denied');
-                    setError('Camera permission denied. Please enable camera access in your device settings.');
+                    setError('Camera permission denied. Please enable camera access in your device settings and restart the app.');
                     return false;
-                } else if (permission.camera === 'prompt') {
-                    console.log('❓ Camera permission prompt will be shown');
-                    setPermissionState('granted');
+                } else if (permissions.camera === 'prompt' || permissions.camera === 'prompt-with-rationale') {
+                    console.log('❓ Camera permission will prompt user');
+                    setPermissionState('granted'); // Assume it will be granted when user sees prompt
                     return true;
+                } else {
+                    console.log('⚠️ Unexpected permission state:', permissions.camera);
+                    setPermissionState('denied');
+                    setError('Unable to determine camera permission status. Please check your device settings.');
+                    return false;
                 }
+
             } catch (error) {
-                console.error('❌ Capacitor camera permission error:', error);
+                console.error('❌ Camera permission error:', error);
                 setPermissionState('denied');
                 setError(`Camera permission failed: ${error.message}`);
                 return false;
             }
         } else {
-            // For web platforms
+            // Web platform - use getUserMedia
             try {
                 console.log('🌐 Web platform: testing getUserMedia...');
                 const testStream = await navigator.mediaDevices.getUserMedia({
-                    video: {facingMode: "environment"}
+                    video: { facingMode: "environment" }
                 });
-                console.log('✅ Web camera access granted');
 
-                // FIXED: Store stream reference and clean up test stream
+                console.log('✅ Web camera access granted');
                 testStream.getTracks().forEach(track => track.stop());
                 setPermissionState('granted');
                 return true;
+
             } catch (error) {
                 console.error('❌ Web camera access denied:', error);
                 setPermissionState('denied');
@@ -141,9 +151,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 return false;
             }
         }
-
-        return false;
-    };
+    }, []); // Empty dependency array since it doesn't depend on any props or state
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -250,7 +258,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         console.log(`✅ UPC validation passed: "${cleanCode}"`);
         return {valid: true, cleanCode};
-    }, []);
+    }, []); // Empty dependency array since it's a pure function
+
 
     // FIXED: Enhanced cleanup function with stream management
     const cleanupScanner = useCallback(() => {
@@ -309,9 +318,44 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         initializationRef.current = false;
 
         console.log('✅ Scanner cleanup completed');
-    }, []);
+    }, []); // Empty dependency array since it only uses refs and setters
+
 
     // FIXED: Enhanced barcode detection handler
+    const handleBarcodeDetectedWithImmediateUpdate = useCallback(async (barcode) => {
+        console.log('Barcode scanned:', barcode);
+
+        // Update both local and parent state
+        setLocalUPC(barcode);
+        if (onUPCChange) {
+            onUPCChange(barcode);
+        }
+
+        setShowScanner(false);
+
+        // Enhanced: Scroll to UPC input after scanner closes
+        setTimeout(() => {
+            const upcInput = document.querySelector('input[name="upc"]') ||
+                document.querySelector('input[id="upc"]') ||
+                document.querySelector('#upc');
+
+            if (upcInput) {
+                console.log('📍 Scrolling to UPC input after scan');
+                upcInput.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+                // Optional: Focus the input to show the scanned value
+                upcInput.focus();
+            }
+        }, 500); // Wait for scanner to close and UPC to be filled
+
+        // Auto-lookup the scanned barcode with immediate UI update
+        await handleUPCLookupWithImmediateUpdate(barcode);
+    }, [onUPCChange]); // Add onUPCChange as dependency
+
+// Fix 4: Update the main barcode detection handler if it uses loadUsageInfo
     const handleBarcodeDetection = useCallback(async (result) => {
         console.log('🔍 Barcode detection triggered');
 
@@ -320,7 +364,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             return;
         }
 
-        // FIXED: Better manual mode handling
+        // Handle manual mode
         if (manualScanMode && !scanButtonReady) {
             console.log('⏩ Manual scan mode - waiting for scan button');
             setScanButtonReady(true);
@@ -372,7 +416,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         console.log(`✅ Valid UPC accepted: "${cleanCode}"`);
         lastValidCodeRef.current = cleanCode;
 
-        // FIXED: Proper state management for successful scan
+        // Proper state management for successful scan
         cooldownRef.current = true;
         setIsScanning(false);
         setScanButtonReady(false);
@@ -400,7 +444,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 onBarcodeDetected(cleanCode);
                 await loadUsageInfo();
 
-                // FIXED: Reset scanner state for next scan
+                // Reset scanner state for next scan
                 setTimeout(() => {
                     if (mountedRef.current) {
                         console.log('🔄 Resetting scanner for next scan...');
@@ -412,7 +456,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }, 800);
 
-    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]);
+    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]); // Include loadUsageInfo in dependencies
 
     // FIXED: Manual scan trigger function
     const triggerManualScan = useCallback(() => {
@@ -487,7 +531,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             setScanButtonReady(false);
             alert('Manual scan failed. Please try the automatic scanning mode.');
         }
-    }, [handleBarcodeDetection, isMobile]);
+    }, [handleBarcodeDetection, isMobile]); // Include dependencies
 
     // FIXED: Main scanner initialization with proper cleanup
     useEffect(() => {
@@ -543,7 +587,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             width: isMobile ? { min: 320, ideal: Math.min(window.innerWidth, 1280), max: 1920 } : 640,
                             height: isMobile ? { min: 240, ideal: Math.min(window.innerHeight - 200, 720), max: 1080 } : 480,
                             facingMode: "environment",
-                            aspectRatio: isMobile ? { ideal: 16/9, min: 4/3, max: 2/1 } : 4/3,
+                            aspectRatio: isMobile ? { ideal: 16/9, min: 4/3, max: 2 } : 4/3,
                             frameRate: { ideal: 15, max: 30 }
                         },
                         area: {
@@ -583,7 +627,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     frequency: 10,
                     locator: {
                         patchSize: isMobile ? "large" : "medium",
-                        halfSample: isMobile ? false : true
+                        halfSample: !isMobile
                     },
                     numOfWorkers: navigator.hardwareConcurrency ? Math.min(navigator.hardwareConcurrency, 2) : 1,
                     halfsample: false
