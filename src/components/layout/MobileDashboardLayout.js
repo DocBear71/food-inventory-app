@@ -193,7 +193,7 @@ export default function MobileDashboardLayout({children}) {
 
                         {/* Quick add Button */}
                         <TouchEnhancedButton
-                            onClick={() => handleNavigation('/inventory?action=add')}
+                            onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
                             className="p-2 rounded-lg bg-green-600 text-white shadow-md hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
                         >
