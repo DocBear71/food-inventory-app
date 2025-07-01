@@ -7,6 +7,9 @@ import connectDB from '@/lib/mongodb';
 import {UserInventory, User} from '@/lib/models';
 import {FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier} from '@/lib/subscription-config';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Fetch user's inventory
 export async function GET(request) {
     try {

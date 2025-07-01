@@ -6,6 +6,10 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { CuratedMeal, User } from '@/lib/models';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET - Fetch curated meals (admin view with all statuses)
 export async function GET(request) {
     try {

@@ -1,12 +1,13 @@
 'use client'
-// file: /src/components/CapacitorAuthProvider.js - v3 - Fixed mobile sign-out by properly handling auth redirects
+
+// file: /src/components/providers/CapacitorAuthProvider.js - v4 - Enhanced mobile auth flow
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
 export default function CapacitorAuthProvider({ children }) {
     useEffect(() => {
-        console.log('CapacitorAuthProvider v3 started')
+        console.log('CapacitorAuthProvider v4 started')
 
         if (Capacitor.isNativePlatform()) {
             console.log('Installing mobile auth override for native platform')
@@ -42,13 +43,32 @@ export default function CapacitorAuthProvider({ children }) {
                         return originalFetch(localUrl, signOutOptions)
                     }
 
-                    // FIXED: Be more specific about which auth requests to redirect
-                    // Only redirect sign-in related requests, not all auth requests
-                    if (url.includes('/api/auth/signin') ||
-                        url.includes('/api/auth/session') ||
-                        url.includes('/api/auth/providers') ||
-                        url.includes('/api/auth/callback')) {
+                    // ENHANCED: Handle successful sign-in redirects
+                    if (url.includes('/api/auth/callback') || url.includes('/api/auth/signin')) {
+                        const newUrl = `https://www.docbearscomfort.kitchen${url}`
+                        console.log('Auth callback/signin redirect:', url, '→', newUrl)
 
+                        return originalFetch(newUrl, {
+                            ...options,
+                            credentials: 'include'
+                        }).then(response => {
+                            console.log('Auth response status:', response.status);
+
+                            // If successful and it's a callback, redirect to dashboard
+                            if (response.ok && url.includes('/callback')) {
+                                console.log('Successful auth callback - redirecting to dashboard');
+                                setTimeout(() => {
+                                    window.location.href = '/dashboard';
+                                }, 1000);
+                            }
+
+                            return response;
+                        });
+                    }
+
+                    // FIXED: Be more specific about which auth requests to redirect
+                    // Only redirect session and provider requests
+                    if (url.includes('/api/auth/session') || url.includes('/api/auth/providers')) {
                         const newUrl = `https://www.docbearscomfort.kitchen${url}`
                         console.log('Auth redirect for:', url, '→', newUrl)
                         return originalFetch(newUrl, {
@@ -66,46 +86,69 @@ export default function CapacitorAuthProvider({ children }) {
                 return originalFetch(url, options)
             }
 
-            // ADDED: Override NextAuth signOut specifically for mobile
-            if (typeof window !== 'undefined' && window.next) {
-                console.log('Overriding NextAuth signOut for mobile')
+            // ENHANCED: Override NextAuth signOut and signIn for mobile
+            if (typeof window !== 'undefined') {
+                // Wait for NextAuth to be available
+                const setupNextAuthOverrides = () => {
+                    if (window.next?.auth) {
+                        console.log('Setting up NextAuth overrides for mobile')
 
-                const originalSignOut = window.next?.auth?.signOut
-                if (originalSignOut) {
-                    window.next.auth.signOut = async function(options = {}) {
-                        console.log('Mobile NextAuth signOut called with options:', options)
-
-                        try {
-                            // Force callbackUrl to current origin for mobile
-                            const mobileOptions = {
-                                ...options,
-                                callbackUrl: options.callbackUrl || '/',
-                                redirect: false // Always handle redirect manually on mobile
+                        // Override signOut
+                        const originalSignOut = window.next.auth.signOut
+                        if (originalSignOut) {
+                            window.next.auth.signOut = async function(options = {}) {
+                                console.log('Mobile NextAuth signOut called')
+                                try {
+                                    const result = await originalSignOut({
+                                        ...options,
+                                        callbackUrl: '/',
+                                        redirect: false
+                                    })
+                                    console.log('Mobile signOut result:', result)
+                                    window.location.href = '/'
+                                    return result
+                                } catch (error) {
+                                    console.error('Mobile signOut error:', error)
+                                    window.location.href = '/'
+                                }
                             }
-
-                            const result = await originalSignOut(mobileOptions)
-                            console.log('Mobile signOut result:', result)
-
-                            // Manual redirect for mobile
-                            if (mobileOptions.callbackUrl && mobileOptions.callbackUrl !== window.location.href) {
-                                console.log('Manually redirecting mobile user to:', mobileOptions.callbackUrl)
-                                window.location.href = mobileOptions.callbackUrl
-                            }
-
-                            return result
-                        } catch (error) {
-                            console.error('Mobile NextAuth signOut error:', error)
-                            // Fallback: clear storage and redirect
-                            try {
-                                localStorage.clear()
-                                sessionStorage.clear()
-                            } catch (storageError) {
-                                console.error('Storage clear error:', storageError)
-                            }
-                            window.location.href = options.callbackUrl || '/'
                         }
+
+                        // Override signIn to handle redirects
+                        const originalSignIn = window.next.auth.signIn
+                        if (originalSignIn) {
+                            window.next.auth.signIn = async function(provider, options = {}) {
+                                console.log('Mobile NextAuth signIn called for provider:', provider)
+                                try {
+                                    const result = await originalSignIn(provider, {
+                                        ...options,
+                                        callbackUrl: '/dashboard',
+                                        redirect: false
+                                    })
+                                    console.log('Mobile signIn result:', result)
+
+                                    // If successful, redirect to dashboard
+                                    if (result?.ok) {
+                                        setTimeout(() => {
+                                            window.location.href = '/dashboard'
+                                        }, 1000)
+                                    }
+
+                                    return result
+                                } catch (error) {
+                                    console.error('Mobile signIn error:', error)
+                                    throw error
+                                }
+                            }
+                        }
+                    } else {
+                        // NextAuth not ready yet, try again in 500ms
+                        setTimeout(setupNextAuthOverrides, 500)
                     }
                 }
+
+                // Start trying to set up overrides
+                setTimeout(setupNextAuthOverrides, 1000)
             }
 
             console.log('Mobile auth override installed successfully')

@@ -6,6 +6,9 @@ import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // API Configuration
 const OPEN_FOOD_FACTS_ENDPOINTS = [
     'https://world.openfoodfacts.org/api/v2/product',
