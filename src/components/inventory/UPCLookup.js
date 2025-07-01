@@ -135,25 +135,60 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         // or revert it if API fails
     };
 
-
-// 3. ENHANCED: Usage check with immediate feedback
+    // 3. ENHANCED: Usage check with immediate feedback - FIXED for timing issues
     const checkUsageLimitsWithImmediateUpdate = async () => {
         const currentUsageData = optimisticUsage || usageInfo;
 
-        if (isUpdatingUsage && !currentUsageData) {
+        // FIXED: Handle loading state better
+        if (isLoadingUsage && !currentUsageData) {
+            console.log('⏳ Usage data still loading, waiting...');
+
+            // Wait a bit for usage data to load
+            let retries = 0;
+            while (retries < 5 && isLoadingUsage && !usageInfo) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                retries++;
+            }
+
+            // Check again after waiting
+            const finalUsageData = optimisticUsage || usageInfo;
+            if (!finalUsageData) {
+                console.log('❌ Usage data failed to load after waiting');
+                alert('⏳ Please wait a moment for the scanner to initialize, then try again.');
+                return false;
+            }
+        }
+
+        // FIXED: Use the current data after potential wait
+        const workingUsageData = optimisticUsage || usageInfo;
+
+        if (isUpdatingUsage && !workingUsageData) {
             alert('⏳ Please wait while we check your scan limits...');
             return false;
         }
 
-        if (!currentUsageData) {
-            alert('❌ Unable to check scan limits. Please refresh the page and try again.');
-            return false;
+        if (!workingUsageData) {
+            console.log('❌ No usage data available');
+            // FIXED: Try to load usage data one more time
+            try {
+                const freshUsageData = await loadUsageInfo();
+                if (!freshUsageData) {
+                    alert('❌ Unable to check scan limits. Please refresh the page and try again.');
+                    return false;
+                }
+                // Update the working data
+                workingUsageData = freshUsageData;
+            } catch (error) {
+                console.error('Failed to load usage data:', error);
+                alert('❌ Unable to check scan limits. Please refresh the page and try again.');
+                return false;
+            }
         }
 
-        if (!currentUsageData.canScan) {
-            const limitMessage = currentUsageData.monthlyLimit === 'unlimited'
+        if (!workingUsageData.canScan) {
+            const limitMessage = workingUsageData.monthlyLimit === 'unlimited'
                 ? 'Unexpected limit reached'
-                : `You've reached your monthly limit of ${currentUsageData.monthlyLimit} UPC scans. Used: ${currentUsageData.currentMonth}/${currentUsageData.monthlyLimit}`;
+                : `You've reached your monthly limit of ${workingUsageData.monthlyLimit} UPC scans. Used: ${workingUsageData.currentMonth}/${workingUsageData.monthlyLimit}`;
 
             alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
 
@@ -382,7 +417,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-// 6. ENHANCED: Barcode detected with immediate UI update
+    // 6. ENHANCED: Barcode detected with immediate UI update - FIXED for better error handling
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
         console.log('Barcode scanned:', barcode);
 
@@ -412,9 +447,18 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             }
         }, 500); // Wait for scanner to close and UPC to be filled
 
-        // Auto-lookup the scanned barcode with immediate UI update
-        await handleUPCLookupWithImmediateUpdate(barcode);
+        // FIXED: Better error handling for auto-lookup
+        try {
+            // Auto-lookup the scanned barcode with immediate UI update
+            await handleUPCLookupWithImmediateUpdate(barcode);
+        } catch (error) {
+            console.error('Auto-lookup failed after scan:', error);
+            // Don't show another alert here since the UPC is already filled
+            // User can manually click the lookup button if needed
+            console.log('User can manually lookup the scanned UPC:', barcode);
+        }
     };
+
 
 // 7. ENHANCED: Display current usage (optimistic or real)
     const getCurrentUsageDisplay = () => {
