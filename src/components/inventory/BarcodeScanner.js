@@ -166,7 +166,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 alert('Barcode scanning failed. Please try again.');
             }
         }
-    }, [handleBarcodeDetectedWithImmediateUpdate, validateUPC]);
+    }, [validateUPC]);
 
     // Detect mobile device and orientation
     useEffect(() => {
