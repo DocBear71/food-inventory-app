@@ -134,39 +134,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, []);
 
-// Add a new function to handle MLKit scanning
-    const startMLKitScanning = useCallback(async () => {
-        try {
-            console.log('🚀 Starting MLKit barcode scanning...');
-
-            const { barcodes } = await MLKitBarcodeScanner.scan();
-
-            if (barcodes && barcodes.length > 0) {
-                const barcode = barcodes[0];
-                console.log('✅ MLKit barcode detected:', barcode.rawValue);
-
-                // Validate the barcode
-                const validation = validateUPC(barcode.rawValue);
-                if (validation.valid) {
-                    await handleBarcodeDetectedWithImmediateUpdate(validation.cleanCode);
-                } else {
-                    console.log('❌ Invalid barcode from MLKit:', validation.reason);
-                    alert('Invalid barcode detected. Please try scanning again.');
-                }
-            } else {
-                console.log('❌ No barcodes found by MLKit');
-                alert('No barcode detected. Please try again.');
-            }
-
-        } catch (error) {
-            console.error('❌ MLKit scanning error:', error);
-            if (error.message.includes('cancelled')) {
-                console.log('📱 User cancelled MLKit scanning');
-            } else {
-                alert('Barcode scanning failed. Please try again.');
-            }
-        }
-    }, [validateUPC]);
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -461,6 +428,40 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }, 800);
 
     }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]);
+
+    // Add a new function to handle MLKit scanning
+    const startMLKitScanning = useCallback(async () => {
+        try {
+            console.log('🚀 Starting MLKit barcode scanning...');
+
+            const { barcodes } = await MLKitBarcodeScanner.scan();
+
+            if (barcodes && barcodes.length > 0) {
+                const barcode = barcodes[0];
+                console.log('✅ MLKit barcode detected:', barcode.rawValue);
+
+                // Validate the barcode
+                const validation = validateUPC(barcode.rawValue);
+                if (validation.valid) {
+                    await handleBarcodeDetectedWithImmediateUpdate(validation.cleanCode);
+                } else {
+                    console.log('❌ Invalid barcode from MLKit:', validation.reason);
+                    alert('Invalid barcode detected. Please try scanning again.');
+                }
+            } else {
+                console.log('❌ No barcodes found by MLKit');
+                alert('No barcode detected. Please try again.');
+            }
+
+        } catch (error) {
+            console.error('❌ MLKit scanning error:', error);
+            if (error.message.includes('cancelled')) {
+                console.log('📱 User cancelled MLKit scanning');
+            } else {
+                alert('Barcode scanning failed. Please try again.');
+            }
+        }
+    }, [validateUPC, handleBarcodeDetectedWithImmediateUpdate]);
 
     // FIXED: Manual scan trigger function with MLKit support
     const triggerManualScan = useCallback(() => {
