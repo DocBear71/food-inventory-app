@@ -768,6 +768,12 @@ function InventoryContent() {
         });
         setShowAddForm(false);
         setEditingItem(null);
+
+        // FIXED: Clear any lookup results to prevent carryover
+        setLookupResult(null);
+
+        // FIXED: Dispatch event to clear barcode memory in UPCLookup
+        window.dispatchEvent(new CustomEvent('clearBarcodeMemory'));
     };
 
     // Handle bulk consumption for expired items

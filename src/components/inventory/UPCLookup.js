@@ -90,6 +90,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const searchInputRef = useRef(null);
     const autocompleteRef = useRef(null);
     const processingBarcodeRef = useRef(false);
+    const lastProcessedBarcodeRef = useRef(null);
+    const lastProcessedTimeRef = useRef(0);
 
     // NEW: Usage tracking state
     const subscription = useSubscription();
@@ -384,17 +386,27 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // 6. ENHANCED: Barcode detected with immediate UI update - FIXED for better error handling
+    // FIXED: Barcode detected handler - prevents duplicate processing
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
         console.log('Barcode scanned:', barcode);
 
-        // FIXED: Prevent multiple rapid calls
+        // FIXED: Prevent multiple rapid calls AND same barcode repeats
         if (processingBarcodeRef.current) {
             console.log('Already processing a barcode, ignoring...');
             return;
         }
 
+        // FIXED: Prevent processing the same barcode again within 30 seconds
+        const now = Date.now();
+        if (lastProcessedBarcodeRef.current === barcode &&
+            (now - lastProcessedTimeRef.current) < 30000) {
+            console.log(`Ignoring duplicate barcode "${barcode}" - processed ${(now - lastProcessedTimeRef.current)/1000}s ago`);
+            return;
+        }
+
         processingBarcodeRef.current = true;
+        lastProcessedBarcodeRef.current = barcode;
+        lastProcessedTimeRef.current = now;
 
         // Update both local and parent state
         setLocalUPC(barcode);
@@ -422,7 +434,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }, 500);
 
         // SIMPLIFIED: Just do the lookup without complex usage checking
-        // The lookup function will handle usage limits internally
         try {
             console.log('🔍 Starting auto-lookup for scanned barcode:', barcode);
             await handleUPCLookupWithImmediateUpdate(barcode);
@@ -430,12 +441,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             console.error('Auto-lookup failed:', error);
             // Silently fail - UPC is already in the input field
         } finally {
-            // Reset the processing flag after a delay
+            // Reset the processing flag after a shorter delay
             setTimeout(() => {
                 processingBarcodeRef.current = false;
-            }, 2000);
+                console.log('✅ Ready for next barcode scan');
+            }, 1000); // Reduced from 2000ms to 1000ms
         }
     };
+
 
 
 
@@ -766,9 +779,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-// ENHANCED: UPC input handler with usage check
+    // Add a function to reset the barcode detection when user manually changes UPC
     const handleUPCInput = (e) => {
         const upc = e.target.value;
+
+        // FIXED: If user manually changes UPC, reset the duplicate detection
+        if (upc !== lastProcessedBarcodeRef.current) {
+            console.log('Manual UPC change detected, resetting duplicate detection');
+            lastProcessedBarcodeRef.current = null;
+            lastProcessedTimeRef.current = 0;
+        }
 
         // Update local state immediately for responsive typing
         setLocalUPC(upc);
@@ -783,6 +803,33 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             handleUPCLookupWithImmediateUpdate(upc);
         }
     };
+
+// Add a function to clear the barcode memory when form is reset/submitted
+    const clearBarcodeMemory = () => {
+        console.log('🧹 Clearing barcode memory');
+        lastProcessedBarcodeRef.current = null;
+        lastProcessedTimeRef.current = 0;
+        processingBarcodeRef.current = false;
+    };
+
+    useEffect(() => {
+        const handleClearMemory = () => {
+            clearBarcodeMemory();
+        };
+
+        window.addEventListener('clearBarcodeMemory', handleClearMemory);
+
+        return () => {
+            window.removeEventListener('clearBarcodeMemory', handleClearMemory);
+        };
+    }, []);
+
+// Also clear memory when component unmounts
+    useEffect(() => {
+        return () => {
+            clearBarcodeMemory();
+        };
+    }, []);
 
     const handleManualLookup = () => {
         const upcToLookup = localUPC || currentUPC;
