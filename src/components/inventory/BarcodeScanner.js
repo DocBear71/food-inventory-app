@@ -317,6 +317,73 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
     }, []);
 
+    // FIXED: Enhanced cleanup with proper async handling
+    const cleanupScanner = useCallback(async () => {
+        console.log('🧹 Starting comprehensive scanner cleanup...');
+
+        // Set flags immediately to prevent new operations
+        scanInProgressRef.current = false;
+        setIsScanning(false);
+
+        // Stop and clean up video stream with delay
+        if (streamRef.current) {
+            console.log('📹 Stopping video stream...');
+            try {
+                streamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                    console.log(`📹 Stopped ${track.kind} track`);
+                });
+            } catch (error) {
+                console.log('Video track cleanup error:', error);
+            }
+            streamRef.current = null;
+
+            // Wait for stream to fully stop
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // Clean up Quagga with proper error handling
+        if (quaggaRef.current) {
+            console.log('🛑 Stopping Quagga...');
+            try {
+                quaggaRef.current.stop();
+                // Wait for Quagga to fully stop
+                await new Promise(resolve => setTimeout(resolve, 300));
+            } catch (error) {
+                console.log('⚠️ Quagga cleanup error:', error);
+            }
+            quaggaRef.current = null;
+        }
+
+        // Clean up DOM with delay
+        if (scannerRef.current) {
+            try {
+                scannerRef.current.innerHTML = '';
+                console.log('🧹 Cleared scanner container');
+            } catch (error) {
+                console.log('DOM cleanup error:', error);
+            }
+        }
+
+        // Reset all state
+        videoRef.current = null;
+        setIsInitialized(false);
+        setIsLoading(true);
+        setError(null);
+        setPermissionState('unknown');
+        setScanFeedback('');
+
+        // Reset refs
+        lastScanTimeRef.current = 0;
+        initializationRef.current = false;
+
+        // Clear session data
+        processedCodesRef.current = new Set();
+        sessionIdRef.current = Date.now();
+
+        console.log('✅ Scanner cleanup completed with delays');
+    }, []);
+
     // FIXED: Enhanced scanner initialization with better reset handling
     useEffect(() => {
         const initializeScanner = async () => {
@@ -429,73 +496,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, getQuaggaConfig, startMLKitScanning, cleanupScanner]);
 
-
-    // FIXED: Enhanced cleanup with proper async handling
-    const cleanupScanner = useCallback(async () => {
-        console.log('🧹 Starting comprehensive scanner cleanup...');
-
-        // Set flags immediately to prevent new operations
-        scanInProgressRef.current = false;
-        setIsScanning(false);
-
-        // Stop and clean up video stream with delay
-        if (streamRef.current) {
-            console.log('📹 Stopping video stream...');
-            try {
-                streamRef.current.getTracks().forEach(track => {
-                    track.stop();
-                    console.log(`📹 Stopped ${track.kind} track`);
-                });
-            } catch (error) {
-                console.log('Video track cleanup error:', error);
-            }
-            streamRef.current = null;
-
-            // Wait for stream to fully stop
-            await new Promise(resolve => setTimeout(resolve, 200));
-        }
-
-        // Clean up Quagga with proper error handling
-        if (quaggaRef.current) {
-            console.log('🛑 Stopping Quagga...');
-            try {
-                quaggaRef.current.stop();
-                // Wait for Quagga to fully stop
-                await new Promise(resolve => setTimeout(resolve, 300));
-            } catch (error) {
-                console.log('⚠️ Quagga cleanup error:', error);
-            }
-            quaggaRef.current = null;
-        }
-
-        // Clean up DOM with delay
-        if (scannerRef.current) {
-            try {
-                scannerRef.current.innerHTML = '';
-                console.log('🧹 Cleared scanner container');
-            } catch (error) {
-                console.log('DOM cleanup error:', error);
-            }
-        }
-
-        // Reset all state
-        videoRef.current = null;
-        setIsInitialized(false);
-        setIsLoading(true);
-        setError(null);
-        setPermissionState('unknown');
-        setScanFeedback('');
-
-        // Reset refs
-        lastScanTimeRef.current = 0;
-        initializationRef.current = false;
-
-        // Clear session data
-        processedCodesRef.current = new Set();
-        sessionIdRef.current = Date.now();
-
-        console.log('✅ Scanner cleanup completed with delays');
-    }, []);
 
     // FIXED: Better close handler with proper cleanup
     const handleScannerClose = useCallback(async () => {
