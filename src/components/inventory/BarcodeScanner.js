@@ -460,7 +460,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }, 800);
 
-    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady, handleBarcodeDetectedWithImmediateUpdate]);
+    }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady]);
 
     // FIXED: Manual scan trigger function with MLKit support
     const triggerManualScan = useCallback(() => {
@@ -703,7 +703,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         if (isActive && mountedRef.current && scannerRef.current) {
             initializeScanner();
         }
-    }, [isActive, isInitialized, requestCameraPermission]);
+    }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, isMobile]);
 
     // Cleanup on unmount
     useEffect(() => {
