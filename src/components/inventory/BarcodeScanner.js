@@ -2,6 +2,7 @@
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { BarcodeScanner as MLKitBarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
@@ -82,34 +83,26 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
     // ENHANCED: Permission request function with better error handling
     const requestCameraPermission = useCallback(async () => {
-        console.log('🔐 Requesting camera permission (Capacitor 7.4.0)...');
+        console.log('🔐 Requesting camera permission...');
         setPermissionState('requesting');
 
         if (Capacitor.isNativePlatform()) {
             try {
-                console.log('📱 Native platform detected, requesting camera permissions...');
+                console.log('📱 Native platform detected, using MLKit barcode scanner...');
 
-                // For Capacitor 7, use requestPermissions directly
-                const permissions = await Camera.requestPermissions();
-                console.log('📋 Camera permission result:', permissions);
+                // Use MLKit barcode scanner permissions
+                const { camera } = await MLKitBarcodeScanner.requestPermissions();
 
-                if (permissions.camera === 'granted') {
+                console.log('📋 MLKit permission result:', camera);
+
+                if (camera === 'granted' || camera === 'limited') {
                     console.log('✅ Camera permission granted');
                     setPermissionState('granted');
                     return true;
-                } else if (permissions.camera === 'denied') {
+                } else {
                     console.log('❌ Camera permission denied');
                     setPermissionState('denied');
-                    setError('Camera permission denied. Please enable camera access in your device settings and restart the app.');
-                    return false;
-                } else if (permissions.camera === 'prompt' || permissions.camera === 'prompt-with-rationale') {
-                    console.log('❓ Camera permission will prompt user');
-                    setPermissionState('granted'); // Assume it will be granted when user sees prompt
-                    return true;
-                } else {
-                    console.log('⚠️ Unexpected permission state:', permissions.camera);
-                    setPermissionState('denied');
-                    setError('Unable to determine camera permission status. Please check your device settings.');
+                    setError('Camera permission denied. Please enable camera access in your device settings.');
                     return false;
                 }
 
@@ -120,7 +113,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 return false;
             }
         } else {
-            // Web platform - use getUserMedia
+            // Web platform - use getUserMedia (keep existing web logic)
             try {
                 console.log('🌐 Web platform: testing getUserMedia...');
                 const testStream = await navigator.mediaDevices.getUserMedia({
@@ -135,23 +128,45 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             } catch (error) {
                 console.error('❌ Web camera access denied:', error);
                 setPermissionState('denied');
-
-                let errorMessage = 'Camera access denied';
-                if (error.name === 'NotAllowedError') {
-                    errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-                } else if (error.name === 'NotFoundError') {
-                    errorMessage = 'No camera found. Please ensure your device has a camera.';
-                } else if (error.name === 'NotSupportedError') {
-                    errorMessage = 'Camera not supported by this browser.';
-                } else if (error.name === 'NotReadableError') {
-                    errorMessage = 'Camera is being used by another application.';
-                }
-
-                setError(errorMessage);
+                setError('Camera access denied. Please allow camera access and try again.');
                 return false;
             }
         }
-    }, []); // Empty dependency array since it doesn't depend on any props or state
+    }, []);
+
+// Add a new function to handle MLKit scanning
+    const startMLKitScanning = useCallback(async () => {
+        try {
+            console.log('🚀 Starting MLKit barcode scanning...');
+
+            const { barcodes } = await MLKitBarcodeScanner.scan();
+
+            if (barcodes && barcodes.length > 0) {
+                const barcode = barcodes[0];
+                console.log('✅ MLKit barcode detected:', barcode.rawValue);
+
+                // Validate the barcode
+                const validation = validateUPC(barcode.rawValue);
+                if (validation.valid) {
+                    handleBarcodeDetectedWithImmediateUpdate(validation.cleanCode);
+                } else {
+                    console.log('❌ Invalid barcode from MLKit:', validation.reason);
+                    alert('Invalid barcode detected. Please try scanning again.');
+                }
+            } else {
+                console.log('❌ No barcodes found by MLKit');
+                alert('No barcode detected. Please try again.');
+            }
+
+        } catch (error) {
+            console.error('❌ MLKit scanning error:', error);
+            if (error.message.includes('cancelled')) {
+                console.log('📱 User cancelled MLKit scanning');
+            } else {
+                alert('Barcode scanning failed. Please try again.');
+            }
+        }
+    }, [validateUPC, handleBarcodeDetectedWithImmediateUpdate]);
 
     // Detect mobile device and orientation
     useEffect(() => {
@@ -447,10 +462,18 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
     }, [isScanning, validateUPC, onBarcodeDetected, loadUsageInfo, manualScanMode, scanButtonReady, handleBarcodeDetectedWithImmediateUpdate]);
 
-    // FIXED: Manual scan trigger function
+    // FIXED: Manual scan trigger function with MLKit support
     const triggerManualScan = useCallback(() => {
         console.log('🔘 Manual scan button pressed');
 
+        if (Capacitor.isNativePlatform()) {
+            // Use MLKit for native platforms
+            console.log('📱 Using MLKit for native scanning');
+            startMLKitScanning();
+            return;
+        }
+
+        // Keep existing Quagga logic for web platforms
         if (!videoRef.current || !quaggaRef.current) {
             console.log('❌ Video or Quagga not ready for manual scan');
             alert('Scanner not ready. Please try again.');
@@ -520,17 +543,13 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             setScanButtonReady(false);
             alert('Manual scan failed. Please try the automatic scanning mode.');
         }
-    }, [handleBarcodeDetection, isMobile]); // Include dependencies
+    }, [startMLKitScanning, handleBarcodeDetection, isMobile]);
 
     // FIXED: Main scanner initialization with proper cleanup
     useEffect(() => {
         let Quagga;
-        let initTimeoutId;
-
         const initializeScanner = async () => {
-            // Prevent multiple initializations
             if (!isActive || isInitialized || !mountedRef.current || initializationRef.current) {
-                console.log('🚫 Skipping init - conditions not met');
                 return;
             }
 
@@ -541,132 +560,135 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 setError(null);
                 setIsScanning(true);
 
-                // Reset state
-                cooldownRef.current = false;
-                scanCountRef.current = 0;
-                lastValidCodeRef.current = null;
-                detectionHistoryRef.current = [];
-
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Camera API not supported on this device or browser');
-                }
-
-                // Request permission first
-                console.log('🔍 Requesting camera permission...');
                 const hasPermission = await requestCameraPermission();
                 if (!hasPermission) {
-                    console.log('❌ Camera permission denied, cannot proceed');
                     setIsLoading(false);
                     initializationRef.current = false;
                     return;
                 }
 
-                console.log('✅ Camera permission granted, proceeding with initialization');
+                // Use MLKit for native platforms, Quagga for web
+                if (Capacitor.isNativePlatform()) {
+                    console.log('📱 Using MLKit barcode scanner for native platform');
+                    setIsInitialized(true);
+                    setIsLoading(false);
 
-                // Import Quagga
-                Quagga = (await import('quagga')).default;
-                quaggaRef.current = Quagga;
+                    // For native, we'll trigger MLKit when user taps scan
+                    setManualScanMode(true);
+                    setScanButtonReady(true);
 
-                const config = {
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: scannerRef.current,
-                        constraints: {
-                            width: isMobile ? { min: 320, ideal: Math.min(window.innerWidth, 1280), max: 1920 } : 640,
-                            height: isMobile ? { min: 240, ideal: Math.min(window.innerHeight - 200, 720), max: 1080 } : 480,
-                            facingMode: "environment",
-                            aspectRatio: isMobile ? { ideal: 16/9, min: 4/3, max: 2 } : 4/3,
-                            frameRate: { ideal: 15, max: 30 }
+                } else {
+                    // Keep your existing Quagga initialization for web
+                    console.log('🌐 Using Quagga scanner for web platform');
+
+                    Quagga = (await import('quagga')).default;
+                    quaggaRef.current = Quagga;
+
+                    const config = {
+                        inputStream: {
+                            name: "Live",
+                            type: "LiveStream",
+                            target: scannerRef.current,
+                            constraints: {
+                                width: isMobile ? {min: 320, ideal: Math.min(window.innerWidth, 1280), max: 1920} : 640,
+                                height: isMobile ? {
+                                    min: 240,
+                                    ideal: Math.min(window.innerHeight - 200, 720),
+                                    max: 1080
+                                } : 480,
+                                facingMode: "environment",
+                                aspectRatio: isMobile ? {ideal: 16 / 9, min: 4 / 3, max: 2} : 4 / 3,
+                                frameRate: {ideal: 15, max: 30}
+                            },
+                            area: {
+                                top: "20%",
+                                right: "20%",
+                                left: "20%",
+                                bottom: "20%"
+                            },
+                            singleChannel: false
                         },
-                        area: {
-                            top: "20%",
-                            right: "20%",
-                            left: "20%",
-                            bottom: "20%"
+                        decoder: {
+                            readers: [
+                                "ean_reader",
+                                "ean_8_reader",
+                                "code_128_reader",
+                                "code_39_reader",
+                                "upc_reader",
+                                "upc_e_reader"
+                            ],
+                            debug: {
+                                showCanvas: false,
+                                showPatches: false,
+                                showFoundPatches: false,
+                                showSkeleton: false,
+                                showLabels: false,
+                                showPatchLabels: false,
+                                showRemainingPatchLabels: false,
+                                boxFromPatches: {
+                                    showTransformed: false,
+                                    showTransformedBox: false,
+                                    showBB: false
+                                }
+                            },
+                            multiple: false
                         },
-                        singleChannel: false
-                    },
-                    decoder: {
-                        readers: [
-                            "ean_reader",
-                            "ean_8_reader",
-                            "code_128_reader",
-                            "code_39_reader",
-                            "upc_reader",
-                            "upc_e_reader"
-                        ],
-                        debug: {
-                            showCanvas: false,
-                            showPatches: false,
-                            showFoundPatches: false,
-                            showSkeleton: false,
-                            showLabels: false,
-                            showPatchLabels: false,
-                            showRemainingPatchLabels: false,
-                            boxFromPatches: {
-                                showTransformed: false,
-                                showTransformedBox: false,
-                                showBB: false
+                        locate: true,
+                        frequency: 10,
+                        locator: {
+                            patchSize: isMobile ? "large" : "medium",
+                            halfSample: !isMobile
+                        },
+                        numOfWorkers: navigator.hardwareConcurrency ? Math.min(navigator.hardwareConcurrency, 2) : 1,
+                        halfsample: false
+                    };
+
+                    console.log('🚀 Initializing Quagga scanner...');
+
+                    await new Promise((resolve, reject) => {
+                        Quagga.init(config, (err) => {
+                            if (err) {
+                                console.error('❌ Quagga initialization failed:', err);
+                                reject(new Error(`Scanner initialization failed: ${err.message || err}`));
+                                return;
                             }
-                        },
-                        multiple: false
-                    },
-                    locate: true,
-                    frequency: 10,
-                    locator: {
-                        patchSize: isMobile ? "large" : "medium",
-                        halfSample: !isMobile
-                    },
-                    numOfWorkers: navigator.hardwareConcurrency ? Math.min(navigator.hardwareConcurrency, 2) : 1,
-                    halfsample: false
-                };
 
-                console.log('🚀 Initializing Quagga scanner...');
+                            console.log('✅ Quagga initialized successfully');
 
-                await new Promise((resolve, reject) => {
-                    Quagga.init(config, (err) => {
-                        if (err) {
-                            console.error('❌ Quagga initialization failed:', err);
-                            reject(new Error(`Scanner initialization failed: ${err.message || err}`));
-                            return;
-                        }
+                            // FIXED: Capture video element reference
+                            const videoElement = scannerRef.current?.querySelector('video');
+                            if (videoElement) {
+                                videoRef.current = videoElement;
 
-                        console.log('✅ Quagga initialized successfully');
+                                // Store stream reference for cleanup
+                                if (videoElement.srcObject) {
+                                    streamRef.current = videoElement.srcObject;
+                                }
 
-                        // FIXED: Capture video element reference
-                        const videoElement = scannerRef.current?.querySelector('video');
-                        if (videoElement) {
-                            videoRef.current = videoElement;
-
-                            // Store stream reference for cleanup
-                            if (videoElement.srcObject) {
-                                streamRef.current = videoElement.srcObject;
+                                console.log('📹 Video element captured for manual scanning');
+                            } else {
+                                console.warn('⚠️ Video element not found for manual scanning');
                             }
 
-                            console.log('📹 Video element captured for manual scanning');
-                        } else {
-                            console.warn('⚠️ Video element not found for manual scanning');
-                        }
+                            // Set up detection handler
+                            detectionHandlerRef.current = handleBarcodeDetection;
+                            Quagga.onDetected(detectionHandlerRef.current);
 
-                        // Set up detection handler
-                        detectionHandlerRef.current = handleBarcodeDetection;
-                        Quagga.onDetected(detectionHandlerRef.current);
+                            Quagga.start();
+                            console.log('📡 Quagga scanner started');
 
-                        Quagga.start();
-                        console.log('📡 Quagga scanner started');
+                            if (mountedRef.current) {
+                                setIsInitialized(true);
+                                setIsLoading(false);
+                                setError(null);
+                            }
 
-                        if (mountedRef.current) {
-                            setIsInitialized(true);
-                            setIsLoading(false);
-                            setError(null);
-                        }
-
-                        resolve();
+                            resolve();
+                        });
                     });
-                });
 
-                console.log('🎉 Scanner fully operational');
+                    console.log('🎉 Scanner fully operational');
+                }
 
             } catch (error) {
                 console.error('❌ Scanner setup error:', error);
@@ -679,19 +701,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
 
         if (isActive && mountedRef.current && scannerRef.current) {
-            console.log('🕐 Scheduling scanner initialization...');
-            initTimeoutId = setTimeout(initializeScanner, 300);
+            initializeScanner();
         }
-
-        return () => {
-            if (initTimeoutId) {
-                clearTimeout(initTimeoutId);
-            }
-            if (!isActive || !mountedRef.current) {
-                cleanupScanner();
-            }
-        };
-    }, [isActive, isInitialized, isMobile, handleBarcodeDetection, cleanupScanner, requestCameraPermission]);
+    }, [isActive, isInitialized, requestCameraPermission]);
 
     // Cleanup on unmount
     useEffect(() => {
