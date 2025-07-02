@@ -1765,8 +1765,8 @@ export default function ReceiptScan() {
             let upc = '';
             let taxCode = '';
 
-            // Pattern 1: Product code + item name + tax code + price: "284020009 GG MILK NF $2.59"
-            const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+            // Pattern 1: Product code + item name + tax code + price (more flexible)
+            const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
             if (pattern1) {
                 const [, productCode, name, tax, priceStr] = pattern1;
                 itemName = name.trim();
@@ -1775,6 +1775,24 @@ export default function ReceiptScan() {
                 taxCode = tax || '';
                 console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
                 itemFound = true;
+            }
+
+            // Add this debug code after your Pattern 1 check:
+            if (!itemFound && line.includes('BEN') && line.includes('JERRYS')) {
+                console.log(`🔍 Debugging Ben & Jerry's line: "${line}"`);
+                console.log(`🔍 Pattern 1 test result:`, line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i));
+
+                // Try a more flexible pattern for Ben & Jerry's
+                const benJerryPattern = line.match(/^(\d{8,})\s+(BEN\s+\d?\s*&?\s*JERRYS?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                if (benJerryPattern) {
+                    const [, productCode, name, tax, priceStr] = benJerryPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = (productCode && productCode.length >= 11) ? productCode : '';
+                    taxCode = tax || '';
+                    console.log(`✅ Ben & Jerry's special pattern: "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
             }
 
             // Pattern 2: Item name + tax code + price: "SMUCKERS NF $3.29"
@@ -1889,18 +1907,18 @@ export default function ReceiptScan() {
                 }
                 upcGroups[cleanUPC].push(item);
             } else {
-                // Items without UPC codes - check for name matching
-                const cleanName = item.name.toLowerCase().trim();
-                if (!nameGroups[cleanName]) {
-                    nameGroups[cleanName] = [];
+                // Items without UPC codes - group by name + price (more specific)
+                const cleanKey = `${item.name.toLowerCase().trim()}_${item.price}`;
+                if (!nameGroups[cleanKey]) {
+                    nameGroups[cleanKey] = [];
                 }
-                nameGroups[cleanName].push(item);
+                nameGroups[cleanKey].push(item);
             }
         });
 
         const combinedItems = [];
 
-        // Process UPC groups
+        // Process UPC groups - only combine if SAME UPC
         Object.values(upcGroups).forEach(group => {
             if (group.length === 1) {
                 combinedItems.push(group[0]);
@@ -1920,32 +1938,16 @@ export default function ReceiptScan() {
                 };
 
                 combinedItems.push(combinedItem);
-                console.log(`Combined ${group.length} items with UPC ${firstItem.upc}: ${firstItem.name}`);
+                console.log(`Combined ${group.length} items with same UPC ${firstItem.upc}: ${firstItem.name}`);
             }
         });
 
-        // Process name groups (items without UPC)
+        // Process name groups (items without UPC) - DON'T combine different products
         Object.values(nameGroups).forEach(group => {
-            if (group.length === 1) {
-                combinedItems.push(group[0]);
-            } else {
-                const firstItem = group[0];
-                const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
-                const totalPrice = group.reduce((sum, item) => sum + item.price, 0);
-                const unitPrice = totalPrice / totalQuantity;
-
-                const combinedItem = {
-                    ...firstItem,
-                    quantity: totalQuantity,
-                    price: totalPrice,
-                    unitPrice: unitPrice,
-                    rawText: `${group.length} identical items combined (name): ${firstItem.rawText}`,
-                    id: Date.now() + Math.random()
-                };
-
-                combinedItems.push(combinedItem);
-                console.log(`Combined ${group.length} items by name: ${firstItem.name}`);
-            }
+            // For items without UPC, add each one separately unless they're truly identical
+            group.forEach(item => {
+                combinedItems.push(item);
+            });
         });
 
         return combinedItems;
