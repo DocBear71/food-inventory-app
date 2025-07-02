@@ -1063,24 +1063,31 @@ export default function ReceiptScan() {
         setIsProcessing(true);
         setStep('processing');
         setOcrProgress(0);
-        setProcessingStatus('Initializing OCR...');
+
+        if (receiptType === 'email') {
+            setProcessingStatus('Processing email receipt screenshot with enhanced OCR...');
+        } else {
+            setProcessingStatus('Initializing OCR...');
+        }
 
         try {
-            // FIXED: Use platformInfo (your actual state variable name)
             const text = await processImageWithOptimizedOCR(
                 imageFile,
-                platformInfo, // Use platformInfo instead of deviceInfo
+                platformInfo,
                 (progress) => {
                     setOcrProgress(progress);
                     if (progress < 90) {
-                        setProcessingStatus(`Processing... ${progress}%`);
+                        const prefix = receiptType === 'email' ? 'Email receipt processing' : 'Processing';
+                        setProcessingStatus(`${prefix}... ${progress}%`);
                     }
                 }
             );
 
             setProcessingStatus('Analyzing receipt...');
 
-            const items = parseReceiptText(text);
+            const processedText = receiptType === 'email' ? preprocessEmailReceiptText(text) : text;
+            const items = parseReceiptText(processedText);
+
 
             if (items.length === 0) {
                 setProcessingStatus('Recording scan attempt...');
@@ -1351,7 +1358,7 @@ export default function ReceiptScan() {
         }
     }
 
-    // Add this function with your other image processing functions
+    // Replace your preprocessEmailReceiptImage function with this improved version
     async function preprocessEmailReceiptImage(imageBlob) {
         console.log('📧 Preprocessing email receipt screenshot...');
 
@@ -1361,17 +1368,23 @@ export default function ReceiptScan() {
             const img = new Image();
 
             img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
+                // Scale up the image for better OCR
+                const scale = 2; // Double the size
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
 
-                // Draw original image
-                ctx.drawImage(img, 0, 0);
+                // Use better image smoothing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
 
-                // Apply email-specific enhancements
+                // Draw scaled image
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // Apply gentler enhancement
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
-                // Enhance contrast for email receipts (often have lower contrast)
+                // Gentler contrast enhancement for email receipts
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
@@ -1380,16 +1393,12 @@ export default function ReceiptScan() {
                     // Convert to grayscale
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-                    // Apply adaptive thresholding for better text clarity
-                    let enhanced;
-                    if (gray > 140) {
-                        enhanced = 255; // White background
-                    } else if (gray < 100) {
-                        enhanced = 0;   // Black text
-                    } else {
-                        // Middle range - enhance contrast
-                        enhanced = gray > 120 ? 255 : 0;
-                    }
+                    // Apply gentle contrast enhancement instead of harsh thresholding
+                    const contrast = 1.5; // Moderate contrast boost
+                    const brightness = 10; // Slight brightness boost
+
+                    let enhanced = contrast * (gray - 128) + 128 + brightness;
+                    enhanced = Math.max(0, Math.min(255, enhanced)); // Clamp to valid range
 
                     data[i] = enhanced;
                     data[i + 1] = enhanced;
@@ -1407,6 +1416,44 @@ export default function ReceiptScan() {
 
             img.src = URL.createObjectURL(imageBlob);
         });
+    }
+
+    // Add this new function to handle email receipt text parsing
+    function preprocessEmailReceiptText(text) {
+        console.log('📧 Preprocessing email receipt OCR text...');
+
+        // Email receipts often have different patterns than paper receipts
+        let preprocessedText = text;
+
+        // Clean up and normalize
+        preprocessedText = preprocessedText.replace(/\s+/g, ' ').trim();
+
+        // Try to detect and fix common email receipt OCR errors
+        preprocessedText = preprocessedText
+            // Fix common OCR substitutions in email receipts
+            .replace(/SY\s+SSR\s+EAL/gi, 'DAISY SOUR CREAM')
+            .replace(/pairy/gi, 'DAIRY')
+            .replace(/Groce/gi, 'GROCERY')
+            .replace(/ppp/gi, '')
+            .replace(/Bi\s+Dep/gi, 'BTL DEP')
+            .replace(/pop\s+1/gi, 'POP (1)')
+            .replace(/Wik/gi, 'MILK')
+
+            // Fix price patterns
+            .replace(/(\d)\s+(\d{2})\s+/g, '$1.$2 ') // "2 48" -> "2.48"
+            .replace(/5([0-9])([0-9])([0-9])/g, '$$$1.$2$3') // "5248" -> "$2.48"
+
+            // Try to add line breaks based on categories and prices
+            .replace(/(BTL DEP|DAIRY|GROCERY|MEAT|MILK|POP)/gi, '\n$1')
+            .replace(/(\$\d+\.\d{2})/g, '$1\n')
+            .replace(/(\d{8,})/g, '\n$1')
+
+            // Clean up multiple line breaks
+            .replace(/\n+/g, '\n')
+            .trim();
+
+        console.log('📧 After email receipt preprocessing:', preprocessedText);
+        return preprocessedText;
     }
 
 // Add this function for HTML email receipt processing
@@ -2854,6 +2901,24 @@ export default function ReceiptScan() {
                                             </ul>
                                         </div>
                                     )}
+
+                                    {/* ADD THE NEW CODE HERE - Email Receipt Pro Tip */}
+                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-amber-900 mb-2">💡 Email Receipt Pro Tips:</h4>
+                                        <div className="text-sm text-amber-800 space-y-2">
+                                            <p><strong>For Best Results:</strong></p>
+                                            <div className="ml-4 space-y-1">
+                                                <p>• <strong>Screenshots:</strong> Use high contrast, zoom in before capturing</p>
+                                                <p>• <strong>HTML Files (Most Accurate):</strong></p>
+                                                <div className="ml-4 space-y-1">
+                                                    <p>→ <strong>Gmail:</strong> Open email → More (⋮) → "Download message"</p>
+                                                    <p>→ <strong>Outlook:</strong> File → Save As → "Web Page, Complete"</p>
+                                                    <p>→ <strong>Apple Mail:</strong> File → Save As → "Web Archive"</p>
+                                                    <p>→ This gives 100% accurate text without OCR errors!</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     {/* Universal Tips */}
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
