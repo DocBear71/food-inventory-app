@@ -1173,7 +1173,7 @@ export default function ReceiptScan() {
             return;
         }
 
-        // On Android native, we can use the camera directly through MLKit
+        // Android native app - use native camera + ML Kit
         if (platformInfo.isNative && platformInfo.isAndroid) {
             try {
                 const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
@@ -1188,18 +1188,19 @@ export default function ReceiptScan() {
 
                 const imageBlob = photo.blob;
                 if (imageBlob) {
+                    setReceiptType('paper');
                     setCapturedImage(URL.createObjectURL(imageBlob));
                     processImage(imageBlob);
                 }
                 return;
             } catch (error) {
                 console.error('❌ Android camera failed:', error);
-                setCameraError('Android camera access failed');
+                setCameraError('Android camera access failed. Please try "Upload Image" instead.');
                 return;
             }
         }
 
-        // Web camera implementation
+        // Web/PWA camera implementation (iOS PWA, Web browsers)
         setCameraError(null);
 
         try {
@@ -1230,12 +1231,10 @@ export default function ReceiptScan() {
             console.error('❌ Camera setup failed:', error);
 
             if (platformInfo.isIOSPWA) {
-                setCameraError('iOS PWA Camera Failed After All Attempts');
-                setShowIOSPWAModal(true);
-                return;
+                setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
+            } else {
+                setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
             }
-
-            setCameraError(error.message);
         }
     }
 
@@ -1287,6 +1286,7 @@ export default function ReceiptScan() {
     function handleReceiptFileUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
+            setReceiptType('paper'); // Standard paper receipt photo
             const imageUrl = URL.createObjectURL(file);
             setCapturedImage(imageUrl);
             processImage(file);
@@ -1294,6 +1294,37 @@ export default function ReceiptScan() {
             alert('Please select a valid image file.');
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
+            }
+        }
+    }
+
+    async function handleEmailReceiptFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (file.type.startsWith('image/')) {
+            // Handle email receipt screenshot
+            setReceiptType('email');
+            const imageUrl = URL.createObjectURL(file);
+            setCapturedImage(imageUrl);
+
+            // Preprocess for email receipt
+            const enhancedImage = await preprocessEmailReceiptImage(file);
+            processImage(enhancedImage);
+
+        } else if (file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+            // Handle HTML email receipt
+            setReceiptType('email');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const htmlContent = e.target.result;
+                processHTMLReceipt(htmlContent);
+            };
+            reader.readAsText(file);
+        } else {
+            alert('Please select an image file (screenshot) or HTML file (saved email).');
+            if (emailReceiptInputRef.current) {
+                emailReceiptInputRef.current.value = '';
             }
         }
     }
@@ -2534,7 +2565,7 @@ export default function ReceiptScan() {
                                 <div className="space-y-6">
                                     <div className="text-center">
                                         <div className="text-6xl mb-4">
-                                            {platformInfo.isAndroid ? '🤖' : '💻'}
+                                            {platformInfo.isAndroid ? '🤖' : platformInfo.isIOSPWA ? '📱' : '💻'}
                                         </div>
                                         <h3 className="text-lg font-medium text-gray-900 mb-2">
                                             Capture Your Receipt
@@ -2542,36 +2573,60 @@ export default function ReceiptScan() {
                                         <p className="text-gray-600 mb-6">
                                             {platformInfo.isAndroid
                                                 ? 'Using Android ML Kit for native OCR processing'
-                                                : 'Using optimized Tesseract.js OCR for reliable text recognition'
+                                                : platformInfo.isIOSPWA
+                                                    ? 'Using optimized Tesseract.js OCR for iOS PWA'
+                                                    : 'Using optimized Tesseract.js OCR for reliable text recognition'
                                             }
                                         </p>
                                     </div>
 
-                                    {/* Camera and Upload buttons */}
-                                    <div className="grid grid-cols-2 gap-4">
+                                    {/* Three Universal Options */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {/* Camera Option - Available on all platforms */}
                                         <TouchEnhancedButton
                                             onClick={startCamera}
-                                            className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                                            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
                                         >
                                             <div className="text-4xl mb-2">📷</div>
                                             <div className="text-lg font-medium text-indigo-700">Take Photo</div>
-                                            <div className="text-sm text-gray-500">
+                                            <div className="text-sm text-gray-500 text-center">
                                                 {platformInfo.isAndroid ? 'Native camera + ML Kit' :
                                                     platformInfo.isIOSPWA ? 'iOS PWA camera' :
                                                         'Use device camera'}
                                             </div>
+                                            {platformInfo.isIOSPWA && (
+                                                <div className="text-xs text-yellow-600 mt-1">May need permissions</div>
+                                            )}
                                         </TouchEnhancedButton>
 
+                                        {/* Upload Image Option - Available on all platforms */}
                                         <TouchEnhancedButton
                                             onClick={handleUploadButtonClick}
-                                            className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
+                                            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                                         >
                                             <div className="text-4xl mb-2">📁</div>
                                             <div className="text-lg font-medium text-green-700">Upload Image</div>
-                                            <div className="text-sm text-gray-500">Select from gallery</div>
+                                            <div className="text-sm text-gray-500 text-center">
+                                                Paper receipt photo
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">From gallery/files</div>
+                                        </TouchEnhancedButton>
+
+                                        {/* Email Receipt Option - Available on all platforms */}
+                                        <TouchEnhancedButton
+                                            onClick={handleEmailReceiptUpload}
+                                            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                                        >
+                                            <div className="text-4xl mb-2">📧</div>
+                                            <div className="text-lg font-medium text-purple-700">Email Receipt</div>
+                                            <div className="text-sm text-gray-500 text-center">
+                                                Screenshot or HTML
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">Most accurate</div>
                                         </TouchEnhancedButton>
                                     </div>
 
+                                    {/* Universal file inputs */}
                                     <input
                                         ref={fileInputRef}
                                         type="file"
@@ -2579,81 +2634,103 @@ export default function ReceiptScan() {
                                         onChange={handleReceiptFileUpload}
                                         className="hidden"
                                     />
+                                    <input
+                                        ref={emailReceiptInputRef}
+                                        type="file"
+                                        accept="image/*,text/html,.html,.htm"
+                                        onChange={handleEmailReceiptFileUpload}
+                                        className="hidden"
+                                    />
 
-                                    {/* Platform-specific guidance */}
+                                    {/* Platform-Specific Guidance */}
                                     {platformInfo.isAndroid && (
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                             <h4 className="text-sm font-medium text-green-900 mb-2">
-                                                🤖 Android ML Kit OCR
+                                                🤖 Android Native App
                                             </h4>
                                             <p className="text-sm text-green-800 mb-3">
-                                                You're using Google's native ML Kit for optimal performance and accuracy
-                                                on Android.
-                                                Processing happens entirely on your device for privacy and speed.
+                                                You're using Google's native ML Kit for optimal performance and accuracy.
+                                                All three options work great on Android!
                                             </p>
+                                            <ul className="text-sm text-green-700 space-y-1">
+                                                <li>• <strong>Take Photo:</strong> Uses native camera with ML Kit OCR</li>
+                                                <li>• <strong>Upload Image:</strong> Process any saved photo</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot email receipts for best results</li>
+                                            </ul>
                                         </div>
                                     )}
 
                                     {platformInfo.isIOSPWA && (
                                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                             <h4 className="text-sm font-medium text-blue-900 mb-2">
-                                                📱 iOS PWA Enhanced OCR
+                                                📱 iOS PWA
                                             </h4>
                                             <p className="text-sm text-blue-800 mb-3">
-                                                <strong>Tip:</strong> If the camera doesn't work immediately, the
-                                                "Upload Image" option works perfectly! You're using Tesseract.js
-                                                for reliable OCR processing.
+                                                <strong>Tip:</strong> If camera doesn't work, "Upload Image" and "Email Receipt"
+                                                work perfectly! Enhanced Tesseract.js provides reliable OCR.
                                             </p>
+                                            <ul className="text-sm text-blue-700 space-y-1">
+                                                <li>• <strong>Take Photo:</strong> May need camera permissions</li>
+                                                <li>• <strong>Upload Image:</strong> Most reliable option for iOS</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot emails for perfect accuracy</li>
+                                            </ul>
                                         </div>
                                     )}
 
                                     {platformInfo.isWeb && !platformInfo.isIOSPWA && (
                                         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                                             <h4 className="text-sm font-medium text-purple-900 mb-2">
-                                                💻 Tesseract.js OCR
+                                                💻 Web Browser
                                             </h4>
                                             <p className="text-sm text-purple-800 mb-3">
                                                 You're using Tesseract.js, a reliable and proven OCR engine
-                                                optimized for receipt scanning with advanced text processing.
+                                                optimized for receipt scanning. All options work great!
                                             </p>
+                                            <ul className="text-sm text-purple-700 space-y-1">
+                                                <li>• <strong>Take Photo:</strong> Uses browser camera API</li>
+                                                <li>• <strong>Upload Image:</strong> Drag & drop or browse files</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot or save HTML emails</li>
+                                            </ul>
                                         </div>
                                     )}
 
-                                    {/* Error display */}
-                                    {cameraError && !platformInfo.isIOSPWA && (
-                                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                            <div className="text-red-700">❌ {cameraError}</div>
-                                            <div className="text-sm text-red-600 mt-2">
-                                                Please try using the upload option instead, or check your camera
-                                                permissions.
+                                    {/* Universal Tips */}
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best Results:</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
+                                            <div>
+                                                <strong>📷 Paper Receipts:</strong>
+                                                <ul className="mt-1 space-y-1">
+                                                    <li>• Ensure receipt is flat and well-lit</li>
+                                                    <li>• Avoid shadows and glare</li>
+                                                    <li>• Include entire receipt in frame</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <strong>📁 Image Upload:</strong>
+                                                <ul className="mt-1 space-y-1">
+                                                    <li>• Use high resolution images</li>
+                                                    <li>• Clear, focused photos work best</li>
+                                                    <li>• Good lighting is essential</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <strong>📧 Email Receipts:</strong>
+                                                <ul className="mt-1 space-y-1">
+                                                    <li>• Screenshot the full email</li>
+                                                    <li>• Or save email as HTML file</li>
+                                                    <li>• Most accurate option available</li>
+                                                </ul>
                                             </div>
                                         </div>
-                                    )}
-
-                                    {/* Tips */}
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best
-                                            Results:</h4>
-                                        <ul className="text-sm text-blue-800 space-y-1">
-                                            <li>• Ensure receipt is flat and well-lit</li>
-                                            <li>• Avoid shadows and glare</li>
-                                            <li>• Include the entire receipt in the frame</li>
-                                            <li>• Higher resolution images work better</li>
-                                            {platformInfo.isAndroid &&
-                                                <li>• ML Kit works best with clear, high-contrast text</li>}
-                                            {platformInfo.isWeb &&
-                                                <li>• Tesseract.js provides reliable accuracy for standard
-                                                    receipts</li>}
-                                        </ul>
                                     </div>
 
-                                    {/* Report Issue Section */}
+                                    {/* Report Issue Section - Keep your existing one */}
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                         <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                         <p className="text-sm text-yellow-800 mb-3">
                                             If the receipt scanner isn't working properly with your receipt, you can
-                                            report
-                                            the issue to help us improve it.
+                                            report the issue to help us improve it.
                                         </p>
                                         <TouchEnhancedButton
                                             onClick={openReportModal}
