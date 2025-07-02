@@ -13,6 +13,7 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {Capacitor} from '@capacitor/core';
+import {Promise} from "mongoose";
 
 export default function ReceiptScan() {
     const router = useRouter();
@@ -44,6 +45,7 @@ export default function ReceiptScan() {
         receiptImage: null,
         additionalFiles: []
     });
+    const [receiptType, setReceiptType] = useState('paper');
 
     // Platform and device detection state
     const [platformInfo, setPlatformInfo] = useState({
@@ -1285,7 +1287,7 @@ export default function ReceiptScan() {
     }
 
     function handleReceiptFileUpload(event) {
-        const file = event.target.files[0];
+        const file = event?.target?.files?.[0];
         if (file && file.type.startsWith('image/')) {
             setReceiptType('paper'); // Standard paper receipt photo
             const imageUrl = URL.createObjectURL(file);
@@ -1300,34 +1302,193 @@ export default function ReceiptScan() {
     }
 
     async function handleEmailReceiptFileUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        if (file.type.startsWith('image/')) {
-            // Handle email receipt screenshot
-            setReceiptType('email');
-            const imageUrl = URL.createObjectURL(file);
-            setCapturedImage(imageUrl);
-
-            // Preprocess for email receipt
-            const enhancedImage = await preprocessEmailReceiptImage(file);
-            processImage(enhancedImage);
-
-        } else if (file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
-            // Handle HTML email receipt
-            setReceiptType('email');
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const htmlContent = e.target.result;
-                processHTMLReceipt(htmlContent);
-            };
-            reader.readAsText(file);
-        } else {
-            alert('Please select an image file (screenshot) or HTML file (saved email).');
-            if (emailReceiptInputRef.current) {
-                emailReceiptInputRef.current.value = '';
+        try {
+            const file = event?.target?.files?.[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
             }
+
+            console.log('Selected file:', file.name, file.type);
+
+            if (file.type.startsWith('image/')) {
+                // Handle email receipt screenshot
+                setReceiptType('email');
+                const imageUrl = URL.createObjectURL(file);
+                setCapturedImage(imageUrl);
+
+                // Preprocess for email receipt
+                const enhancedImage = await preprocessEmailReceiptImage(file);
+                await processImage(enhancedImage); // Added await
+
+            } else if (file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+                // Handle HTML email receipt
+                setReceiptType('email');
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const htmlContent = e.target.result;
+                    processHTMLReceipt(htmlContent);
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please select an image file (screenshot) or HTML file (saved email).');
+                if (emailReceiptInputRef.current) {
+                    emailReceiptInputRef.current.value = '';
+                }
+            }
+        } catch (error) {
+            console.error('Error handling email receipt upload:', error);
+            alert('Error processing file. Please try again.');
         }
+    }
+
+    function handleEmailReceiptUpload() {
+        if (!checkUsageLimitsBeforeScan()) {
+            return;
+        }
+
+        if (emailReceiptInputRef.current) {
+            emailReceiptInputRef.current.click();
+        }
+    }
+
+    // Add this function with your other image processing functions
+    async function preprocessEmailReceiptImage(imageBlob) {
+        console.log('📧 Preprocessing email receipt screenshot...');
+
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw original image
+                ctx.drawImage(img, 0, 0);
+
+                // Apply email-specific enhancements
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Enhance contrast for email receipts (often have lower contrast)
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // Convert to grayscale
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                    // Apply adaptive thresholding for better text clarity
+                    let enhanced;
+                    if (gray > 140) {
+                        enhanced = 255; // White background
+                    } else if (gray < 100) {
+                        enhanced = 0;   // Black text
+                    } else {
+                        // Middle range - enhance contrast
+                        enhanced = gray > 120 ? 255 : 0;
+                    }
+
+                    data[i] = enhanced;
+                    data[i + 1] = enhanced;
+                    data[i + 2] = enhanced;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                canvas.toBlob(resolve, 'image/png', 1.0);
+            };
+
+            img.onerror = (error) => {
+                console.error('Error loading image:', error);
+                resolve(imageBlob); // Fallback to original
+            };
+
+            img.src = URL.createObjectURL(imageBlob);
+        });
+    }
+
+// Add this function for HTML email receipt processing
+    async function processHTMLReceipt(htmlContent) {
+        setIsProcessing(true);
+        setStep('processing');
+        setProcessingStatus('Parsing HTML email receipt...');
+
+        try {
+            const items = parseHTMLReceiptContent(htmlContent);
+
+            if (items.length === 0) {
+                setProcessingStatus('Recording scan attempt...');
+                await recordReceiptScanUsage(0, 'no-items-found');
+
+                alert('❌ No items could be extracted from this email receipt. Please try with a screenshot instead.');
+                setStep('upload');
+                return;
+            }
+
+            setProcessingStatus('Recording successful scan...');
+
+            try {
+                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scanType: 'email-receipt',
+                        itemsExtracted: items.length,
+                        ocrEngine: 'HTML-Parser'
+                    })
+                });
+
+                if (!recordResponse.ok) {
+                    console.error('Failed to record receipt scan usage');
+                } else {
+                    const recordData = await recordResponse.json();
+                    console.log('Receipt scan usage recorded:', recordData);
+                }
+            } catch (recordError) {
+                console.error('Error recording receipt scan usage:', recordError);
+            }
+
+            setExtractedItems(items);
+            setProcessingStatus('Complete!');
+            setStep('review');
+
+        } catch (error) {
+            console.error('HTML receipt processing error:', error);
+
+            try {
+                await recordReceiptScanUsage(0, 'processing-failed');
+            } catch (recordError) {
+                console.error('Failed to record failed scan:', recordError);
+            }
+
+            alert('❌ Error processing email receipt. Please try with a screenshot instead.');
+            setStep('upload');
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
+    function parseHTMLReceiptContent(htmlContent) {
+        console.log('📧 Parsing HTML email receipt...');
+
+        // Create a temporary DOM parser
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+
+        const items = [];
+        const textContent = doc.body?.textContent || doc.body?.innerText || htmlContent;
+
+        // For now, just parse as text using existing function
+        // This can be enhanced later for specific email receipt formats
+        const lines = textContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+        console.log('📧 Converting HTML to text and parsing...');
+        return parseReceiptText(lines.join('\n'));
     }
 
     // ===============================================
@@ -2615,7 +2776,7 @@ export default function ReceiptScan() {
 
                                         {/* Email Receipt Option - Available on all platforms */}
                                         <TouchEnhancedButton
-                                            onClick={handleEmailReceiptFileUpload}
+                                            onClick={handleEmailReceiptUpload}
                                             className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
                                         >
                                             <div className="text-4xl mb-2">📧</div>
