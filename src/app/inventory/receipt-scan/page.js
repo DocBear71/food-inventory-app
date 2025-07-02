@@ -1757,6 +1757,7 @@ export default function ReceiptScan() {
             }
 
             // Look for Target item patterns specifically
+            // Look for items with enhanced patterns
             let itemFound = false;
             let itemName = '';
             let price = 0;
@@ -1764,16 +1765,15 @@ export default function ReceiptScan() {
             let upc = '';
             let taxCode = '';
 
-            // Pattern for items with product codes: "284020005 GG MILK NF $2.59"
+            // Pattern 1: Product code + item name + tax code + price: "284020009 GG MILK NF $2.59"
             const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
             if (pattern1) {
                 const [, productCode, name, tax, priceStr] = pattern1;
                 itemName = name.trim();
                 price = parseFloat(priceStr);
-                // Use the productCode as a potential UPC
-                upc = productCode.length >= 11 ? productCode : '';
-                taxCode = tax;
-                console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price}, ${taxCode}`);
+                upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
+                taxCode = tax || '';
+                console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
                 itemFound = true;
             }
 
@@ -1781,11 +1781,11 @@ export default function ReceiptScan() {
             if (!itemFound) {
                 const pattern2 = line.match(/^([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
                 if (pattern2) {
-                   const [, name, tax, priceStr] = pattern2;
+                    const [, name, tax, priceStr] = pattern2;
                     itemName = name.trim();
                     price = parseFloat(priceStr);
-                    taxCode = tax;
-                    console.log(`✅ Pattern 2 (no code): "${itemName}" - $${price}, ${taxCode}`);
+                    taxCode = tax || '';
+                    console.log(`✅ Pattern 2 (no code): "${itemName}" - $${price} (Tax: ${taxCode})`);
                     itemFound = true;
                 }
             }
@@ -1818,10 +1818,9 @@ export default function ReceiptScan() {
                     const [, productCode, name, tax, priceStr] = complexMatch;
                     itemName = name.trim();
                     price = parseFloat(priceStr);
-                    // Use the productCode as a potential UPC
-                    upc = productCode.length >= 11 ? productCode : '';
-                    taxCode = tax;
-                    console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
+                    taxCode = tax || '';
+                    console.log(`✅ Pattern 4 (complex line): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
                     itemFound = true;
                 }
             }
@@ -1974,6 +1973,7 @@ export default function ReceiptScan() {
                     }
 
                     // Create item if we found a valid match
+                    // Create item if we found a valid match
                     if (itemFound && itemName && price > 0) {
                         // Clean up the item name
                         itemName = cleanItemName(itemName);
@@ -1992,9 +1992,9 @@ export default function ReceiptScan() {
                                 price: price,
                                 quantity: quantity,
                                 unitPrice: price / quantity,
-                                upc: upc || '',
-                                taxCode: taxCode || '',
-                                category: guessCategory(itemName),
+                                upc: upc, // Will be empty string if no valid UPC
+                                taxCode: taxCode, // Will be empty string if no tax code
+                                category: guessCategory(itemName, taxCode),
                                 location: guessLocation(itemName),
                                 rawText: line,
                                 selected: true,
@@ -2002,10 +2002,10 @@ export default function ReceiptScan() {
                             };
 
                             items.push(item);
-                            continue; // ← CRITICAL: Skip rest of loop to prevent duplicates
+                            continue; // Skip rest of loop to prevent duplicates
                         } else {
                             console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
-                            continue; // ← CRITICAL: Skip rest of loop
+                            continue; // Skip rest of loop
                         }
                     } else {
                         console.log(`❌ No valid item pattern found: "${line}"`);
