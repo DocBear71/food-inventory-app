@@ -17,6 +17,7 @@ import {Capacitor} from '@capacitor/core';
 export default function ReceiptScan() {
     const router = useRouter();
     const fileInputRef = useRef(null);
+    const emailReceiptInputRef = useRef(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
