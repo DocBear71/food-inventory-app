@@ -1321,34 +1321,29 @@ export default function ReceiptScan() {
 
         // TARGET-SPECIFIC PREPROCESSING - More intelligent splitting
         preprocessedText = preprocessedText
-            // First, protect and properly format Target item patterns
-            .replace(/(\d{8,})\s+(GG|SM|BEN|ON|MUCKERS)\s+([A-Z\s]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/gi, '\n$1 $2 $3 $4 $$$5')
-            .replace(/(GG|SM|BEN|ON)\s+(MILK|CRERS|JERRYS|THE)\s+([A-Z\s]*?)\s+(NF|T)\s+([a-z\s]*?)\$(\d+\.\d{2})/gi, '\n$1 $2 $3 $4 $$$6')
+            // Fix price patterns that got mushed together like "$2.99270020094"
+            .replace(/(\$\d+\.\d{2})(\d{8,})/g, '$1\n$2')
 
-            // Handle specific Target items we can see in the OCR
-            .replace(/GQ\s+MILK\s+NF/gi, '\nGG MILK NF')
-            .replace(/SM\s+CRERS\s+NF/gi, '\nSM CRACKERS NF')
-            .replace(/MUCKERS\s+NF/gi, '\nSMUCKERS NF')
-            .replace(/BEN\s+a\s+JERRYS\s+NF/gi, '\nBEN & JERRYS NF')
-            .replace(/ON\s+THE\s+ROCKS/gi, '\nON THE ROCKS')
+            // Split before product codes (8+ digits)
+            .replace(/(\d{8,})\s+([A-Z]{2,})/g, '\n$1 $2')
 
-            // Split before store sections
-            .replace(/\b(GROCERY|HOME|PHARMACY)\b/gi, '\n$1')
+            // Split after complete item patterns: "ITEM NF $PRICE"
+            .replace(/([A-Z\s]+)\s+(NF|TP)\s+(\$\d+\.\d{2})/g, '$1 $2 $3\n')
 
-            // Split before product codes (but only if not already part of an item)
-            .replace(/(?<!\n)(\d{8,})(?!\s+[A-Z]+\s+[A-Z]+)/g, '\n$1')
-
-            // Split before price patterns
-            .replace(/(\$\d+\.\d{2})\s+(?=\d{8,}|[A-Z]{2,})/g, '$1\n')
-
-            // Split before major sections
-            .replace(/\b(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)\b/gi, '\n$1')
-
-            // Split before Regular/Regul price patterns
-            .replace(/\b(Regul?\w*\s+\w*\s+price)/gi, '\n$1')
+            // Split before "Regular price" patterns
+            .replace(/\s+(Regular\s+price|Regul\s+\w*\s+price)/gi, '\n$1')
 
             // Split before BOGO patterns
-            .replace(/\b(BOGO?\w*)/gi, '\n$1')
+            .replace(/\s+(BOGO\w*\s+circle)/gi, '\n$1')
+
+            // Split before bottle deposit
+            .replace(/\s+(Bottle\s+Deposit\s+Fee)/gi, '\n$1')
+
+            // Split before quantity patterns like "2 @ $5.99 ea"
+            .replace(/\s+(\d+\s+@\s+\$\d+\.\d{2}\s+ea)/gi, '\n$1')
+
+            // Split before major sections
+            .replace(/\s+(GROCERY|HOME|PHARMACY|SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)/gi, '\n$1')
 
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
@@ -1766,18 +1761,36 @@ export default function ReceiptScan() {
             let itemName = '';
             let price = 0;
             let quantity = 1;
+            let upc = '';
+            let taxCode = '';
 
             // Pattern for items with product codes: "284020005 GG MILK NF $2.59"
-            const targetPatternWithCode = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
-            if (targetPatternWithCode) {
-                const [, productCode, name, taxCode, priceStr] = targetPatternWithCode;
+            const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+            if (pattern1) {
+                const [, productCode, name, tax, priceStr] = pattern1;
                 itemName = name.trim();
                 price = parseFloat(priceStr);
-                console.log(`✅ Target pattern with code: "${itemName}" - $${price}`);
+                // Use the productCode as a potential UPC
+                upc = productCode.length >= 11 ? productCode : '';
+                taxCode = tax;
+                console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price}, ${taxCode}`);
                 itemFound = true;
             }
 
-            // Pattern for quantity items: "2 @ $5.99 ea"
+            // Pattern 2: Item name + tax code + price: "SMUCKERS NF $3.29"
+            if (!itemFound) {
+                const pattern2 = line.match(/^([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                if (pattern2) {
+                   const [, name, tax, priceStr] = pattern2;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    taxCode = tax;
+                    console.log(`✅ Pattern 2 (no code): "${itemName}" - $${price}, ${taxCode}`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 3: Handle quantity lines like "2 @ $5.99 ea"
             if (!itemFound && line.match(/^\d+\s*@\s*\$\d+\.\d{2}\s*ea/i)) {
                 const qtyMatch = line.match(/^(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i);
                 if (qtyMatch && i > 0) {
@@ -1791,19 +1804,38 @@ export default function ReceiptScan() {
                         quantity = parseInt(qty);
                         const unitPriceNum = parseFloat(unitPriceStr);
                         price = quantity * unitPriceNum;
-                        console.log(`✅ Quantity pattern: "${itemName}" - ${qty} @ $${unitPriceStr} = $${price}`);
+                        console.log(`✅ Pattern 3 (quantity): "${itemName}" - ${qty} @ $${unitPriceStr} = $${price}`);
                         itemFound = true;
                     }
+                }
+            }
+
+            // Pattern 4: Handle complex lines with multiple items (like line 14)
+            if (!itemFound && line.includes('$') && line.length > 50) {
+                // Try to extract the first item from a complex line
+                const complexMatch = line.match(/(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                if (complexMatch) {
+                    const [, productCode, name, tax, priceStr] = complexMatch;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    // Use the productCode as a potential UPC
+                    upc = productCode.length >= 11 ? productCode : '';
+                    taxCode = tax;
+                    console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
                 }
             }
 
             // Pattern 1: "PRODUCT_CODE ITEM_NAME NF $PRICE"
             const targetPattern1 = line.match(/(?:(\d{8,})\s+)?([A-Z][A-Z\s&]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/i);
             if (targetPattern1) {
-                const [, productCode, name, taxCode, priceStr] = targetPattern1;
+                let [, productCode, name, tax, priceStr] = targetPattern1;
                 itemName = name.trim();
                 price = parseFloat(priceStr);
-                console.log(`✅ Target pattern 1 match: "${itemName}" - $${price}`);
+                // Use the productCode as a potential UPC
+                upc = productCode.length >= 11 ? productCode : '';
+                taxCode = tax;
+                console.log(`✅ Target pattern 1 match: "${itemName}" - $${price}, Tax: ${taxCode}`);
                 itemFound = true;
             }
 
@@ -1925,6 +1957,7 @@ export default function ReceiptScan() {
                         quantity: quantity,
                         unitPrice: unitPrice,
                         upc: upcMatch ? upcMatch[0] : '',
+                        taxCode: taxCode || '',
                         category: guessCategory(nameMatch),
                         location: guessLocation(nameMatch),
                         rawText: line + (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i)) ? ` + ${nextLine}` : ''),
@@ -1942,10 +1975,10 @@ export default function ReceiptScan() {
 
                     // Create item if we found a valid match
                     if (itemFound && itemName && price > 0) {
-                        // Clean up the item name using the enhanced function
+                        // Clean up the item name
                         itemName = cleanItemName(itemName);
 
-                        // Final validation - make sure it's a real item name
+                        // Final validation
                         if (itemName.length > 2 &&
                             !itemName.match(/^(regular|regul|compare|was|sale|price|circle|bogo)/i) &&
                             !itemName.match(/^\d+/) &&
@@ -1953,14 +1986,14 @@ export default function ReceiptScan() {
 
                             console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
 
-
                             const item = {
                                 id: Date.now() + Math.random(),
                                 name: itemName,
                                 price: price,
                                 quantity: quantity,
                                 unitPrice: price / quantity,
-                                upc: '',
+                                upc: upc || '',
+                                taxCode: taxCode || '',
                                 category: guessCategory(itemName),
                                 location: guessLocation(itemName),
                                 rawText: line,
@@ -1969,10 +2002,10 @@ export default function ReceiptScan() {
                             };
 
                             items.push(item);
-                            continue; // ← ADD THIS to skip rest of loop iteration
+                            continue; // ← CRITICAL: Skip rest of loop to prevent duplicates
                         } else {
                             console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
-                            continue; // ← ADD THIS to skip rest of loop iteration
+                            continue; // ← CRITICAL: Skip rest of loop
                         }
                     } else {
                         console.log(`❌ No valid item pattern found: "${line}"`);
@@ -2073,41 +2106,43 @@ export default function ReceiptScan() {
 
         // Remove product codes and common artifacts
         name = name
-            .replace(/\s+NF\s*$/i, '') // Remove "NF" tax code (Target)
-            .replace(/\s+T\s*$/i, '')  // Remove "T" tax code (Target)
-            .replace(/\s+HOME\s*$/i, '') // Remove "HOME" section indicator (Target)
+            // Remove tax codes
+            .replace(/\s+(NF|TP)\s*$/i, '')
 
-            // Remove quantity patterns that might have been missed
+            // Remove price information that got mixed in
+            .replace(/\s+Regular\s+price.*$/i, '')
+            .replace(/\s+\$\d+\.\d{2}.*$/i, '')
+
+            // Remove product codes
+            .replace(/^\d{8,}\s*/, '')
+
+            // Remove quantity patterns
             .replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '')
 
-            // Remove long product codes and discount info
-            .replace(/^\d{10,}/, '').trim()
-            .replace(/\d+%:?/, '').trim()
-            .replace(/\(\$\d+\.\d{2}\)/, '').trim()
-            .replace(/[-\s]*[nt]$/i, '').trim()
-            .replace(/\s*-\s*$/, '').trim()
+            // Remove BOGO and circle text
+            .replace(/\s+BOGO.*$/i, '')
+            .replace(/\s+circle.*$/i, '')
 
-            // Clean up common OCR artifacts
+            // Remove section indicators
+            .replace(/\s+(HOME|GROCERY|PHARMACY)\s*$/i, '')
+
+            // Clean up OCR artifacts
             .replace(/[^\w\s\-&']/g, ' ')
             .replace(/\s+/g, ' ')
-
-            // start new code here
-            .replace(/^\d{8,}\s*/, '') // Remove leading product codes
-            .replace(/\b(NF|T)\b/gi, '') // Remove tax codes
-            .replace(/\bbs\b/gi, '') // Remove "bs" artifacts
-            .replace(/\bpo\b/gi, '') // Remove "po" artifacts
-            .replace(/\bc\b/gi, '') // Remove single "c"
-            .replace(/\bgq\b/gi, 'GG') // Fix "gq" to "GG"
-            .replace(/\bcrers\b/gi, 'CRACKERS') // Fix OCR errors
-            .replace(/\bmuckers\b/gi, 'SMUCKERS') // Fix OCR errors
-            .replace(/\bjerrys\b/gi, "JERRY'S") // Fix OCR errors
-            .replace(/\s+/g, ' ') // Normalize spaces
             .trim();
+
+        // Fix common OCR errors
+        name = name
+            .replace(/\bgq\b/gi, 'GG')
+            .replace(/\bcrers\b/gi, 'CRACKERS')
+            .replace(/\bmuckers\b/gi, 'SMUCKERS')
+            .replace(/\bjerrys\b/gi, "JERRY'S")
+            .replace(/\b8\b/g, '&'); // Fix "BEN 8 JERRYS" to "BEN & JERRYS"
 
         // Capitalize properly
         const cleaned = name.split(' ')
             .map(word => {
-                if (word.length <= 2) return word.toUpperCase(); // Keep short words like "GG" uppercase
+                if (word.length <= 2) return word.toUpperCase();
                 return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
             })
             .join(' ');
