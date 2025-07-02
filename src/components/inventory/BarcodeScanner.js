@@ -252,7 +252,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [validateUPC, onBarcodeDetected, onClose, provideScanFeedback]);
 
-    / ENHANCED: Error handling with automatic recovery
+    // ENHANCED: Error handling with automatic recovery
     const handleScanError = useCallback((error) => {
         console.error('🚨 Scanner error:', error);
 
