@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js - Stabilized version
+// file: /src/components/inventory/BarcodeScanner.js - ZXing-js Version
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -10,8 +10,10 @@ import {FEATURE_GATES} from '@/lib/subscription-config';
 import {getApiUrl} from '@/lib/api-config';
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
-    const scannerRef = useRef(null);
     const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const scannerContainerRef = useRef(null);
+
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,15 +22,15 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const [permissionState, setPermissionState] = useState('unknown');
     const [scanFeedback, setScanFeedback] = useState('');
 
-    // Stabilized refs for better performance
-    const quaggaRef = useRef(null);
-    const mountedRef = useRef(true);
-    const lastScanTimeRef = useRef(0);
-    const scanInProgressRef = useRef(false);
+    // ZXing and state management refs
+    const codeReaderRef = useRef(null);
     const streamRef = useRef(null);
-    const initializationRef = useRef(false);
+    const mountedRef = useRef(true);
+    const scanInProgressRef = useRef(false);
+    const lastScanTimeRef = useRef(0);
+    const animationFrameRef = useRef(null);
 
-    // FIXED: Simplified detection state
+    // Session management
     const processedCodesRef = useRef(new Set());
     const sessionIdRef = useRef(Date.now());
 
@@ -36,6 +38,13 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
+
+    // Load usage information
+    useEffect(() => {
+        if (isActive) {
+            loadUsageInfo();
+        }
+    }, [isActive]);
 
     const loadUsageInfo = useCallback(async () => {
         try {
@@ -57,38 +66,19 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, []);
 
-    // Load usage information
-    useEffect(() => {
-        if (isActive) {
-            loadUsageInfo();
-        }
-    }, [isActive, loadUsageInfo]);
-
-    // FIXED: Enhanced UPC validation with leading zero padding
+    // Enhanced UPC validation with leading zero padding
     const validateUPC = useCallback((code) => {
         let cleanCode = code.replace(/\D/g, '');
 
-        // More permissive validation
         if (cleanCode.length < 6 || cleanCode.length > 14) {
             return { valid: false, reason: 'invalid_length' };
         }
 
-        // FIXED: Auto-pad common UPC lengths with leading zeros
+        // Auto-pad common UPC lengths
         if (cleanCode.length === 11) {
-            // 11 digits -> pad to 12 (UPC-A)
             cleanCode = '0' + cleanCode;
             console.log(`🔧 Padded 11-digit code to UPC-A: ${cleanCode}`);
-        } else if (cleanCode.length === 12) {
-            // Already correct UPC-A length
-            console.log(`✅ Valid UPC-A length: ${cleanCode}`);
-        } else if (cleanCode.length === 13) {
-            // EAN-13 is fine as-is
-            console.log(`✅ Valid EAN-13 length: ${cleanCode}`);
-        } else if (cleanCode.length === 8) {
-            // UPC-E is fine as-is
-            console.log(`✅ Valid UPC-E length: ${cleanCode}`);
         } else if (cleanCode.length >= 6 && cleanCode.length <= 10) {
-            // Pad shorter codes to 12 digits (common issue)
             cleanCode = cleanCode.padStart(12, '0');
             console.log(`🔧 Padded ${code} to standard UPC: ${cleanCode}`);
         }
@@ -101,23 +91,23 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         return { valid: true, cleanCode };
     }, []);
 
-    // FIXED: Reliable feedback system
+    // Visual and audio feedback
     const provideScanFeedback = useCallback((type, message) => {
         setScanFeedback(message);
 
         // Visual feedback
-        if (scannerRef.current && mountedRef.current) {
+        if (scannerContainerRef.current && mountedRef.current) {
             const color = type === 'success' ? '#10B981' :
                 type === 'processing' ? '#F59E0B' : '#EF4444';
 
-            scannerRef.current.style.backgroundColor = color;
-            scannerRef.current.style.transition = 'background-color 0.2s';
+            scannerContainerRef.current.style.backgroundColor = color;
+            scannerContainerRef.current.style.transition = 'background-color 0.3s';
 
             setTimeout(() => {
-                if (scannerRef.current && mountedRef.current) {
-                    scannerRef.current.style.backgroundColor = '';
+                if (scannerContainerRef.current && mountedRef.current) {
+                    scannerContainerRef.current.style.backgroundColor = '';
                 }
-            }, 300);
+            }, 500);
         }
 
         // Audio feedback for success
@@ -130,11 +120,11 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             if (mountedRef.current) {
                 setScanFeedback('');
             }
-        }, 2000);
+        }, 3000);
     }, []);
 
-    // FIXED: Enhanced barcode detection with better error handling
-    const handleBarcodeDetection = useCallback(async (result) => {
+    // Handle successful barcode detection
+    const handleBarcodeDetection = useCallback(async (code) => {
         const now = Date.now();
 
         // Prevent rapid duplicate processing
@@ -142,26 +132,18 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             return;
         }
 
-        // Verify we have valid result data
-        if (!result || !result.codeResult || !result.codeResult.code) {
-            console.log('❌ Invalid barcode result data');
-            return;
-        }
+        console.log(`📱 ZXing barcode detected: "${code}"`);
 
-        const code = result.codeResult.code;
-        console.log(`📱 Barcode detected: "${code}"`);
-
-        // Enhanced validation
+        // Validate the code
         const validation = validateUPC(code);
         if (!validation.valid) {
             console.log(`❌ Invalid UPC: ${validation.reason}`);
-            // Don't show error to user for invalid codes, just ignore them
             return;
         }
 
         const cleanCode = validation.cleanCode;
 
-        // FIXED: Prevent processing same code in this session
+        // Prevent processing same code in this session
         const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
         if (processedCodesRef.current.has(sessionKey)) {
             console.log(`⏩ Already processed "${cleanCode}" in this session`);
@@ -175,34 +157,25 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
         console.log(`✅ Processing UPC: "${cleanCode}"`);
 
-        // Success feedback immediately
+        // Stop scanning and provide feedback
+        setIsScanning(false);
         provideScanFeedback('success', 'Barcode captured successfully!');
 
-        // Stop scanning immediately
-        setIsScanning(false);
-
-        // Process the result with error handling
-        try {
-            setTimeout(() => {
-                if (mountedRef.current) {
-                    onBarcodeDetected(cleanCode);
-                    setTimeout(() => {
-                        if (mountedRef.current && onClose) {
-                            onClose();
-                        }
-                    }, 500);
-                }
-            }, 300);
-        } catch (error) {
-            console.error('❌ Error processing barcode result:', error);
-            // Reset scan state on error
-            scanInProgressRef.current = false;
-            setIsScanning(true);
-        }
+        // Process the result
+        setTimeout(() => {
+            if (mountedRef.current) {
+                onBarcodeDetected(cleanCode);
+                setTimeout(() => {
+                    if (mountedRef.current && onClose) {
+                        onClose();
+                    }
+                }, 500);
+            }
+        }, 300);
 
     }, [validateUPC, onBarcodeDetected, onClose, provideScanFeedback]);
 
-    // FIXED: Better camera permission handling
+    // Camera permission handling
     const requestCameraPermission = useCallback(async () => {
         setPermissionState('requesting');
 
@@ -224,6 +197,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         } else {
             try {
+                // Test camera access
                 const testStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
@@ -242,7 +216,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, []);
 
-    // FIXED: MLKit scanning for native platforms
+    // MLKit scanning for native platforms
     const startMLKitScanning = useCallback(async () => {
         try {
             provideScanFeedback('processing', 'Opening camera scanner...');
@@ -254,7 +228,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 const validation = validateUPC(barcode.rawValue);
 
                 if (validation.valid) {
-                    // Check if already processed
                     const sessionKey = `${sessionIdRef.current}-${validation.cleanCode}`;
                     if (!processedCodesRef.current.has(sessionKey)) {
                         processedCodesRef.current.add(sessionKey);
@@ -279,384 +252,175 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [validateUPC, onBarcodeDetected, onClose, provideScanFeedback]);
 
-    // FIXED: Stable Quagga configuration
-    const getQuaggaConfig = useCallback(() => {
-        return {
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: scannerRef.current,
-                constraints: {
-                    width: { min: 640, ideal: 1280, max: 1920 },
-                    height: { min: 480, ideal: 720, max: 1080 },
-                    facingMode: "environment",
-                    frameRate: { ideal: 20, max: 30 } // Reduced for stability
-                },
-                area: {
-                    top: "20%",
-                    right: "20%",
-                    left: "20%",
-                    bottom: "20%" // Back to focused area for stability
+    // ZXing scanner initialization for web
+    const initializeZXingScanner = useCallback(async () => {
+        try {
+            console.log('🚀 Initializing ZXing scanner...');
+
+            // Dynamic import ZXing
+            const { BrowserMultiFormatReader } = await import('@zxing/library');
+
+            const codeReader = new BrowserMultiFormatReader();
+            codeReaderRef.current = codeReader;
+
+            // Get available video devices
+            const videoInputDevices = await codeReader.listVideoInputDevices();
+            console.log('📹 Available cameras:', videoInputDevices.length);
+
+            // Find back camera or use first available
+            const selectedDeviceId = videoInputDevices.find(device =>
+                device.label.toLowerCase().includes('back') ||
+                device.label.toLowerCase().includes('rear') ||
+                device.label.toLowerCase().includes('environment')
+            )?.deviceId || videoInputDevices[0]?.deviceId;
+
+            if (!selectedDeviceId) {
+                throw new Error('No camera devices found');
+            }
+
+            console.log('📷 Using camera:', selectedDeviceId);
+
+            // Start decoding from video device
+            const stream = await codeReader.decodeFromVideoDevice(
+                selectedDeviceId,
+                videoRef.current,
+                (result, error) => {
+                    if (result) {
+                        const code = result.getText();
+                        console.log('📱 ZXing detected:', code);
+                        handleBarcodeDetection(code);
+                    }
+                    // Ignore errors - they're mostly "no barcode found" which is normal
                 }
-            },
-            decoder: {
-                readers: [
-                    "ean_reader",
-                    "ean_8_reader",
-                    "code_128_reader",
-                    "upc_reader",
-                    "upc_e_reader"
-                ],
-                debug: {
-                    showCanvas: false,
-                    showPatches: false,
-                    showFoundPatches: false,
-                    showSkeleton: false,
-                    showLabels: false,
-                    showPatchLabels: false,
-                    showRemainingPatchLabels: false,
-                    boxFromPatches: {
-                        showTransformed: false,
-                        showTransformedBox: false,
-                        showBB: false
-                    }
-                },
-                multiple: false
-            },
-            locate: true,
-            frequency: 15, // Reduced for stability
-            locator: {
-                patchSize: "medium", // Changed from large for stability
-                halfSample: true     // Better performance
-            },
-            numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 2) // Limited workers
-        };
-    }, []);
+            );
 
-    // FIXED: More robust cleanup with DOM state checking
-    const cleanupScanner = useCallback(async () => {
-        console.log('🧹 Starting comprehensive scanner cleanup...');
+            streamRef.current = stream;
+            console.log('✅ ZXing scanner started successfully');
 
-        // Set flags immediately to prevent new operations
-        scanInProgressRef.current = false;
-        setIsScanning(false);
-        setIsInitialized(false);
-
-        // Stop and clean up video stream with better error handling
-        if (streamRef.current) {
-            console.log('📹 Stopping video stream...');
-            try {
-                const tracks = streamRef.current.getTracks();
-                tracks.forEach((track, index) => {
-                    try {
-                        track.stop();
-                        console.log(`📹 Stopped track ${index}: ${track.kind}`);
-                    } catch (trackError) {
-                        console.log(`⚠️ Error stopping track ${index}:`, trackError.message);
-                    }
-                });
-                // Wait longer for tracks to fully stop
-                await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (error) {
-                console.log('⚠️ Video stream cleanup error:', error.message);
-            }
-            streamRef.current = null;
+        } catch (error) {
+            console.error('❌ ZXing initialization error:', error);
+            throw error;
         }
+    }, [handleBarcodeDetection]);
 
-        // Clean up Quagga with extensive error handling
-        if (quaggaRef.current) {
-            console.log('🛑 Stopping Quagga...');
-            try {
-                // Remove all event listeners first
-                quaggaRef.current.offDetected();
-                quaggaRef.current.offProcessed();
-
-                // Stop Quagga
-                quaggaRef.current.stop();
-
-                // Wait longer for Quagga to fully cleanup
-                await new Promise(resolve => setTimeout(resolve, 800));
-
-                console.log('✅ Quagga stopped successfully');
-            } catch (error) {
-                console.log('⚠️ Quagga cleanup error:', error.message);
-                // Force cleanup even if Quagga throws an error
-            }
-            quaggaRef.current = null;
-        }
-
-        // Enhanced DOM cleanup with safety checks
-        if (scannerRef.current) {
-            try {
-                console.log('🧹 Cleaning scanner DOM...');
-
-                // Remove all child elements safely
-                while (scannerRef.current.firstChild) {
-                    try {
-                        scannerRef.current.removeChild(scannerRef.current.firstChild);
-                    } catch (childError) {
-                        console.log('⚠️ Error removing child element:', childError.message);
-                        break; // Exit loop if we can't remove children
-                    }
-                }
-
-                // Reset any inline styles
-                scannerRef.current.style.cssText = '';
-
-                console.log('✅ Scanner DOM cleaned');
-            } catch (error) {
-                console.log('⚠️ DOM cleanup error:', error.message);
-            }
-        }
-
-        // Reset all state with delays
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        if (mountedRef.current) {
-            videoRef.current = null;
-            setIsLoading(true);
-            setError(null);
-            setPermissionState('unknown');
-            setScanFeedback('');
-
-            // Reset refs
-            lastScanTimeRef.current = 0;
-            initializationRef.current = false;
-
-            // Clear session data
-            processedCodesRef.current = new Set();
-            sessionIdRef.current = Date.now();
-        }
-
-        console.log('✅ Complete scanner cleanup finished');
-    }, []);
-
-
+    // Main scanner initialization
     useEffect(() => {
         const initializeScanner = async () => {
-            if (!isActive || isInitialized || !mountedRef.current || initializationRef.current) {
+            if (!isActive || isInitialized || !mountedRef.current) {
                 return;
             }
-
-            console.log('🚀 Starting scanner initialization...');
-
-            // CRITICAL: Ensure DOM element is ready and attached
-            if (!scannerRef.current || !scannerRef.current.parentNode) {
-                console.log('❌ Scanner DOM element not ready, retrying...');
-                setTimeout(() => {
-                    if (mountedRef.current && isActive) {
-                        initializeScanner();
-                    }
-                }, 500);
-                return;
-            }
-
-            // CRITICAL: Force complete cleanup before any initialization
-            if (quaggaRef.current || streamRef.current || isInitialized) {
-                console.log('🔄 Forcing complete cleanup before initialization...');
-                await cleanupScanner();
-                // Wait longer for cleanup to complete
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            initializationRef.current = true;
 
             try {
-                // Reset session with unique ID
+                // Reset session
                 sessionIdRef.current = Date.now();
                 processedCodesRef.current = new Set();
 
                 setError(null);
                 setIsScanning(true);
                 setScanFeedback('');
-                setIsLoading(true);
 
-                console.log(`🚀 New scanner session: ${sessionIdRef.current}`);
+                console.log(`🚀 Starting new scanner session: ${sessionIdRef.current}`);
 
                 const hasPermission = await requestCameraPermission();
                 if (!hasPermission) {
                     setIsLoading(false);
-                    initializationRef.current = false;
                     return;
                 }
 
                 if (Capacitor.isNativePlatform()) {
+                    console.log('📱 Native platform - using MLKit');
                     setIsInitialized(true);
                     setIsLoading(false);
-                    setTimeout(() => startMLKitScanning(), 1000);
+                    setTimeout(() => startMLKitScanning(), 800);
                 } else {
-                    // ENHANCED: Multiple attempts for Quagga initialization
-                    let initAttempt = 0;
-                    const maxAttempts = 3;
+                    console.log('🌐 Web platform - using ZXing');
+                    await initializeZXingScanner();
 
-                    while (initAttempt < maxAttempts && mountedRef.current) {
-                        initAttempt++;
-                        console.log(`📡 Quagga initialization attempt ${initAttempt}/${maxAttempts}`);
-
-                        try {
-                            // Wait between attempts
-                            if (initAttempt > 1) {
-                                await new Promise(resolve => setTimeout(resolve, 1000 * initAttempt));
-                            }
-
-                            // Verify DOM is still ready
-                            if (!scannerRef.current || !scannerRef.current.parentNode) {
-                                throw new Error('DOM element lost during initialization');
-                            }
-
-                            const Quagga = (await import('quagga')).default;
-
-                            // Clear any existing Quagga instance
-                            if (quaggaRef.current) {
-                                try {
-                                    quaggaRef.current.stop();
-                                } catch (e) {
-                                    // Ignore cleanup errors
-                                }
-                            }
-
-                            quaggaRef.current = Quagga;
-                            const config = getQuaggaConfig();
-
-                            await new Promise((resolve, reject) => {
-                                const timeout = setTimeout(() => {
-                                    reject(new Error(`Quagga initialization timeout (attempt ${initAttempt})`));
-                                }, 15000); // Longer timeout
-
-                                try {
-                                    Quagga.init(config, (err) => {
-                                        clearTimeout(timeout);
-
-                                        if (err) {
-                                            console.log(`❌ Quagga init error (attempt ${initAttempt}):`, err.message);
-                                            reject(new Error(`Quagga init failed: ${err.message}`));
-                                            return;
-                                        }
-
-                                        console.log(`✅ Quagga initialized successfully (attempt ${initAttempt})`);
-
-                                        // Enhanced video element capture with multiple retries
-                                        const captureVideoElement = (retryCount = 0) => {
-                                            const maxRetries = 5;
-
-                                            setTimeout(() => {
-                                                const videoElement = scannerRef.current?.querySelector('video');
-                                                if (videoElement && videoElement.srcObject) {
-                                                    videoRef.current = videoElement;
-                                                    streamRef.current = videoElement.srcObject;
-                                                    console.log('📹 Video element captured successfully');
-
-                                                    // Verify video is actually playing
-                                                    const checkVideoPlaying = () => {
-                                                        if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
-                                                            console.log('✅ Video stream confirmed active');
-                                                        } else {
-                                                            console.log('⚠️ Video stream may not be active');
-                                                        }
-                                                    };
-                                                    setTimeout(checkVideoPlaying, 1000);
-
-                                                } else if (retryCount < maxRetries) {
-                                                    console.log(`⏳ Video element not ready, retry ${retryCount + 1}/${maxRetries}`);
-                                                    captureVideoElement(retryCount + 1);
-                                                } else {
-                                                    console.warn('⚠️ Could not capture video element after retries');
-                                                }
-                                            }, 200 * (retryCount + 1)); // Increasing delay
-                                        };
-
-                                        captureVideoElement();
-
-                                        // Set up detection with error handling
-                                        try {
-                                            Quagga.onDetected(handleBarcodeDetection);
-                                            Quagga.start();
-                                            console.log('📡 Quagga detection started');
-                                        } catch (detectionError) {
-                                            console.error('❌ Error setting up detection:', detectionError);
-                                            reject(detectionError);
-                                            return;
-                                        }
-
-                                        if (mountedRef.current) {
-                                            setIsInitialized(true);
-                                            setIsLoading(false);
-                                            setError(null);
-                                        }
-                                        resolve();
-                                    });
-                                } catch (initError) {
-                                    clearTimeout(timeout);
-                                    reject(initError);
-                                }
-                            });
-
-                            // If we get here, initialization was successful
-                            console.log('🎉 Scanner fully operational');
-                            break;
-
-                        } catch (attemptError) {
-                            console.error(`❌ Initialization attempt ${initAttempt} failed:`, attemptError.message);
-
-                            // Cleanup failed attempt
-                            if (quaggaRef.current) {
-                                try {
-                                    quaggaRef.current.stop();
-                                } catch (e) {
-                                    // Ignore cleanup errors
-                                }
-                                quaggaRef.current = null;
-                            }
-
-                            // If this was the last attempt, throw the error
-                            if (initAttempt >= maxAttempts) {
-                                throw attemptError;
-                            }
-
-                            // Wait before next attempt
-                            console.log(`⏳ Waiting before retry attempt ${initAttempt + 1}...`);
-                        }
+                    if (mountedRef.current) {
+                        setIsInitialized(true);
+                        setIsLoading(false);
+                        setError(null);
                     }
                 }
             } catch (error) {
                 console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError(`Camera setup failed: ${error.message}. Please try again.`);
+                    setError(`Scanner initialization failed: ${error.message}`);
                     setIsLoading(false);
                 }
-                initializationRef.current = false;
             }
         };
 
-        if (isActive && mountedRef.current && scannerRef.current) {
-            // Add a small delay to ensure DOM is fully ready
-            setTimeout(() => {
-                if (mountedRef.current && isActive) {
-                    initializeScanner();
-                }
-            }, 100);
+        if (isActive && mountedRef.current) {
+            initializeScanner();
         }
-    }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, getQuaggaConfig, startMLKitScanning, cleanupScanner]);
+    }, [isActive, isInitialized, requestCameraPermission, startMLKitScanning, initializeZXingScanner]);
 
+    // Cleanup function
+    const cleanupScanner = useCallback(async () => {
+        console.log('🧹 Cleaning up ZXing scanner...');
 
-    // FIXED: Better close handler with verification
+        // Stop scanning
+        setIsScanning(false);
+        scanInProgressRef.current = false;
+
+        // Cancel animation frames
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+        }
+
+        // Stop ZXing code reader
+        if (codeReaderRef.current) {
+            try {
+                await codeReaderRef.current.reset();
+                console.log('✅ ZXing code reader reset');
+            } catch (error) {
+                console.log('⚠️ ZXing cleanup error:', error.message);
+            }
+            codeReaderRef.current = null;
+        }
+
+        // Stop video stream
+        if (streamRef.current) {
+            try {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                console.log('✅ Video stream stopped');
+            } catch (error) {
+                console.log('⚠️ Stream cleanup error:', error.message);
+            }
+            streamRef.current = null;
+        }
+
+        // Reset video element
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+
+        // Reset state
+        setIsInitialized(false);
+        setIsLoading(true);
+        setError(null);
+        setPermissionState('unknown');
+        setScanFeedback('');
+
+        // Reset session
+        processedCodesRef.current = new Set();
+        sessionIdRef.current = Date.now();
+        lastScanTimeRef.current = 0;
+
+        console.log('✅ Scanner cleanup completed');
+    }, []);
+
+    // Close handler
     const handleScannerClose = useCallback(async () => {
         console.log('🚫 Scanner close requested');
-
-        // Prevent multiple close attempts
-        if (!mountedRef.current) {
-            return;
-        }
-
-        // Immediate cleanup
         await cleanupScanner();
 
-        // Wait longer before calling onClose to ensure complete cleanup
         setTimeout(() => {
             if (mountedRef.current && onClose) {
                 onClose();
             }
-        }, 300);
+        }, 200);
     }, [cleanupScanner, onClose]);
 
     // Detect mobile device
@@ -679,6 +443,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
     }, [cleanupScanner]);
 
+    // Audio feedback
     const playBeepSound = () => {
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -745,9 +510,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     {/* Header */}
                     <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                         <div>
-                            <h3 className="text-lg font-medium">📷 Barcode Scanner</h3>
+                            <h3 className="text-lg font-medium">📷 Enhanced Scanner</h3>
                             <div className="text-sm text-gray-300 mt-1">
-                                {scanFeedback || 'Position barcode in camera view'}
+                                {scanFeedback || 'Point camera at barcode'}
                             </div>
                             {!isLoadingUsage && usageInfo && (
                                 <div className="text-xs text-gray-400 mt-1">
@@ -783,30 +548,33 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         </div>
                     ) : (
                         <>
-                        {/* Loading State */}
-                        {isLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
+                            {/* Loading State */}
+                            {isLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black z-30 zxing-scanner-loading">
                                 <div className="text-center text-white">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                                    <div className="text-lg">
-                                        {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting scanner...'}
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div className="text-lg">
+                                            {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting enhanced scanner...'}
+                                        </div>
+                                        <div className="text-sm mt-2 opacity-75">
+                                            Powered by ZXing
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
                             {/* Scanner Interface */}
                             {Capacitor.isNativePlatform() ? (
-                                // Native: Show ready-to-scan interface
+                                // Native: MLKit interface
                                 <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
                                     <div className="text-center text-white px-6">
                                         <div className="mb-8">
                                             <div className="w-32 h-32 mx-auto mb-6 border-4 border-white rounded-2xl flex items-center justify-center">
                                                 <span className="text-6xl">📷</span>
                                             </div>
-                                            <h2 className="text-2xl font-bold mb-2">Scanner Ready</h2>
+                                            <h2 className="text-2xl font-bold mb-2">MLKit Scanner Ready</h2>
                                             <p className="text-gray-300 text-lg">
-                                                Reliable barcode scanning with enhanced stability
+                                                Professional barcode scanning with MLKit
                                             </p>
                                         </div>
 
@@ -821,47 +589,44 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     </div>
                                 </div>
                             ) : (
-                                // Web: Standard camera view
-                                <div className="flex-1 relative bg-black overflow-hidden">
-                                    <div
-                                        ref={scannerRef}
-                                        className="absolute inset-0 w-full h-full bg-black"
-                                        style={{ minHeight: '100%', minWidth: '100%' }}
+                                // Web: ZXing interface
+                                <div className="flex-1 relative bg-black overflow-hidden zxing-scanner-container" ref={scannerContainerRef}>
+                                    <video
+                                        ref={videoRef}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        autoPlay
+                                        playsInline
+                                        muted
                                     />
 
-                                    {/* Standard Scanner Overlay */}
+                                    {/* ZXing Scanner Overlay */}
                                     {!isLoading && (
-                                        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                                        <div className="absolute inset-0 pointer-events-none zxing-scanner-overlay" style={{ zIndex: 10 }}>
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="relative w-80 h-48 border-2 border-transparent">
-                                                    {/* Corner brackets */}
-                                                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-green-400"></div>
-                                                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-green-400"></div>
-                                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-green-400"></div>
-                                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-green-400"></div>
+                                                    {/* Modern corner brackets */}
+                                                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-blue-400 rounded-tl-lg"></div>
+                                                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-blue-400 rounded-tr-lg"></div>
+                                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-blue-400 rounded-bl-lg"></div>
+                                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-blue-400 rounded-br-lg"></div>
 
-                                                    {/* Scanning line */}
+                                                    {/* Scanning indicator */}
                                                     {isScanning && (
-                                                        <div
-                                                            className="absolute inset-x-4 h-1 bg-green-400 opacity-90 shadow-lg"
-                                                            style={{
-                                                                animation: 'scanline 2s ease-in-out infinite',
-                                                                top: '50%',
-                                                                transform: 'translateY(-50%)'
-                                                            }}
-                                                        />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-ping zxing-detection-indicator"></div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {/* Instruction overlay */}
+                                            {/* Enhanced instruction overlay */}
                                             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-80 text-white p-4 rounded-lg">
                                                 <div className="text-center">
                                                     <div className="text-lg font-medium mb-2">
-                                                        {scanFeedback || (isScanning ? 'Position barcode in green frame' : 'Processing...')}
+                                                        {scanFeedback || (isScanning ? 'Position barcode in view' : 'Processing...')}
                                                     </div>
                                                     <div className="text-sm opacity-75">
-                                                        Stable scanning • Enhanced reliability • Better accuracy
+                                                        ZXing scanner • Enhanced accuracy • Auto-detection
                                                     </div>
                                                 </div>
                                             </div>
@@ -881,26 +646,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             </div>
                         </>
                     )}
-
-                    {/* CSS animations */}
-                    <style jsx>{`
-                        @keyframes scanline {
-                            0% {
-                                top: 10%;
-                                opacity: 1;
-                                box-shadow: 0 0 10px #10B981;
-                            }
-                            50% {
-                                opacity: 0.8;
-                                box-shadow: 0 0 15px #10B981;
-                            }
-                            100% {
-                                top: 90%;
-                                opacity: 1;
-                                box-shadow: 0 0 10px #10B981;
-                            }
-                        }
-                    `}</style>
                 </div>
             ) : (
                 // Desktop version
@@ -908,7 +653,8 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     <div className="bg-white rounded-lg p-4 max-w-lg w-full mx-4 max-h-screen overflow-hidden">
                         <div className="flex justify-between items-center mb-4">
                             <div>
-                                <h3 className="text-lg font-medium text-gray-900">📷 Barcode Scanner</h3>
+                                <h3 className="text-lg font-medium text-gray-900">📷 Enhanced Scanner</h3>
+                                <div className="text-xs text-gray-500 mt-1">Powered by ZXing</div>
                                 {!isLoadingUsage && usageInfo && (
                                     <div className="text-sm text-gray-500 mt-1">
                                         {usageInfo.monthlyLimit === 'unlimited' ? (
@@ -943,38 +689,43 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 {isLoading && (
                                     <div className="text-center py-8">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                                        <div className="text-gray-600">Starting scanner...</div>
+                                        <div className="text-gray-600">Starting ZXing scanner...</div>
                                     </div>
                                 )}
 
-                                <div className="relative">
-                                    <div
-                                        ref={scannerRef}
-                                        className="w-full h-80 bg-gray-200 rounded-lg overflow-hidden"
+                                <div className="relative zxing-scanner-container">
+                                    <video
+                                        ref={videoRef}
+                                        className="w-full h-80 bg-gray-200 rounded-lg object-cover"
                                         style={{ display: isLoading ? 'none' : 'block' }}
+                                        autoPlay
+                                        playsInline
+                                        muted
                                     />
 
                                     {!isLoading && (
                                         <>
                                             <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
-                                                <div className="absolute inset-8 border-2 border-green-500 rounded-lg">
+                                                <div className="absolute inset-8 border-2 border-blue-500 rounded-lg">
                                                     {isScanning && (
-                                                        <div className="absolute inset-x-0 top-1/2 h-0.5 bg-green-500 animate-pulse shadow-lg"></div>
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
+                                                        </div>
                                                     )}
-                                                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-green-500"></div>
-                                                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-green-500"></div>
-                                                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-green-500"></div>
-                                                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-green-500"></div>
+                                                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-blue-500 rounded-tl"></div>
+                                                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-blue-500 rounded-tr"></div>
+                                                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-blue-500 rounded-bl"></div>
+                                                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-blue-500 rounded-br"></div>
                                                 </div>
                                             </div>
 
                                             <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-sm p-3 rounded">
                                                 <div className="text-center">
                                                     <div className="font-medium">
-                                                        {scanFeedback || (isScanning ? 'Position barcode in green frame' : 'Processing...')}
+                                                        {scanFeedback || (isScanning ? 'ZXing scanner active' : 'Processing...')}
                                                     </div>
                                                     <div className="text-xs opacity-75 mt-1">
-                                                        Stable scanning • Enhanced reliability • Better accuracy
+                                                        Enhanced accuracy • Auto-detection • No positioning required
                                                     </div>
                                                 </div>
                                             </div>

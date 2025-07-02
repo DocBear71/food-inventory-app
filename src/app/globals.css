@@ -2196,19 +2196,19 @@ div[style*="background-color: #f1f5f9"] {
 /* ===== END OF CLEANED GLOBALS.CSS ===== */
 
 /* Add this CSS to your BarcodeScanner component or global CSS */
-/* This ensures the Quagga video element fills the container properly on mobile */
+/* ZXing Scanner Optimized Styles - Replace the Quagga CSS with this */
 
-/* Scanner container fixes */
-.scanner-container {
+/* ZXing video element styling for mobile and desktop */
+.zxing-scanner-container {
     position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
     background: black;
+    border-radius: 0; /* Mobile fullscreen */
 }
 
-/* Quagga video element styling for mobile */
-.scanner-container video {
+.zxing-scanner-container video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
@@ -2216,32 +2216,108 @@ div[style*="background-color: #f1f5f9"] {
     top: 0 !important;
     left: 0 !important;
     z-index: 1 !important;
+    background: black;
 }
 
-/* Quagga canvas overlay styling */
-.scanner-container canvas {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 2 !important;
-    pointer-events: none !important;
+/* Desktop-specific styling */
+@media (min-width: 769px) {
+    .zxing-scanner-container {
+        border-radius: 0.5rem; /* Rounded corners on desktop */
+    }
+
+    .zxing-scanner-container video {
+        border-radius: 0.5rem;
+    }
 }
 
-/* Mobile-specific overrides */
+/* Mobile-specific optimizations */
 @media (max-width: 768px) {
-    .scanner-container video {
+    .zxing-scanner-container video {
         min-width: 100% !important;
         min-height: 100% !important;
         transform: none !important;
+        border-radius: 0 !important;
     }
 }
 
 /* Landscape mode fixes for mobile */
 @media (orientation: landscape) and (max-height: 600px) {
-    .scanner-container video {
+    .zxing-scanner-container video {
         object-fit: cover !important;
         height: 100vh !important;
+        width: 100vw !important;
     }
+}
+
+/* Portrait mode optimizations */
+@media (orientation: portrait) and (max-width: 768px) {
+    .zxing-scanner-container video {
+        object-fit: cover !important;
+        height: 100% !important;
+        width: 100% !important;
+    }
+}
+
+/* High DPI / Retina display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .zxing-scanner-container video {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Accessibility improvements */
+.zxing-scanner-container video:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Loading state styling */
+.zxing-scanner-loading {
+    background: linear-gradient(45deg, #1f2937, #374151);
+    background-size: 400% 400%;
+    animation: gradientShift 2s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Scanner overlay animations */
+.zxing-scanner-overlay {
+    pointer-events: none;
+    z-index: 10;
+}
+
+.zxing-detection-indicator {
+    animation: pulseBlue 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseBlue {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+}
+
+/* Smooth transitions for scanner state changes */
+.zxing-scanner-container,
+.zxing-scanner-container video {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Error state styling */
+.zxing-scanner-error {
+    background: linear-gradient(45deg, #7f1d1d, #991b1b);
+}
+
+/* Success state styling */
+.zxing-scanner-success {
+    background: linear-gradient(45deg, #14532d, #166534);
 }
