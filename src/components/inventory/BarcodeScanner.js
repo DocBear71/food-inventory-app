@@ -675,24 +675,64 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         <div className="absolute inset-0 pointer-events-none zxing-scanner-overlay" style={{ zIndex: 10 }}>
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="relative w-80 h-48 border-2 border-transparent">
-                                                    {/* BRIGHT, VISIBLE corner brackets */}
-                                                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-lg shadow-lg"></div>
-                                                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-lg shadow-lg"></div>
-                                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-lg shadow-lg"></div>
-                                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-lg shadow-lg"></div>
+                                                    {/* FORCED WHITE corner brackets with !important styles */}
+                                                    <div
+                                                        className="absolute top-0 left-0 w-12 h-12 rounded-tl-lg"
+                                                        style={{
+                                                            borderTop: '4px solid #ffffff',
+                                                            borderLeft: '4px solid #ffffff',
+                                                            boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute top-0 right-0 w-12 h-12 rounded-tr-lg"
+                                                        style={{
+                                                            borderTop: '4px solid #ffffff',
+                                                            borderRight: '4px solid #ffffff',
+                                                            boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 left-0 w-12 h-12 rounded-bl-lg"
+                                                        style={{
+                                                            borderBottom: '4px solid #ffffff',
+                                                            borderLeft: '4px solid #ffffff',
+                                                            boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 right-0 w-12 h-12 rounded-br-lg"
+                                                        style={{
+                                                            borderBottom: '4px solid #ffffff',
+                                                            borderRight: '4px solid #ffffff',
+                                                            boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)'
+                                                        }}
+                                                    ></div>
 
-                                                    {/* BRIGHT scanning indicator */}
+                                                    {/* BRIGHT white scanning indicator */}
                                                     {isScanning && (
                                                         <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="w-4 h-4 bg-white rounded-full animate-ping shadow-lg"></div>
+                                                            <div
+                                                                className="w-4 h-4 rounded-full animate-ping"
+                                                                style={{
+                                                                    backgroundColor: '#ffffff',
+                                                                    boxShadow: '0 0 15px rgba(255, 255, 255, 1)'
+                                                                }}
+                                                            ></div>
                                                         </div>
                                                     )}
 
-                                                    {/* OPTIONAL: Scanning line animation */}
+                                                    {/* BRIGHT scanning line animation */}
                                                     {isScanning && (
                                                         <div
-                                                            className="absolute inset-x-4 h-1 bg-white opacity-90 shadow-lg"
                                                             style={{
+                                                                position: 'absolute',
+                                                                left: '16px',
+                                                                right: '16px',
+                                                                height: '4px',
+                                                                backgroundColor: '#ffffff',
+                                                                opacity: 0.9,
+                                                                boxShadow: '0 0 15px rgba(255, 255, 255, 0.8)',
                                                                 animation: 'scanline 2s ease-in-out infinite',
                                                                 top: '50%',
                                                                 transform: 'translateY(-50%)'
@@ -702,7 +742,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                                 </div>
                                             </div>
 
-                                            {/* Enhanced instruction overlay with better contrast */}
+                                            {/* Enhanced instruction overlay */}
                                             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg border border-white border-opacity-30">
                                                 <div className="text-center">
                                                     <div className="text-lg font-medium mb-2">
@@ -715,6 +755,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                             </div>
                                         </div>
                                     )}
+
                                 </div>
                             )}
                             {/* Footer */}
@@ -796,16 +837,46 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     {!isLoading && (
                                         <>
                                             <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
-                                                <div className="absolute inset-8 border-2 border-white rounded-lg shadow-lg">
+                                                <div className="absolute inset-8 rounded-lg" style={{ border: '2px solid #ffffff', boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)' }}>
                                                     {isScanning && (
                                                         <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="w-3 h-3 bg-white rounded-full animate-ping shadow-lg"></div>
+                                                            <div
+                                                                className="w-3 h-3 rounded-full animate-ping"
+                                                                style={{
+                                                                    backgroundColor: '#ffffff',
+                                                                    boxShadow: '0 0 10px rgba(255, 255, 255, 1)'
+                                                                }}
+                                                            ></div>
                                                         </div>
                                                     )}
-                                                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white rounded-tl shadow-lg"></div>
-                                                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white rounded-tr shadow-lg"></div>
-                                                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white rounded-bl shadow-lg"></div>
-                                                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white rounded-br shadow-lg"></div>
+                                                    <div
+                                                        className="absolute top-0 left-0 w-6 h-6 rounded-tl"
+                                                        style={{
+                                                            borderTop: '2px solid #ffffff',
+                                                            borderLeft: '2px solid #ffffff'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute top-0 right-0 w-6 h-6 rounded-tr"
+                                                        style={{
+                                                            borderTop: '2px solid #ffffff',
+                                                            borderRight: '2px solid #ffffff'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 left-0 w-6 h-6 rounded-bl"
+                                                        style={{
+                                                            borderBottom: '2px solid #ffffff',
+                                                            borderLeft: '2px solid #ffffff'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 right-0 w-6 h-6 rounded-br"
+                                                        style={{
+                                                            borderBottom: '2px solid #ffffff',
+                                                            borderRight: '2px solid #ffffff'
+                                                        }}
+                                                    ></div>
                                                 </div>
                                             </div>
 
