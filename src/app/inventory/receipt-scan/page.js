@@ -265,112 +265,80 @@ export default function ReceiptScan() {
         );
     }
 
-    // ===============================================
-    // UNIVERSAL OCR HANDLER - Platform Detection
-    // ===============================================
-
-    async function processImageWithUniversalOCR(imageFile, progressCallback) {
-        console.log('🔍 Starting Universal OCR processing...');
-        console.log('📱 Platform Info:', platformInfo);
-
-        setProcessingStatus('Initializing OCR engine...');
-
-        try {
-            if (platformInfo.isNative && platformInfo.isAndroid) {
-                return await processImageWithTextDetection(imageFile, progressCallback);
-            } else {
-                // Web PWA or browser - try Scribe.js with Tesseract.js fallback
-                return await processImageWithWebOCR(imageFile, progressCallback);
-            }
-        } catch (error) {
-            console.error('❌ Universal OCR processing failed:', error);
-            throw error;
-        }
-    }
-
-    // ===============================================
-    // ANDROID ML KIT IMPLEMENTATION
-    // ===============================================
-
-    async function processImageWithTextDetection(imageFile, progressCallback) {
-        console.log('🤖 Processing with Android ML Kit (ImageToText)...');
-
-        try {
-            // Dynamic import for ImageToText plugin (already installed)
-            const { ImageToText } = await import('@capacitor-community/image-to-text');
-
-            setProcessingStatus('Preparing image for ML Kit...');
-            if (progressCallback) progressCallback(10);
-
-            // Save image file for ImageToText plugin
-            const { Filesystem, Directory } = await import('@capacitor/filesystem');
-
-            // Convert blob to base64
-            const base64Image = await blobToBase64(imageFile);
-
-            // Save temporarily for ImageToText
-            const fileName = `receipt_${Date.now()}.jpg`;
-            const savedFile = await Filesystem.writeFile({
-                path: fileName,
-                data: base64Image,
-                directory: Directory.Cache
-            });
-
-            setProcessingStatus('Running ML Kit text recognition...');
-            if (progressCallback) progressCallback(30);
-
-            const result = await ImageToText.extractText({
-                filename: savedFile.uri
-            });
-
-            // Clean up temporary file
-            try {
-                await Filesystem.deleteFile({
-                    path: fileName,
-                    directory: Directory.Cache
-                });
-            } catch (cleanupError) {
-                console.warn('Could not clean up temporary file:', cleanupError);
-            }
-
-            if (progressCallback) progressCallback(90);
-            setProcessingStatus('Processing ML Kit results...');
-
-            console.log('✅ ML Kit completed:', result);
-
-            // Extract text from ImageToText result
-            const extractedText = result.text || '';
-
-            if (progressCallback) progressCallback(100);
-            return extractedText;
-
-        } catch (error) {
-            console.error('❌ ML Kit ImageToText processing failed:', error);
-            throw new Error(`ML Kit ImageToText failed: ${error.message}`);
-        }
-    }
-
-    // ===============================================
+// ===============================================
 // SCRIBE-ENHANCED TESSERACT.JS IMPLEMENTATION
-// Implements Scribe OCR's improvements directly in Tesseract.js
 // ===============================================
 
-    async function processImageWithWebOCR(imageFile, progressCallback) {
-        console.log('💻 Starting Scribe-Enhanced Tesseract.js OCR...');
+    function getOptimizedOCRConfig(platformInfo) {
+        console.log('⚙️ Configuring optimized OCR settings for platform:', {
+            isIOSPWA: platformInfo.isIOSPWA,
+            isIOS: platformInfo.isIOS,
+            isAndroid: platformInfo.isAndroid,
+            isWeb: platformInfo.isWeb
+        });
+
+        const baseConfig = {
+            tessedit_pageseg_mode: '6',
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+            preserve_interword_spaces: '1',
+            tessedit_do_invert: '0',
+            tessedit_create_hocr: '0',
+            tessedit_create_pdf: '0',
+            tessedit_create_txt: '1',
+        };
+
+        // Platform-specific optimizations
+        if (platformInfo.isIOSPWA) {
+            console.log('🍎 Using iOS PWA optimized settings');
+            return {
+                ...baseConfig,
+                user_defined_dpi: '150', // Lower DPI for iOS PWA performance
+                tessedit_parallelize: '0', // Disable parallel processing
+                tessedit_enable_dict_correction: '0', // Disable for performance
+            };
+        } else if (platformInfo.isIOS) {
+            console.log('📱 Using iOS optimized settings');
+            return {
+                ...baseConfig,
+                user_defined_dpi: '200',
+                tessedit_parallelize: '0',
+                tessedit_enable_dict_correction: '1',
+            };
+        } else if (platformInfo.isAndroid) {
+            console.log('🤖 Using Android optimized settings');
+            return {
+                ...baseConfig,
+                user_defined_dpi: '300',
+                tessedit_parallelize: '1',
+                tessedit_enable_dict_correction: '1',
+            };
+        } else {
+            console.log('💻 Using Web optimized settings');
+            return {
+                ...baseConfig,
+                user_defined_dpi: '250',
+                tessedit_parallelize: '0', // Safer for web browsers
+                tessedit_enable_dict_correction: '1',
+            };
+        }
+    }
+
+    async function processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback) {
+        console.log('🔍 Starting Scribe-Enhanced Tesseract.js OCR...');
 
         try {
-            return await processImageWithEnhancedTesseract(imageFile, progressCallback);
+            return await processImageWithEnhancedTesseract(imageBlob, deviceInfo, progressCallback);
         } catch (enhancedError) {
             console.warn('⚠️ Enhanced Tesseract failed, falling back to standard Tesseract:', enhancedError.message);
             setProcessingStatus('Enhanced OCR failed, using standard Tesseract...');
             if (progressCallback) progressCallback(0); // Reset progress
 
             // Fallback to standard Tesseract.js
-            return await processImageWithStandardTesseract(imageFile, progressCallback);
+            return await processImageWithStandardTesseract(imageBlob, deviceInfo, progressCallback);
         }
     }
 
-    async function processImageWithEnhancedTesseract(imageFile, progressCallback) {
+    async function processImageWithEnhancedTesseract(imageFile, deviceInfo, progressCallback) {
         console.log('🚀 Processing with Scribe-Enhanced Tesseract.js...');
 
         try {
@@ -482,7 +450,6 @@ export default function ReceiptScan() {
 
     function calculateTextLineScore(imageData, angle) {
         // Simplified text line detection
-        // In a real implementation, this would use more sophisticated edge detection
         const data = imageData.data;
         const width = imageData.width;
         const height = imageData.height;
@@ -555,11 +522,12 @@ export default function ReceiptScan() {
             }
         });
 
+        // FIXED: Use the getOptimizedOCRConfig function
+        const baseConfig = getOptimizedOCRConfig(platformInfo);
+
         // Configure for the specific engine
         const config = {
-            tessedit_pageseg_mode: '6',
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
-            preserve_interword_spaces: '1',
+            ...baseConfig,
             tessedit_ocr_engine_mode: engineType === 'legacy' ? '0' : '1', // 0=Legacy, 1=LSTM
             tessedit_create_hocr: '1', // Enable HOCR for bounding boxes
         };
@@ -685,7 +653,7 @@ export default function ReceiptScan() {
 // STANDARD TESSERACT FALLBACK
 // ===============================================
 
-    async function processImageWithStandardTesseract(imageFile, progressCallback) {
+    async function processImageWithStandardTesseract(imageFile, deviceInfo, progressCallback) {
         console.log('💻 Processing with Standard Tesseract.js (fallback)...');
 
         try {
@@ -703,10 +671,9 @@ export default function ReceiptScan() {
                 }
             });
 
+            // FIXED: Use the getOptimizedOCRConfig function
             const config = {
-                tessedit_pageseg_mode: '6',
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
-                preserve_interword_spaces: '1',
+                ...getOptimizedOCRConfig(platformInfo),
                 tessedit_ocr_engine_mode: '1', // LSTM only
             };
 
@@ -730,22 +697,63 @@ export default function ReceiptScan() {
             throw new Error(`Standard Tesseract OCR failed: ${error.message}`);
         }
     }
+// ===============================================
+// ALSO UPDATE YOUR BULK ADD CALL TO INCLUDE OCR ENGINE INFO
+// ===============================================
 
-    // ===============================================
-    // UTILITY FUNCTIONS
-    // ===============================================
+    async function addItemsToInventory() {
+        const selectedItems = extractedItems.filter(item => item.selected);
 
-    function blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                // Remove data URL prefix for Capacitor
-                const base64 = reader.result.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
-                resolve(base64);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
+        if (selectedItems.length === 0) {
+            alert('Please select at least one item to add.');
+            return;
+        }
+
+        setStep('adding');
+        setProcessingStatus('Adding items to inventory...');
+
+        try {
+            const response = await fetch(getApiUrl('/api/inventory/bulk-add'), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    items: selectedItems.map(item => ({
+                        name: item.name,
+                        brand: item.brand || '',
+                        category: item.category,
+                        quantity: item.quantity,
+                        unit: 'item',
+                        location: item.location,
+                        upc: item.upc,
+                        expirationDate: null,
+                        rawText: item.rawText, // Include OCR metadata
+                        unitPrice: item.unitPrice,
+                        price: item.price
+                    })),
+                    source: 'receipt-scan-enhanced',
+                    ocrEngine: 'Enhanced-Tesseract-Dual-Model',
+                    metadata: {
+                        platform: deviceInfo.isIOSPWA ? 'iOS-PWA' : deviceInfo.isIOS ? 'iOS' : 'Web',
+                        ocrMethod: 'scribe-enhanced-dual-model'
+                    }
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                setProcessingStatus('Complete!');
+                alert(`✅ Successfully added ${result.itemsAdded} items to your inventory!`);
+                router.push('/inventory');
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add items');
+            }
+
+        } catch (error) {
+            console.error('Error adding items:', error);
+            alert(`Error adding items: ${error.message}`);
+            setStep('review');
+        }
     }
 
     // ===============================================
@@ -1059,8 +1067,10 @@ export default function ReceiptScan() {
         setProcessingStatus('Initializing OCR...');
 
         try {
-            const text = await processImageWithUniversalOCR(
+            // FIXED: Call the new enhanced OCR function
+            const text = await processImageWithOptimizedOCR(
                 imageFile,
+                deviceInfo, // Pass deviceInfo instead of platformInfo
                 (progress) => {
                     setOcrProgress(progress);
                     if (progress < 90) {
@@ -1093,7 +1103,7 @@ export default function ReceiptScan() {
                     body: JSON.stringify({
                         scanType: 'receipt',
                         itemsExtracted: items.length,
-                        ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
+                        ocrEngine: 'Enhanced-Tesseract-Dual-Model' // Updated to match our new engine
                     })
                 });
 
@@ -1838,53 +1848,6 @@ export default function ReceiptScan() {
         } catch (error) {
             console.error('UPC lookup error:', error);
             alert('❌ Network error during UPC lookup. Please check your connection and try again.');
-        }
-    }
-
-    async function addItemsToInventory() {
-        const selectedItems = extractedItems.filter(item => item.selected);
-
-        if (selectedItems.length === 0) {
-            alert('Please select at least one item to add.');
-            return;
-        }
-
-        setStep('adding');
-        setProcessingStatus('Adding items to inventory...');
-
-        try {
-            const response = await fetch(getApiUrl('/api/inventory/bulk-add'), {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    items: selectedItems.map(item => ({
-                        name: item.name,
-                        brand: item.brand || '',
-                        category: item.category,
-                        quantity: item.quantity,
-                        unit: 'item',
-                        location: item.location,
-                        upc: item.upc,
-                        expirationDate: null
-                    })),
-                    source: `receipt-scan-${platformInfo.isAndroid ? 'mlkit' : 'enhanced-tesseract'}`
-                })
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                setProcessingStatus('Complete!');
-                alert(`✅ Successfully added ${result.itemsAdded} items to your inventory!`);
-                router.push('/inventory');
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to add items');
-            }
-
-        } catch (error) {
-            console.error('Error adding items:', error);
-            alert(`Error adding items: ${error.message}`);
-            setStep('review');
         }
     }
 
