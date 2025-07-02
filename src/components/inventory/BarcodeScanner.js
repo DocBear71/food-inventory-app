@@ -273,33 +273,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         setIsScanning(false);
     }, []);
 
-// ENHANCED: Retry scanner initialization
-    const retryScanner = useCallback(async () => {
-        console.log('🔄 Retrying scanner initialization...');
-
-        // Reset all error states
-        setError(null);
-        setIsLoading(true);
-        setIsInitialized(false);
-        setIsScanning(true);
-        setScanFeedback('');
-
-        // Reset session
-        sessionIdRef.current = Date.now();
-        processedCodesRef.current = new Set();
-
-        // Force cleanup first
-        await cleanupScanner();
-
-        // Wait a moment for cleanup
-        setTimeout(() => {
-            if (mountedRef.current) {
-                // This will trigger the useEffect to reinitialize
-                setIsInitialized(false);
-            }
-        }, 500);
-    }, [cleanupScanner]);
-
     // ENHANCED: Update the scanner initialization with better error handling
     const initializeZXingScanner = useCallback(async () => {
         try {
@@ -485,6 +458,33 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             }
         }, 200);
     }, [cleanupScanner, onClose]);
+
+    // ENHANCED: Retry scanner initialization
+    const retryScanner = useCallback(async () => {
+        console.log('🔄 Retrying scanner initialization...');
+
+        // Reset all error states
+        setError(null);
+        setIsLoading(true);
+        setIsInitialized(false);
+        setIsScanning(true);
+        setScanFeedback('');
+
+        // Reset session
+        sessionIdRef.current = Date.now();
+        processedCodesRef.current = new Set();
+
+        // Force cleanup first
+        await cleanupScanner();
+
+        // Wait a moment for cleanup
+        setTimeout(() => {
+            if (mountedRef.current) {
+                // This will trigger the useEffect to reinitialize
+                setIsInitialized(false);
+            }
+        }, 500);
+    }, [cleanupScanner]);
 
     // Detect mobile device
     useEffect(() => {
