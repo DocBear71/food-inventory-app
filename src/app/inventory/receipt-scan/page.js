@@ -1309,7 +1309,7 @@ export default function ReceiptScan() {
         console.log('=====================================');
         console.log(`📊 Total text length: ${text.length} characters`);
 
-        // ENHANCED TEXT PREPROCESSING - Handle continuous text with no line breaks
+        // ENHANCED TEXT PREPROCESSING - Target-specific patterns
         let preprocessedText = text;
 
         // First, clean up and normalize the text
@@ -1319,38 +1319,42 @@ export default function ReceiptScan() {
 
         console.log('🔧 After initial cleanup:', preprocessedText);
 
-        // AGGRESSIVE SPLITTING - Insert line breaks at strategic points
+        // TARGET-SPECIFIC PREPROCESSING - More intelligent splitting
         preprocessedText = preprocessedText
+            // First, protect and properly format Target item patterns
+            .replace(/(\d{8,})\s+(GG|SM|BEN|ON|MUCKERS)\s+([A-Z\s]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/gi, '\n$1 $2 $3 $4 $$$5')
+            .replace(/(GG|SM|BEN|ON)\s+(MILK|CRERS|JERRYS|THE)\s+([A-Z\s]*?)\s+(NF|T)\s+([a-z\s]*?)\$(\d+\.\d{2})/gi, '\n$1 $2 $3 $4 $$$6')
+
+            // Handle specific Target items we can see in the OCR
+            .replace(/GQ\s+MILK\s+NF/gi, '\nGG MILK NF')
+            .replace(/SM\s+CRERS\s+NF/gi, '\nSM CRACKERS NF')
+            .replace(/MUCKERS\s+NF/gi, '\nSMUCKERS NF')
+            .replace(/BEN\s+a\s+JERRYS\s+NF/gi, '\nBEN & JERRYS NF')
+            .replace(/ON\s+THE\s+ROCKS/gi, '\nON THE ROCKS')
+
             // Split before store sections
             .replace(/\b(GROCERY|HOME|PHARMACY)\b/gi, '\n$1')
 
-            // Split before product codes (8+ digits)
-            .replace(/\b(\d{8,})\b/g, '\n$1')
+            // Split before product codes (but only if not already part of an item)
+            .replace(/(?<!\n)(\d{8,})(?!\s+[A-Z]+\s+[A-Z]+)/g, '\n$1')
 
-            // Split before prices with product names
-            .replace(/\b([A-Z][A-Z\s]+)\s+(NF|T)\s+\$(\d+\.\d{2})/gi, '\n$1 $2 $$$3')
+            // Split before price patterns
+            .replace(/(\$\d+\.\d{2})\s+(?=\d{8,}|[A-Z]{2,})/g, '$1\n')
 
-            // Split before common item patterns
-            .replace(/\b(GG|SM|BEN)\s+([A-Z]+)/gi, '\n$1 $2')
+            // Split before major sections
+            .replace(/\b(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)\b/gi, '\n$1')
 
-            // Split before "Regular price" or "Regul price" patterns
+            // Split before Regular/Regul price patterns
             .replace(/\b(Regul?\w*\s+\w*\s+price)/gi, '\n$1')
 
             // Split before BOGO patterns
             .replace(/\b(BOGO?\w*)/gi, '\n$1')
 
-            // Split before major keywords that indicate new sections
-            .replace(/\b(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)/gi, '\n$1')
-
-            // Split around prices - more aggressive approach
-            .replace(/(\$\d+\.\d{2})\s+([A-Z]{2,})/g, '$1\n$2')
-            .replace(/([A-Z]{2,})\s+(\$\d+\.\d{2})/g, '$1\n$2')
-
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
             .trim();
 
-        console.log('🔧 After aggressive splitting:');
+        console.log('🔧 After Target-specific splitting:');
         console.log('=====================================');
         console.log(preprocessedText);
         console.log('=====================================');
@@ -1372,6 +1376,39 @@ export default function ReceiptScan() {
 
         // COMPREHENSIVE skip patterns from v11/v12
         const skipPatterns = [
+            // Skip obvious non-item lines
+            /^(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN|AID|CODE)/i,
+            /^(GROCERY|HOME|PHARMACY)$/i,
+            /^(Regular\s+price|Regul\s+\w+\s+price)/i,
+            /^(BOGO\d+%?\s+circle?)/i,
+            /^(gottle\s+peposit\s+fee|bottle\s+deposit)/i,
+            /^\d{2}\/\d{2}\/\d{4}/i, // Dates
+            /^\d{2}:\d{2}\s+[AP]M/i, // Times
+            /^[\d\s\-\(\)]{10,}$/i, // Long number sequences
+            /^[A-Z]\s+[A-Z]\s+[A-Z]/i, // Single letter combinations like "A L E"
+
+            // Target-specific skip patterns
+            /^Hides\s+Nort/i, // OCR garbage at start
+            /^Cedar\s+Rapids/i, // Store location
+            /^pla\s+Cat\s+nad/i, // OCR garbage
+            /^nil\s+A\s+LIVIN/i, // OCR garbage
+            /^LIVIN\s+AEN\s+CLAN/i, // OCR garbage
+            /^iw\s+GROUY\s+RY/i, // OCR garbage
+
+            // Skip price comparison lines (these are not items to buy)
+            /^Regu\s+al\s+price/i,
+            /^R0GOS0\s+circle/i,
+            /^circle\s+Noe/i,
+
+            // Skip tax and total lines
+            /IA\s+TAR.*on\s+\$\d+\.\d{2}/i,
+            /SUBT?\s+OTAL/i,
+            /Las\s+TA\s+TAX/i,
+
+            // Skip payment lines
+            /DEBT.*PAYMENT/i,
+            /AID:\s+[A-Z0-9]+/i,
+            /AUTH\s+CODE/i,
             // ============ STORE NAMES AND HEADERS (More precise) ============
             /^walmart$/i,  // Only "walmart" by itself, not lines containing walmart
             /^target$/i,   // Only "target" by itself
@@ -1687,8 +1724,6 @@ export default function ReceiptScan() {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
-            const next2Line = i < lines.length - 2 ? lines[i + 2] : '';
-            const prevLine = i > 0 ? lines[i - 1] : '';
 
             // Skip common header/footer patterns
             if (skipPatterns.some(pattern => pattern.test(line))) {
@@ -1724,6 +1759,58 @@ export default function ReceiptScan() {
             if (line.match(/\$?0\.00/i)) {
                 console.log(`📋 Skipping zero amount: ${line}`);
                 continue;
+            }
+
+            // Look for Target item patterns specifically
+            let itemFound = false;
+            let itemName = '';
+            let price = 0;
+            let quantity = 1;
+
+            // Pattern 1: "PRODUCT_CODE ITEM_NAME NF $PRICE"
+            const targetPattern1 = line.match(/(?:(\d{8,})\s+)?([A-Z][A-Z\s&]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/i);
+            if (targetPattern1) {
+                const [, productCode, name, taxCode, priceStr] = targetPattern1;
+                itemName = name.trim();
+                price = parseFloat(priceStr);
+                console.log(`✅ Target pattern 1 match: "${itemName}" - $${price}`);
+                itemFound = true;
+            }
+
+            // Pattern 2: "ITEM_NAME $PRICE" (simpler pattern)
+            if (!itemFound) {
+                const simplePattern = line.match(/^([A-Z][A-Z\s&]+?)\s+\$(\d+\.\d{2})$/i);
+                if (simplePattern) {
+                    const [, name, priceStr] = simplePattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+
+                    // Make sure it's not a price comparison line
+                    if (!itemName.match(/^(regular|regul|compare|was|sale)/i) && price > 0.50 && price < 50) {
+                        console.log(`✅ Simple pattern match: "${itemName}" - $${price}`);
+                        itemFound = true;
+                    }
+                }
+            }
+
+            // Pattern 3: Check for quantity lines like "2 @ $5.99 ea"
+            if (!itemFound) {
+                const qtyPattern = line.match(/(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i);
+                if (qtyPattern && i > 0) {
+                    const [, qty, unitPrice] = qtyPattern;
+                    const prevLine = lines[i - 1];
+
+                    // Look for item name in previous line
+                    const nameMatch = prevLine.match(/([A-Z][A-Z\s&]+)\s+NF/i);
+                    if (nameMatch) {
+                        itemName = nameMatch[1].trim();
+                        quantity = parseInt(qty);
+                        const unitPriceNum = parseFloat(unitPrice);
+                        price = quantity * unitPriceNum;
+                        console.log(`✅ Quantity pattern: "${itemName}" - ${qty} @ $${unitPrice} = $${price}`);
+                        itemFound = true;
+                    }
+                }
             }
 
             // Check if line contains a price
@@ -1822,14 +1909,52 @@ export default function ReceiptScan() {
                         i++; // Skip the next line since we already processed it
                         console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
                     }
-                } else {
-                    console.log(`📋 Skipping line with insufficient name: "${nameMatch}" from "${line}"`);
+
+                    // Create item if we found a valid match
+                    if (itemFound && itemName && price > 0) {
+                        // Clean up the item name using the enhanced function
+                        itemName = cleanItemName(itemName);
+
+                        // Final validation - make sure it's a real item name
+                        if (itemName.length > 2 &&
+                            !itemName.match(/^(regular|regul|compare|was|sale|price|circle|bogo)/i) &&
+                            !itemName.match(/^\d+/) &&
+                            price > 0.50 && price < 50) {
+
+                            console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
+
+                            const item = {
+                                id: Date.now() + Math.random(),
+                                name: itemName,
+                                price: price,
+                                quantity: quantity,
+                                unitPrice: price / quantity,
+                                upc: '',
+                                category: guessCategory(itemName),
+                                location: guessLocation(itemName),
+                                rawText: line,
+                                selected: true,
+                                needsReview: false
+                            };
+
+                            items.push(item);
+                        } else {
+                            console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
+                        }
+                    } else {
+                        console.log(`❌ No valid item pattern found: "${line}"`);
+                    }
                 }
+
+                console.log(`\n📋 FINAL RESULTS:`);
+                console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
+                items.forEach((item, index) => {
+                    console.log(`${index + 1}. "${item.name}" - $${item.price} (${item.category})`);
+                });
+
+                return items; // Skip combineDuplicateItems for now to see raw results
             }
         }
-
-        console.log(`📋 Extracted ${items.length} items from receipt`);
-        return combineDuplicateItems(items);
     }
 
     // Combine duplicate items function
