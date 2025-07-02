@@ -257,7 +257,8 @@ export default function ReceiptScan() {
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div
+                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <div className="text-lg text-gray-600">Loading dashboard...</div>
                     </div>
                 </div>
@@ -456,9 +457,9 @@ export default function ReceiptScan() {
             for (let x = 1; x < width - 1; x++) {
                 const idx = (y * width + x) * 4;
                 const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
-                const grayAbove = data[((y-1) * width + x) * 4] * 0.299 +
-                    data[((y-1) * width + x) * 4 + 1] * 0.587 +
-                    data[((y-1) * width + x) * 4 + 2] * 0.114;
+                const grayAbove = data[((y - 1) * width + x) * 4] * 0.299 +
+                    data[((y - 1) * width + x) * 4 + 1] * 0.587 +
+                    data[((y - 1) * width + x) * 4 + 2] * 0.114;
 
                 if (Math.abs(gray - grayAbove) > 50) {
                     horizontalEdges++;
@@ -691,6 +692,7 @@ export default function ReceiptScan() {
             throw new Error(`Standard Tesseract OCR failed: ${error.message}`);
         }
     }
+
 // ===============================================
 // ALSO UPDATE YOUR BULK ADD CALL TO INCLUDE OCR ENGINE INFO
 // ===============================================
@@ -1174,7 +1176,7 @@ export default function ReceiptScan() {
         // On Android native, we can use the camera directly through MLKit
         if (platformInfo.isNative && platformInfo.isAndroid) {
             try {
-                const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
 
                 const photo = await Camera.getPhoto({
                     resultType: CameraResultType.Blob,
@@ -1301,7 +1303,55 @@ export default function ReceiptScan() {
     // ===============================================
 
     function parseReceiptText(text) {
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log('🔍 RAW OCR TEXT RECEIVED:');
+        console.log('=====================================');
+        console.log(text);
+        console.log('=====================================');
+        console.log(`📊 Total text length: ${text.length} characters`);
+
+        // ENHANCED TEXT PREPROCESSING - Fix the core issue
+        let preprocessedText = text;
+
+        // Fix common OCR line break issues
+        preprocessedText = preprocessedText
+            // Fix missing line breaks before prices
+            .replace(/([a-zA-Z])\s*(\$\d+\.\d{2})/g, '$1\n$2')
+            // Fix missing line breaks after prices
+            .replace(/(\$\d+\.\d{2})\s*([A-Z][a-zA-Z])/g, '$1\n$2')
+            // Fix missing line breaks before product codes
+            .replace(/([a-zA-Z])\s*(\d{8,})/g, '$1\n$2')
+            // Fix missing line breaks after product codes followed by text
+            .replace(/(\d{8,})\s*([A-Z][a-zA-Z])/g, '$1\n$2')
+            // Fix "NF $price" patterns
+            .replace(/(NF)\s*(\$\d+\.\d{2})/g, '$1 $2')
+            // Fix store section headers
+            .replace(/(GROCERY|HOME|PHARMACY)\s*(\d{8,})/g, '$1\n$2')
+            // Fix regular price patterns
+            .replace(/(\$\d+\.\d{2})\s*(Regular\s+Price)/gi, '$1\n$2')
+            // Fix quantity patterns like "2 @ $5.99 ea"
+            .replace(/(\d+)\s*@\s*(\$\d+\.\d{2})\s*(ea)/gi, '\n$1 @ $2 $3')
+            // Fix tax patterns
+            .replace(/(\$\d+\.\d{2})\s*(T\s*=\s*IA\s*TAX)/gi, '$1\n$2')
+            // Clean up multiple spaces
+            .replace(/\s+/g, ' ')
+            // Normalize line breaks
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n');
+
+        console.log('🔧 PREPROCESSED TEXT:');
+        console.log('=====================================');
+        console.log(preprocessedText);
+        console.log('=====================================');
+
+        const lines = preprocessedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log(`📋 Split into ${lines.length} lines (was ${text.split('\n').length} before preprocessing)`);
+
+        // Log first 20 lines for debugging
+        console.log('📋 First 20 lines after preprocessing:');
+        lines.slice(0, 20).forEach((line, index) => {
+            console.log(`Line ${index + 1}: "${line}"`);
+        });
+
         const items = [];
 
         // Common patterns for receipt items
@@ -1407,7 +1457,7 @@ export default function ReceiptScan() {
             /^total\s+tax/i,
             /^account\s+#/i,
             /^approval\s+#/i,
-            // ... (keeping all other skip patterns from original)
+
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
@@ -1972,13 +2022,16 @@ export default function ReceiptScan() {
                         <div className="bg-white shadow rounded-lg">
                             <div className="px-4 py-5 sm:p-6">
                                 <div className="text-center py-12">
-                                    <div className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                                        <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div
+                                        className="mx-auto w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                                        <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor"
+                                             viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"/>
                                         </svg>
                                     </div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit Reached</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly Scan Limit
+                                        Reached</h3>
                                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
                                         You've used all {usage.monthlyLimit} of your receipt scans this month.
                                         Your scans will reset on the 1st of next month.
@@ -2022,14 +2075,16 @@ export default function ReceiptScan() {
                             </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
+                        <div
+                            className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-8 mb-8 border border-purple-200">
                             <div className="text-center mb-6">
                                 <div className="text-6xl mb-4">📄✨</div>
                                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                                     Receipt Scanning is a Gold Feature
                                 </h2>
                                 <p className="text-gray-700 max-w-2xl mx-auto">
-                                    Save time by scanning grocery receipts to automatically add multiple items to your inventory at once.
+                                    Save time by scanning grocery receipts to automatically add multiple items to your
+                                    inventory at once.
                                     Advanced OCR technology extracts item names, quantities, and prices.
                                 </p>
                             </div>
@@ -2082,7 +2137,9 @@ export default function ReceiptScan() {
                                 <div className="flex items-start">
                                     <div className="text-blue-600 mr-3 mt-0.5">
                                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                                            <path fillRule="evenodd"
+                                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                  clipRule="evenodd"/>
                                         </svg>
                                     </div>
                                     <div className="flex-1">
@@ -2176,7 +2233,8 @@ export default function ReceiptScan() {
                                                 🤖 Android ML Kit OCR
                                             </h4>
                                             <p className="text-sm text-green-800 mb-3">
-                                                You're using Google's native ML Kit for optimal performance and accuracy on Android.
+                                                You're using Google's native ML Kit for optimal performance and accuracy
+                                                on Android.
                                                 Processing happens entirely on your device for privacy and speed.
                                             </p>
                                         </div>
@@ -2212,21 +2270,26 @@ export default function ReceiptScan() {
                                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                             <div className="text-red-700">❌ {cameraError}</div>
                                             <div className="text-sm text-red-600 mt-2">
-                                                Please try using the upload option instead, or check your camera permissions.
+                                                Please try using the upload option instead, or check your camera
+                                                permissions.
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Tips */}
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best Results:</h4>
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📝 Tips for Best
+                                            Results:</h4>
                                         <ul className="text-sm text-blue-800 space-y-1">
                                             <li>• Ensure receipt is flat and well-lit</li>
                                             <li>• Avoid shadows and glare</li>
                                             <li>• Include the entire receipt in the frame</li>
                                             <li>• Higher resolution images work better</li>
-                                            {platformInfo.isAndroid && <li>• ML Kit works best with clear, high-contrast text</li>}
-                                            {platformInfo.isWeb && <li>• Tesseract.js provides reliable accuracy for standard receipts</li>}
+                                            {platformInfo.isAndroid &&
+                                                <li>• ML Kit works best with clear, high-contrast text</li>}
+                                            {platformInfo.isWeb &&
+                                                <li>• Tesseract.js provides reliable accuracy for standard
+                                                    receipts</li>}
                                         </ul>
                                     </div>
 
@@ -2234,7 +2297,8 @@ export default function ReceiptScan() {
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                         <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
                                         <p className="text-sm text-yellow-800 mb-3">
-                                            If the receipt scanner isn't working properly with your receipt, you can report
+                                            If the receipt scanner isn't working properly with your receipt, you can
+                                            report
                                             the issue to help us improve it.
                                         </p>
                                         <TouchEnhancedButton
@@ -2273,14 +2337,18 @@ export default function ReceiptScan() {
                                             webkit-playsinline="true"
                                         />
 
-                                        <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
-                                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                        <div
+                                            className="absolute inset-4 border-2 border-white border-dashed rounded-lg pointer-events-none">
+                                            <div
+                                                className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                 📱 Position receipt here
                                             </div>
-                                            <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            <div
+                                                className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                 📏 Fill frame completely
                                             </div>
-                                            <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                            <div
+                                                className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                                                 💻 Tesseract.js OCR
                                             </div>
                                         </div>
@@ -2331,7 +2399,8 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <div
+                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
 
@@ -2340,10 +2409,13 @@ export default function ReceiptScan() {
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900">Review Extracted Items</h3>
+                                            <h3 className="text-lg font-medium text-gray-900">Review Extracted
+                                                Items</h3>
                                             <p className="text-gray-600">
-                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected
-                                                {' '}- Processed with {platformInfo.isAndroid ? 'Android ML Kit' : 'Tesseract.js OCR'}
+                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
+                                                selected
+                                                {' '}- Processed
+                                                with {platformInfo.isAndroid ? 'Android ML Kit' : 'Tesseract.js OCR'}
                                             </p>
                                         </div>
                                         <div className="flex space-x-2">
@@ -2383,7 +2455,8 @@ export default function ReceiptScan() {
                                     <div className="space-y-4">
                                         {extractedItems.length === 0 ? (
                                             <div className="text-center py-8 text-gray-500">
-                                                No items were extracted from the receipt. Please try again with a clearer image.
+                                                No items were extracted from the receipt. Please try again with a
+                                                clearer image.
                                             </div>
                                         ) : (
                                             extractedItems.map((item) => (
@@ -2401,7 +2474,8 @@ export default function ReceiptScan() {
 
                                                         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Item Name
                                                                 </label>
                                                                 <input
@@ -2413,7 +2487,8 @@ export default function ReceiptScan() {
                                                             </div>
 
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                <label
+                                                                    className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Category
                                                                 </label>
                                                                 <select
@@ -2422,50 +2497,83 @@ export default function ReceiptScan() {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 >
                                                                     <option value="">Select category</option>
-                                                                    <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
+                                                                    <option value="Baking & Cooking Ingredients">Baking
+                                                                        & Cooking Ingredients
+                                                                    </option>
                                                                     <option value="Beans">Beans</option>
                                                                     <option value="Beverages">Beverages</option>
                                                                     <option value="Bouillon">Bouillon</option>
                                                                     <option value="Boxed Meals">Boxed Meals</option>
                                                                     <option value="Breads">Breads</option>
-                                                                    <option value="Canned Beans">Canned/Jarred Beans</option>
-                                                                    <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                                                    <option value="Canned Meals">Canned/Jarred Meals</option>
-                                                                    <option value="Canned Meat">Canned/Jarred Meat</option>
-                                                                    <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                                                    <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                                                    <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
+                                                                    <option value="Canned Beans">Canned/Jarred Beans
+                                                                    </option>
+                                                                    <option value="Canned Fruit">Canned/Jarred Fruit
+                                                                    </option>
+                                                                    <option value="Canned Meals">Canned/Jarred Meals
+                                                                    </option>
+                                                                    <option value="Canned Meat">Canned/Jarred Meat
+                                                                    </option>
+                                                                    <option value="Canned Sauces">Canned/Jarred Sauces
+                                                                    </option>
+                                                                    <option value="Canned Tomatoes">Canned/Jarred
+                                                                        Tomatoes
+                                                                    </option>
+                                                                    <option value="Canned Vegetables">Canned/Jarred
+                                                                        Vegetables
+                                                                    </option>
                                                                     <option value="Cheese">Cheese</option>
                                                                     <option value="Condiments">Condiments</option>
                                                                     <option value="Dairy">Dairy</option>
                                                                     <option value="Eggs">Eggs</option>
                                                                     <option value="Fresh Fruits">Fresh Fruits</option>
                                                                     <option value="Fresh Spices">Fresh Spices</option>
-                                                                    <option value="Fresh Vegetables">Fresh Vegetables</option>
-                                                                    <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                                                    <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
-                                                                    <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                                                    <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                                                    <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                                                    <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                                                    <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
+                                                                    <option value="Fresh Vegetables">Fresh Vegetables
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Beef">Fresh/Frozen
+                                                                        Beef
+                                                                    </option>
+                                                                    <option
+                                                                        value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                        Fish & Seafood
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Lamb">Fresh/Frozen
+                                                                        Lamb
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Pork">Fresh/Frozen
+                                                                        Pork
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Poultry">Fresh/Frozen
+                                                                        Poultry
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Rabbit">Fresh/Frozen
+                                                                        Rabbit
+                                                                    </option>
+                                                                    <option value="Fresh/Frozen Venison">Fresh/Frozen
+                                                                        Venison
+                                                                    </option>
                                                                     <option value="Frozen Fruit">Frozen Fruit</option>
-                                                                    <option value="Frozen Vegetables">Frozen Vegetables</option>
+                                                                    <option value="Frozen Vegetables">Frozen
+                                                                        Vegetables
+                                                                    </option>
                                                                     <option value="Grains">Grains</option>
                                                                     <option value="Other">Other</option>
                                                                     <option value="Pasta">Pasta</option>
                                                                     <option value="Seasonings">Seasonings</option>
                                                                     <option value="Snacks">Snacks</option>
-                                                                    <option value="Soups & Soup Mixes">Soups & Soup Mixes</option>
+                                                                    <option value="Soups & Soup Mixes">Soups & Soup
+                                                                        Mixes
+                                                                    </option>
                                                                     <option value="Spices">Spices</option>
                                                                     <option value="Stock/Broth">Stock/Broth</option>
-                                                                    <option value="Stuffing & Sides">Stuffing & Sides</option>
+                                                                    <option value="Stuffing & Sides">Stuffing & Sides
+                                                                    </option>
                                                                 </select>
                                                             </div>
 
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <div>
-                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    <label
+                                                                        className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Qty
                                                                     </label>
                                                                     <input
@@ -2477,7 +2585,8 @@ export default function ReceiptScan() {
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    <label
+                                                                        className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Location
                                                                     </label>
                                                                     <select
@@ -2486,7 +2595,8 @@ export default function ReceiptScan() {
                                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                     >
                                                                         <option value="pantry">Pantry</option>
-                                                                        <option value="kitchen">Kitchen Cabinets</option>
+                                                                        <option value="kitchen">Kitchen Cabinets
+                                                                        </option>
                                                                         <option value="fridge">Fridge</option>
                                                                         <option value="freezer">Freezer</option>
                                                                         <option value="other">Other</option>
@@ -2506,7 +2616,8 @@ export default function ReceiptScan() {
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
+                                                    <div
+                                                        className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
                                                         <span>Price: ${item.price.toFixed(2)}</span>
                                                         {item.upc && <span>UPC: {item.upc}</span>}
                                                         <span className="text-xs bg-gray-200 px-2 py-1 rounded">
@@ -2526,7 +2637,8 @@ export default function ReceiptScan() {
                                     <div className="text-6xl mb-4">📦</div>
                                     <h3 className="text-lg font-medium text-gray-900">Adding Items to Inventory</h3>
                                     <p className="text-gray-600 mb-6">{processingStatus}</p>
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <div
+                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
                         </div>
@@ -2560,13 +2672,19 @@ export default function ReceiptScan() {
                                             </label>
                                             <select
                                                 value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({...prev, issue: e.target.value}))}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    issue: e.target.value
+                                                }))}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Select an issue...</option>
-                                                <option value="android-mlkit-not-working">Android ML Kit Not Working</option>
-                                                <option value="tesseractjs-poor-accuracy">Tesseract.js Poor Accuracy</option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
+                                                <option value="android-mlkit-not-working">Android ML Kit Not Working
+                                                </option>
+                                                <option value="tesseractjs-poor-accuracy">Tesseract.js Poor Accuracy
+                                                </option>
+                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
+                                                </option>
                                                 <option value="camera-not-working">Camera not working</option>
                                                 <option value="wrong-items-detected">Wrong items detected</option>
                                                 <option value="missing-items">Items not detected</option>
@@ -2583,7 +2701,10 @@ export default function ReceiptScan() {
                                             </label>
                                             <textarea
                                                 value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({...prev, description: e.target.value}))}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    description: e.target.value
+                                                }))}
                                                 placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 rows={4}
@@ -2597,7 +2718,10 @@ export default function ReceiptScan() {
                                             <input
                                                 type="email"
                                                 value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({...prev, email: e.target.value}))}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    email: e.target.value
+                                                }))}
                                                 placeholder="your.email@example.com"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
@@ -2628,7 +2752,8 @@ export default function ReceiptScan() {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                             <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max 10MB each)
+                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max
+                                                10MB each)
                                             </p>
 
                                             {reportData.additionalFiles.length > 0 && (
@@ -2637,10 +2762,12 @@ export default function ReceiptScan() {
                                                         Files to be sent ({reportData.additionalFiles.length}):
                                                     </p>
                                                     {reportData.additionalFiles.map((file, index) => (
-                                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                                             <div className="flex items-center space-x-2">
                                                                 <span className="text-sm">📸</span>
-                                                                <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                                                                <span
+                                                                    className="text-sm text-gray-700 truncate">{file.name}</span>
                                                                 <span className="text-xs text-gray-500">
                                                                     ({(file.size / 1024 / 1024).toFixed(1)}MB)
                                                                 </span>
@@ -2667,7 +2794,8 @@ export default function ReceiptScan() {
                                                     platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
                                                 {capturedImage && <li>• Receipt image</li>}
                                                 {reportData.additionalFiles.length > 0 && (
-                                                    <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                    <li>• {reportData.additionalFiles.length} additional
+                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
                                                 )}
                                                 <li>• Browser and device information</li>
                                                 <li>• No personal information from your account</li>
