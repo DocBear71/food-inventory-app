@@ -1767,6 +1767,36 @@ export default function ReceiptScan() {
             let price = 0;
             let quantity = 1;
 
+            // Pattern for items with product codes: "284020005 GG MILK NF $2.59"
+            const targetPatternWithCode = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+            if (targetPatternWithCode) {
+                const [, productCode, name, taxCode, priceStr] = targetPatternWithCode;
+                itemName = name.trim();
+                price = parseFloat(priceStr);
+                console.log(`✅ Target pattern with code: "${itemName}" - $${price}`);
+                itemFound = true;
+            }
+
+            // Pattern for quantity items: "2 @ $5.99 ea"
+            if (!itemFound && line.match(/^\d+\s*@\s*\$\d+\.\d{2}\s*ea/i)) {
+                const qtyMatch = line.match(/^(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i);
+                if (qtyMatch && i > 0) {
+                    const [, qty, unitPriceStr] = qtyMatch;
+                    const prevLine = lines[i - 1];
+
+                    // Look for item name in previous line
+                    const nameMatch = prevLine.match(/([A-Z][A-Z\s&]+?)(?:\s+NF|\s+TP)?/i);
+                    if (nameMatch) {
+                        itemName = nameMatch[1].trim();
+                        quantity = parseInt(qty);
+                        const unitPriceNum = parseFloat(unitPriceStr);
+                        price = quantity * unitPriceNum;
+                        console.log(`✅ Quantity pattern: "${itemName}" - ${qty} @ $${unitPriceStr} = $${price}`);
+                        itemFound = true;
+                    }
+                }
+            }
+
             // Pattern 1: "PRODUCT_CODE ITEM_NAME NF $PRICE"
             const targetPattern1 = line.match(/(?:(\d{8,})\s+)?([A-Z][A-Z\s&]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/i);
             if (targetPattern1) {
@@ -1923,6 +1953,7 @@ export default function ReceiptScan() {
 
                             console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
 
+
                             const item = {
                                 id: Date.now() + Math.random(),
                                 name: itemName,
@@ -1938,8 +1969,10 @@ export default function ReceiptScan() {
                             };
 
                             items.push(item);
+                            continue; // ← ADD THIS to skip rest of loop iteration
                         } else {
                             console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
+                            continue; // ← ADD THIS to skip rest of loop iteration
                         }
                     } else {
                         console.log(`❌ No valid item pattern found: "${line}"`);
