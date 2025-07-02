@@ -36,6 +36,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "resend": "^4.5.2",
+    "scribe.js-ocr": "^0.8.0",
     "stripe": "^18.2.1",
     "tesseract.js": "^6.0.1"
   },

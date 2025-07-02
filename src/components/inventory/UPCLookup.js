@@ -838,10 +838,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    const handleScannerClose = () => {
-        setShowScanner(false);
-    };
-
 // Handle nutrition display toggle
     const handleToggleNutrition = (e) => {
         e.preventDefault();

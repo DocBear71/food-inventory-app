@@ -26,6 +26,147 @@ import {
     getShortDisplayText
 } from '@/lib/inventoryDisplayUtils';
 
+
+// Helper function to parse quantity/serving size and extract size info
+function parseProductSize(product) {
+    if (!product) {
+        return { quantity: null, unit: null };
+    }
+
+    // Try multiple fields in order of preference
+    const possibleSizeFields = [
+        product.quantity,
+        product.serving_size,
+        product.serving_size_imported,
+        product.packaging,
+        product.product_quantity
+    ];
+
+    for (const sizeString of possibleSizeFields) {
+        if (sizeString && typeof sizeString === 'string' && sizeString.trim()) {
+            const parsed = parseSizeString(sizeString);
+            if (parsed.quantity && parsed.unit) {
+                return parsed;
+            }
+        }
+    }
+
+    return { quantity: null, unit: null };
+}
+
+// Helper function to parse individual size strings
+function parseSizeString(sizeString) {
+    if (!sizeString || typeof sizeString !== 'string') {
+        return { quantity: null, unit: null };
+    }
+
+    // Remove content in parentheses first, then clean up
+    let cleanString = sizeString.replace(/\([^)]*\)/g, '').trim();
+
+    // Remove common prefixes and suffixes
+    cleanString = cleanString.replace(/^(net\s+weight|net\s+wt|contents|size|volume)[:;,\s]*/i, '');
+    cleanString = cleanString.replace(/[,;]\s*(approx|approximate|about).*$/i, '');
+
+    // Handle multiple formats like "15 ml, 1 Tbsp" - take the first measurement
+    const parts = cleanString.split(/[,;]/);
+    if (parts.length > 1) {
+        // Try each part to find the best match
+        for (const part of parts) {
+            const parsed = extractNumberAndUnit(part.trim());
+            if (parsed.quantity && parsed.unit) {
+                return parsed;
+            }
+        }
+    }
+
+    return extractNumberAndUnit(cleanString);
+}
+
+// Helper function to extract number and unit from a string
+function extractNumberAndUnit(text) {
+    // Enhanced pattern to handle various formats
+    const patterns = [
+        // Standard formats: "500 ml", "2.5 lbs", "16 oz"
+        /(\d+(?:\.\d+)?)\s*(oz|ounces?|fl\s*oz|fluid\s*ounces?|lb|lbs?|pounds?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|cup|cups?|tbsp|tablespoons?|tsp|teaspoons?|qt|quarts?|pt|pints?|gal|gallons?|can|cans?|package|packages?|pkg|box|boxes?|bag|bags?|bottle|bottles?)\b/i,
+
+        // Compact formats: "500ml", "16oz"
+        /(\d+(?:\.\d+)?)(oz|fl\s*oz|lb|lbs|g|kg|ml|l)\b/i,
+
+        // With 'x' multiplier: "12 x 16 oz" -> take the individual size
+        /\d+\s*x\s*(\d+(?:\.\d+)?)\s*(oz|ounces?|fl\s*oz|lb|lbs?|g|grams?|kg|ml|l|liters?|can|cans?|bottle|bottles?)\b/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+            const quantity = parseFloat(match[1]);
+            const rawUnit = match[2].toLowerCase().replace(/\s+/g, '');
+
+            // Map to your dropdown options
+            const unitMap = {
+                'oz': 'oz',
+                'ounce': 'oz',
+                'ounces': 'oz',
+                'floz': 'oz',
+                'fluidounce': 'oz',
+                'fluidounces': 'oz',
+                'lb': 'lbs',
+                'lbs': 'lbs',
+                'pound': 'lbs',
+                'pounds': 'lbs',
+                'g': 'g',
+                'gram': 'g',
+                'grams': 'g',
+                'kg': 'kg',
+                'kilogram': 'kg',
+                'kilograms': 'kg',
+                'ml': 'ml',
+                'milliliter': 'ml',
+                'milliliters': 'ml',
+                'l': 'l',
+                'liter': 'l',
+                'liters': 'l',
+                'cup': 'cup',
+                'cups': 'cup',
+                'tbsp': 'tbsp',
+                'tablespoon': 'tbsp',
+                'tablespoons': 'tbsp',
+                'tsp': 'tsp',
+                'teaspoon': 'tsp',
+                'teaspoons': 'tsp',
+                'qt': 'l', // Convert quarts to liters (approximate)
+                'quart': 'l',
+                'quarts': 'l',
+                'pt': 'ml', // Convert pints to ml (approximate)
+                'pint': 'ml',
+                'pints': 'ml',
+                'gal': 'l', // Convert gallons to liters (approximate)
+                'gallon': 'l',
+                'gallons': 'l',
+                'can': 'can',
+                'cans': 'can',
+                'package': 'package',
+                'packages': 'package',
+                'pkg': 'package',
+                'box': 'package',
+                'boxes': 'package',
+                'bag': 'package',
+                'bags': 'package',
+                'bottle': 'package',
+                'bottles': 'package'
+            };
+
+            const mappedUnit = unitMap[rawUnit];
+
+            if (mappedUnit && quantity > 0) {
+                return { quantity, unit: mappedUnit };
+            }
+        }
+    }
+
+    return { quantity: null, unit: null };
+}
+
 // Separate component for search params to wrap in Suspense
 function InventoryContent() {
     const {data: session, status, update} = useSafeSession();
@@ -736,12 +877,44 @@ function InventoryContent() {
     };
 
     const handleProductFound = (product) => {
+        // Parse size information from the product using enhanced logic
+        const sizeInfo = parseProductSize(product);
+
+        // Check if we should ask about secondary quantity conflict
+        const hasExistingSecondary = formData.secondaryQuantity && formData.secondaryQuantity !== '';
+        const hasNewSizeInfo = sizeInfo.quantity && sizeInfo.unit;
+
+        if (hasExistingSecondary && hasNewSizeInfo) {
+            // Ask user about conflict
+            const shouldOverwrite = confirm(
+                `The scanned product shows a size of ${sizeInfo.quantity} ${sizeInfo.unit}, ` +
+                `but you already have ${formData.secondaryQuantity} ${formData.secondaryUnit} entered. ` +
+                `\n\nWould you like to use the scanned size information?`
+            );
+
+            if (!shouldOverwrite) {
+                // Don't update secondary quantity, just update other fields
+                setFormData(prev => ({
+                    ...prev,
+                    name: product.name || prev.name,
+                    brand: product.brand || prev.brand,
+                    category: product.category || prev.category,
+                    upc: product.upc || prev.upc
+                }));
+                return;
+            }
+        }
+
+        // Update form data including secondary quantity if available
         setFormData(prev => ({
             ...prev,
             name: product.name || prev.name,
             brand: product.brand || prev.brand,
             category: product.category || prev.category,
-            upc: product.upc || prev.upc
+            upc: product.upc || prev.upc,
+            // Add secondary quantity from parsed size info
+            secondaryQuantity: hasNewSizeInfo ? sizeInfo.quantity : prev.secondaryQuantity,
+            secondaryUnit: hasNewSizeInfo ? sizeInfo.unit : prev.secondaryUnit
         }));
     };
 
