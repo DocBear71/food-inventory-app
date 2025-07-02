@@ -2614,7 +2614,7 @@ export default function ReceiptScan() {
 
                                         {/* Email Receipt Option - Available on all platforms */}
                                         <TouchEnhancedButton
-                                            onClick={handleEmailReceiptUpload}
+                                            onClick={handleEmailReceiptFileUpload}
                                             className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
                                         >
                                             <div className="text-4xl mb-2">📧</div>
