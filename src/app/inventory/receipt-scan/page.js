@@ -1832,7 +1832,7 @@ export default function ReceiptScan() {
                 itemName = name.trim();
                 price = parseFloat(priceStr);
                 // Use the productCode as a potential UPC
-                upc = productCode.length >= 11 ? productCode : '';
+                upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
                 taxCode = tax;
                 console.log(`✅ Target pattern 1 match: "${itemName}" - $${price}, Tax: ${taxCode}`);
                 itemFound = true;
