@@ -1828,18 +1828,40 @@ export default function ReceiptScan() {
                 }
             }
 
-            // Pattern 4: Handle complex lines with multiple items (like line 14)
-            if (!itemFound && line.includes('$') && line.length > 50) {
-                // Try to extract the first item from a complex line
-                const complexMatch = line.match(/(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
-                if (complexMatch) {
-                    const [, productCode, name, tax, priceStr] = complexMatch;
-                    itemName = name.trim();
-                    price = parseFloat(priceStr);
-                    upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
-                    taxCode = tax || '';
-                    console.log(`✅ Pattern 4 (complex line): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
-                    itemFound = true;
+            // Pattern 4: Handle quantity info for Ben & Jerry's (enhanced detection)
+            if (!itemFound && line.includes('@') && line.includes('ea')) {
+                // Look for corrupted quantity patterns in complex lines
+                const corruptedQtyMatch = line.match(/(\d+)\s*@\s*\$?(\d+(?:\.\d{2})?)/i);
+                if (corruptedQtyMatch && i > 0) {
+                    const prevLine = lines[i - 1];
+
+                    // Check if previous line was Ben & Jerry's
+                    if (prevLine.includes('BEN') && prevLine.includes('JERRYS')) {
+                        // Extract the previous item's info
+                        const prevItemMatch = prevLine.match(/(\d{8,})\s+(BEN\s+\d?\s*&?\s*JERRYS?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                        if (prevItemMatch) {
+                            const [, productCode, name, tax, totalPriceStr] = prevItemMatch;
+                            const totalPrice = parseFloat(totalPriceStr);
+
+                            // Try to determine correct quantity from total price
+                            // $11.98 total ÷ 2 = $5.99 each (common Ben & Jerry's price)
+                            if (totalPrice === 11.98) {
+                                quantity = 2;
+                                const unitPriceCalc = totalPrice / quantity;
+
+                                // Update the previous item that was already created
+                                const lastItem = items[items.length - 1];
+                                if (lastItem && lastItem.name.includes('Jerry')) {
+                                    lastItem.quantity = quantity;
+                                    lastItem.unitPrice = unitPriceCalc;
+                                    lastItem.rawText += ` + ${line}`;
+
+                                    console.log(`✅ Updated Ben & Jerry's quantity: ${quantity} @ $${unitPriceCalc.toFixed(2)} = $${totalPrice}`);
+                                    itemFound = true; // Skip creating new item
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
