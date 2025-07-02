@@ -1302,15 +1302,73 @@ export default function ReceiptScan() {
     // RECEIPT TEXT PARSING (unchanged from original)
     // ===============================================
 
-    // ENHANCED parseReceiptText function with comprehensive skip patterns from v14
     function parseReceiptText(text) {
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log('🔍 RAW OCR TEXT RECEIVED:');
+        console.log('=====================================');
+        console.log(text);
+        console.log('=====================================');
+        console.log(`📊 Total text length: ${text.length} characters`);
+
+        // ENHANCED TEXT PREPROCESSING - Handle continuous text with no line breaks
+        let preprocessedText = text;
+
+        // First, clean up and normalize the text
+        preprocessedText = preprocessedText
+            .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
+            .trim();
+
+        console.log('🔧 After initial cleanup:', preprocessedText);
+
+        // AGGRESSIVE SPLITTING - Insert line breaks at strategic points
+        preprocessedText = preprocessedText
+            // Split before store sections
+            .replace(/\b(GROCERY|HOME|PHARMACY)\b/gi, '\n$1')
+
+            // Split before product codes (8+ digits)
+            .replace(/\b(\d{8,})\b/g, '\n$1')
+
+            // Split before prices with product names
+            .replace(/\b([A-Z][A-Z\s]+)\s+(NF|T)\s+\$(\d+\.\d{2})/gi, '\n$1 $2 $$$3')
+
+            // Split before common item patterns
+            .replace(/\b(GG|SM|BEN)\s+([A-Z]+)/gi, '\n$1 $2')
+
+            // Split before "Regular price" or "Regul price" patterns
+            .replace(/\b(Regul?\w*\s+\w*\s+price)/gi, '\n$1')
+
+            // Split before BOGO patterns
+            .replace(/\b(BOGO?\w*)/gi, '\n$1')
+
+            // Split before major keywords that indicate new sections
+            .replace(/\b(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)/gi, '\n$1')
+
+            // Split around prices - more aggressive approach
+            .replace(/(\$\d+\.\d{2})\s+([A-Z]{2,})/g, '$1\n$2')
+            .replace(/([A-Z]{2,})\s+(\$\d+\.\d{2})/g, '$1\n$2')
+
+            // Clean up multiple line breaks
+            .replace(/\n+/g, '\n')
+            .trim();
+
+        console.log('🔧 After aggressive splitting:');
+        console.log('=====================================');
+        console.log(preprocessedText);
+        console.log('=====================================');
+
+        const lines = preprocessedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log(`📋 Split into ${lines.length} lines (was ${text.split('\n').length} before preprocessing)`);
+
+        // Log all lines for debugging
+        console.log('📋 All lines after preprocessing:');
+        lines.forEach((line, index) => {
+            console.log(`Line ${index + 1}: "${line}"`);
+        });
+
         const items = [];
 
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
-        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
 
         // COMPREHENSIVE skip patterns from v11/v12
         const skipPatterns = [
@@ -1397,7 +1455,7 @@ export default function ReceiptScan() {
             /^\d+\s+ea$/i,                      // EXISTING: Just quantity ea
             /^ea$/i,                            // EXISTING: Just "ea"
 
-            // ============ WALMART SPECIFIC PATTERNS ============
+            // Additional patterns...
             /^manager\s+/i,
             /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i, // Store number + date
             /^st#\s*\d+/i, // Store number
@@ -1650,12 +1708,6 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            // ENHANCED: Skip if next line looks like quantity continuation that should be combined
-            if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
-                console.log(`📋 Detected quantity continuation in next line, will process with current line: ${line} + ${nextLine}`);
-                // Continue processing this line, the quantity logic below will handle the combination
-            }
-
             // Skip bottle deposit lines specifically
             if (line.match(/btl\s+dep/i) || line.match(/bottle\s+deposit/i)) {
                 console.log(`📋 Skipping bottle deposit: ${line}`);
@@ -1668,57 +1720,9 @@ export default function ReceiptScan() {
                 continue;
             }
 
-            // NEW: Skip OCR-garbled tax calculation lines
-            if (line.match(/^[a-z]\s+x?\s+\d+\.\d+\s+@\s+\d+\.\d+/i)) {
-                console.log(`📋 Skipping OCR-garbled tax line: ${line}`);
-                continue;
-            }
-
-            // Skip weight information lines
-            if (line.match(/manual\s*weight/i) || line.match(/^\d+\.\d+\s*lb\s*@/i)) {
-                console.log(`📋 Skipping weight info: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just mathematical calculations or references
-            if (line.match(/^[tx]\s+\d+\.\d+/i) || line.match(/^\d+\.\d+%/i) || line.match(/^=\s*\d+\.\d+$/i)) {
-                console.log(`📋 Skipping calculation line: ${line}`);
-                continue;
-            }
-
-            // Skip lines that are clearly instant savings (discounts)
-            if (line.match(/^.*inst.*sv.*\d+\.\d{2}[-\s]*[nt]$/i)) {
-                console.log(`📋 Skipping instant savings: ${line}`);
-                continue;
-            }
-
-            // Skip lines with negative amounts (discounts)
-            if (line.match(/\d+\.\d{2}-[nt]$/i)) {
-                console.log(`📋 Skipping negative amount: ${line}`);
-                continue;
-            }
-
             // Skip zero-amount lines
             if (line.match(/\$?0\.00/i)) {
                 console.log(`📋 Skipping zero amount: ${line}`);
-                continue;
-            }
-
-            // Skip payment/tender related lines
-            if (line.match(/(tenbe|tender|change|due|balance|paid)/i)) {
-                console.log(`📋 Skipping payment line: ${line}`);
-                continue;
-            }
-
-            // ENHANCED: Skip if this line is a quantity continuation that should have been combined with previous
-            if (line.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*ea$/i) && prevLine) {
-                console.log(`📋 Skipping quantity line (part of previous item): ${line}`);
-                continue;
-            }
-
-            // Skip lines that are just whitespace or tax codes
-            if (line.match(/^\s*$/i) || line.match(/^[nft]\s*$/i)) {
-                console.log(`📋 Skipping tax code or whitespace: ${line}`);
                 continue;
             }
 
@@ -1749,74 +1753,24 @@ export default function ReceiptScan() {
                     const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
-                        // Calculate unit price: total price divided by quantity
                         unitPrice = price / quantity;
-                        itemPrice = price; // Keep the line price as the actual paid amount
+                        itemPrice = price;
                         console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
                     }
                 }
-                // ENHANCED: Check for "+ 4 @ $3.99 ea 3" pattern (Frosty Paws style)
-                else if (nextLine && nextLine.match(/^\+?\s*\d+\s+@\s+\$?\d+\.\d{2}\s+ea\s+\d+$/i)) {
-                    const qtyMatch = nextLine.match(/^\+?\s*(\d+)\s+@\s+\$?(\d+\.\d{2})\s+ea\s+(\d+)/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = parseFloat(qtyMatch[2]);
-                        // Verify the math: quantity * unitPrice should equal the line price
-                        const calculatedTotal = quantity * unitPrice;
-                        if (Math.abs(calculatedTotal - price) < 0.01) {
-                            itemPrice = price; // Use the actual line price
-                            console.log(`📋 Found Frosty Paws style quantity: ${quantity} @ ${unitPrice} = ${itemPrice} (verified)`);
-                        } else {
-                            // Fall back to individual calculation
-                            quantity = 1;
-                            unitPrice = price;
-                            itemPrice = price;
-                            console.log(`📋 Frosty Paws quantity math didn't match, using single item: ${price}`);
-                        }
-                    }
-                }
-                // Check if next line contains quantity information (existing logic)
+                // Check for quantity information patterns
                 else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
                     const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
                     if (qtyMatch) {
                         quantity = parseInt(qtyMatch[1]);
                         unitPrice = parseFloat(qtyMatch[2]);
-                        itemPrice = price; // Keep the line price as the actual paid amount
+                        itemPrice = price;
                         console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
                     }
                 }
-                // Check for Trader Joe's quantity continuation pattern
-                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})$/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = parseFloat(qtyMatch[2]);
-                        itemPrice = quantity * unitPrice;
-                        console.log(`📋 TJ's: Found quantity info in next line: ${quantity} @ ${unitPrice} = ${itemPrice}`);
 
-                        // Verify the math matches the price on the main line
-                        if (Math.abs(itemPrice - price) < 0.01) {
-                            console.log(`📋 TJ's: Quantity math verified: ${quantity} × ${unitPrice} = ${itemPrice}`);
-                        } else {
-                            console.log(`📋 TJ's: Quantity math mismatch, using line price: ${price}`);
-                            itemPrice = price;
-                            quantity = 1;
-                            unitPrice = price;
-                        }
-                    }
-                }
-
-                // Check if current line contains embedded quantity information
-                const embeddedQtyMatch = line.match(/^(.*?)\s+(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i);
-                if (embeddedQtyMatch) {
-                    nameMatch = embeddedQtyMatch[1];
-                    quantity = parseInt(embeddedQtyMatch[2]);
-                    unitPrice = parseFloat(embeddedQtyMatch[3]);
-                    itemPrice = quantity * unitPrice;
-                } else {
-                    // Remove price from name
-                    nameMatch = line.replace(pricePattern, '').trim();
-                }
+                // Remove price from name
+                nameMatch = line.replace(pricePattern, '').trim();
 
                 // Clean up the item name
                 nameMatch = cleanItemName(nameMatch);
@@ -1832,81 +1786,6 @@ export default function ReceiptScan() {
                 if (nameMatch.match(/^tax\s+\d+/i)) {
                     console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
                     continue;
-                }
-
-                // Handle Smith's specific abbreviations and OCR issues
-                if (nameMatch.match(/^ro\s+lrg\s+white\s+bak/i)) {
-                    nameMatch = "King's Hawaiian White Bread";
-                } else if (nameMatch.match(/^darn?c?n?\s+l[ef]\s+yogu?rt/i)) {
-                    nameMatch = "Dannon Light & Fit Yogurt";
-                } else if (nameMatch.match(/^spwd\s+gr\s+mwc/i)) {
-                    nameMatch = "Ground Turkey";
-                } else if (nameMatch.match(/^silk\s+alm?ond/i)) {
-                    nameMatch = "Silk Almond Milk";
-                } else if (nameMatch.match(/^sara\s+ml?tgrn\s+bread/i)) {
-                    nameMatch = "Sara Lee Multigrain Bread";
-                } else if (nameMatch.match(/^csdt\s+tomato/i)) {
-                    nameMatch = "Crushed Tomatoes";
-                } else if (nameMatch.match(/^org\s+hummus/i)) {
-                    nameMatch = "Organic Hummus";
-                } else if (nameMatch.match(/^veggiecraft\s+pasta/i)) {
-                    nameMatch = "Veggiecraft Pasta";
-                } else if (nameMatch.match(/^kroger\s+carrots/i)) {
-                    nameMatch = "Kroger Carrots";
-                } else if (nameMatch.match(/^onions?\s+shallots?/i)) {
-                    nameMatch = "Onions & Shallots";
-                } else if (nameMatch.match(/^sto\s+parsley/i)) {
-                    nameMatch = "Fresh Parsley";
-                }
-
-                // Handle common Trader Joe's item names and OCR issues
-                if (nameMatch.match(/^org\s+mini\s+peanut\s+butter/i)) {
-                    nameMatch = "Organic Mini Peanut Butter Cups";
-                } else if (nameMatch.match(/^peanut\s+crunchy\s+crispy/i)) {
-                    nameMatch = "Peanut Butter Crunchy & Crispy";
-                } else if (nameMatch.match(/^cold\s+brew\s+coffee\s+bags/i)) {
-                    nameMatch = "Cold Brew Coffee Bags";
-                } else if (nameMatch.match(/^popcorn\s+synergistically/i)) {
-                    nameMatch = "Synergistically Seasoned Popcorn";
-                } else if (nameMatch.match(/^crackers\s+sandwich\s+every/i)) {
-                    nameMatch = "Sandwich Crackers";
-                }
-
-                // Handle Sam's Club specific product name patterns
-                if (nameMatch.match(/bath\s+tissue/i)) {
-                    nameMatch = "Bath Tissue";
-                } else if (nameMatch.match(/klnx\s+12pk/i)) {
-                    nameMatch = "Kleenex 12-Pack";
-                } else if (nameMatch.match(/\$50gplay/i)) {
-                    nameMatch = "$50 Google Play Card";
-                } else if (nameMatch.match(/\$25gplay/i)) {
-                    nameMatch = "$25 Google Play Card";
-                } else if (nameMatch.match(/buffalosauce/i)) {
-                    nameMatch = "Buffalo Sauce";
-                } else if (nameMatch.match(/teriyaki/i)) {
-                    nameMatch = "Teriyaki Sauce";
-                } else if (nameMatch.match(/kndrhbsbbq/i)) {
-                    nameMatch = "BBQ Sauce";
-                } else if (nameMatch.match(/mm\s+minced\s+gf/i)) {
-                    nameMatch = "Minced Garlic";
-                } else if (nameMatch.match(/tones\s+italnf/i)) {
-                    nameMatch = "Italian Seasoning";
-                } else if (nameMatch.match(/mm\s+chives/i)) {
-                    nameMatch = "Chives";
-                } else if (nameMatch.match(/stckyhoney/i)) {
-                    nameMatch = "Sticky Honey";
-                } else if (nameMatch.match(/roasted\s+wine/i)) {
-                    nameMatch = "Roasted Wine";
-                } else if (nameMatch.match(/korbbqwingsf/i)) {
-                    nameMatch = "Korean BBQ Wings";
-                } else if (nameMatch.match(/mm\s+coq10/i)) {
-                    nameMatch = "CoQ10 Supplement";
-                } else if (nameMatch.match(/ns\s+shin\s+blaf/i)) {
-                    nameMatch = "Shin Black Noodles";
-                } else if (nameMatch.match(/picnic\s+packf/i)) {
-                    nameMatch = "Picnic Pack";
-                } else if (nameMatch.match(/fruit\s+tray/i)) {
-                    nameMatch = "Fruit Tray";
                 }
 
                 // Check for UPC in current or nearby lines
@@ -1938,7 +1817,7 @@ export default function ReceiptScan() {
 
                     items.push(item);
 
-                    // ENHANCED: Skip the next line if it was a quantity continuation line that we just processed
+                    // ENHANCED: Skip the next line if it was a quantity continuation line
                     if (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i))) {
                         i++; // Skip the next line since we already processed it
                         console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
@@ -1952,7 +1831,6 @@ export default function ReceiptScan() {
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
     }
-
 
     // Combine duplicate items function
     function combineDuplicateItems(items) {
@@ -2032,31 +1910,52 @@ export default function ReceiptScan() {
 
     // Enhanced cleanItemName function
     function cleanItemName(name) {
-        // Remove common store tax codes and artifacts
-        name = name.replace(/\s+NF\s*$/i, ''); // Remove "NF" tax code (Target)
-        name = name.replace(/\s+T\s*$/i, '');  // Remove "T" tax code (Target)
-        name = name.replace(/\s+HOME\s*$/i, ''); // Remove "HOME" section indicator (Target)
+            console.log(`🧹 Cleaning name: "${name}"`);
 
-        // Remove quantity patterns that might have been missed
-        name = name.replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '');
+            // Remove product codes and common artifacts
+            name = name
+                .replace(/\s+NF\s*$/i, '') // Remove "NF" tax code (Target)
+                .replace(/\s+T\s*$/i, '')  // Remove "T" tax code (Target)
+                .replace(/\s+HOME\s*$/i, '') // Remove "HOME" section indicator (Target)
 
-        // Remove long product codes and discount info
-        name = name.replace(/^\d{10,}/, '').trim();
-        name = name.replace(/\d+%:?/, '').trim();
-        name = name.replace(/\(\$\d+\.\d{2}\)/, '').trim();
-        name = name.replace(/[-\s]*[nt]$/i, '').trim();
-        name = name.replace(/\s*-\s*$/, '').trim();
+                // Remove quantity patterns that might have been missed
+                .replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '')
 
-        // Clean up common OCR artifacts
-        name = name.replace(/[^\w\s\-&']/g, ' ');
-        name = name.replace(/\s+/g, ' ');
-        name = name.trim();
+                // Remove long product codes and discount info
+                .replace(/^\d{10,}/, '').trim()
+                .replace(/\d+%:?/, '').trim()
+                .replace(/\(\$\d+\.\d{2}\)/, '').trim()
+                .replace(/[-\s]*[nt]$/i, '').trim()
+                .replace(/\s*-\s*$/, '').trim()
 
-        // Capitalize properly
-        return name.split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-    }
+                // Clean up common OCR artifacts
+                .replace(/[^\w\s\-&']/g, ' ')
+                .replace(/\s+/g, ' ')
+
+                // start new code here
+                .replace(/^\d{8,}\s*/, '') // Remove leading product codes
+                .replace(/\b(NF|T)\b/gi, '') // Remove tax codes
+                .replace(/\bbs\b/gi, '') // Remove "bs" artifacts
+                .replace(/\bpo\b/gi, '') // Remove "po" artifacts
+                .replace(/\bc\b/gi, '') // Remove single "c"
+                .replace(/\bgq\b/gi, 'GG') // Fix "gq" to "GG"
+                .replace(/\bcrers\b/gi, 'CRACKERS') // Fix OCR errors
+                .replace(/\bmuckers\b/gi, 'SMUCKERS') // Fix OCR errors
+                .replace(/\bjerrys\b/gi, "JERRY'S") // Fix OCR errors
+                .replace(/\s+/g, ' ') // Normalize spaces
+                .trim();
+
+            // Capitalize properly
+            const cleaned = name.split(' ')
+                .map(word => {
+                    if (word.length <= 2) return word.toUpperCase(); // Keep short words like "GG" uppercase
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                })
+                .join(' ');
+
+            console.log(`🧹 Cleaned result: "${cleaned}"`);
+            return cleaned;
+        }
 
     // Enhanced guessCategory function
     function guessCategory(name) {
