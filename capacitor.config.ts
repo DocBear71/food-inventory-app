@@ -16,6 +16,12 @@ const config: CapacitorConfig = {
 
         CapacitorCookies: {
             enabled: true
+        },
+
+        // Add ImageToText plugin configuration
+        ImageToText: {
+            // ML Kit Text Recognition configuration
+            language: 'en' // Default language for OCR
         }
     },
 

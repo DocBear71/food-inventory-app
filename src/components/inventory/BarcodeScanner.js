@@ -1,4 +1,4 @@
-// file: /src/components/inventory/BarcodeScanner.js - ZXing-js Version
+// file: /src/components/inventory/BarcodeScanner.js v15 - ZXing-js Version
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';

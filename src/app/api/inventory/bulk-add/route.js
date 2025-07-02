@@ -1,4 +1,4 @@
-// file: /src/app/api/inventory/bulk-add/route.js v2 - Added subscription-based inventory limits
+// file: /src/app/api/inventory/bulk-add/route.js v3 - Added OCR engine tracking and enhanced logging
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -7,7 +7,7 @@ import connectDB from '@/lib/mongodb';
 import { UserInventory, User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
-// POST - Bulk add items to inventory (with subscription limits)
+// POST - Bulk add items to inventory (with subscription limits and OCR engine tracking)
 export async function POST(request) {
     try {
         const session = await getServerSession(authOptions);
@@ -20,9 +20,14 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { items, source } = body;
+        const { items, source, ocrEngine, metadata } = body;
 
-        console.log('POST /api/inventory/bulk-add - Body:', { itemCount: items?.length, source });
+        console.log('POST /api/inventory/bulk-add - Body:', {
+            itemCount: items?.length,
+            source,
+            ocrEngine,
+            metadata: metadata ? Object.keys(metadata) : 'none'
+        });
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return NextResponse.json(
@@ -66,6 +71,8 @@ export async function POST(request) {
             const maxItems = userSubscription.tier === 'free' ? 50 :
                 userSubscription.tier === 'gold' ? 250 : 'unlimited';
 
+            console.log(`❌ Bulk add rejected: ${userSubscription.tier} tier limit exceeded. Current: ${currentItemCount}, Requested: ${requestedItemCount}, Max: ${maxItems}`);
+
             return NextResponse.json({
                 error: `Adding ${requestedItemCount} items would exceed your limit. You have ${currentItemCount} items and can add ${maxItems === 'unlimited' ? 'unlimited' : maxItems - currentItemCount} more.`,
                 code: 'USAGE_LIMIT_EXCEEDED',
@@ -89,7 +96,7 @@ export async function POST(request) {
                 return;
             }
 
-            // Create validated item with defaults - UPDATED: Support dual units
+            // Create validated item with defaults - Support dual units and OCR metadata
             const validatedItem = {
                 name: item.name.trim(),
                 brand: item.brand || '',
@@ -97,7 +104,7 @@ export async function POST(request) {
                 quantity: Math.max(item.quantity || 1, 0.1), // Ensure positive quantity
                 unit: item.unit || 'item',
 
-                // NEW: Secondary unit support
+                // Secondary unit support
                 secondaryQuantity: item.secondaryQuantity && item.secondaryQuantity !== '' ?
                     Math.max(parseFloat(item.secondaryQuantity), 0.1) : null,
                 secondaryUnit: item.secondaryQuantity && item.secondaryQuantity !== '' ?
@@ -108,13 +115,26 @@ export async function POST(request) {
                 expirationDate: item.expirationDate ? new Date(item.expirationDate) : null,
                 addedDate: new Date(),
                 nutrition: item.nutrition || null,
-                notes: item.notes || ''
+                notes: item.notes || '',
+
+                // OCR and source metadata
+                sourceMetadata: {
+                    source: source || 'bulk-add',
+                    ocrEngine: ocrEngine || null,
+                    addedVia: 'bulk-add-api',
+                    rawText: item.rawText || null,
+                    confidence: item.confidence || null,
+                    unitPrice: item.unitPrice || null,
+                    originalPrice: item.price || null,
+                    addedAt: new Date()
+                }
             };
 
             validatedItems.push(validatedItem);
         });
 
         if (errors.length > 0) {
+            console.log('❌ Validation errors:', errors);
             return NextResponse.json(
                 {
                     error: 'Validation errors found',
@@ -130,39 +150,103 @@ export async function POST(request) {
 
         await inventory.save();
 
-        // Update user's usage tracking
+        // Update user's usage tracking with OCR engine info
         if (!user.usageTracking) {
             user.usageTracking = {};
         }
+
+        // Track overall inventory usage
         user.usageTracking.totalInventoryItems = inventory.items.length;
         user.usageTracking.lastUpdated = new Date();
+
+        // Track OCR engine usage for analytics
+        if (ocrEngine) {
+            if (!user.usageTracking.ocrEngineUsage) {
+                user.usageTracking.ocrEngineUsage = {};
+            }
+
+            const engineKey = ocrEngine.toLowerCase();
+            if (!user.usageTracking.ocrEngineUsage[engineKey]) {
+                user.usageTracking.ocrEngineUsage[engineKey] = {
+                    totalScans: 0,
+                    totalItemsExtracted: 0,
+                    firstUsed: new Date(),
+                    lastUsed: new Date()
+                };
+            }
+
+            user.usageTracking.ocrEngineUsage[engineKey].totalScans += 1;
+            user.usageTracking.ocrEngineUsage[engineKey].totalItemsExtracted += validatedItems.length;
+            user.usageTracking.ocrEngineUsage[engineKey].lastUsed = new Date();
+        }
+
         await user.save();
 
-        console.log(`Bulk add successful: ${validatedItems.length} items added from ${source || 'unknown source'}`);
+        // Log successful operation with detailed info
+        console.log(`✅ Bulk add successful:`, {
+            userId: session.user.id,
+            itemsAdded: validatedItems.length,
+            source: source || 'bulk-add',
+            ocrEngine: ocrEngine || 'none',
+            userTier: userSubscription.tier,
+            totalItemsAfter: inventory.items.length,
+            categories: [...new Set(validatedItems.map(item => item.category))],
+            locations: [...new Set(validatedItems.map(item => item.location))]
+        });
 
-        return NextResponse.json({
+        // Generate comprehensive response
+        const response = {
             success: true,
             itemsAdded: validatedItems.length,
             source: source || 'bulk-add',
+            ocrEngine: ocrEngine || null,
             message: `Successfully added ${validatedItems.length} items to your inventory`,
             summary: {
                 totalItems: validatedItems.length,
                 categories: [...new Set(validatedItems.map(item => item.category))],
                 locations: [...new Set(validatedItems.map(item => item.location))],
-                source: source || 'bulk-add'
+                source: source || 'bulk-add',
+                ocrEngine: ocrEngine || null,
+                processingInfo: {
+                    validationErrors: 0,
+                    duplicatesRemoved: 0, // Could implement duplicate detection later
+                    enhancedWith: ocrEngine ? [`${ocrEngine} OCR`] : []
+                }
             },
-            remainingItems: userSubscription.tier === 'free' ?
-                Math.max(0, 50 - inventory.items.length) :
-                userSubscription.tier === 'gold' ?
-                    Math.max(0, 250 - inventory.items.length) : 'Unlimited'
-        });
+            inventoryStatus: {
+                totalItems: inventory.items.length,
+                remainingCapacity: userSubscription.tier === 'free' ?
+                    Math.max(0, 50 - inventory.items.length) :
+                    userSubscription.tier === 'gold' ?
+                        Math.max(0, 250 - inventory.items.length) : 'Unlimited',
+                currentTier: userSubscription.tier
+            },
+            metadata: metadata || {}
+        };
+
+        // Add performance metrics if available
+        if (metadata?.processingTime) {
+            response.performance = {
+                ocrProcessingTime: metadata.processingTime,
+                itemsPerSecond: Math.round(validatedItems.length / (metadata.processingTime / 1000)),
+                engine: ocrEngine
+            };
+        }
+
+        return NextResponse.json(response);
 
     } catch (error) {
-        console.error('POST bulk-add inventory error:', error);
+        console.error('❌ POST bulk-add inventory error:', {
+            error: error.message,
+            stack: error.stack,
+            userId: session?.user?.id
+        });
+
         return NextResponse.json(
             {
                 error: 'Failed to add items to inventory',
-                details: error.message
+                details: error.message,
+                code: 'INTERNAL_SERVER_ERROR'
             },
             { status: 500 }
         );

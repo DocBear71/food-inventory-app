@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/UPCLookup.js - v9 Enhanced with usage limits and display
+// file: /src/components/inventory/UPCLookup.js - v13 Enhanced with usage limits and display
 
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
