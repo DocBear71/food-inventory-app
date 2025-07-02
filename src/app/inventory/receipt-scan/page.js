@@ -1339,8 +1339,8 @@ export default function ReceiptScan() {
             // Split before bottle deposit
             .replace(/\s+(Bottle\s+Deposit\s+Fee)/gi, '\n$1')
 
-            // Split before quantity patterns like "2 @ $5.99 ea"
-            .replace(/\s+(\d+\s+@\s+\$\d+\.\d{2}\s+ea)/gi, '\n$1')
+            // Split quantity patterns like "2 @ $5.99 ea"
+            .replace(/(\s+|:)\s*(\d+)\s*@?\s*\$(\d+\.\d{2})\s*ea/gi, '\n$2 @ $$3 ea')
 
             // Split before major sections
             .replace(/\s+(GROCERY|HOME|PHARMACY|SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)/gi, '\n$1')
@@ -1825,194 +1825,45 @@ export default function ReceiptScan() {
                 }
             }
 
-            // Pattern 1: "PRODUCT_CODE ITEM_NAME NF $PRICE"
-            const targetPattern1 = line.match(/(?:(\d{8,})\s+)?([A-Z][A-Z\s&]+?)\s+(NF|T)\s+\$(\d+\.\d{2})/i);
-            if (targetPattern1) {
-                let [, productCode, name, tax, priceStr] = targetPattern1;
-                itemName = name.trim();
-                price = parseFloat(priceStr);
-                // Use the productCode as a potential UPC
-                upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
-                taxCode = tax;
-                console.log(`✅ Target pattern 1 match: "${itemName}" - $${price}, Tax: ${taxCode}`);
-                itemFound = true;
-            }
-
-            // Pattern 2: "ITEM_NAME $PRICE" (simpler pattern)
-            if (!itemFound) {
-                const simplePattern = line.match(/^([A-Z][A-Z\s&]+?)\s+\$(\d+\.\d{2})$/i);
-                if (simplePattern) {
-                    const [, name, priceStr] = simplePattern;
-                    itemName = name.trim();
-                    price = parseFloat(priceStr);
-
-                    // Make sure it's not a price comparison line
-                    if (!itemName.match(/^(regular|regul|compare|was|sale)/i) && price > 0.50 && price < 50) {
-                        console.log(`✅ Simple pattern match: "${itemName}" - $${price}`);
-                        itemFound = true;
-                    }
-                }
-            }
-
-            // Pattern 3: Check for quantity lines like "2 @ $5.99 ea"
-            if (!itemFound) {
-                const qtyPattern = line.match(/(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i);
-                if (qtyPattern && i > 0) {
-                    const [, qty, unitPrice] = qtyPattern;
-                    const prevLine = lines[i - 1];
-
-                    // Look for item name in previous line
-                    const nameMatch = prevLine.match(/([A-Z][A-Z\s&]+)\s+NF/i);
-                    if (nameMatch) {
-                        itemName = nameMatch[1].trim();
-                        quantity = parseInt(qty);
-                        const unitPriceNum = parseFloat(unitPrice);
-                        price = quantity * unitPriceNum;
-                        console.log(`✅ Quantity pattern: "${itemName}" - ${qty} @ $${unitPrice} = $${price}`);
-                        itemFound = true;
-                    }
-                }
-            }
-
-            // Check if line contains a price
-            const priceMatch = line.match(pricePattern);
-            if (priceMatch) {
-                const price = parseFloat(priceMatch[1]);
-
-                // Skip very high prices that are likely totals (over $100)
-                if (price > 100) {
-                    console.log(`📋 Skipping high price line (likely total): ${line}`);
-                    continue;
-                }
-
-                // Skip very low prices that are likely tax or fees (under $0.10)
-                if (price < 0.10) {
-                    console.log(`📋 Skipping very low price (likely fee): ${line}`);
-                    continue;
-                }
-
-                let nameMatch = line;
-                let itemPrice = price;
-                let quantity = 1;
-                let unitPrice = price;
-
-                // ENHANCED: Check for quantity continuation in next line (like "4 Ea 3")
-                if (nextLine && nextLine.match(/^\d+\s+ea\s+\d+$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s+ea\s+(\d+)/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = price / quantity;
-                        itemPrice = price;
-                        console.log(`📋 Found quantity info in next line (Ea pattern): ${quantity} ea, paid ${itemPrice}, unit price ${unitPrice.toFixed(2)}`);
-                    }
-                }
-                // Check for quantity information patterns
-                else if (nextLine && nextLine.match(/^\d+\s*@\s*\$?\d+\.\d{2}\s*-?\s*$/i)) {
-                    const qtyMatch = nextLine.match(/(\d+)\s*@\s*\$?(\d+\.\d{2})/i);
-                    if (qtyMatch) {
-                        quantity = parseInt(qtyMatch[1]);
-                        unitPrice = parseFloat(qtyMatch[2]);
-                        itemPrice = price;
-                        console.log(`📋 Found quantity info in next line: ${quantity} @ ${unitPrice}, paid ${itemPrice}`);
-                    }
-                }
-
-                // Remove price from name
-                nameMatch = line.replace(pricePattern, '').trim();
-
+            // Create item if we found a valid match
+            if (itemFound && itemName && price > 0) {
                 // Clean up the item name
-                nameMatch = cleanItemName(nameMatch);
+                itemName = cleanItemName(itemName);
 
-                // Enhanced ground beef detection and cleaning
-                if (nameMatch.match(/^\d+%\s*\d+%\s*f\d+\s*grd\s*(re|bf|beef)/i)) {
-                    const percentMatch = nameMatch.match(/^(\d+)%\s*(\d+)%\s*f\d+\s*grd\s*(re|bf|beef)/i);
-                    if (percentMatch) {
-                        nameMatch = `${percentMatch[1]}/${percentMatch[2]} Ground Beef`;
-                    }
-                }
+                // Final validation
+                if (itemName.length > 2 &&
+                    !itemName.match(/^(regular|regul|compare|was|sale|price|circle|bogo)/i) &&
+                    !itemName.match(/^\d+/) &&
+                    price > 0.50 && price < 50) {
 
-                if (nameMatch.match(/^tax\s+\d+/i)) {
-                    console.log(`📋 Skipping tax calculation line: "${nameMatch}" from "${line}"`);
-                    continue;
-                }
-
-                // Check for UPC in current or nearby lines
-                const upcMatch = line.match(upcPattern) ||
-                    (i > 0 ? lines[i - 1].match(upcPattern) : null) ||
-                    (i < lines.length - 1 ? lines[i + 1].match(upcPattern) : null);
-
-                // Only process if we have a meaningful item name
-                if (nameMatch && nameMatch.length > 2 &&
-                    !nameMatch.match(/^\d+\.?\d*$/) &&
-                    !nameMatch.match(/^[tx]\s*\d/i) &&
-                    !nameMatch.match(/^(visa|card|payment|total|balance|inst|sv)$/i)) {
-
-                    console.log(`📋 Processing item: ${nameMatch} - Qty: ${quantity} @ ${unitPrice.toFixed(2)} = ${itemPrice.toFixed(2)}`);
+                    console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
 
                     const item = {
                         id: Date.now() + Math.random(),
-                        name: nameMatch,
-                        price: itemPrice,
+                        name: itemName,
+                        price: price,
                         quantity: quantity,
-                        unitPrice: unitPrice,
-                        upc: upcMatch ? upcMatch[0] : '',
-                        taxCode: taxCode || '',
-                        category: guessCategory(nameMatch),
-                        location: guessLocation(nameMatch),
-                        rawText: line + (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i)) ? ` + ${nextLine}` : ''),
+                        unitPrice: price / quantity,
+                        upc: upc, // Will be empty string if no valid UPC
+                        taxCode: taxCode, // Will be empty string if no tax code
+                        category: guessCategory(itemName, taxCode),
+                        location: guessLocation(itemName),
+                        rawText: line,
                         selected: true,
                         needsReview: false
                     };
 
                     items.push(item);
-
-                    // ENHANCED: Skip the next line if it was a quantity continuation line
-                    if (nextLine && (nextLine.match(/^\d+\s*@.*$/i) || nextLine.match(/^\d+\s+ea\s+\d+$/i))) {
-                        i++; // Skip the next line since we already processed it
-                        console.log(`📋 Skipped next line as it was processed as quantity info: ${nextLine}`);
-                    }
-
-                    // Create item if we found a valid match
-                    // Create item if we found a valid match
-                    if (itemFound && itemName && price > 0) {
-                        // Clean up the item name
-                        itemName = cleanItemName(itemName);
-
-                        // Final validation
-                        if (itemName.length > 2 &&
-                            !itemName.match(/^(regular|regul|compare|was|sale|price|circle|bogo)/i) &&
-                            !itemName.match(/^\d+/) &&
-                            price > 0.50 && price < 50) {
-
-                            console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
-
-                            const item = {
-                                id: Date.now() + Math.random(),
-                                name: itemName,
-                                price: price,
-                                quantity: quantity,
-                                unitPrice: price / quantity,
-                                upc: upc, // Will be empty string if no valid UPC
-                                taxCode: taxCode, // Will be empty string if no tax code
-                                category: guessCategory(itemName, taxCode),
-                                location: guessLocation(itemName),
-                                rawText: line,
-                                selected: true,
-                                needsReview: false
-                            };
-
-                            items.push(item);
-                            continue; // Skip rest of loop to prevent duplicates
-                        } else {
-                            console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
-                            continue; // Skip rest of loop
-                        }
-                    } else {
-                        console.log(`❌ No valid item pattern found: "${line}"`);
-                    }
+                    continue; // Skip rest of loop to prevent duplicates
+                } else {
+                    console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
+                    continue; // Skip rest of loop
                 }
+            } else {
+                console.log(`❌ No valid item pattern found: "${line}"`);
             }
         }
+
 
         console.log(`\n📋 FINAL RESULTS:`);
         console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
@@ -2024,7 +1875,7 @@ export default function ReceiptScan() {
         return combineDuplicateItems(items);
     }
 
-    // Combine duplicate items function
+// Combine duplicate items function
     function combineDuplicateItems(items) {
         const upcGroups = {};
         const nameGroups = {};
@@ -2100,7 +1951,7 @@ export default function ReceiptScan() {
         return combinedItems;
     }
 
-    // Enhanced cleanItemName function
+// Enhanced cleanItemName function
     function cleanItemName(name) {
         console.log(`🧹 Cleaning name: "${name}"`);
 
@@ -2151,7 +2002,7 @@ export default function ReceiptScan() {
         return cleaned;
     }
 
-    // Enhanced guessCategory function
+// Enhanced guessCategory function
     function guessCategory(name) {
         const nameLower = name.toLowerCase();
 
@@ -2222,9 +2073,9 @@ export default function ReceiptScan() {
         return 'pantry';
     }
 
-    // ===============================================
-    // ITEM MANAGEMENT FUNCTIONS (unchanged)
-    // ===============================================
+// ===============================================
+// ITEM MANAGEMENT FUNCTIONS (unchanged)
+// ===============================================
 
     function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item =>
@@ -2332,9 +2183,9 @@ export default function ReceiptScan() {
         }
     }
 
-    // ===============================================
-    // REPORT AND MODAL FUNCTIONS (unchanged from original)
-    // ===============================================
+// ===============================================
+// REPORT AND MODAL FUNCTIONS (unchanged from original)
+// ===============================================
 
     function openReportModal() {
         setReportData({
@@ -2441,11 +2292,11 @@ export default function ReceiptScan() {
         }
     }
 
-    // ===============================================
-    // RENDER FUNCTIONS AND MODALS
-    // ===============================================
+// ===============================================
+// RENDER FUNCTIONS AND MODALS
+// ===============================================
 
-    // iOS PWA Camera Modal Component
+// iOS PWA Camera Modal Component
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
