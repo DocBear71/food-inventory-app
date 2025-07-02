@@ -1765,39 +1765,21 @@ export default function ReceiptScan() {
             let upc = '';
             let taxCode = '';
 
-            // Pattern 1: Product code + item name + tax code + price (more flexible)
-            const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+            // Pattern 1: Product code + item name + tax code + price (universal)
+            const pattern1 = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(NF|TP|T|F)\s+\$(\d+\.\d{2})/i);
             if (pattern1) {
                 const [, productCode, name, tax, priceStr] = pattern1;
                 itemName = name.trim();
                 price = parseFloat(priceStr);
-                upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
+                upc = (productCode && productCode.length >= 8) ? productCode : '';
                 taxCode = tax || '';
                 console.log(`✅ Pattern 1 (with code): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
                 itemFound = true;
             }
 
-            // Add this debug code after your Pattern 1 check:
-            if (!itemFound && line.includes('BEN') && line.includes('JERRYS')) {
-                console.log(`🔍 Debugging Ben & Jerry's line: "${line}"`);
-                console.log(`🔍 Pattern 1 test result:`, line.match(/^(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i));
-
-                // Try a more flexible pattern for Ben & Jerry's
-                const benJerryPattern = line.match(/^(\d{8,})\s+(BEN\s+\d?\s*&?\s*JERRYS?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
-                if (benJerryPattern) {
-                    const [, productCode, name, tax, priceStr] = benJerryPattern;
-                    itemName = name.trim();
-                    price = parseFloat(priceStr);
-                    upc = (productCode && productCode.length >= 11) ? productCode : '';
-                    taxCode = tax || '';
-                    console.log(`✅ Ben & Jerry's special pattern: "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
-                    itemFound = true;
-                }
-            }
-
-            // Pattern 2: Item name + tax code + price: "SMUCKERS NF $3.29"
+            // Pattern 2: Item name + tax code + price (universal)
             if (!itemFound) {
-                const pattern2 = line.match(/^([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                const pattern2 = line.match(/^([A-Z][A-Z\s&\d]+?)\s+(NF|TP|T|F)\s+\$(\d+\.\d{2})/i);
                 if (pattern2) {
                     const [, name, tax, priceStr] = pattern2;
                     itemName = name.trim();
@@ -1808,73 +1790,44 @@ export default function ReceiptScan() {
                 }
             }
 
-            // Pattern 3: Handle quantity lines like "2 @ $5.99 ea"
-            if (!itemFound && line.match(/^\d+\s*@\s*\$\d+\.\d{2}\s*ea/i)) {
-                const qtyMatch = line.match(/^(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i);
-                if (qtyMatch && i > 0) {
-                    const [, qty, unitPriceStr] = qtyMatch;
-                    const prevLine = lines[i - 1];
+            // Pattern 3: Simple item + price pattern
+            if (!itemFound) {
+                const pattern3 = line.match(/^([A-Z][A-Z\s&\d]+?)\s+\$(\d+\.\d{2})$/i);
+                if (pattern3) {
+                    const [, name, priceStr] = pattern3;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
 
-                    // Look for item name in previous line
-                    const nameMatch = prevLine.match(/([A-Z][A-Z\s&]+?)(?:\s+NF|\s+TP)?/i);
-                    if (nameMatch) {
-                        itemName = nameMatch[1].trim();
-                        quantity = parseInt(qty);
-                        const unitPriceNum = parseFloat(unitPriceStr);
-                        price = quantity * unitPriceNum;
-                        console.log(`✅ Pattern 3 (quantity): "${itemName}" - ${qty} @ $${unitPriceStr} = $${price}`);
+                    if (!itemName.match(/^(regular|regul|compare|was|sale|total|subtotal)/i) && price > 0.50 && price < 100) {
+                        console.log(`✅ Pattern 3 (simple): "${itemName}" - $${price}`);
                         itemFound = true;
                     }
                 }
             }
 
-            // Pattern 4: Handle quantity info for Ben & Jerry's (enhanced detection)
-            if (!itemFound && line.includes('@') && line.includes('ea')) {
-                // Look for corrupted quantity patterns in complex lines
-                const corruptedQtyMatch = line.match(/(\d+)\s*@\s*\$?(\d+(?:\.\d{2})?)/i);
-                if (corruptedQtyMatch && i > 0) {
-                    const prevLine = lines[i - 1];
-
-                    // Check if previous line was Ben & Jerry's
-                    if (prevLine.includes('BEN') && prevLine.includes('JERRYS')) {
-                        // Extract the previous item's info
-                        const prevItemMatch = prevLine.match(/(\d{8,})\s+(BEN\s+\d?\s*&?\s*JERRYS?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
-                        if (prevItemMatch) {
-                            const [, productCode, name, tax, totalPriceStr] = prevItemMatch;
-                            const totalPrice = parseFloat(totalPriceStr);
-
-                            // Try to determine correct quantity from total price
-                            // $11.98 total ÷ 2 = $5.99 each (common Ben & Jerry's price)
-                            if (totalPrice === 11.98) {
-                                quantity = 2;
-                                const unitPriceCalc = totalPrice / quantity;
-
-                                // Update the previous item that was already created
-                                const lastItem = items[items.length - 1];
-                                if (lastItem && lastItem.name.includes('Jerry')) {
-                                    lastItem.quantity = quantity;
-                                    lastItem.unitPrice = unitPriceCalc;
-                                    lastItem.rawText += ` + ${line}`;
-
-                                    console.log(`✅ Updated Ben & Jerry's quantity: ${quantity} @ $${unitPriceCalc.toFixed(2)} = $${totalPrice}`);
-                                    itemFound = true; // Skip creating new item
-                                }
-                            }
-                        }
-                    }
+            // Pattern 4: Handle complex lines with multiple items (like line 14)
+            if (!itemFound && line.includes('$') && line.length > 50) {
+                // Try to extract the first item from a complex line
+                const complexMatch = line.match(/(\d{8,})\s+([A-Z][A-Z\s&]+?)\s+(NF|TP)\s+\$(\d+\.\d{2})/i);
+                if (complexMatch) {
+                    const [, productCode, name, tax, priceStr] = complexMatch;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = (productCode && productCode.length >= 11) ? productCode : ''; // Safe check
+                    taxCode = tax || '';
+                    console.log(`✅ Pattern 4 (complex line): "${itemName}" - $${price} (UPC: ${productCode || 'none'}, Tax: ${taxCode})`);
+                    itemFound = true;
                 }
             }
 
             // Create item if we found a valid match
             if (itemFound && itemName && price > 0) {
-                // Clean up the item name
                 itemName = cleanItemName(itemName);
 
-                // Final validation
                 if (itemName.length > 2 &&
                     !itemName.match(/^(regular|regul|compare|was|sale|price|circle|bogo)/i) &&
                     !itemName.match(/^\d+/) &&
-                    price > 0.50 && price < 50) {
+                    price > 0.50 && price < 100) {
 
                     console.log(`✅ Creating item: "${itemName}" - $${price} (qty: ${quantity})`);
 
@@ -1884,8 +1837,8 @@ export default function ReceiptScan() {
                         price: price,
                         quantity: quantity,
                         unitPrice: price / quantity,
-                        upc: upc, // Will be empty string if no valid UPC
-                        taxCode: taxCode, // Will be empty string if no tax code
+                        upc: upc,
+                        taxCode: taxCode,
                         category: guessCategory(itemName, taxCode),
                         location: guessLocation(itemName),
                         rawText: line,
@@ -1894,14 +1847,17 @@ export default function ReceiptScan() {
                     };
 
                     items.push(item);
-                    continue; // Skip rest of loop to prevent duplicates
+
+                    // UNIVERSAL QUANTITY DETECTION
+                    const linesToSkip = detectAndApplyQuantityInfo(items, lines, i);
+                    i += linesToSkip;
+                    continue;
                 } else {
                     console.log(`❌ Rejected item (validation failed): "${itemName}" - $${price}`);
-                    continue; // Skip rest of loop
+                    continue;
                 }
-            } else {
-                console.log(`❌ No valid item pattern found: "${line}"`);
             }
+            console.log(`❌ No valid item pattern found: "${line}"`);
         }
 
 
@@ -1913,6 +1869,93 @@ export default function ReceiptScan() {
 
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
+    }
+
+    // Universal quantity detection - works for any product/store
+    function detectAndApplyQuantityInfo(items, lines, currentIndex) {
+        const line = lines[currentIndex];
+        const nextLine = currentIndex < lines.length - 1 ? lines[currentIndex + 1] : '';
+
+        // Look for quantity patterns in current or next line
+        const quantityPatterns = [
+            // Standard patterns
+            /(\d+)\s*@\s*\$?(\d+\.\d{2})\s*ea/i,
+            /(\d+)\s*@\s*\$?(\d+\.\d{2})\s*each/i,
+            /(\d+)\s*x\s*\$?(\d+\.\d{2})/i,
+            /(\d+)\s*for\s*\$?(\d+\.\d{2})/i,
+
+            // Corrupted OCR patterns (common OCR errors)
+            /(\d+)\s*@\s*\$?(\d+)(?:\s*ead?|ea|each)?/i, // "2 @ $5 ea" or "20 @ $3 ead"
+            /(\d+)\s*@\s*(\d+\.\d{2})/i, // Missing $ sign
+            /(\d+)\s*@\s*(\d+)\s*\d+/i, // "2 @ 5 99" -> "2 @ $5.99"
+        ];
+
+        let quantityInfo = null;
+
+        // Check current line first
+        for (const pattern of quantityPatterns) {
+            const match = line.match(pattern);
+            if (match) {
+                quantityInfo = {
+                    quantity: parseInt(match[1]),
+                    unitPrice: parseFloat(match[2]),
+                    source: 'current'
+                };
+                break;
+            }
+        }
+
+        // Check next line if no match in current
+        if (!quantityInfo && nextLine) {
+            for (const pattern of quantityPatterns) {
+                const match = nextLine.match(pattern);
+                if (match) {
+                    quantityInfo = {
+                        quantity: parseInt(match[1]),
+                        unitPrice: parseFloat(match[2]),
+                        source: 'next'
+                    };
+                    break;
+                }
+            }
+        }
+
+        // If we found quantity info, apply it to the most recent item
+        if (quantityInfo && items.length > 0) {
+            const lastItem = items[items.length - 1];
+            const calculatedTotal = quantityInfo.quantity * quantityInfo.unitPrice;
+
+            // Verify the math makes sense (within $1 tolerance for OCR errors)
+            if (Math.abs(calculatedTotal - lastItem.price) <= 1.0) {
+                lastItem.quantity = quantityInfo.quantity;
+                lastItem.unitPrice = quantityInfo.unitPrice;
+                lastItem.rawText += quantityInfo.source === 'next' ? ` + ${nextLine}` : '';
+
+                console.log(`✅ Applied quantity: ${quantityInfo.quantity} @ $${quantityInfo.unitPrice} = $${lastItem.price} for "${lastItem.name}"`);
+                return quantityInfo.source === 'next' ? 1 : 0; // Return lines to skip
+            } else {
+                // Try to fix common OCR price errors
+                const possiblePrices = [
+                    quantityInfo.unitPrice + 0.99, // $5 -> $5.99
+                    quantityInfo.unitPrice / 10, // $59 -> $5.90
+                    Math.round(quantityInfo.unitPrice * 100) / 100, // Fix decimals
+                ];
+
+                for (const correctedPrice of possiblePrices) {
+                    const correctedTotal = quantityInfo.quantity * correctedPrice;
+                    if (Math.abs(correctedTotal - lastItem.price) <= 0.01) {
+                        lastItem.quantity = quantityInfo.quantity;
+                        lastItem.unitPrice = correctedPrice;
+                        lastItem.rawText += quantityInfo.source === 'next' ? ` + ${nextLine}` : '';
+
+                        console.log(`✅ Applied corrected quantity: ${quantityInfo.quantity} @ $${correctedPrice} = $${lastItem.price} for "${lastItem.name}"`);
+                        return quantityInfo.source === 'next' ? 1 : 0;
+                    }
+                }
+            }
+        }
+
+        return 0; // No lines to skip
     }
 
 // Combine duplicate items function
