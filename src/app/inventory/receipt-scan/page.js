@@ -323,22 +323,21 @@ export default function ReceiptScan() {
         }
     }
 
-    async function processImageWithOptimizedOCR(imageBlob, deviceInfo, progressCallback) {
+    async function processImageWithOptimizedOCR(imageBlob, platformInfo, progressCallback) {
         console.log('🔍 Starting Scribe-Enhanced Tesseract.js OCR...');
 
         try {
-            return await processImageWithEnhancedTesseract(imageBlob, deviceInfo, progressCallback);
+            return await processImageWithEnhancedTesseract(imageBlob, platformInfo, progressCallback);
         } catch (enhancedError) {
             console.warn('⚠️ Enhanced Tesseract failed, falling back to standard Tesseract:', enhancedError.message);
             setProcessingStatus('Enhanced OCR failed, using standard Tesseract...');
-            if (progressCallback) progressCallback(0); // Reset progress
+            if (progressCallback) progressCallback(0);
 
-            // Fallback to standard Tesseract.js
-            return await processImageWithStandardTesseract(imageBlob, deviceInfo, progressCallback);
+            return await processImageWithStandardTesseract(imageBlob, platformInfo, progressCallback);
         }
     }
 
-    async function processImageWithEnhancedTesseract(imageFile, deviceInfo, progressCallback) {
+    async function processImageWithEnhancedTesseract(imageFile, platformInfo, progressCallback) {
         console.log('🚀 Processing with Scribe-Enhanced Tesseract.js...');
 
         try {
@@ -347,7 +346,6 @@ export default function ReceiptScan() {
             setProcessingStatus('Initializing Enhanced OCR engine...');
             if (progressCallback) progressCallback(5);
 
-            // STEP 1: Auto-rotation preprocessing (Scribe's key improvement)
             setProcessingStatus('Step 1: Auto-rotation detection...');
             if (progressCallback) progressCallback(10);
 
@@ -356,7 +354,6 @@ export default function ReceiptScan() {
             setProcessingStatus('Step 2: Preparing dual-model processing...');
             if (progressCallback) progressCallback(15);
 
-            // STEP 2: Dual-model processing (Legacy + LSTM combined)
             const [legacyResult, lstmResult] = await Promise.all([
                 recognizeWithEngine(Tesseract, rotatedImage, 'legacy', progressCallback, 20, 50),
                 recognizeWithEngine(Tesseract, rotatedImage, 'lstm', progressCallback, 50, 80)
@@ -365,13 +362,11 @@ export default function ReceiptScan() {
             setProcessingStatus('Step 3: Combining model results...');
             if (progressCallback) progressCallback(85);
 
-            // STEP 3: Combine results using Scribe's approach
             const combinedText = combineModelResults(legacyResult, lstmResult);
 
             setProcessingStatus('Step 4: Enhanced post-processing...');
             if (progressCallback) progressCallback(95);
 
-            // STEP 4: Enhanced post-processing
             const finalText = enhancedPostProcessing(combinedText);
 
             if (progressCallback) progressCallback(100);
@@ -653,7 +648,7 @@ export default function ReceiptScan() {
 // STANDARD TESSERACT FALLBACK
 // ===============================================
 
-    async function processImageWithStandardTesseract(imageFile, deviceInfo, progressCallback) {
+    async function processImageWithStandardTesseract(imageFile, platformInfo, progressCallback) {
         console.log('💻 Processing with Standard Tesseract.js (fallback)...');
 
         try {
@@ -671,7 +666,6 @@ export default function ReceiptScan() {
                 }
             });
 
-            // FIXED: Use the getOptimizedOCRConfig function
             const config = {
                 ...getOptimizedOCRConfig(platformInfo),
                 tessedit_ocr_engine_mode: '1', // LSTM only
@@ -726,14 +720,15 @@ export default function ReceiptScan() {
                         location: item.location,
                         upc: item.upc,
                         expirationDate: null,
-                        rawText: item.rawText, // Include OCR metadata
+                        rawText: item.rawText,
                         unitPrice: item.unitPrice,
                         price: item.price
                     })),
                     source: 'receipt-scan-enhanced',
                     ocrEngine: 'Enhanced-Tesseract-Dual-Model',
                     metadata: {
-                        platform: deviceInfo.isIOSPWA ? 'iOS-PWA' : deviceInfo.isIOS ? 'iOS' : 'Web',
+                        // FIXED: Use platformInfo instead of deviceInfo
+                        platform: platformInfo.isIOSPWA ? 'iOS-PWA' : platformInfo.isIOS ? 'iOS' : 'Web',
                         ocrMethod: 'scribe-enhanced-dual-model'
                     }
                 })
@@ -1067,10 +1062,10 @@ export default function ReceiptScan() {
         setProcessingStatus('Initializing OCR...');
 
         try {
-            // FIXED: Call the new enhanced OCR function
+            // FIXED: Use platformInfo (your actual state variable name)
             const text = await processImageWithOptimizedOCR(
                 imageFile,
-                deviceInfo, // Pass deviceInfo instead of platformInfo
+                platformInfo, // Use platformInfo instead of deviceInfo
                 (progress) => {
                     setOcrProgress(progress);
                     if (progress < 90) {
@@ -1103,7 +1098,7 @@ export default function ReceiptScan() {
                     body: JSON.stringify({
                         scanType: 'receipt',
                         itemsExtracted: items.length,
-                        ocrEngine: 'Enhanced-Tesseract-Dual-Model' // Updated to match our new engine
+                        ocrEngine: 'Enhanced-Tesseract-Dual-Model'
                     })
                 });
 
