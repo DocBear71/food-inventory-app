@@ -13,7 +13,6 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {Capacitor} from '@capacitor/core';
-import {Promise} from "mongoose";
 
 export default function ReceiptScan() {
     const router = useRouter();
