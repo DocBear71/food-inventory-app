@@ -1978,16 +1978,17 @@ export default function ReceiptScan() {
                         console.log(`❌ No valid item pattern found: "${line}"`);
                     }
                 }
-
-                console.log(`\n📋 FINAL RESULTS:`);
-                console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
-                items.forEach((item, index) => {
-                    console.log(`${index + 1}. "${item.name}" - $${item.price} (${item.category})`);
-                });
-
-                return items; // Skip combineDuplicateItems for now to see raw results
             }
         }
+
+        console.log(`\n📋 FINAL RESULTS:`);
+        console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
+        items.forEach((item, index) => {
+            console.log(`${index + 1}. "${item.name}" - $${item.price} (${item.category})`);
+        });
+
+        console.log(`📋 Extracted ${items.length} items from receipt`);
+        return combineDuplicateItems(items);
     }
 
     // Combine duplicate items function
@@ -2068,52 +2069,52 @@ export default function ReceiptScan() {
 
     // Enhanced cleanItemName function
     function cleanItemName(name) {
-            console.log(`🧹 Cleaning name: "${name}"`);
+        console.log(`🧹 Cleaning name: "${name}"`);
 
-            // Remove product codes and common artifacts
-            name = name
-                .replace(/\s+NF\s*$/i, '') // Remove "NF" tax code (Target)
-                .replace(/\s+T\s*$/i, '')  // Remove "T" tax code (Target)
-                .replace(/\s+HOME\s*$/i, '') // Remove "HOME" section indicator (Target)
+        // Remove product codes and common artifacts
+        name = name
+            .replace(/\s+NF\s*$/i, '') // Remove "NF" tax code (Target)
+            .replace(/\s+T\s*$/i, '')  // Remove "T" tax code (Target)
+            .replace(/\s+HOME\s*$/i, '') // Remove "HOME" section indicator (Target)
 
-                // Remove quantity patterns that might have been missed
-                .replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '')
+            // Remove quantity patterns that might have been missed
+            .replace(/\s*\d+\s*@\s*\$?\d+\.\d{2}.*$/i, '')
 
-                // Remove long product codes and discount info
-                .replace(/^\d{10,}/, '').trim()
-                .replace(/\d+%:?/, '').trim()
-                .replace(/\(\$\d+\.\d{2}\)/, '').trim()
-                .replace(/[-\s]*[nt]$/i, '').trim()
-                .replace(/\s*-\s*$/, '').trim()
+            // Remove long product codes and discount info
+            .replace(/^\d{10,}/, '').trim()
+            .replace(/\d+%:?/, '').trim()
+            .replace(/\(\$\d+\.\d{2}\)/, '').trim()
+            .replace(/[-\s]*[nt]$/i, '').trim()
+            .replace(/\s*-\s*$/, '').trim()
 
-                // Clean up common OCR artifacts
-                .replace(/[^\w\s\-&']/g, ' ')
-                .replace(/\s+/g, ' ')
+            // Clean up common OCR artifacts
+            .replace(/[^\w\s\-&']/g, ' ')
+            .replace(/\s+/g, ' ')
 
-                // start new code here
-                .replace(/^\d{8,}\s*/, '') // Remove leading product codes
-                .replace(/\b(NF|T)\b/gi, '') // Remove tax codes
-                .replace(/\bbs\b/gi, '') // Remove "bs" artifacts
-                .replace(/\bpo\b/gi, '') // Remove "po" artifacts
-                .replace(/\bc\b/gi, '') // Remove single "c"
-                .replace(/\bgq\b/gi, 'GG') // Fix "gq" to "GG"
-                .replace(/\bcrers\b/gi, 'CRACKERS') // Fix OCR errors
-                .replace(/\bmuckers\b/gi, 'SMUCKERS') // Fix OCR errors
-                .replace(/\bjerrys\b/gi, "JERRY'S") // Fix OCR errors
-                .replace(/\s+/g, ' ') // Normalize spaces
-                .trim();
+            // start new code here
+            .replace(/^\d{8,}\s*/, '') // Remove leading product codes
+            .replace(/\b(NF|T)\b/gi, '') // Remove tax codes
+            .replace(/\bbs\b/gi, '') // Remove "bs" artifacts
+            .replace(/\bpo\b/gi, '') // Remove "po" artifacts
+            .replace(/\bc\b/gi, '') // Remove single "c"
+            .replace(/\bgq\b/gi, 'GG') // Fix "gq" to "GG"
+            .replace(/\bcrers\b/gi, 'CRACKERS') // Fix OCR errors
+            .replace(/\bmuckers\b/gi, 'SMUCKERS') // Fix OCR errors
+            .replace(/\bjerrys\b/gi, "JERRY'S") // Fix OCR errors
+            .replace(/\s+/g, ' ') // Normalize spaces
+            .trim();
 
-            // Capitalize properly
-            const cleaned = name.split(' ')
-                .map(word => {
-                    if (word.length <= 2) return word.toUpperCase(); // Keep short words like "GG" uppercase
-                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-                })
-                .join(' ');
+        // Capitalize properly
+        const cleaned = name.split(' ')
+            .map(word => {
+                if (word.length <= 2) return word.toUpperCase(); // Keep short words like "GG" uppercase
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            })
+            .join(' ');
 
-            console.log(`🧹 Cleaned result: "${cleaned}"`);
-            return cleaned;
-        }
+        console.log(`🧹 Cleaned result: "${cleaned}"`);
+        return cleaned;
+    }
 
     // Enhanced guessCategory function
     function guessCategory(name) {
