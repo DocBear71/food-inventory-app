@@ -279,8 +279,8 @@ export default function ReceiptScan() {
             if (platformInfo.isNative && platformInfo.isAndroid) {
                 return await processImageWithTextDetection(imageFile, progressCallback);
             } else {
-                // Web PWA or browser
-                return await processImageWithScribeJS(imageFile, progressCallback);
+                // Web PWA or browser - try Scribe.js with Tesseract.js fallback
+                return await processImageWithWebOCR(imageFile, progressCallback);
             }
         } catch (error) {
             console.error('❌ Universal OCR processing failed:', error);
@@ -351,15 +351,47 @@ export default function ReceiptScan() {
     }
 
     // ===============================================
-    // WEB SCRIBE.JS IMPLEMENTATION
+    // WEB OCR WITH SCRIBE.JS FALLBACK TO TESSERACT
     // ===============================================
 
+    async function processImageWithWebOCR(imageFile, progressCallback) {
+        console.log('💻 Starting Web OCR (Scribe.js preferred, Tesseract.js fallback)...');
+
+        // Try Scribe.js first, fallback to Tesseract.js if it fails
+        try {
+            return await processImageWithScribeJS(imageFile, progressCallback);
+        } catch (scribeError) {
+            console.warn('⚠️ Scribe.js failed, falling back to Tesseract.js:', scribeError.message);
+            setProcessingStatus('Scribe.js failed, switching to Tesseract.js...');
+            if (progressCallback) progressCallback(0); // Reset progress for fallback
+            return await processImageWithTesseractJS(imageFile, progressCallback);
+        }
+    }
+
     async function processImageWithScribeJS(imageFile, progressCallback) {
-        console.log('💻 Processing with Scribe.js...');
+        console.log('🔍 Attempting Scribe.js processing...');
 
         try {
-            // Dynamic import for Scribe.js
-            const scribe = (await import('scribe.js-ocr')).default;
+            // Only try to import Scribe.js in browser environment
+            if (typeof window === 'undefined') {
+                throw new Error('Scribe.js only available in browser environment');
+            }
+
+            setProcessingStatus('Loading enhanced OCR engine (Scribe.js)...');
+            if (progressCallback) progressCallback(5);
+
+            // Try to import Scribe.js with error handling
+            let scribe;
+            try {
+                const scribeModule = await import('scribe.js-ocr');
+                scribe = scribeModule.default || scribeModule;
+            } catch (importError) {
+                throw new Error(`Scribe.js import failed: ${importError.message}`);
+            }
+
+            if (!scribe || typeof scribe.extractText !== 'function') {
+                throw new Error('Scribe.js not properly loaded or missing extractText method');
+            }
 
             setProcessingStatus('Initializing Scribe.js OCR...');
             if (progressCallback) progressCallback(10);
@@ -370,12 +402,14 @@ export default function ReceiptScan() {
             setProcessingStatus('Running enhanced OCR recognition...');
             if (progressCallback) progressCallback(30);
 
-            // Configure Scribe.js for optimal receipt scanning
+            // Configure Scribe.js with browser-safe options
             const ocrOptions = {
                 langs: ['eng'],
-                quality: 'speed', // Use 'quality' for better accuracy but slower processing
+                quality: 'speed',
+                // Disable features that might use Node.js modules
+                outputFormat: 'text',
                 onProgress: (progress) => {
-                    const scribeProgress = Math.round(30 + (progress * 60)); // Scale to 30-90%
+                    const scribeProgress = Math.round(30 + (progress * 60));
                     console.log(`Scribe.js Progress: ${scribeProgress}%`);
                     if (progressCallback) progressCallback(scribeProgress);
                 }
@@ -389,17 +423,95 @@ export default function ReceiptScan() {
             if (progressCallback) progressCallback(100);
             setProcessingStatus('Processing Scribe.js results...');
 
-            console.log('✅ Scribe.js completed:', result);
+            console.log('✅ Scribe.js completed successfully');
 
             // Extract text from Scribe.js result
-            const extractedText = result[0]?.text || '';
+            const extractedText = result[0]?.text || result.text || '';
+
+            if (!extractedText || extractedText.length === 0) {
+                throw new Error('Scribe.js returned empty text result');
+            }
 
             return extractedText;
 
         } catch (error) {
             console.error('❌ Scribe.js processing failed:', error);
-            throw new Error(`Scribe.js OCR failed: ${error.message}`);
+            throw error; // Re-throw to trigger fallback
         }
+    }
+
+    async function processImageWithTesseractJS(imageFile, progressCallback) {
+        console.log('💻 Processing with Tesseract.js...');
+
+        try {
+            // Dynamic import for Tesseract.js
+            const Tesseract = (await import('tesseract.js')).default;
+
+            setProcessingStatus('Initializing Tesseract.js OCR...');
+            if (progressCallback) progressCallback(10);
+
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: (m) => {
+                    if (m.status === 'recognizing text' && progressCallback) {
+                        const progress = Math.round(30 + (m.progress * 60)); // Scale to 30-90%
+                        console.log(`Tesseract.js Progress: ${progress}%`);
+                        if (progressCallback) progressCallback(progress);
+                    }
+                }
+            });
+
+            setProcessingStatus('Running OCR recognition...');
+
+            // Configure Tesseract.js for optimal receipt scanning
+            const ocrConfig = getOptimizedOCRConfig(platformInfo);
+
+            console.log('📄 Recognizing text...');
+            const {data: {text, confidence}} = await worker.recognize(imageFile, ocrConfig);
+
+            await worker.terminate();
+
+            if (progressCallback) progressCallback(100);
+            setProcessingStatus('Processing Tesseract.js results...');
+
+            console.log('✅ Tesseract.js completed:', {
+                confidence: Math.round(confidence),
+                textLength: text.length
+            });
+
+            return text;
+
+        } catch (error) {
+            console.error('❌ Tesseract.js processing failed:', error);
+            throw new Error(`Tesseract.js OCR failed: ${error.message}`);
+        }
+    }
+
+    function getOptimizedOCRConfig(platformInfo) {
+        console.log('⚙️ Configuring optimized OCR settings...');
+
+        const baseConfig = {
+            tessedit_pageseg_mode: '6',
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+            preserve_interword_spaces: '1',
+            tessedit_do_invert: '0',
+            tessedit_create_hocr: '0',
+            tessedit_create_pdf: '0',
+            tessedit_create_txt: '1',
+        };
+
+        if (platformInfo.isWeb) {
+            return {
+                ...baseConfig,
+                user_defined_dpi: '200',
+                tessedit_parallelize: '0',
+            };
+        }
+
+        return {
+            ...baseConfig,
+            user_defined_dpi: '300',
+            tessedit_parallelize: '1',
+        };
     }
 
     // ===============================================
@@ -764,7 +876,7 @@ export default function ReceiptScan() {
                     body: JSON.stringify({
                         scanType: 'receipt',
                         itemsExtracted: items.length,
-                        ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Scribe.js'
+                        ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
                     })
                 });
 
@@ -813,7 +925,7 @@ export default function ReceiptScan() {
                 body: JSON.stringify({
                     scanType,
                     itemsExtracted,
-                    ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Scribe.js'
+                    ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
                 })
             });
 
@@ -1538,7 +1650,7 @@ export default function ReceiptScan() {
                         upc: item.upc,
                         expirationDate: null
                     })),
-                    source: `receipt-scan-${platformInfo.isAndroid ? 'mlkit' : 'scribejs'}`
+                    source: `receipt-scan-${platformInfo.isAndroid ? 'mlkit' : 'enhanced-tesseract'}`
                 })
             });
 
@@ -1772,8 +1884,8 @@ export default function ReceiptScan() {
                                 {process.env.NODE_ENV === 'development' && (
                                     <div className="text-xs text-gray-400 mt-1">
                                         {platformInfo.isAndroid ? '🤖 Android MLKit' :
-                                            platformInfo.isIOSPWA ? '📱 iOS PWA - Scribe.js' :
-                                                '💻 Web - Scribe.js'}
+                                            platformInfo.isIOSPWA ? '📱 iOS PWA - Tesseract.js' :
+                                                '💻 Web - Tesseract.js'}
                                     </div>
                                 )}
                             </div>
@@ -1805,7 +1917,7 @@ export default function ReceiptScan() {
                                                 return `${usageDisplay.current}`;
                                             }
                                             return `${usageDisplay.current}/${usageDisplay.limit}`;
-                                        })()}) - {platformInfo.isAndroid ? 'Android MLKit' : 'Enhanced Web OCR'}
+                                        })()}) - {platformInfo.isAndroid ? 'Android ML Kit' : 'Tesseract.js OCR'}
                                         </h3>
                                         <p className="text-sm text-blue-700 mt-1">
                                             {(() => {
@@ -1844,7 +1956,7 @@ export default function ReceiptScan() {
                                         <p className="text-gray-600 mb-6">
                                             {platformInfo.isAndroid
                                                 ? 'Using Android ML Kit for native OCR processing'
-                                                : 'Using enhanced Scribe.js OCR for superior accuracy'
+                                                : 'Using optimized Tesseract.js OCR for reliable text recognition'
                                             }
                                         </p>
                                     </div>
@@ -1902,8 +2014,8 @@ export default function ReceiptScan() {
                                             </h4>
                                             <p className="text-sm text-blue-800 mb-3">
                                                 <strong>Tip:</strong> If the camera doesn't work immediately, the
-                                                "Upload Image" option works perfectly! You're using Scribe.js
-                                                for enhanced OCR accuracy.
+                                                "Upload Image" option works perfectly! You're using Tesseract.js
+                                                for reliable OCR processing.
                                             </p>
                                         </div>
                                     )}
@@ -1911,11 +2023,11 @@ export default function ReceiptScan() {
                                     {platformInfo.isWeb && !platformInfo.isIOSPWA && (
                                         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                                             <h4 className="text-sm font-medium text-purple-900 mb-2">
-                                                💻 Enhanced Web OCR
+                                                💻 Tesseract.js OCR
                                             </h4>
                                             <p className="text-sm text-purple-800 mb-3">
-                                                You're using Scribe.js, an enhanced OCR engine that provides
-                                                better accuracy than standard Tesseract for receipt scanning.
+                                                You're using Tesseract.js, a reliable and proven OCR engine
+                                                optimized for receipt scanning with advanced text processing.
                                             </p>
                                         </div>
                                     )}
@@ -1939,7 +2051,7 @@ export default function ReceiptScan() {
                                             <li>• Include the entire receipt in the frame</li>
                                             <li>• Higher resolution images work better</li>
                                             {platformInfo.isAndroid && <li>• ML Kit works best with clear, high-contrast text</li>}
-                                            {platformInfo.isWeb && <li>• Scribe.js provides enhanced accuracy for complex layouts</li>}
+                                            {platformInfo.isWeb && <li>• Tesseract.js provides reliable accuracy for standard receipts</li>}
                                         </ul>
                                     </div>
 
@@ -1994,7 +2106,7 @@ export default function ReceiptScan() {
                                                 📏 Fill frame completely
                                             </div>
                                             <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                                💻 Scribe.js OCR
+                                                💻 Tesseract.js OCR
                                             </div>
                                         </div>
                                     </div>
@@ -2023,7 +2135,7 @@ export default function ReceiptScan() {
                                         {platformInfo.isAndroid ? '🤖' : '🔍'}
                                     </div>
                                     <h3 className="text-lg font-medium text-gray-900">
-                                        Processing Receipt with {platformInfo.isAndroid ? 'ML Kit' : 'Scribe.js'}
+                                        Processing Receipt with {platformInfo.isAndroid ? 'ML Kit' : 'Tesseract.js'}
                                     </h3>
                                     <p className="text-gray-600 mb-6">{processingStatus}</p>
 
@@ -2056,7 +2168,7 @@ export default function ReceiptScan() {
                                             <h3 className="text-lg font-medium text-gray-900">Review Extracted Items</h3>
                                             <p className="text-gray-600">
                                                 {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected
-                                                {' '}- Processed with {platformInfo.isAndroid ? 'Android ML Kit' : 'Scribe.js Enhanced OCR'}
+                                                {' '}- Processed with {platformInfo.isAndroid ? 'Android ML Kit' : 'Tesseract.js OCR'}
                                             </p>
                                         </div>
                                         <div className="flex space-x-2">
@@ -2278,7 +2390,7 @@ export default function ReceiptScan() {
                                             >
                                                 <option value="">Select an issue...</option>
                                                 <option value="android-mlkit-not-working">Android ML Kit Not Working</option>
-                                                <option value="scribejs-poor-accuracy">Scribe.js Poor Accuracy</option>
+                                                <option value="tesseractjs-poor-accuracy">Tesseract.js Poor Accuracy</option>
                                                 <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
                                                 <option value="camera-not-working">Camera not working</option>
                                                 <option value="wrong-items-detected">Wrong items detected</option>
@@ -2377,7 +2489,7 @@ export default function ReceiptScan() {
                                             <ul className="text-sm text-blue-700 mt-1 space-y-1">
                                                 <li>• Your issue description</li>
                                                 <li>• Platform: {platformInfo.isAndroid ? 'Android (ML Kit)' :
-                                                    platformInfo.isIOSPWA ? 'iOS PWA (Scribe.js)' : 'Web (Scribe.js)'}</li>
+                                                    platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
                                                 {capturedImage && <li>• Receipt image</li>}
                                                 {reportData.additionalFiles.length > 0 && (
                                                     <li>• {reportData.additionalFiles.length} additional screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
