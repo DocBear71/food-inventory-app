@@ -17,6 +17,9 @@ function getUsageLimit(tier, limitType) {
         },
         platinum: {
             monthlyReceiptScans: -1 // unlimited
+        },
+        admin: {
+            monthlyReceiptScans: -1 // unlimited
         }
     };
 

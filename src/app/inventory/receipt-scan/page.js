@@ -1309,36 +1309,48 @@ export default function ReceiptScan() {
         console.log('=====================================');
         console.log(`📊 Total text length: ${text.length} characters`);
 
-        // ENHANCED TEXT PREPROCESSING - Fix the core issue
+        // ENHANCED TEXT PREPROCESSING - Handle continuous text with no line breaks
         let preprocessedText = text;
 
-        // Fix common OCR line break issues
+        // First, clean up and normalize the text
         preprocessedText = preprocessedText
-            // Fix missing line breaks before prices
-            .replace(/([a-zA-Z])\s*(\$\d+\.\d{2})/g, '$1\n$2')
-            // Fix missing line breaks after prices
-            .replace(/(\$\d+\.\d{2})\s*([A-Z][a-zA-Z])/g, '$1\n$2')
-            // Fix missing line breaks before product codes
-            .replace(/([a-zA-Z])\s*(\d{8,})/g, '$1\n$2')
-            // Fix missing line breaks after product codes followed by text
-            .replace(/(\d{8,})\s*([A-Z][a-zA-Z])/g, '$1\n$2')
-            // Fix "NF $price" patterns
-            .replace(/(NF)\s*(\$\d+\.\d{2})/g, '$1 $2')
-            // Fix store section headers
-            .replace(/(GROCERY|HOME|PHARMACY)\s*(\d{8,})/g, '$1\n$2')
-            // Fix regular price patterns
-            .replace(/(\$\d+\.\d{2})\s*(Regular\s+Price)/gi, '$1\n$2')
-            // Fix quantity patterns like "2 @ $5.99 ea"
-            .replace(/(\d+)\s*@\s*(\$\d+\.\d{2})\s*(ea)/gi, '\n$1 @ $2 $3')
-            // Fix tax patterns
-            .replace(/(\$\d+\.\d{2})\s*(T\s*=\s*IA\s*TAX)/gi, '$1\n$2')
-            // Clean up multiple spaces
-            .replace(/\s+/g, ' ')
-            // Normalize line breaks
-            .replace(/\r\n/g, '\n')
-            .replace(/\r/g, '\n');
+            .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
+            .trim();
 
-        console.log('🔧 PREPROCESSED TEXT:');
+        console.log('🔧 After initial cleanup:', preprocessedText);
+
+        // AGGRESSIVE SPLITTING - Insert line breaks at strategic points
+        preprocessedText = preprocessedText
+            // Split before store sections
+            .replace(/\b(GROCERY|HOME|PHARMACY)\b/gi, '\n$1')
+
+            // Split before product codes (8+ digits)
+            .replace(/\b(\d{8,})\b/g, '\n$1')
+
+            // Split before prices with product names
+            .replace(/\b([A-Z][A-Z\s]+)\s+(NF|T)\s+\$(\d+\.\d{2})/gi, '\n$1 $2 $$$3')
+
+            // Split before common item patterns
+            .replace(/\b(GG|SM|BEN)\s+([A-Z]+)/gi, '\n$1 $2')
+
+            // Split before "Regular price" or "Regul price" patterns
+            .replace(/\b(Regul?\w*\s+\w*\s+price)/gi, '\n$1')
+
+            // Split before BOGO patterns
+            .replace(/\b(BOGO?\w*)/gi, '\n$1')
+
+            // Split before major keywords that indicate new sections
+            .replace(/\b(SUBTOTAL|TOTAL|PAYMENT|AUTH|WHEN|RETURN)/gi, '\n$1')
+
+            // Split around prices - more aggressive approach
+            .replace(/(\$\d+\.\d{2})\s+([A-Z]{2,})/g, '$1\n$2')
+            .replace(/([A-Z]{2,})\s+(\$\d+\.\d{2})/g, '$1\n$2')
+
+            // Clean up multiple line breaks
+            .replace(/\n+/g, '\n')
+            .trim();
+
+        console.log('🔧 After aggressive splitting:');
         console.log('=====================================');
         console.log(preprocessedText);
         console.log('=====================================');
@@ -1346,9 +1358,9 @@ export default function ReceiptScan() {
         const lines = preprocessedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         console.log(`📋 Split into ${lines.length} lines (was ${text.split('\n').length} before preprocessing)`);
 
-        // Log first 20 lines for debugging
-        console.log('📋 First 20 lines after preprocessing:');
-        lines.slice(0, 20).forEach((line, index) => {
+        // Log all lines for debugging
+        console.log('📋 All lines after preprocessing:');
+        lines.forEach((line, index) => {
             console.log(`Line ${index + 1}: "${line}"`);
         });
 
@@ -1357,7 +1369,16 @@ export default function ReceiptScan() {
         // Common patterns for receipt items
         const pricePattern = /\$?(\d+\.\d{2})/;
         const upcPattern = /\b\d{12,14}\b/;
-        const quantityPattern = /(\d+)\s*@\s*\$?(\d+\.\d{2})/;
+
+        // Target-specific item detection patterns
+        const itemPatterns = [
+            // Look for product code + name + NF + price
+            /(\d{8,})\s+([A-Z\s]+)\s+(NF|T)\s+\$(\d+\.\d{2})/i,
+            // Look for name + NF + price (without product code)
+            /^([A-Z][A-Z\s]+)\s+(NF|T)\s+\$(\d+\.\d{2})/i,
+            // Look for quantity patterns
+            /(\d+)\s*@\s*\$(\d+\.\d{2})\s*ea/i
+        ];
 
         // COMPREHENSIVE skip patterns from v11/v12
         const skipPatterns = [
@@ -1444,13 +1465,13 @@ export default function ReceiptScan() {
             /^\d+\s+ea$/i,                      // EXISTING: Just quantity ea
             /^ea$/i,                            // EXISTING: Just "ea"
 
-            // Additional patterns...
+            // ============ WALMART SPECIFIC PATTERNS ============
             /^manager\s+/i,
-            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i,
-            /^st#\s*\d+/i,
-            /^op#\s*\d+/i,
-            /^te#\s*\d+/i,
-            /^tr#\s*\d+/i,
+            /^\d{4}\s+\d{2}\/\d{2}\/\d{2}/i, // Store number + date
+            /^st#\s*\d+/i, // Store number
+            /^op#\s*\d+/i, // Operator number
+            /^te#\s*\d+/i, // Terminal number
+            /^tr#\s*\d+/i, // Transaction number
             /walmart\.com/i,
             /^balance\s+\$/i,
             /^change\s+\$/i,
@@ -1458,6 +1479,216 @@ export default function ReceiptScan() {
             /^account\s+#/i,
             /^approval\s+#/i,
 
+            // ============ SAM'S CLUB SPECIFIC PATTERNS (More precise) ============
+            /^membership$/i,
+            /^advantage$/i,
+            /^plus$/i,
+            /^edward$/i, // Location names - but only by themselves
+            /^cedar\s+rapids$/i, // Only address lines, not product lines
+            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}$/i, // Phone numbers only
+            /^\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/i, // Date/time stamps
+            /^\d{4}\s+\d{5}\s+\d{3}\s+\d{4}$/i, // Transaction numbers only
+
+            // FIXED: More specific instant savings patterns
+            /^[ev]?\s*inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // Only discount lines ending with amount-N/T
+            /^s\s+inst\s+sv\s+.*\d+\.\d{2}[-\s]*[nt]$/i, // S instant savings with discount
+            /^[ev]\s+[ev]\s+inst\s+sv/i, // Multi-character instant savings
+
+            /member\s*(ship|#|savings)$/i, // Only membership lines at end
+            /you\s+saved$/i,               // Only "you saved" by itself
+            /total\s+savings$/i,           // Only "total savings" by itself
+
+            // TRADER JOE'S SPECIFIC PAYMENT PATTERNS
+            /^visa\s*$/i,
+            /^payment\s+card\s+purchase\s+transaction$/i,
+            /^customer\s+copy$/i,
+            /^type:\s+contactless$/i,
+            /^aid:\s*\*+\d+$/i,
+            /^tid:\s*\*+\d+$/i,
+            /^no\s+cardholder\s+verification$/i,
+            /^please\s+retain\s+for\s+your\s+records$/i,
+            /^total\s+purchase$/i,
+            /^\*+\d{4}$/i, // Card number fragments
+
+            // SMITH'S (KROGER) SPECIFIC PAYMENT PATTERNS
+            /^your\s+cashier\s+was/i,
+            /^fresh\s+value\s+customer$/i,
+            /^\*+\s*balance$/i,
+            /^\d{3}-\d{3}-\d{4}$/i, // Phone numbers
+
+            // ============ RECEIPT FOOTER INFORMATION ============
+            /^(change due|amount due|balance)$/i,
+            /^(customer|member|rewards)$/i,
+            /^(save|saved|you saved)$/i,
+            /^(coupon|discount|promotion)$/i,
+            /^items\s+in\s+transaction$/i,
+            /^balance\s+to\s+pay$/i,
+
+            // ============ STORE OPERATION CODES AND IDS ============
+            /^(st#|store|op|operator|te|terminal)$/i,
+            /^(tc#|transaction|seq|sequence)$/i,
+            /^[\d\s]{10,}$/,
+
+            // ============ ITEMS SOLD COUNTER ============
+            /^#?\s*items?\s+sold$/i,
+            /^\d+\s+items?\s+sold$/i,
+
+            // ============ BARCODE NUMBERS (STANDALONE) ============
+            /^[\d\s]{15,}$/,
+
+            // ============ HY-VEE SPECIFIC PATTERNS ============
+            /btl\s+dep/i,
+            /btl\.\s+dep/i,
+            /bottle\s+deposit/i,
+            /deposit/i,
+            /^\.?\d+\s*fs?\s*btl\s*dep/i,
+            /^[;]*\s*[xi]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[ti]\s+\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^[;:]*\s*[xti]\s+\d+\.\d+\s*@/i,
+            /^[xti]\s+\d+\.\d+\s*@\s*\d+\.\d+%/i,
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=\s*\d+\.\d+$/i,
+            /^manual\s*weight$/i,
+            /^\d+\.\d+\s*lb\s*@\s*\d+\s*\d+\s*usd\/lb$/i,
+            /^x\s+\d+\s+\d+\s+\d+$/i,
+            /^[tx]\s+\d+(\s+\d+)*$/i,
+            /^\d+\s+\d+\s+\d+\s+\d+$/i,
+            /^\d{1,2}\s+\d{1,2}\s+\d{1,2}\s+\d{1,2}$/i,
+            /^[\d\s]+\d{2}$/i,
+            /^[a-z]\s+[\d\s]+$/i,
+            /^@\s*\d+\.\d+%/i,
+            /^=\s*[\d\s]+$/i,
+            /^\d+\.\d+%\s*=?$/i,
+            /employee\s*owned/i,
+            /storeman/i,
+            /group.*hy.*vee/i,
+            /^[\d\s]{3,}$/,
+            /^[a-z]{1,2}\s+[\d\s]+$/i,
+
+            // ============ TARGET SPECIFIC PATTERNS ============
+            /^regular\s+price$/i,
+            /^reg\s+price$/i,
+            /^was\s+\$?\d+\.\d{2}$/i,
+            /^t\s*=\s*ia\s+tax$/i,
+            /^[t]\s*-\s*ia\s+tax$/i,
+            /^\*?\d{4}\s+debit\s+total$/i,
+            /^aid[:;]\s*[a-z0-9]+$/i,
+            /^auth\s+code[:;]$/i,
+            /^us\s+debit$/i,
+            /when\s+you\s+return/i,
+            /return\s+credit/i,
+            /promotional\s+discount/i,
+            /applied\s+to\s+the/i,
+            /saving\s+with\s+target/i,
+            /target\s+circle/i,
+            /got\s+easier/i,
+            /open\s+the\s+target/i,
+            /target\.com/i,
+            /see\s+your\s+savings/i,
+            /find\s+more\s+benefits/i,
+            /\bapp\b.*\bvisit\b/i,
+            /benefits/i,
+            /blairs\s+ferry/i,
+            /^nf$/i,
+            /^t$/i,
+            /^[a-z]$/i,
+            /^[nt]$/i,
+            /^grocery$/i,
+            /^home$/i,
+            /^electronics$/i,
+            /^clothing$/i,
+
+            // ============ TRADER JOE'S SPECIFIC PATTERNS ============
+            /^items\s+in\s+transaction[:;]?\s*\d+$/i,
+            /^balance\s+to\s+pay$/i,
+            /^merchant\s+copy$/i,
+            /^type[:;]\s*(contactless|chip|swipe)$/i,
+            /^aid[:;]\s*\*+$/i,
+            /^tid[:;]\s*\*+$/i,
+            /^nid[:;]\s*\*+$/i,
+            /^mid[:;]\s*\*+$/i,
+            /^auth\s+code[:;]$/i,
+            /^approval\s+code$/i,
+            /^please\s+retain$/i,
+            /^retain\s+for$/i,
+            /^for\s+your\s+records$/i,
+
+            // ============ SMITH'S (KROGER) SPECIFIC PATTERNS ============
+            /^\d+\s+s\.\s+maryland\s+pkwy$/i,
+            /^chec\s+\d+$/i,
+            /^kroger\s+plus$/i,
+            /^fuel\s+points$/i,
+            /^you\s+earned$/i,
+            /^points\s+earned$/i,
+            /^\d+\.\d+\s+lb\s*@\s*\$?\d+\.\d+\s*\/\s*lb$/i,
+            /^wt\s+.*lb$/i,
+            /^\d+\.\d+\s*\/\s*lb$/i,
+            /^\*+\s*balance$/i,
+            /^balance\s*\*+$/i,
+            /^f$/i,
+            /^[f|t]\s*$/i,
+            /^ro\s+lrg$/i,
+            /^darnc[n|g]$/i,
+            /^spwd\s+gr$/i,
+
+            // ============ GENERIC PATTERNS ============
+            /^\d+\.\d+\s*x\s*\$?\d+\.\d{2}$/i,
+            /^\d+\.?\d*x?$/i,
+            /^\d+\.?\d*\s*(lb|lbs|oz|kg|g|each|ea)$/i,
+            /^\d+\s+.*\d+%.*\(\$\d+\.\d{2}\)$/i,
+            /fuel\s*saver/i,
+            /fuel\s*reward/i,
+            /\d+\s+fuel\s+saver/i,
+            /hormel\s*loins/i,
+            /\d+\s+hormel\s*loins/i,
+            /^(ia|iowa)\s+state$/i,
+            /^linn\s+county$/i,
+            /^[\w\s]+county\s+[\w\s]+\s+\d+\.\d+%$/i,
+            /^[\w\s]+state\s+[\w\s]+\s+\d+\.\d+%$/i,
+            /bottom\s*of\s*cart/i,
+            /spend\s*\$?\d+/i,
+            /\d+x\s*\d+of\d+/i,
+            /^payment\s*information$/i,
+            /^total\s*paid$/i,
+            /^[a-z]\s*—?\s*$/i,
+            /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
+            /deals\s*&?\s*coupons/i,
+            /view\s*coupons/i,
+
+            // ============ DISCOUNT AND NEGATIVE AMOUNT PATTERNS ============
+            /^\d+%?\s*(off|discount|save)$/i,
+            /^\(\$\d+\.\d{2}\)$/i,
+            /^-\$?\d+\.\d{2}$/i,
+            /^\d+\.\d{2}-[nt]$/i,
+            /\d+\.\d{2}-n$/i,
+            /\d+\.\d{2}-t$/i,
+            /^.*-\$?\d+\.\d{2}$/i,
+            /^.*\s+-\$?\d+\.\d{2}$/i,
+            /^.*\s+\$?-\d+\.\d{2}$/i,
+
+            // ============ ADDITIONAL COMMON PATTERNS ============
+            /^\d+\.\d+\s*@\s*\d+\.\d+%\s*=$/i,
+            /^[tx]\s+\d+\.\d+\s*@$/i,
+            /^\d+\.\d+%\s*=$/i,
+            /^=\s*\d+\.\d+$/i,
+            /^\d+\.\d+\s*lb\s*@$/i,
+            /^\d+\.\d+\s*usd\/lb$/i,
+            /voided\s*bankcard/i,
+            /bank\s*card/i,
+            /transaction\s*not\s*complete/i,
+            /transaction\s*complete/i,
+            /tenbe\s*due/i,
+            /tender\s*due/i,
+            /change\s*due/i,
+            /amount\s*due/i,
+            /balance\s*due/i,
+            /debit\s*tend/i,
+            /cash\s*tend/i,
+            /terminal\s*#/i,
+            /pay\s+from\s+primary/i,
+            /purchase$/i,
+            /^.*\s+tax\s+[\d\s]+$/i,
+            /^.*\s+savings\s+[\d\s]+$/i,
+            /^total\s+purchase\s+[\d\s]+$/i,
         ];
 
         console.log(`📄 Processing ${lines.length} lines from receipt...`);
