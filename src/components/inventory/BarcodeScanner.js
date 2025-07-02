@@ -252,7 +252,55 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }
     }, [validateUPC, onBarcodeDetected, onClose, provideScanFeedback]);
 
-    // ZXing scanner initialization for web
+    / ENHANCED: Error handling with automatic recovery
+    const handleScanError = useCallback((error) => {
+        console.error('🚨 Scanner error:', error);
+
+        // Don't show technical errors to users, just provide recovery options
+        if (error.message.includes('Permission') || error.message.includes('permission')) {
+            setError('Camera permission required. Please allow camera access and try again.');
+        } else if (error.message.includes('NotFoundError') || error.message.includes('no camera')) {
+            setError('No camera found. Please ensure your device has a camera.');
+        } else if (error.message.includes('NotReadableError')) {
+            setError('Camera is in use by another application. Please close other camera apps and try again.');
+        } else {
+            setError('Scanner initialization failed. Please try again.');
+        }
+
+        // Reset scanner state to allow retry
+        setIsInitialized(false);
+        setIsLoading(false);
+        setIsScanning(false);
+    }, []);
+
+// ENHANCED: Retry scanner initialization
+    const retryScanner = useCallback(async () => {
+        console.log('🔄 Retrying scanner initialization...');
+
+        // Reset all error states
+        setError(null);
+        setIsLoading(true);
+        setIsInitialized(false);
+        setIsScanning(true);
+        setScanFeedback('');
+
+        // Reset session
+        sessionIdRef.current = Date.now();
+        processedCodesRef.current = new Set();
+
+        // Force cleanup first
+        await cleanupScanner();
+
+        // Wait a moment for cleanup
+        setTimeout(() => {
+            if (mountedRef.current) {
+                // This will trigger the useEffect to reinitialize
+                setIsInitialized(false);
+            }
+        }, 500);
+    }, [cleanupScanner]);
+
+    // ENHANCED: Update the scanner initialization with better error handling
     const initializeZXingScanner = useCallback(async () => {
         try {
             console.log('🚀 Initializing ZXing scanner...');
@@ -263,9 +311,18 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             const codeReader = new BrowserMultiFormatReader();
             codeReaderRef.current = codeReader;
 
-            // Get available video devices
-            const videoInputDevices = await codeReader.listVideoInputDevices();
-            console.log('📹 Available cameras:', videoInputDevices.length);
+            // Get available video devices with error handling
+            let videoInputDevices;
+            try {
+                videoInputDevices = await codeReader.listVideoInputDevices();
+                console.log('📹 Available cameras:', videoInputDevices.length);
+            } catch (deviceError) {
+                throw new Error('Unable to access camera devices. Please check camera permissions.');
+            }
+
+            if (!videoInputDevices || videoInputDevices.length === 0) {
+                throw new Error('No camera devices found on this device.');
+            }
 
             // Find back camera or use first available
             const selectedDeviceId = videoInputDevices.find(device =>
@@ -274,34 +331,40 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 device.label.toLowerCase().includes('environment')
             )?.deviceId || videoInputDevices[0]?.deviceId;
 
-            if (!selectedDeviceId) {
-                throw new Error('No camera devices found');
-            }
-
             console.log('📷 Using camera:', selectedDeviceId);
 
-            // Start decoding from video device
-            const stream = await codeReader.decodeFromVideoDevice(
-                selectedDeviceId,
-                videoRef.current,
-                (result, error) => {
-                    if (result) {
-                        const code = result.getText();
-                        console.log('📱 ZXing detected:', code);
-                        handleBarcodeDetection(code);
+            // Start decoding with enhanced error handling
+            try {
+                const stream = await codeReader.decodeFromVideoDevice(
+                    selectedDeviceId,
+                    videoRef.current,
+                    (result, error) => {
+                        if (result) {
+                            const code = result.getText();
+                            console.log('📱 ZXing detected:', code);
+                            handleBarcodeDetection(code);
+                        }
+                        // Log errors for debugging but don't show to user
+                        if (error && !error.message.includes('No MultiFormat Readers')) {
+                            console.log('ZXing scan attempt:', error.message);
+                        }
                     }
-                    // Ignore errors - they're mostly "no barcode found" which is normal
-                }
-            );
+                );
 
-            streamRef.current = stream;
-            console.log('✅ ZXing scanner started successfully');
+                streamRef.current = stream;
+                console.log('✅ ZXing scanner started successfully');
+
+            } catch (streamError) {
+                console.error('Stream error:', streamError);
+                throw new Error('Failed to start camera stream. Camera may be in use by another application.');
+            }
 
         } catch (error) {
             console.error('❌ ZXing initialization error:', error);
+            handleScanError(error);
             throw error;
         }
-    }, [handleBarcodeDetection]);
+    }, [handleBarcodeDetection, handleScanError]);
 
     // Main scanner initialization
     useEffect(() => {
@@ -532,18 +595,26 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* Error Display */}
+                    {/* Mobile Error Display */}
                     {error ? (
                         <div className="flex-1 flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                                <div className="text-red-600 mb-4 text-2xl">❌</div>
+                                <div className="text-red-600 mb-4 text-2xl">📷</div>
                                 <div className="text-red-600 font-medium mb-4">{error}</div>
-                                <TouchEnhancedButton
-                                    onClick={handleScannerClose}
-                                    className="bg-red-600 text-white px-4 py-2 rounded-md"
-                                >
-                                    Close Scanner
-                                </TouchEnhancedButton>
+                                <div className="space-y-3">
+                                    <TouchEnhancedButton
+                                        onClick={retryScanner}
+                                        className="w-full bg-blue-600 text-white px-4 py-2 rounded-md font-medium"
+                                    >
+                                        Try Again
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={handleScannerClose}
+                                        className="w-full bg-gray-600 text-white px-4 py-2 rounded-md"
+                                    >
+                                        Close Scanner
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -604,26 +675,38 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         <div className="absolute inset-0 pointer-events-none zxing-scanner-overlay" style={{ zIndex: 10 }}>
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="relative w-80 h-48 border-2 border-transparent">
-                                                    {/* Modern corner brackets */}
-                                                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-blue-400 rounded-tl-lg"></div>
-                                                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-blue-400 rounded-tr-lg"></div>
-                                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-blue-400 rounded-bl-lg"></div>
-                                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-blue-400 rounded-br-lg"></div>
+                                                    {/* BRIGHT, VISIBLE corner brackets */}
+                                                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-lg shadow-lg"></div>
+                                                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-lg shadow-lg"></div>
+                                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-lg shadow-lg"></div>
+                                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-lg shadow-lg"></div>
 
-                                                    {/* Scanning indicator */}
+                                                    {/* BRIGHT scanning indicator */}
                                                     {isScanning && (
                                                         <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-ping zxing-detection-indicator"></div>
+                                                            <div className="w-4 h-4 bg-white rounded-full animate-ping shadow-lg"></div>
                                                         </div>
+                                                    )}
+
+                                                    {/* OPTIONAL: Scanning line animation */}
+                                                    {isScanning && (
+                                                        <div
+                                                            className="absolute inset-x-4 h-1 bg-white opacity-90 shadow-lg"
+                                                            style={{
+                                                                animation: 'scanline 2s ease-in-out infinite',
+                                                                top: '50%',
+                                                                transform: 'translateY(-50%)'
+                                                            }}
+                                                        />
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {/* Enhanced instruction overlay */}
-                                            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-80 text-white p-4 rounded-lg">
+                                            {/* Enhanced instruction overlay with better contrast */}
+                                            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg border border-white border-opacity-30">
                                                 <div className="text-center">
                                                     <div className="text-lg font-medium mb-2">
-                                                        {scanFeedback || (isScanning ? 'Position barcode in view' : 'Processing...')}
+                                                        {scanFeedback || (isScanning ? 'Position barcode in white frame' : 'Processing...')}
                                                     </div>
                                                     <div className="text-sm opacity-75">
                                                         ZXing scanner • Enhanced accuracy • Auto-detection
@@ -634,7 +717,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                     )}
                                 </div>
                             )}
-
                             {/* Footer */}
                             <div className="flex-shrink-0 bg-black px-4 py-3">
                                 <TouchEnhancedButton
@@ -648,7 +730,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     )}
                 </div>
             ) : (
-                // Desktop version
+
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-4 max-w-lg w-full mx-4 max-h-screen overflow-hidden">
                         <div className="flex justify-between items-center mb-4">
@@ -672,17 +754,25 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                 ×
                             </TouchEnhancedButton>
                         </div>
-
+                        {/* Desktop Error Display */}
                         {error ? (
                             <div className="text-center py-8">
-                                <div className="text-red-600 mb-4 text-2xl">❌</div>
+                                <div className="text-red-600 mb-4 text-2xl">📷</div>
                                 <div className="text-red-600 font-medium mb-4">{error}</div>
-                                <TouchEnhancedButton
-                                    onClick={handleScannerClose}
-                                    className="bg-red-600 text-white px-4 py-2 rounded-md"
-                                >
-                                    Close Scanner
-                                </TouchEnhancedButton>
+                                <div className="space-y-2">
+                                    <TouchEnhancedButton
+                                        onClick={retryScanner}
+                                        className="mr-2 bg-blue-600 text-white px-4 py-2 rounded-md"
+                                    >
+                                        Try Again
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={handleScannerClose}
+                                        className="bg-gray-600 text-white px-4 py-2 rounded-md"
+                                    >
+                                        Close Scanner
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
                         ) : (
                             <>
@@ -702,24 +792,24 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                                         playsInline
                                         muted
                                     />
-
+                                    {/* Desktop Version - replace desktop overlay section */}
                                     {!isLoading && (
                                         <>
                                             <div className="absolute inset-0 border-2 border-transparent rounded-lg pointer-events-none">
-                                                <div className="absolute inset-8 border-2 border-blue-500 rounded-lg">
+                                                <div className="absolute inset-8 border-2 border-white rounded-lg shadow-lg">
                                                     {isScanning && (
                                                         <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
+                                                            <div className="w-3 h-3 bg-white rounded-full animate-ping shadow-lg"></div>
                                                         </div>
                                                     )}
-                                                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-blue-500 rounded-tl"></div>
-                                                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-blue-500 rounded-tr"></div>
-                                                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-blue-500 rounded-bl"></div>
-                                                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-blue-500 rounded-br"></div>
+                                                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white rounded-tl shadow-lg"></div>
+                                                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white rounded-tr shadow-lg"></div>
+                                                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white rounded-bl shadow-lg"></div>
+                                                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white rounded-br shadow-lg"></div>
                                                 </div>
                                             </div>
 
-                                            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-75 text-white text-sm p-3 rounded">
+                                            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-90 text-white text-sm p-3 rounded border border-white border-opacity-30">
                                                 <div className="text-center">
                                                     <div className="font-medium">
                                                         {scanFeedback || (isScanning ? 'ZXing scanner active' : 'Processing...')}

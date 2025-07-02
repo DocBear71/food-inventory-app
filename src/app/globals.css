@@ -2321,3 +2321,20 @@ div[style*="background-color: #f1f5f9"] {
 .zxing-scanner-success {
     background: linear-gradient(45deg, #14532d, #166534);
 }
+
+@keyframes scanline {
+    0% {
+        top: 10%;
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 30px rgba(255, 255, 255, 1);
+    }
+    100% {
+        top: 90%;
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+}
