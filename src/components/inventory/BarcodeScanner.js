@@ -133,22 +133,29 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         }, 2000);
     }, []);
 
-    // FIXED: Simplified, stable barcode detection
+    // FIXED: Enhanced barcode detection with better error handling
     const handleBarcodeDetection = useCallback(async (result) => {
         const now = Date.now();
 
         // Prevent rapid duplicate processing
-        if (scanInProgressRef.current || (now - lastScanTimeRef.current) < 1000) {
+        if (scanInProgressRef.current || (now - lastScanTimeRef.current) < 1500) {
+            return;
+        }
+
+        // Verify we have valid result data
+        if (!result || !result.codeResult || !result.codeResult.code) {
+            console.log('❌ Invalid barcode result data');
             return;
         }
 
         const code = result.codeResult.code;
         console.log(`📱 Barcode detected: "${code}"`);
 
-        // Quick validation
+        // Enhanced validation
         const validation = validateUPC(code);
         if (!validation.valid) {
             console.log(`❌ Invalid UPC: ${validation.reason}`);
+            // Don't show error to user for invalid codes, just ignore them
             return;
         }
 
@@ -174,15 +181,24 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         // Stop scanning immediately
         setIsScanning(false);
 
-        // Process the result
-        setTimeout(() => {
-            if (mountedRef.current) {
-                onBarcodeDetected(cleanCode);
-                setTimeout(() => {
-                    if (onClose) onClose();
-                }, 500);
-            }
-        }, 300);
+        // Process the result with error handling
+        try {
+            setTimeout(() => {
+                if (mountedRef.current) {
+                    onBarcodeDetected(cleanCode);
+                    setTimeout(() => {
+                        if (mountedRef.current && onClose) {
+                            onClose();
+                        }
+                    }, 500);
+                }
+            }, 300);
+        } catch (error) {
+            console.error('❌ Error processing barcode result:', error);
+            // Reset scan state on error
+            scanInProgressRef.current = false;
+            setIsScanning(true);
+        }
 
     }, [validateUPC, onBarcodeDetected, onClose, provideScanFeedback]);
 
@@ -317,86 +333,130 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
     }, []);
 
-    // FIXED: Enhanced cleanup with proper async handling
+    // FIXED: More robust cleanup with DOM state checking
     const cleanupScanner = useCallback(async () => {
         console.log('🧹 Starting comprehensive scanner cleanup...');
 
         // Set flags immediately to prevent new operations
         scanInProgressRef.current = false;
         setIsScanning(false);
+        setIsInitialized(false);
 
-        // Stop and clean up video stream with delay
+        // Stop and clean up video stream with better error handling
         if (streamRef.current) {
             console.log('📹 Stopping video stream...');
             try {
-                streamRef.current.getTracks().forEach(track => {
-                    track.stop();
-                    console.log(`📹 Stopped ${track.kind} track`);
+                const tracks = streamRef.current.getTracks();
+                tracks.forEach((track, index) => {
+                    try {
+                        track.stop();
+                        console.log(`📹 Stopped track ${index}: ${track.kind}`);
+                    } catch (trackError) {
+                        console.log(`⚠️ Error stopping track ${index}:`, trackError.message);
+                    }
                 });
+                // Wait longer for tracks to fully stop
+                await new Promise(resolve => setTimeout(resolve, 500));
             } catch (error) {
-                console.log('Video track cleanup error:', error);
+                console.log('⚠️ Video stream cleanup error:', error.message);
             }
             streamRef.current = null;
-
-            // Wait for stream to fully stop
-            await new Promise(resolve => setTimeout(resolve, 200));
         }
 
-        // Clean up Quagga with proper error handling
+        // Clean up Quagga with extensive error handling
         if (quaggaRef.current) {
             console.log('🛑 Stopping Quagga...');
             try {
+                // Remove all event listeners first
+                quaggaRef.current.offDetected();
+                quaggaRef.current.offProcessed();
+
+                // Stop Quagga
                 quaggaRef.current.stop();
-                // Wait for Quagga to fully stop
-                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // Wait longer for Quagga to fully cleanup
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                console.log('✅ Quagga stopped successfully');
             } catch (error) {
-                console.log('⚠️ Quagga cleanup error:', error);
+                console.log('⚠️ Quagga cleanup error:', error.message);
+                // Force cleanup even if Quagga throws an error
             }
             quaggaRef.current = null;
         }
 
-        // Clean up DOM with delay
+        // Enhanced DOM cleanup with safety checks
         if (scannerRef.current) {
             try {
-                scannerRef.current.innerHTML = '';
-                console.log('🧹 Cleared scanner container');
+                console.log('🧹 Cleaning scanner DOM...');
+
+                // Remove all child elements safely
+                while (scannerRef.current.firstChild) {
+                    try {
+                        scannerRef.current.removeChild(scannerRef.current.firstChild);
+                    } catch (childError) {
+                        console.log('⚠️ Error removing child element:', childError.message);
+                        break; // Exit loop if we can't remove children
+                    }
+                }
+
+                // Reset any inline styles
+                scannerRef.current.style.cssText = '';
+
+                console.log('✅ Scanner DOM cleaned');
             } catch (error) {
-                console.log('DOM cleanup error:', error);
+                console.log('⚠️ DOM cleanup error:', error.message);
             }
         }
 
-        // Reset all state
-        videoRef.current = null;
-        setIsInitialized(false);
-        setIsLoading(true);
-        setError(null);
-        setPermissionState('unknown');
-        setScanFeedback('');
+        // Reset all state with delays
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Reset refs
-        lastScanTimeRef.current = 0;
-        initializationRef.current = false;
+        if (mountedRef.current) {
+            videoRef.current = null;
+            setIsLoading(true);
+            setError(null);
+            setPermissionState('unknown');
+            setScanFeedback('');
 
-        // Clear session data
-        processedCodesRef.current = new Set();
-        sessionIdRef.current = Date.now();
+            // Reset refs
+            lastScanTimeRef.current = 0;
+            initializationRef.current = false;
 
-        console.log('✅ Scanner cleanup completed with delays');
+            // Clear session data
+            processedCodesRef.current = new Set();
+            sessionIdRef.current = Date.now();
+        }
+
+        console.log('✅ Complete scanner cleanup finished');
     }, []);
 
-    // FIXED: Enhanced scanner initialization with better reset handling
+
     useEffect(() => {
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current || initializationRef.current) {
                 return;
             }
 
-            // FIXED: Force cleanup before initialization
-            if (quaggaRef.current || streamRef.current) {
-                console.log('🔄 Forcing cleanup before new initialization...');
+            console.log('🚀 Starting scanner initialization...');
+
+            // CRITICAL: Ensure DOM element is ready and attached
+            if (!scannerRef.current || !scannerRef.current.parentNode) {
+                console.log('❌ Scanner DOM element not ready, retrying...');
+                setTimeout(() => {
+                    if (mountedRef.current && isActive) {
+                        initializeScanner();
+                    }
+                }, 500);
+                return;
+            }
+
+            // CRITICAL: Force complete cleanup before any initialization
+            if (quaggaRef.current || streamRef.current || isInitialized) {
+                console.log('🔄 Forcing complete cleanup before initialization...');
                 await cleanupScanner();
-                // Wait additional time for complete cleanup
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Wait longer for cleanup to complete
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             initializationRef.current = true;
@@ -409,8 +469,9 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 setError(null);
                 setIsScanning(true);
                 setScanFeedback('');
+                setIsLoading(true);
 
-                console.log(`🚀 Starting new scanner session: ${sessionIdRef.current}`);
+                console.log(`🚀 New scanner session: ${sessionIdRef.current}`);
 
                 const hasPermission = await requestCameraPermission();
                 if (!hasPermission) {
@@ -422,69 +483,145 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 if (Capacitor.isNativePlatform()) {
                     setIsInitialized(true);
                     setIsLoading(false);
-                    // Auto-start MLKit scanning with delay
-                    setTimeout(() => startMLKitScanning(), 800);
+                    setTimeout(() => startMLKitScanning(), 1000);
                 } else {
-                    // Enhanced Quagga setup with better error handling
-                    const Quagga = (await import('quagga')).default;
-                    quaggaRef.current = Quagga;
+                    // ENHANCED: Multiple attempts for Quagga initialization
+                    let initAttempt = 0;
+                    const maxAttempts = 3;
 
-                    const config = getQuaggaConfig();
+                    while (initAttempt < maxAttempts && mountedRef.current) {
+                        initAttempt++;
+                        console.log(`📡 Quagga initialization attempt ${initAttempt}/${maxAttempts}`);
 
-                    await new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error('Scanner initialization timeout'));
-                        }, 10000); // 10 second timeout
-
-                        Quagga.init(config, (err) => {
-                            clearTimeout(timeout);
-
-                            if (err) {
-                                reject(new Error(`Scanner initialization failed: ${err.message}`));
-                                return;
+                        try {
+                            // Wait between attempts
+                            if (initAttempt > 1) {
+                                await new Promise(resolve => setTimeout(resolve, 1000 * initAttempt));
                             }
 
-                            // Capture video element with retry
-                            const captureVideoElement = () => {
-                                const videoElement = scannerRef.current?.querySelector('video');
-                                if (videoElement) {
-                                    videoRef.current = videoElement;
-                                    if (videoElement.srcObject) {
-                                        streamRef.current = videoElement.srcObject;
-                                    }
-                                    console.log('📹 Video element captured successfully');
-                                    return true;
+                            // Verify DOM is still ready
+                            if (!scannerRef.current || !scannerRef.current.parentNode) {
+                                throw new Error('DOM element lost during initialization');
+                            }
+
+                            const Quagga = (await import('quagga')).default;
+
+                            // Clear any existing Quagga instance
+                            if (quaggaRef.current) {
+                                try {
+                                    quaggaRef.current.stop();
+                                } catch (e) {
+                                    // Ignore cleanup errors
                                 }
-                                return false;
-                            };
-
-                            // Try to capture video element immediately
-                            if (!captureVideoElement()) {
-                                // Retry after a short delay
-                                setTimeout(() => {
-                                    if (!captureVideoElement()) {
-                                        console.warn('⚠️ Could not capture video element');
-                                    }
-                                }, 500);
                             }
 
-                            Quagga.onDetected(handleBarcodeDetection);
-                            Quagga.start();
+                            quaggaRef.current = Quagga;
+                            const config = getQuaggaConfig();
 
-                            if (mountedRef.current) {
-                                setIsInitialized(true);
-                                setIsLoading(false);
-                                setError(null);
-                                console.log('✅ Scanner initialized successfully');
+                            await new Promise((resolve, reject) => {
+                                const timeout = setTimeout(() => {
+                                    reject(new Error(`Quagga initialization timeout (attempt ${initAttempt})`));
+                                }, 15000); // Longer timeout
+
+                                try {
+                                    Quagga.init(config, (err) => {
+                                        clearTimeout(timeout);
+
+                                        if (err) {
+                                            console.log(`❌ Quagga init error (attempt ${initAttempt}):`, err.message);
+                                            reject(new Error(`Quagga init failed: ${err.message}`));
+                                            return;
+                                        }
+
+                                        console.log(`✅ Quagga initialized successfully (attempt ${initAttempt})`);
+
+                                        // Enhanced video element capture with multiple retries
+                                        const captureVideoElement = (retryCount = 0) => {
+                                            const maxRetries = 5;
+
+                                            setTimeout(() => {
+                                                const videoElement = scannerRef.current?.querySelector('video');
+                                                if (videoElement && videoElement.srcObject) {
+                                                    videoRef.current = videoElement;
+                                                    streamRef.current = videoElement.srcObject;
+                                                    console.log('📹 Video element captured successfully');
+
+                                                    // Verify video is actually playing
+                                                    const checkVideoPlaying = () => {
+                                                        if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                                                            console.log('✅ Video stream confirmed active');
+                                                        } else {
+                                                            console.log('⚠️ Video stream may not be active');
+                                                        }
+                                                    };
+                                                    setTimeout(checkVideoPlaying, 1000);
+
+                                                } else if (retryCount < maxRetries) {
+                                                    console.log(`⏳ Video element not ready, retry ${retryCount + 1}/${maxRetries}`);
+                                                    captureVideoElement(retryCount + 1);
+                                                } else {
+                                                    console.warn('⚠️ Could not capture video element after retries');
+                                                }
+                                            }, 200 * (retryCount + 1)); // Increasing delay
+                                        };
+
+                                        captureVideoElement();
+
+                                        // Set up detection with error handling
+                                        try {
+                                            Quagga.onDetected(handleBarcodeDetection);
+                                            Quagga.start();
+                                            console.log('📡 Quagga detection started');
+                                        } catch (detectionError) {
+                                            console.error('❌ Error setting up detection:', detectionError);
+                                            reject(detectionError);
+                                            return;
+                                        }
+
+                                        if (mountedRef.current) {
+                                            setIsInitialized(true);
+                                            setIsLoading(false);
+                                            setError(null);
+                                        }
+                                        resolve();
+                                    });
+                                } catch (initError) {
+                                    clearTimeout(timeout);
+                                    reject(initError);
+                                }
+                            });
+
+                            // If we get here, initialization was successful
+                            console.log('🎉 Scanner fully operational');
+                            break;
+
+                        } catch (attemptError) {
+                            console.error(`❌ Initialization attempt ${initAttempt} failed:`, attemptError.message);
+
+                            // Cleanup failed attempt
+                            if (quaggaRef.current) {
+                                try {
+                                    quaggaRef.current.stop();
+                                } catch (e) {
+                                    // Ignore cleanup errors
+                                }
+                                quaggaRef.current = null;
                             }
-                            resolve();
-                        });
-                    });
+
+                            // If this was the last attempt, throw the error
+                            if (initAttempt >= maxAttempts) {
+                                throw attemptError;
+                            }
+
+                            // Wait before next attempt
+                            console.log(`⏳ Waiting before retry attempt ${initAttempt + 1}...`);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('❌ Scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError(error.message || 'Camera scanner setup failed');
+                    setError(`Camera setup failed: ${error.message}. Please try again.`);
                     setIsLoading(false);
                 }
                 initializationRef.current = false;
@@ -492,24 +629,34 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
         };
 
         if (isActive && mountedRef.current && scannerRef.current) {
-            initializeScanner();
+            // Add a small delay to ensure DOM is fully ready
+            setTimeout(() => {
+                if (mountedRef.current && isActive) {
+                    initializeScanner();
+                }
+            }, 100);
         }
     }, [isActive, isInitialized, requestCameraPermission, handleBarcodeDetection, getQuaggaConfig, startMLKitScanning, cleanupScanner]);
 
 
-    // FIXED: Better close handler with proper cleanup
+    // FIXED: Better close handler with verification
     const handleScannerClose = useCallback(async () => {
         console.log('🚫 Scanner close requested');
+
+        // Prevent multiple close attempts
+        if (!mountedRef.current) {
+            return;
+        }
 
         // Immediate cleanup
         await cleanupScanner();
 
-        // Wait a bit more before calling onClose to ensure complete cleanup
+        // Wait longer before calling onClose to ensure complete cleanup
         setTimeout(() => {
-            if (onClose) {
+            if (mountedRef.current && onClose) {
                 onClose();
             }
-        }, 200);
+        }, 300);
     }, [cleanupScanner, onClose]);
 
     // Detect mobile device
