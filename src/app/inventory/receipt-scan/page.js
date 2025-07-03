@@ -2093,7 +2093,7 @@ export default function ReceiptScan() {
             let line = lines[i];
 
             // Skip pure category headers
-            if (line.match(/^(Dairy|Frozen|Grocery|Lunchmeat|Meat|Packaged|Produce)[\s\-]*[\w\s]*\s*\(\d+\):\s*$/i)) {
+            if (line.match(/^(Dairy|Frozen|Grocery|Lunchmeat|Meat|Packaged|Produce|HV\s+\w+|Pop|Scan|Btl\s+Dep)[\s\-]*[\w\s]*\s*\(\d+\):\s*$/i)) {
                 console.log(`📧 Skipping category header: ${line}`);
                 continue;
             }
