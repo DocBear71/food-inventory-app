@@ -414,32 +414,64 @@ export default function MealPlanningCalendar() {
         }
     };
 
+    const handleMarkComplete = (meal, day, mealType) => {
+        console.log('✅ Mark Complete clicked:', { meal, day, mealType });
+        console.log('✅ Setting selectedMealForCompletion...');
+
+        setSelectedMealForCompletion({
+            meal,
+            day,
+            mealType: mealType || meal.mealType
+        });
+        setShowMealCompletion(true);
+        closeMealDropdowns();
+
+        console.log('✅ Modal should open now');
+    };
+
     const handleEditMeal = (meal, day) => {
+        console.log('✏️ Edit Meal clicked:', { meal, day });
+
         if (meal.entryType === 'simple') {
-            // Open SimpleMealBuilder with existing meal data
+            console.log('✏️ Opening simple meal builder');
             setSelectedSlot({ day, mealType: meal.mealType });
             setShowSimpleMealBuilder(true);
-            // You'll need to pass the existing meal data to SimpleMealBuilder
-            // This might require updating SimpleMealBuilder to accept initialMeal prop
         } else if (meal.entryType === 'recipe') {
-            // For recipe meals, we can open the recipe modal to view/change
-            // Or open a meal editing interface
+            console.log('✏️ Recipe meal - showing info alert');
             alert(`Recipe meal editing: You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.`);
         }
 
         closeMealDropdowns();
     };
 
-    // Add this function to toggle meal dropdown:
-    const toggleMealDropdown = (mealId) => {
-        setMealDropdowns(prev => ({
-            ...prev,
-            [mealId]: !prev[mealId]
-        }));
+    const handleDeleteMeal = (day, actualIndex) => {
+        console.log('🗑️ Delete Meal clicked:', { day, actualIndex });
+
+        const confirmDelete = window.confirm('Are you sure you want to delete this meal?');
+        if (confirmDelete) {
+            console.log('🗑️ User confirmed delete');
+            removeMealFromSlot(day, actualIndex);
+        } else {
+            console.log('🗑️ User cancelled delete');
+        }
+
+        closeMealDropdowns();
     };
 
-    // Add this function to close all dropdowns when clicking outside:
+    const toggleMealDropdown = (mealId) => {
+        console.log('🔽 toggleMealDropdown called with mealId:', mealId);
+        setMealDropdowns(prev => {
+            const newState = {
+                ...prev,
+                [mealId]: !prev[mealId]
+            };
+            console.log('🔽 Updated dropdown state:', newState);
+            return newState;
+        });
+    };
+
     const closeMealDropdowns = () => {
+        console.log('❌ closeMealDropdowns called');
         setMealDropdowns({});
     };
 
@@ -920,39 +952,48 @@ export default function MealPlanningCalendar() {
 
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                        <div className="absolute right-0 top-8 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <div
+                            className="meal-dropdown absolute right-0 top-8 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+                            onClick={(e) => e.stopPropagation()} // Prevent event bubbling
+                        >
                             <div className="py-1">
                                 {!isCompleted && (
-                                    <TouchEnhancedButton
+                                    <button
+                                        type="button"
                                         onClick={(e) => {
+                                            console.log('✅ Mark Complete button clicked');
+                                            e.preventDefault();
                                             e.stopPropagation();
-                                            setSelectedMealForCompletion({ meal, day, mealType: meal.mealType });
-                                            setShowMealCompletion(true);
-                                            closeMealDropdowns();
+                                            handleMarkComplete(meal, day, meal.mealType);
                                         }}
                                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                                     >
                                         <span className="mr-2">✅</span>
                                         Mark Complete
-                                    </TouchEnhancedButton>
+                                    </button>
                                 )}
 
                                 {isCompleted && (
-                                    <TouchEnhancedButton
+                                    <button
+                                        type="button"
                                         onClick={(e) => {
+                                            console.log('↶ Undo Complete button clicked');
+                                            e.preventDefault();
                                             e.stopPropagation();
                                             handleUndoCompletion(meal, day);
-                                            closeMealDropdowns();
                                         }}
                                         className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center"
                                     >
                                         <span className="mr-2">↶</span>
                                         Undo Complete
-                                    </TouchEnhancedButton>
+                                    </button>
                                 )}
 
-                                <TouchEnhancedButton
+                                <button
+                                    type="button"
                                     onClick={(e) => {
+                                        console.log('✏️ Edit Meal button clicked');
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         handleEditMeal(meal, day);
                                     }}
@@ -960,21 +1001,23 @@ export default function MealPlanningCalendar() {
                                 >
                                     <span className="mr-2">✏️</span>
                                     Edit Meal
-                                </TouchEnhancedButton>
+                                </button>
 
                                 <div className="border-t border-gray-100 my-1"></div>
 
-                                <TouchEnhancedButton
+                                <button
+                                    type="button"
                                     onClick={(e) => {
+                                        console.log('🗑️ Delete Meal button clicked');
+                                        e.preventDefault();
                                         e.stopPropagation();
-                                        removeMealFromSlot(day, actualIndex);
-                                        closeMealDropdowns();
+                                        handleDeleteMeal(day, actualIndex);
                                     }}
                                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                                 >
                                     <span className="mr-2">🗑️</span>
                                     Delete Meal
-                                </TouchEnhancedButton>
+                                </button>
                             </div>
                         </div>
                     )}
