@@ -2298,7 +2298,7 @@ export default function ReceiptScan() {
             // Cleaning supplies
             'lysol', 'glade', 'febreze', 'tide', 'downy', 'bleach', 'detergent', 'fabric softener',
             'dish soap', 'dishwasher', 'cleaner', 'disinfectant', 'wipes', 'sponges', 'paper towel',
-            'toilet paper', 'tissue', 'napkin',
+            'toilet paper', 'tissue', 'napkin', 'towel', 'towels',
 
             // Personal care
             'degree', 'deodorant', 'shampoo', 'conditioner', 'soap', 'toothpaste', 'toothbrush',
