@@ -1126,12 +1126,22 @@ export default function ReceiptScan() {
 
         // Add this AFTER the initial cleanup in parseReceiptText, around line 600:
 
-        // Clean up OCR artifacts where next line prefixes get stuck to current line
+        // Enhanced OCR cleanup for Sam's Club multi-item lines
         preprocessedText = preprocessedText
-            .replace(/(\d+\.\d{2})\s+([TFO]+)\s+([EI])\s*$/gm, '$1 $2')  // Remove trailing E/I
-            .replace(/(\d+\.\d{2})\s+([TFO]+)\s+([EI]\s+\d{8,})/g, '$1 $2\n$3') // Split when E/I starts new UPC
-            .replace(/([TFNO]+)\s+E\s+(\d{8,})/g, '$1\nE $2') // Split "N E 990310096" -> "N" + "E 990310096"
-            .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2') // Split "N 990310096" -> "N" + "990310096"
+            // Split multiple E items on same line: "E UPC1 ITEM1 N E UPC2 ITEM2 N E UPC3 ITEM3 N"
+            .replace(/([TFNO]+)\s+E\s+(\d{6,})/g, '$1\nE $2')
+
+            // Split when UPC appears after tax code: "N 990415958" -> "N\n990415958"
+            .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2')
+
+            // Split gift cards from other items: "$25GPLAY 24.48 N E" -> "$25GPLAY 24.48 N\nE"
+            .replace(/(\$\d+GPLAY\s+[\d.]+\s+[TFNO]+)\s+E/g, '$1\nE')
+
+            // Remove trailing artifacts: "24.98 N E I" -> "24.98 N"
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+([EI]\s*)+$/gm, '$1 $2')
+
+            // Clean up multiple line breaks
+            .replace(/\n+/g, '\n')
             .trim();
 
         console.log('🔧 After Target-specific splitting:');
@@ -1460,6 +1470,11 @@ export default function ReceiptScan() {
             /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
             /deals\s*&?\s*coupons/i,
             /view\s*coupons/i,
+
+            // Gift card patterns (Sam's Club, Target, etc.)
+            /^\d+\s*\$\d+GPLAY/i,          // "990293119 $50GPLAY"
+            /^\$\d+GPLAY/i,                // "$50GPLAY"
+            /gift\s*card/i,                // Any "gift card" text
 
             // ============ DISCOUNT AND NEGATIVE AMOUNT PATTERNS ============
             /^\d+%?\s*(off|discount|save)$/i,
@@ -1854,6 +1869,37 @@ export default function ReceiptScan() {
                     taxCode = tax || '';
                     console.log(`✅ Sam's Club trailing pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
                     itemFound = true;
+                }
+            }
+
+            // Pattern 16: Sam's Club E with short UPC (like "E 336296 PICNIC PACKF 8.98 N")
+            if (!itemFound) {
+                const samEShortPattern = line.match(/^E\s+(\d{6,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samEShortPattern) {
+                    const [, productCode, name, priceStr, tax] = samEShortPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club E short pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 17: Sam's Club missing E prefix (like "990415958 NS SHIN BLAF 13.48 N")
+            if (!itemFound) {
+                const samMissingEPattern = line.match(/^(\d{8,})\s+([A-Z]{2,}\s+[A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samMissingEPattern) {
+                    const [, productCode, name, priceStr, tax] = samMissingEPattern;
+                    // Only match if name looks like Sam's Club product (has specific patterns)
+                    if (name.match(/^(NS|MM|KORBBQ|BUFFALO|TERIYAKI|PICNIC|FRUIT)/i)) {
+                        itemName = name.trim();
+                        price = parseFloat(priceStr);
+                        upc = productCode;
+                        taxCode = tax || '';
+                        console.log(`✅ Sam's Club missing E pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                        itemFound = true;
+                    }
                 }
             }
 
