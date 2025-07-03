@@ -11,6 +11,8 @@ import TemplateLibraryButton from './TemplateLibraryButton';
 import SimpleMealBuilder from './SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
+import MealCompletionModal from './MealCompletionModal';
+
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -36,6 +38,10 @@ export default function MealPlanningCalendar() {
     const [dietaryWarningMessage, setDietaryWarningMessage] = useState('');
     const [recipeSearchQuery, setRecipeSearchQuery] = useState('');
     const [selectedRecipeCategory, setSelectedRecipeCategory] = useState('all');
+    const [showMealCompletion, setShowMealCompletion] = useState(false);
+    const [selectedMealForCompletion, setSelectedMealForCompletion] = useState(null);
+    const [inventory, setInventory] = useState([]);
+    const [mealDropdowns, setMealDropdowns] = useState({});
 
     const RECIPE_CATEGORIES = [
         { id: 'entree', name: 'Entrees', icon: '🍖' },
@@ -276,6 +282,180 @@ export default function MealPlanningCalendar() {
             }
         }
     }, [recipes, userDietaryRestrictions, userAvoidIngredients, recipeSearchQuery, selectedRecipeCategory]);
+
+    useEffect(() => {
+        if (session?.user) {
+            fetchInventory();
+        }
+    }, [session]);
+
+    // Add this function to fetch inventory:
+    const fetchInventory = async () => {
+        try {
+            const response = await fetch(getApiUrl('/api/inventory'));
+            const data = await response.json();
+            if (data.success) {
+                setInventory(data.inventory);
+            }
+        } catch (error) {
+            console.error('Error fetching inventory:', error);
+        }
+    };
+
+    const handleMealCompletion = async (completionData) => {
+        if (!mealPlan) return;
+
+        try {
+            // Update the meal entry with completion status
+            const mealEntry = selectedMealForCompletion.meal;
+            const updatedMeal = {
+                ...mealEntry,
+                completed: true,
+                completedAt: completionData.completedAt,
+                completionType: completionData.completionType,
+                completionPercentage: completionData.completionPercentage,
+                completionNotes: completionData.notes
+            };
+
+            // Update the meal plan
+            const updatedMeals = { ...mealPlan.meals };
+            const dayMeals = updatedMeals[selectedMealForCompletion.day] || [];
+            const mealIndex = dayMeals.findIndex(m =>
+                (m.recipeId === mealEntry.recipeId && m.mealType === mealEntry.mealType) ||
+                (m.simpleMeal?.name === mealEntry.simpleMeal?.name && m.mealType === mealEntry.mealType)
+            );
+
+            if (mealIndex !== -1) {
+                dayMeals[mealIndex] = updatedMeal;
+            }
+
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meals: updatedMeals })
+            });
+
+            if (response.ok) {
+                setMealPlan(prev => ({
+                    ...prev,
+                    meals: updatedMeals
+                }));
+
+                // Refresh inventory to reflect consumed items
+                await fetchInventory();
+
+                // Show success message
+                alert(`Meal completed! ${completionData.itemsConsumed} ingredients consumed from inventory.`);
+            }
+        } catch (error) {
+            console.error('Error updating meal completion:', error);
+            alert('Error completing meal. Please try again.');
+        }
+    };
+
+    const handleUndoCompletion = async (meal, day) => {
+        if (!mealPlan) return;
+
+        const confirmUndo = window.confirm(
+            `Are you sure you want to undo the completion of "${getMealDisplayName(meal)}"?\n\n` +
+            `This will:\n` +
+            `• Remove the completed status from the meal\n` +
+            `• NOT restore consumed ingredients to inventory\n` +
+            `• Keep the consumption history for your records\n\n` +
+            `Note: To restore ingredients to inventory, use the "Undo" button in Inventory History within 24 hours.`
+        );
+
+        if (!confirmUndo) return;
+
+        try {
+            // Find and update the meal
+            const updatedMeals = { ...mealPlan.meals };
+            const dayMeals = updatedMeals[day] || [];
+            const mealIndex = dayMeals.findIndex(m =>
+                (m.recipeId === meal.recipeId && m.mealType === meal.mealType && m.createdAt === meal.createdAt) ||
+                (m.simpleMeal?.name === meal.simpleMeal?.name && m.mealType === meal.mealType && m.createdAt === meal.createdAt)
+            );
+
+            if (mealIndex !== -1) {
+                // Remove completion status
+                const updatedMeal = {
+                    ...dayMeals[mealIndex],
+                    completed: false,
+                    completedAt: null,
+                    completionType: 'full',
+                    completionPercentage: 100,
+                    completionNotes: '',
+                    itemsConsumed: []
+                };
+
+                dayMeals[mealIndex] = updatedMeal;
+            }
+
+            // Update meal plan
+            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meals: updatedMeals })
+            });
+
+            if (response.ok) {
+                setMealPlan(prev => ({
+                    ...prev,
+                    meals: updatedMeals
+                }));
+
+                alert(`Meal completion status removed. Ingredients remain consumed in inventory history.`);
+            } else {
+                throw new Error('Failed to update meal plan');
+            }
+        } catch (error) {
+            console.error('Error undoing meal completion:', error);
+            alert('Error undoing completion. Please try again.');
+        }
+    };
+
+    const handleEditMeal = (meal, day) => {
+        if (meal.entryType === 'simple') {
+            // Open SimpleMealBuilder with existing meal data
+            setSelectedSlot({ day, mealType: meal.mealType });
+            setShowSimpleMealBuilder(true);
+            // You'll need to pass the existing meal data to SimpleMealBuilder
+            // This might require updating SimpleMealBuilder to accept initialMeal prop
+        } else if (meal.entryType === 'recipe') {
+            // For recipe meals, we can open the recipe modal to view/change
+            // Or open a meal editing interface
+            alert(`Recipe meal editing: You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.`);
+        }
+
+        closeMealDropdowns();
+    };
+
+    // Add this function to toggle meal dropdown:
+    const toggleMealDropdown = (mealId) => {
+        setMealDropdowns(prev => ({
+            ...prev,
+            [mealId]: !prev[mealId]
+        }));
+    };
+
+    // Add this function to close all dropdowns when clicking outside:
+    const closeMealDropdowns = () => {
+        setMealDropdowns({});
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Close all meal dropdowns when clicking outside
+            if (!event.target.closest('.meal-dropdown')) {
+                closeMealDropdowns();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // UPDATED: Migration function for existing users with old meal types
     const migrateOldMealTypes = (mealTypes) => {
@@ -664,20 +844,37 @@ export default function MealPlanningCalendar() {
         const conflicts = checkMealDietaryConflicts(meal);
         const hasConflicts = conflicts.length > 0;
 
+        // Create unique meal ID for dropdown tracking
+        const mealId = `${day}-${meal.mealType}-${actualIndex}`;
+        const isDropdownOpen = mealDropdowns[mealId] || false;
+
+        // Check if meal is completed
+        const isCompleted = meal.completed || false;
+        const completionPercentage = meal.completionPercentage || 100;
+
         return (
             <div
                 key={`${meal.recipeId || meal.simpleMeal?.name}-${mealTypeIndex}`}
                 className={`p-3 border rounded-lg relative ${
-                    meal.entryType === 'simple' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
+                    isCompleted
+                        ? 'bg-gray-100 border-gray-300 opacity-75'
+                        : meal.entryType === 'simple'
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-white border-gray-200'
                 } ${hasConflicts ? 'border-orange-300 bg-orange-50' : ''}`}
             >
                 <div className="pr-6">
-                    <div className="font-medium text-gray-900 text-sm">
+                    <div className="font-medium text-gray-900 text-sm flex items-center">
                         {meal.entryType === 'simple' && (
                             <span className="text-green-600 mr-1">🍽️</span>
                         )}
                         {hasConflicts && (
                             <span className="text-orange-600 mr-1" title={conflicts.join(', ')}>⚠️</span>
+                        )}
+                        {isCompleted && (
+                            <span className="text-green-600 mr-1" title={`Completed ${completionPercentage}%`}>
+                            {completionPercentage === 100 ? '✅' : '🔄'}
+                        </span>
                         )}
                         {getMealDisplayName(meal)}
                     </div>
@@ -694,15 +891,94 @@ export default function MealPlanningCalendar() {
                             {conflicts[0]}
                         </div>
                     )}
+                    {isCompleted && (
+                        <div className="text-xs text-green-600 mt-1 font-medium">
+                            {completionPercentage === 100 ? 'Completed' : `${completionPercentage}% Complete`}
+                            {meal.completedAt && (
+                                <span className="ml-1">
+                                • {new Date(meal.completedAt).toLocaleDateString()}
+                            </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                <TouchEnhancedButton
-                    onClick={() => removeMealFromSlot(day, actualIndex)}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-lg leading-none"
-                    title="Remove meal"
-                >
-                    ×
-                </TouchEnhancedButton>
+                {/* Dropdown Menu Button */}
+                <div className="absolute top-2 right-2">
+                    <TouchEnhancedButton
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMealDropdown(mealId);
+                        }}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition-colors"
+                        title="Meal options"
+                    >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                    </TouchEnhancedButton>
+
+                    {/* Dropdown Menu */}
+                    {isDropdownOpen && (
+                        <div className="absolute right-0 top-8 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                            <div className="py-1">
+                                {!isCompleted && (
+                                    <TouchEnhancedButton
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedMealForCompletion({ meal, day, mealType: meal.mealType });
+                                            setShowMealCompletion(true);
+                                            closeMealDropdowns();
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                    >
+                                        <span className="mr-2">✅</span>
+                                        Mark Complete
+                                    </TouchEnhancedButton>
+                                )}
+
+                                {isCompleted && (
+                                    <TouchEnhancedButton
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleUndoCompletion(meal, day);
+                                            closeMealDropdowns();
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center"
+                                    >
+                                        <span className="mr-2">↶</span>
+                                        Undo Complete
+                                    </TouchEnhancedButton>
+                                )}
+
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditMeal(meal, day);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                >
+                                    <span className="mr-2">✏️</span>
+                                    Edit Meal
+                                </TouchEnhancedButton>
+
+                                <div className="border-t border-gray-100 my-1"></div>
+
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeMealFromSlot(day, actualIndex);
+                                        closeMealDropdowns();
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                                >
+                                    <span className="mr-2">🗑️</span>
+                                    Delete Meal
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
@@ -1287,6 +1563,20 @@ export default function MealPlanningCalendar() {
                         </div>
                     </div>
                 )}
+                {showMealCompletion && selectedMealForCompletion && (
+                    <MealCompletionModal
+                        isOpen={showMealCompletion}
+                        onClose={() => {
+                            setShowMealCompletion(false);
+                            setSelectedMealForCompletion(null);
+                        }}
+                        onComplete={handleMealCompletion}
+                        meal={selectedMealForCompletion.meal}
+                        selectedSlot={selectedMealForCompletion}
+                        inventory={inventory}
+                    />
+                )}
+
             </div>
         );
     }
@@ -1882,6 +2172,20 @@ export default function MealPlanningCalendar() {
                     </div>
                 </div>
             )}
+            {showMealCompletion && selectedMealForCompletion && (
+                <MealCompletionModal
+                    isOpen={showMealCompletion}
+                    onClose={() => {
+                        setShowMealCompletion(false);
+                        setSelectedMealForCompletion(null);
+                    }}
+                    onComplete={handleMealCompletion}
+                    meal={selectedMealForCompletion.meal}
+                    selectedSlot={selectedMealForCompletion}
+                    inventory={inventory}
+                />
+            )}
+
         </div>
     );
 }

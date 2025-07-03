@@ -2345,7 +2345,7 @@ export default function ReceiptScan() {
             // Cleaning supplies
             'lysol', 'glade', 'febreze', 'tide', 'downy', 'bleach', 'detergent', 'fabric softener',
             'dish soap', 'dishwasher', 'cleaner', 'disinfectant', 'wipes', 'sponges', 'paper towel',
-            'toilet paper', 'tissue', 'napkin', 'towel', 'towels',
+            'toilet paper', 'tissue', 'napkin', 'towel', 'towels', 'kleenex', 'klnx',
 
             // Personal care
             'degree', 'deodorant', 'shampoo', 'conditioner', 'soap', 'toothpaste', 'toothbrush',
@@ -2353,7 +2353,7 @@ export default function ReceiptScan() {
 
             // Health/pharmacy
             'vitamin', 'supplement', 'medicine', 'tylenol', 'advil', 'aspirin', 'bandage',
-            'first aid', 'thermometer',
+            'first aid', 'thermometer', 'coq10',
 
             // Pet supplies
             'tidy cats', 'cat litter', 'dog food', 'cat food', 'pet food', 'dog treat', 'cat treat',

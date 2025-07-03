@@ -715,7 +715,45 @@ const MealPlanEntrySchema = new mongoose.Schema({
         fat: {type: Number, default: 0}
     },
 
-    createdAt: {type: Date, default: Date.now}
+    createdAt: {type: Date, default: Date.now},
+
+    completed: {
+        type: Boolean,
+        default: false
+    },
+    completedAt: {
+        type: Date,
+        default: null
+    },
+    completionType: {
+        type: String,
+        enum: ['full', 'partial'],
+        default: 'full'
+    },
+    completionPercentage: {
+        type: Number,
+        default: 100,
+        min: 1,
+        max: 100
+    },
+    completionNotes: {
+        type: String,
+        maxlength: 500,
+        default: ''
+    },
+    itemsConsumed: [{
+        inventoryItemId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'InventoryItem'
+        },
+        itemName: String,
+        quantityConsumed: Number,
+        unit: String,
+        consumedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
 });
 
 // Update the MealPlanSchema to include simple meal preferences
@@ -2235,6 +2273,69 @@ MealPlanEntrySchema.methods.getIngredients = function () {
             category: item.itemCategory,
             isFromInventory: true
         }));
+    }
+};
+
+// Methods for meal completion
+MealPlanEntrySchema.methods.markComplete = function(completionData) {
+    this.completed = true;
+    this.completedAt = new Date();
+    this.completionType = completionData.completionType || 'full';
+    this.completionPercentage = completionData.completionPercentage || 100;
+    this.completionNotes = completionData.notes || '';
+
+    if (completionData.itemsConsumed) {
+        this.itemsConsumed = completionData.itemsConsumed.map(item => ({
+            inventoryItemId: item.inventoryItemId,
+            itemName: item.itemName,
+            quantityConsumed: item.quantityConsumed,
+            unit: item.unit,
+            consumedAt: new Date()
+        }));
+    }
+
+    return this;
+};
+
+MealPlanEntrySchema.methods.undoCompletion = function() {
+    this.completed = false;
+    this.completedAt = null;
+    this.completionType = 'full';
+    this.completionPercentage = 100;
+    this.completionNotes = '';
+    this.itemsConsumed = [];
+
+    return this;
+};
+
+MealPlanEntrySchema.methods.getCompletionSummary = function() {
+    return {
+        isCompleted: this.completed,
+        completedAt: this.completedAt,
+        completionType: this.completionType,
+        completionPercentage: this.completionPercentage,
+        notes: this.completionNotes,
+        itemsConsumedCount: this.itemsConsumed?.length || 0
+    };
+};
+
+MealPlanEntrySchema.methods.getDisplayStatus = function() {
+    if (!this.completed) {
+        return { status: 'planned', icon: '', class: '' };
+    }
+
+    if (this.completionPercentage === 100) {
+        return {
+            status: 'completed',
+            icon: '✅',
+            class: 'bg-gray-100 border-gray-300 opacity-75'
+        };
+    } else {
+        return {
+            status: 'partial',
+            icon: '🔄',
+            class: 'bg-yellow-50 border-yellow-300'
+        };
     }
 };
 
