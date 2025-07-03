@@ -1417,7 +1417,12 @@ export default function ReceiptScan() {
         preprocessedText = preprocessedText.replace(/\s+/g, ' ').trim();
 
         // Try to detect and fix common email receipt OCR errors
+        // Split lines that have category headers concatenated at the end
         preprocessedText = preprocessedText
+            .replace(/(\$\d+\.\d{2})\s+(HV\s+\w+\s+\w+\s+Scan\s+\(\d+\):)/g, '$1\n$2')
+            .replace(/(\$\d+\.\d{2})\s+(Pop\s+\(\d+\):)/g, '$1\n$2')
+            .replace(/(\$\d+\.\d{2})\s+(Scan\s+\w*)/g, '$1\n$2')
+            .replace(/(\$\d+\.\d{2})\s+([A-Z][A-Za-z\s]+\s+\(\d+\):)/g, '$1\n$2')
             .replace(/Product Image\s+/gi, '\n') // Split at each product
             .replace(/\n+/g, '\n') // Clean up multiple newlines
             .split('\n')
