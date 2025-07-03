@@ -1180,15 +1180,18 @@ export default function ReceiptScan() {
             // Split when UPC appears after tax code: "N 990415958" -> "N\n990415958"
             .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2')
 
-            // FIXED: Split "T EI" patterns more precisely: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
+            // Split "T EI" patterns: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(EI)\s+(\d{6,})/g, '$1 $2\n$3 $4')
+
+            // NEW: Split multiple I-prefixed items: "25.98 T I 12956" -> "25.98 T\nI 12956"
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+I\s+(\d{6,})/g, '$1 $2\nI $3')
+
+            // NEW: Split I items with UPC concatenated: "T I990356952" -> "T\nI990356952"
+            .replace(/([TFNO]+)\s+I(\d{8,})/g, '$1\nI$2')
 
             // Split items that got concatenated with store header info
             .replace(/(EDWARD)\s+I\s+(\d{6,})/g, '$1\nI $2')
             .replace(/(SEIKO)\s+(\d+\.\d{2})\s+([TFNO]+)\s+(\d{8,})/g, '$1 $2 $3\n$4')
-
-            // Split before I-prefixed items in middle of line
-            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+I\s+(\d{6,})/g, '$1 $2\nI $3')
 
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
