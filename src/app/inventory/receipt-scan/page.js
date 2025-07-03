@@ -2170,7 +2170,7 @@ export default function ReceiptScan() {
         }
 
         console.log(`📧 Final result: Extracted ${items.length} items from email receipt`);
-        return items;
+        return combineDuplicateItems(items);
     }
 
     // Universal quantity detection - works for any product/store
