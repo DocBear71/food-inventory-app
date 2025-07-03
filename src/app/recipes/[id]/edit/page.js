@@ -1,9 +1,8 @@
 'use client';
-// file: /src/app/recipes/[id]/edit/page.js v4 - Fixed API call method parameter
-
+// file: /src/app/recipes/[id]/edit/page.js v5 - MOBILE RESPONSIVE LAYOUT
 
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -47,7 +46,7 @@ export default function EditRecipePage() {
         { value: 'breakfast', label: 'Breakfast' }
     ];
 
-// 2. Update formData state to include category:
+    // Update formData state to include category:
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -62,6 +61,46 @@ export default function EditRecipePage() {
         isPublic: false,
         category: 'entrees'
     });
+
+    // Auto-expanding textarea hook
+    const useAutoExpandingTextarea = () => {
+        const textareaRef = useRef(null);
+
+        const adjustHeight = () => {
+            const textarea = textareaRef.current;
+            if (textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
+            }
+        };
+
+        useEffect(() => {
+            adjustHeight();
+        });
+
+        return [textareaRef, adjustHeight];
+    };
+
+    // Auto-expanding textarea component
+    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+        const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
+
+        return (
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => {
+                    onChange(e);
+                    setTimeout(adjustHeight, 0);
+                }}
+                onInput={adjustHeight}
+                placeholder={placeholder}
+                className={`${className} resize-none overflow-hidden`}
+                style={{ minHeight: '48px' }}
+                {...props}
+            />
+        );
+    };
 
     useEffect(() => {
         if (recipeId) {
@@ -223,7 +262,7 @@ export default function EditRecipePage() {
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
                         <TouchEnhancedButton
                             onClick={() => router.back()}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                            className="bg-indigo-600 text-white px-4 py-3 rounded-md hover:bg-indigo-700 min-h-[48px]"
                         >
                             Go Back
                         </TouchEnhancedButton>
@@ -236,11 +275,11 @@ export default function EditRecipePage() {
     return (
         <MobileOptimizedLayout>
             <div className="max-w-4xl mx-auto px-4 py-8">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                     <h1 className="text-3xl font-bold text-gray-900">Edit Recipe</h1>
                     <TouchEnhancedButton
                         onClick={() => router.back()}
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-gray-600 hover:text-gray-800 px-4 py-3 min-h-[48px] self-start sm:self-center"
                     >
                         ← Back
                     </TouchEnhancedButton>
@@ -262,7 +301,8 @@ export default function EditRecipePage() {
                                     required
                                     value={formData.title}
                                     onChange={(e) => handleInputChange('title', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="Enter recipe title..."
                                 />
                             </div>
@@ -271,12 +311,11 @@ export default function EditRecipePage() {
                                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
                                     Description
                                 </label>
-                                <textarea
+                                <AutoExpandingTextarea
                                     id="description"
-                                    rows={3}
                                     value={formData.description}
                                     onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Describe your recipe..."
                                 />
                             </div>
@@ -290,7 +329,8 @@ export default function EditRecipePage() {
                                     id="prepTime"
                                     value={formData.prepTime}
                                     onChange={(e) => handleInputChange('prepTime', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="15"
                                 />
                             </div>
@@ -304,7 +344,8 @@ export default function EditRecipePage() {
                                     id="cookTime"
                                     value={formData.cookTime}
                                     onChange={(e) => handleInputChange('cookTime', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="30"
                                 />
                             </div>
@@ -318,7 +359,8 @@ export default function EditRecipePage() {
                                     id="servings"
                                     value={formData.servings}
                                     onChange={(e) => handleInputChange('servings', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="4"
                                 />
                             </div>
@@ -331,7 +373,8 @@ export default function EditRecipePage() {
                                     id="difficulty"
                                     value={formData.difficulty}
                                     onChange={(e) => handleInputChange('difficulty', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                 >
                                     <option value="easy">Easy</option>
                                     <option value="medium">Medium</option>
@@ -347,7 +390,8 @@ export default function EditRecipePage() {
                                     id="category"
                                     value={formData.category}
                                     onChange={(e) => handleInputChange('category', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                 >
                                     {CATEGORY_OPTIONS.map(option => (
                                         <option key={option.value} value={option.value}>
@@ -366,7 +410,8 @@ export default function EditRecipePage() {
                                     id="tags"
                                     value={formData.tags}
                                     onChange={(e) => handleInputChange('tags', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="pasta, quick, vegetarian"
                                 />
                             </div>
@@ -380,117 +425,127 @@ export default function EditRecipePage() {
                                     id="source"
                                     value={formData.source}
                                     onChange={(e) => handleInputChange('source', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{ minHeight: '48px' }}
                                     placeholder="Grandma's cookbook"
                                 />
                             </div>
 
-                            <div className="flex items-center">
+                            <div className="flex items-center min-h-[48px]">
                                 <input
                                     type="checkbox"
                                     id="isPublic"
                                     checked={formData.isPublic}
                                     onChange={(e) => handleInputChange('isPublic', e.target.checked)}
-                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-5 w-5"
                                 />
-                                <label htmlFor="isPublic" className="ml-2 text-sm text-gray-700">
+                                <label htmlFor="isPublic" className="ml-3 text-sm text-gray-700">
                                     Make this recipe public
                                 </label>
                             </div>
                         </div>
                     </div>
 
-                    {/* Ingredients */}
+                    {/* Ingredients - MOBILE RESPONSIVE */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                             <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={addIngredient}
-                                className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
+                                className="bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
                             >
                                 Add Ingredient
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Column Headers */}
-                        <div className="grid grid-cols-12 gap-3 mb-3 text-sm font-medium text-gray-600">
-                            <div className="col-span-2">Amount</div>
-                            <div className="col-span-2">Unit</div>
-                            <div className="col-span-5">Ingredient Name</div>
-                            <div className="col-span-2 text-center">Optional</div>
-                            <div className="col-span-1 text-center">Remove</div>
-                        </div>
-
                         <div className="space-y-4">
                             {formData.ingredients.map((ingredient, index) => (
-                                <div key={index} className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="col-span-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Amount"
-                                            value={ingredient.amount || ''}
-                                            onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
-                                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                        />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Unit"
-                                            value={ingredient.unit || ''}
-                                            onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                        />
-                                    </div>
-                                    <div className="col-span-5">
-                                        <input
-                                            type="text"
-                                            placeholder="Ingredient name *"
-                                            value={ingredient.name || ''}
-                                            onChange={(e) => updateIngredient(index, 'name', e.target.value)}
-                                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="col-span-2 flex justify-center">
-                                        <label className="flex items-center space-x-2">
+                                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                    {/* Top row: Optional checkbox and Delete button */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="flex items-center text-sm text-gray-600">
                                             <input
                                                 type="checkbox"
                                                 checked={ingredient.optional || false}
                                                 onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-2 h-4 w-4"
                                             />
-                                            <span className="text-xs text-gray-600">Optional</span>
+                                            Optional
                                         </label>
-                                    </div>
-                                    <div className="col-span-1 flex justify-center">
                                         {formData.ingredients.length > 1 && (
                                             <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => removeIngredient(index)}
-                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md"
+                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
                                                 title="Remove ingredient"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
+                                                ✕
                                             </TouchEnhancedButton>
                                         )}
+                                    </div>
+
+                                    {/* Input fields */}
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        {/* Amount and Unit row on mobile, side by side */}
+                                        <div className="flex gap-3 sm:w-auto">
+                                            <div className="flex-1 sm:w-24">
+                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                    Amount
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Amount"
+                                                    value={ingredient.amount || ''}
+                                                    onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ minHeight: '48px' }}
+                                                />
+                                            </div>
+                                            <div className="flex-1 sm:w-24">
+                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                    Unit
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Unit"
+                                                    value={ingredient.unit || ''}
+                                                    onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{ minHeight: '48px' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Ingredient name - full width on mobile */}
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                Ingredient
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ingredient name *"
+                                                value={ingredient.name || ''}
+                                                onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Instructions */}
+                    {/* Instructions - MOBILE RESPONSIVE */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                             <h2 className="text-xl font-semibold text-gray-900">Instructions</h2>
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={addInstruction}
-                                className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
+                                className="bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
                             >
                                 Add Step
                             </TouchEnhancedButton>
@@ -498,53 +553,55 @@ export default function EditRecipePage() {
 
                         <div className="space-y-4">
                             {formData.instructions.map((instruction, index) => (
-                                <div key={index} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                                    <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold mt-1">
-                                        {index + 1}
-                                    </span>
-                                    <textarea
+                                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                    {/* Top row: Step number and Delete button */}
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                            {index + 1}
+                                        </span>
+                                        {formData.instructions.length > 1 && (
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={() => removeInstruction(index)}
+                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                title="Remove step"
+                                            >
+                                                ✕
+                                            </TouchEnhancedButton>
+                                        )}
+                                    </div>
+
+                                    {/* Textarea - full width */}
+                                    <AutoExpandingTextarea
                                         value={instruction}
                                         onChange={(e) => updateInstruction(index, e.target.value)}
                                         placeholder={`Step ${index + 1} instructions...`}
-                                        rows={3}
-                                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
                                         required
                                     />
-                                    {formData.instructions.length > 1 && (
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => removeInstruction(index)}
-                                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md mt-1"
-                                            title="Remove step"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </TouchEnhancedButton>
-                                    )}
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Submit Buttons */}<br/>
-                    <div className="flex justify-end space-x-4 pt-6 pb-8">
+                    {/* Submit Buttons - MOBILE RESPONSIVE */}
+                    <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
                         <TouchEnhancedButton
                             type="button"
                             onClick={() => router.back()}
-                            className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-black hover:bg-gray-700 font-medium"
+                            className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-white hover:bg-gray-700 font-medium min-h-[48px] order-2 sm:order-1"
                         >
                             Cancel
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-3 bg-indigo-400 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                            className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium min-h-[48px] order-1 sm:order-2"
                         >
                             {loading ? 'Updating...' : 'Update Recipe'}
                         </TouchEnhancedButton>
                     </div>
-                </form><br/>
+                </form>
 
                 <Footer />
             </div>

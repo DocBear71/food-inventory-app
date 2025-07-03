@@ -1,7 +1,6 @@
 'use client';
 // file: /src/components/recipes/EnhancedRecipeForm.js v5 - MOBILE RESPONSIVE LAYOUT
 
-
 import { useState, useEffect, useRef } from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -638,8 +637,29 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
                         <div className="space-y-4">
                             {recipe.ingredients.map((ingredient, index) => (
-                                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
-                                    {/* Mobile: Stack vertically, Desktop: Keep horizontal */}
+                                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                    {/* Top row: Optional checkbox and Delete button */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="flex items-center text-sm text-gray-600">
+                                            <input
+                                                type="checkbox"
+                                                checked={ingredient.optional}
+                                                onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
+                                                className="mr-2 h-4 w-4"
+                                            />
+                                            Optional
+                                        </label>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => removeIngredient(index)}
+                                            className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            disabled={recipe.ingredients.length === 1}
+                                        >
+                                            ✕
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Input fields */}
                                     <div className="flex flex-col sm:flex-row gap-3">
                                         {/* Amount and Unit row on mobile, side by side */}
                                         <div className="flex gap-3 sm:w-auto">
@@ -687,27 +707,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                             />
                                         </div>
                                     </div>
-
-                                    {/* Optional checkbox and delete button */}
-                                    <div className="flex items-center justify-between pt-2">
-                                        <label className="flex items-center text-sm text-gray-600 min-h-[44px]">
-                                            <input
-                                                type="checkbox"
-                                                checked={ingredient.optional}
-                                                onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                                className="mr-2 h-4 w-4"
-                                            />
-                                            Optional
-                                        </label>
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => removeIngredient(index)}
-                                            className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                            disabled={recipe.ingredients.length === 1}
-                                        >
-                                            ✕
-                                        </TouchEnhancedButton>
-                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -730,30 +729,29 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         <div className="space-y-4">
                             {recipe.instructions.map((instruction, index) => (
                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                    <div className="flex gap-4 items-start">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium mt-1">
+                                    {/* Top row: Step number and Delete button */}
+                                    <div className="flex justify-between items-center mb-3">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
                                             {instruction.step}
                                         </div>
-                                        <div className="flex-1 space-y-3">
-                                            <AutoExpandingTextarea
-                                                value={instruction.instruction}
-                                                onChange={(e) => updateInstruction(index, e.target.value)}
-                                                placeholder="Describe this step..."
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                required
-                                            />
-                                            <div className="flex justify-end">
-                                                <TouchEnhancedButton
-                                                    type="button"
-                                                    onClick={() => removeInstruction(index)}
-                                                    className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                    disabled={recipe.instructions.length === 1}
-                                                >
-                                                    ✕
-                                                </TouchEnhancedButton>
-                                            </div>
-                                        </div>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => removeInstruction(index)}
+                                            className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            disabled={recipe.instructions.length === 1}
+                                        >
+                                            ✕
+                                        </TouchEnhancedButton>
                                     </div>
+
+                                    {/* Textarea - full width */}
+                                    <AutoExpandingTextarea
+                                        value={instruction.instruction}
+                                        onChange={(e) => updateInstruction(index, e.target.value)}
+                                        placeholder="Describe this step..."
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        required
+                                    />
                                 </div>
                             ))}
                         </div>
