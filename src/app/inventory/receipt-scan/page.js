@@ -1162,6 +1162,16 @@ export default function ReceiptScan() {
             .replace(/\n+/g, '\n')
             .trim();
 
+        // Enhanced header splitting for Sam's Club receipts
+        preprocessedText = preprocessedText
+            // Split store headers that got concatenated
+            .replace(/(sams club|sam's club)(\s+Self Checkout)/gi, '$1\n$2')
+            .replace(/(Self Checkout)(\s+\(\d{3}\))/gi, '$1\n$2')
+            .replace(/(\(\d{3}\)\s*\d{3}\s*-\s*\d{4})(\s+[A-Z]{2,})/g, '$1\n$2')
+            .replace(/(CEDAR RAPIDS,?\s+IA)(\s+\d{2}\/\d{2}\/\d{2,4})/gi, '$1\n$2')
+            .replace(/(\d{2}\/\d{2}\/\d{2,4}\s+\d{2}:\d{2}\s+\d+\s+\d+\s+\d+\s+\d+)(\s+[A-Z]{2,})/g, '$1\n$2')
+            .replace(/(EDWARD)(\s+I\s+\d+)/g, '$1\n$2')
+
         // Enhanced OCR cleanup for Sam's Club multi-item lines
         preprocessedText = preprocessedText
             // Split multiple E items on same line: "E UPC1 ITEM1 N E UPC2 ITEM2 N"
@@ -1170,8 +1180,15 @@ export default function ReceiptScan() {
             // Split when UPC appears after tax code: "N 990415958" -> "N\n990415958"
             .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2')
 
-            // Split "T EI" patterns: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
+            // FIXED: Split "T EI" patterns more precisely: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(EI)\s+(\d{6,})/g, '$1 $2\n$3 $4')
+
+            // Split items that got concatenated with store header info
+            .replace(/(EDWARD)\s+I\s+(\d{6,})/g, '$1\nI $2')
+            .replace(/(SEIKO)\s+(\d+\.\d{2})\s+([TFNO]+)\s+(\d{8,})/g, '$1 $2 $3\n$4')
+
+            // Split before I-prefixed items in middle of line
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+I\s+(\d{6,})/g, '$1 $2\nI $3')
 
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
@@ -1503,6 +1520,16 @@ export default function ReceiptScan() {
             /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
             /deals\s*&?\s*coupons/i,
             /view\s*coupons/i,
+
+            // ============ WARRANTY AND EXTENDED PROTECTION ============
+            /warranty/i,
+            /extended\s+protection/i,
+            /protection\s+plan/i,
+            /^\d+\s*yr\s+.*wty/i,        // "3YR AST WTY"
+            /^\d+\s*year\s+.*warranty/i,  // "3 YEAR WARRANTY"
+            /^.*\s+wty\s+/i,             // Any line ending with "WTY"
+            /service\s+plan/i,
+            /geek\s+squad/i,
 
             // ============ STORE HEADERS AND INFO ============
             /^sams\s+club.*edward/i,     // Store header with name
@@ -2021,6 +2048,20 @@ export default function ReceiptScan() {
                 }
             }
 
+            // Pattern 17: Sam's Club EI prefix (like "EI 571277 DM CUT G BNF 7.78 N")
+            if (!itemFound) {
+                const samEIPattern = line.match(/^EI\s+(\d{6,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samEIPattern) {
+                    const [, productCode, name, priceStr, tax] = samEIPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club EI pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
             // Create item if we found a valid match
             if (itemFound && itemName && price > 0) {
                 itemName = cleanItemName(itemName);
@@ -2315,6 +2356,10 @@ export default function ReceiptScan() {
             // Electronics/non-food
             'battery', 'charger', 'cable', 'electronics', 'phone', 'computer', 'tv',
             'warranty', 'wty', 'seiko', 'watch',
+
+            // Add these to the nonFoodKeywords array:
+            'warranty', 'wty', 'protection plan', 'extended protection', 'service plan',
+            'seiko', 'watch', 'electronics', 'geek squad',
 
             // Household items
             'light bulb', 'extension cord', 'tool', 'hardware', 'garden', 'automotive',
