@@ -2095,7 +2095,7 @@ export default function ReceiptScan() {
 
             // Clean category headers and fuel saver info from lines
             line = line
-                .replace(/\s+(Dairy|Frozen|Grocery|Lunchmeat|Meat|Packaged|Produce)[\s\-]*[\w\s]*\s*\(\d+\):\s*$/i, '')
+                .replace(/\s+(Dairy|Frozen|Grocery|Lunchmeat[\w\s\/]*|Meat[\s\-]*[\w\s]*|Packaged|Produce)[\s\-]*[\w\s]*\s*\(\d+\):\s*$/i, '')
                 .replace(/\s+\d{7}\s+Fuel\s+Saver\s+\.\d{2}:\s+\$\d+\.\d{2}/gi, '') // Remove fuel saver
                 .trim();
 
@@ -2262,15 +2262,22 @@ export default function ReceiptScan() {
 
 // Combine duplicate items function
     function combineDuplicateItems(items) {
+        console.log(`📧 Starting combination process with ${items.length} items...`);
+
+        // Debug: Log all items with their UPCs
+        items.forEach((item, index) => {
+            console.log(`📧 Item ${index + 1}: "${item.name}" - UPC: "${item.upc}" - Price: $${item.price}`);
+        });
+
         const upcGroups = {};
         const nameGroups = {};
 
-        console.log(`📧 Combining ${items.length} items...`);
-
         // Group by UPC code first (most reliable for email receipts)
-        items.forEach(item => {
+        items.forEach((item, index) => {
             if (item.upc && item.upc.length >= 4) {
-                const cleanUPC = item.upc.replace(/\D/g, '');
+                const cleanUPC = item.upc.trim(); // Don't remove digits, just trim whitespace
+                console.log(`📧 Grouping item ${index + 1} by UPC "${cleanUPC}"`);
+
                 if (!upcGroups[cleanUPC]) {
                     upcGroups[cleanUPC] = [];
                 }
@@ -2278,6 +2285,8 @@ export default function ReceiptScan() {
             } else {
                 // Items without UPC codes - group by exact name match
                 const cleanKey = item.name.toLowerCase().trim();
+                console.log(`📧 Grouping item ${index + 1} by name "${cleanKey}"`);
+
                 if (!nameGroups[cleanKey]) {
                     nameGroups[cleanKey] = [];
                 }
@@ -2285,17 +2294,21 @@ export default function ReceiptScan() {
             }
         });
 
+        console.log(`📧 UPC Groups:`, Object.keys(upcGroups).map(upc => `${upc}: ${upcGroups[upc].length} items`));
+        console.log(`📧 Name Groups:`, Object.keys(nameGroups).map(name => `${name}: ${nameGroups[name].length} items`));
+
         const combinedItems = [];
 
         // Process UPC groups - combine identical UPCs
         Object.entries(upcGroups).forEach(([upc, group]) => {
             if (group.length === 1) {
+                console.log(`📧 Single item with UPC ${upc}: ${group[0].name}`);
                 combinedItems.push(group[0]);
             } else {
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
-                const unitPrice = firstItem.unitPrice; // Same unit price for same UPC
-                const totalPrice = totalQuantity * unitPrice;
+                const unitPrice = firstItem.unitPrice;
+                const totalPrice = parseFloat((totalQuantity * unitPrice).toFixed(2));
 
                 const combinedItem = {
                     ...firstItem,
@@ -2307,19 +2320,20 @@ export default function ReceiptScan() {
                 };
 
                 combinedItems.push(combinedItem);
-                console.log(`📧 Combined ${group.length} items with UPC ${upc}: ${firstItem.name} (total qty: ${totalQuantity})`);
+                console.log(`✅ Combined ${group.length} items with UPC ${upc}: ${firstItem.name} (${group.map(i => i.quantity).join('+')} = ${totalQuantity} total qty, $${totalPrice})`);
             }
         });
 
-        // Process name groups (items without UPC) - combine exact name matches
+        // Process name groups (items without UPC)
         Object.entries(nameGroups).forEach(([name, group]) => {
             if (group.length === 1) {
+                console.log(`📧 Single item by name: ${group[0].name}`);
                 combinedItems.push(group[0]);
             } else {
                 const firstItem = group[0];
                 const totalQuantity = group.reduce((sum, item) => sum + item.quantity, 0);
                 const unitPrice = firstItem.unitPrice;
-                const totalPrice = totalQuantity * unitPrice;
+                const totalPrice = parseFloat((totalQuantity * unitPrice).toFixed(2));
 
                 const combinedItem = {
                     ...firstItem,
@@ -2331,11 +2345,11 @@ export default function ReceiptScan() {
                 };
 
                 combinedItems.push(combinedItem);
-                console.log(`📧 Combined ${group.length} items by name: ${firstItem.name} (total qty: ${totalQuantity})`);
+                console.log(`✅ Combined ${group.length} items by name: ${firstItem.name} (${group.map(i => i.quantity).join('+')} = ${totalQuantity} total qty, $${totalPrice})`);
             }
         });
 
-        console.log(`📧 Combined result: ${items.length} items → ${combinedItems.length} items`);
+        console.log(`📧 Final combination result: ${items.length} items → ${combinedItems.length} items`);
         return combinedItems;
     }
 
