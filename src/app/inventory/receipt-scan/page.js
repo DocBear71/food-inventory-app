@@ -272,432 +272,68 @@ export default function ReceiptScan() {
 // SCRIBE-ENHANCED TESSERACT.JS IMPLEMENTATION
 // ===============================================
 
-    function getOptimizedOCRConfig(platformInfo) {
-        console.log('⚙️ Configuring optimized OCR settings for platform:', {
-            isIOSPWA: platformInfo.isIOSPWA,
-            isIOS: platformInfo.isIOS,
-            isAndroid: platformInfo.isAndroid,
-            isWeb: platformInfo.isWeb
-        });
+    async function processImageWithSimpleTesseract(imageBlob, progressCallback) {
+        console.log('🔍 Starting simple, reliable Tesseract.js OCR...');
 
-        const baseConfig = {
-            tessedit_pageseg_mode: '6',
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
-            preserve_interword_spaces: '1',
-            tessedit_do_invert: '0',
-            tessedit_create_hocr: '0',
-            tessedit_create_pdf: '0',
-            tessedit_create_txt: '1',
-        };
-
-        // Platform-specific optimizations
-        if (platformInfo.isIOSPWA) {
-            console.log('🍎 Using iOS PWA optimized settings');
-            return {
-                ...baseConfig,
-                user_defined_dpi: '150', // Lower DPI for iOS PWA performance
-                tessedit_parallelize: '0', // Disable parallel processing
-                tessedit_enable_dict_correction: '0', // Disable for performance
-            };
-        } else if (platformInfo.isIOS) {
-            console.log('📱 Using iOS optimized settings');
-            return {
-                ...baseConfig,
-                user_defined_dpi: '200',
-                tessedit_parallelize: '0',
-                tessedit_enable_dict_correction: '1',
-            };
-        } else if (platformInfo.isAndroid) {
-            console.log('🤖 Using Android optimized settings');
-            return {
-                ...baseConfig,
-                user_defined_dpi: '300',
-                tessedit_parallelize: '1',
-                tessedit_enable_dict_correction: '1',
-            };
-        } else {
-            console.log('💻 Using Web optimized settings');
-            return {
-                ...baseConfig,
-                user_defined_dpi: '250',
-                tessedit_parallelize: '0', // Safer for web browsers
-                tessedit_enable_dict_correction: '1',
-            };
-        }
-    }
-
-    async function processImageWithOptimizedOCR(imageBlob, platformInfo, progressCallback) {
-        console.log('🔍 Starting Scribe-Enhanced Tesseract.js OCR...');
-
-        try {
-            return await processImageWithEnhancedTesseract(imageBlob, platformInfo, progressCallback);
-        } catch (enhancedError) {
-            console.warn('⚠️ Enhanced Tesseract failed, falling back to standard Tesseract:', enhancedError.message);
-            setProcessingStatus('Enhanced OCR failed, using standard Tesseract...');
-            if (progressCallback) progressCallback(0);
-
-            return await processImageWithStandardTesseract(imageBlob, platformInfo, progressCallback);
-        }
-    }
-
-    async function processImageWithEnhancedTesseract(imageFile, platformInfo, progressCallback) {
-        console.log('🚀 Processing with Scribe-Enhanced Tesseract.js...');
-
-        try {
-            const Tesseract = (await import('tesseract.js')).default;
-
-            setProcessingStatus('Initializing Enhanced OCR engine...');
-            if (progressCallback) progressCallback(5);
-
-            setProcessingStatus('Step 1: Auto-rotation detection...');
-            if (progressCallback) progressCallback(10);
-
-            const rotatedImage = await autoRotateImage(imageFile);
-
-            setProcessingStatus('Step 2: Preparing dual-model processing...');
-            if (progressCallback) progressCallback(15);
-
-            const [legacyResult, lstmResult] = await Promise.all([
-                recognizeWithEngine(Tesseract, rotatedImage, 'legacy', progressCallback, 20, 50),
-                recognizeWithEngine(Tesseract, rotatedImage, 'lstm', progressCallback, 50, 80)
-            ]);
-
-            setProcessingStatus('Step 3: Combining model results...');
-            if (progressCallback) progressCallback(85);
-
-            const combinedText = combineModelResults(legacyResult, lstmResult);
-
-            setProcessingStatus('Step 4: Enhanced post-processing...');
-            if (progressCallback) progressCallback(95);
-
-            const finalText = enhancedPostProcessing(combinedText);
-
-            if (progressCallback) progressCallback(100);
-            setProcessingStatus('Scribe-Enhanced OCR complete!');
-
-            console.log('✅ Enhanced Tesseract completed successfully');
-            console.log(`📊 Results: Legacy=${legacyResult.confidence}%, LSTM=${lstmResult.confidence}%, Combined=${finalText.length} chars`);
-
-            return finalText;
-
-        } catch (error) {
-            console.error('❌ Enhanced Tesseract processing failed:', error);
-            throw error;
-        }
-    }
-
-// ===============================================
-// SCRIBE IMPROVEMENT #1: AUTO-ROTATION
-// ===============================================
-
-    async function autoRotateImage(imageFile) {
-        console.log('🔄 Implementing Scribe auto-rotation...');
-
-        try {
-            // Create canvas for image manipulation
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            // Load image
-            const img = await loadImageFromFile(imageFile);
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-
-            // Detect optimal rotation using edge detection
-            const rotationAngle = await detectOptimalRotation(canvas);
-
-            if (Math.abs(rotationAngle) > 0.5) { // Only rotate if significant
-                console.log(`📐 Auto-rotating by ${rotationAngle.toFixed(1)} degrees`);
-
-                // Apply rotation
-                const rotatedCanvas = rotateCanvas(canvas, rotationAngle);
-
-                // Convert back to blob
-                return new Promise((resolve) => {
-                    rotatedCanvas.toBlob(resolve, 'image/jpeg', 0.95);
-                });
-            }
-
-            return imageFile; // No rotation needed
-
-        } catch (error) {
-            console.warn('⚠️ Auto-rotation failed, using original image:', error);
-            return imageFile;
-        }
-    }
-
-    async function detectOptimalRotation(canvas) {
-        const ctx = canvas.getContext('2d');
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-        // Test rotations from -10 to +10 degrees
-        let bestAngle = 0;
-        let bestScore = 0;
-
-        for (let angle = -10; angle <= 10; angle += 0.5) {
-            const score = calculateTextLineScore(imageData, angle);
-            if (score > bestScore) {
-                bestScore = score;
-                bestAngle = angle;
-            }
-        }
-
-        return bestAngle;
-    }
-
-    function calculateTextLineScore(imageData, angle) {
-        // Simplified text line detection
-        const data = imageData.data;
-        const width = imageData.width;
-        const height = imageData.height;
-
-        let horizontalEdges = 0;
-
-        // Count horizontal edges (simplified)
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                const idx = (y * width + x) * 4;
-                const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
-                const grayAbove = data[((y - 1) * width + x) * 4] * 0.299 +
-                    data[((y - 1) * width + x) * 4 + 1] * 0.587 +
-                    data[((y - 1) * width + x) * 4 + 2] * 0.114;
-
-                if (Math.abs(gray - grayAbove) > 50) {
-                    horizontalEdges++;
+        const configs = [
+            {
+                name: 'Standard',
+                config: {
+                    tessedit_pageseg_mode: '6',
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+                    preserve_interword_spaces: '1',
+                    tessedit_ocr_engine_mode: '1',
+                }
+            },
+            {
+                name: 'Auto PSM',
+                config: {
+                    tessedit_pageseg_mode: '3', // Auto page segmentation
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,$/()@-: ',
+                    preserve_interword_spaces: '1',
+                    tessedit_ocr_engine_mode: '1',
                 }
             }
-        }
+        ];
 
-        return horizontalEdges;
-    }
+        for (let i = 0; i < configs.length; i++) {
+            const {name, config} = configs[i];
 
-    function rotateCanvas(canvas, angle) {
-        const rotatedCanvas = document.createElement('canvas');
-        const ctx = rotatedCanvas.getContext('2d');
+            try {
+                console.log(`📄 Trying ${name} configuration...`);
+                setProcessingStatus(`Trying ${name} OCR configuration...`);
 
-        const radians = angle * Math.PI / 180;
-        const cos = Math.cos(radians);
-        const sin = Math.sin(radians);
+                const Tesseract = (await import('tesseract.js')).default;
 
-        // Calculate new dimensions
-        const newWidth = Math.abs(canvas.width * cos) + Math.abs(canvas.height * sin);
-        const newHeight = Math.abs(canvas.width * sin) + Math.abs(canvas.height * cos);
-
-        rotatedCanvas.width = newWidth;
-        rotatedCanvas.height = newHeight;
-
-        // Apply rotation
-        ctx.translate(newWidth / 2, newHeight / 2);
-        ctx.rotate(radians);
-        ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-
-        return rotatedCanvas;
-    }
-
-    function loadImageFromFile(file) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = URL.createObjectURL(file);
-        });
-    }
-
-// ===============================================
-// SCRIBE IMPROVEMENT #2: DUAL-MODEL PROCESSING
-// ===============================================
-
-    async function recognizeWithEngine(Tesseract, imageFile, engineType, progressCallback, startProgress, endProgress) {
-        console.log(`🔍 Running ${engineType.toUpperCase()} engine...`);
-
-        const worker = await Tesseract.createWorker('eng', 1, {
-            logger: (m) => {
-                if (m.status === 'recognizing text' && progressCallback) {
-                    const progress = Math.round(startProgress + (m.progress * (endProgress - startProgress)));
-                    progressCallback(progress);
-                }
-            }
-        });
-
-        // FIXED: Use the getOptimizedOCRConfig function
-        const baseConfig = getOptimizedOCRConfig(platformInfo);
-
-        // Configure for the specific engine
-        const config = {
-            ...baseConfig,
-            tessedit_ocr_engine_mode: engineType === 'legacy' ? '0' : '1', // 0=Legacy, 1=LSTM
-            tessedit_create_hocr: '1', // Enable HOCR for bounding boxes
-        };
-
-        const result = await worker.recognize(imageFile, config);
-        await worker.terminate();
-
-        return {
-            text: result.data.text,
-            confidence: result.data.confidence,
-            words: result.data.words,
-            engine: engineType
-        };
-    }
-
-// ===============================================
-// SCRIBE IMPROVEMENT #3: RESULT COMBINATION
-// ===============================================
-
-    function combineModelResults(legacyResult, lstmResult) {
-        console.log('🔗 Combining Legacy and LSTM results using Scribe approach...');
-
-        const legacyText = legacyResult.text;
-        const lstmText = lstmResult.text;
-        const legacyConfidence = legacyResult.confidence;
-        const lstmConfidence = lstmResult.confidence;
-
-        console.log(`📊 Legacy: ${legacyConfidence}% confidence, LSTM: ${lstmConfidence}% confidence`);
-
-        // Scribe's approach: Use word-level confidence to pick best words
-        const legacyWords = legacyResult.words || [];
-        const lstmWords = lstmResult.words || [];
-
-        if (legacyWords.length === 0 && lstmWords.length === 0) {
-            // Fallback to simple text combination
-            return combineTextResults(legacyText, lstmText, legacyConfidence, lstmConfidence);
-        }
-
-        // Word-level combination (simplified version of Scribe's approach)
-        const combinedWords = [];
-        const maxWords = Math.max(legacyWords.length, lstmWords.length);
-
-        for (let i = 0; i < maxWords; i++) {
-            const legacyWord = legacyWords[i];
-            const lstmWord = lstmWords[i];
-
-            if (legacyWord && lstmWord) {
-                // Choose word with higher confidence
-                if (legacyWord.confidence > lstmWord.confidence) {
-                    combinedWords.push(legacyWord.text);
-                } else {
-                    combinedWords.push(lstmWord.text);
-                }
-            } else if (legacyWord) {
-                combinedWords.push(legacyWord.text);
-            } else if (lstmWord) {
-                combinedWords.push(lstmWord.text);
-            }
-        }
-
-        return combinedWords.join(' ');
-    }
-
-    function combineTextResults(legacyText, lstmText, legacyConfidence, lstmConfidence) {
-        // Simple text combination fallback
-        if (legacyConfidence > lstmConfidence) {
-            console.log('📝 Using Legacy result (higher confidence)');
-            return legacyText;
-        } else {
-            console.log('📝 Using LSTM result (higher confidence)');
-            return lstmText;
-        }
-    }
-
-// ===============================================
-// SCRIBE IMPROVEMENT #4: ENHANCED POST-PROCESSING
-// ===============================================
-
-    function enhancedPostProcessing(text) {
-        console.log('✨ Applying enhanced post-processing...');
-
-        let processedText = text;
-
-        // Receipt-specific improvements
-        processedText = fixCommonOCRErrors(processedText);
-        processedText = enhanceReceiptFormatting(processedText);
-        processedText = improveNumberRecognition(processedText);
-
-        return processedText;
-    }
-
-    function fixCommonOCRErrors(text) {
-        // Fix common OCR mistakes in receipts
-        return text
-            .replace(/\$\s+/g, '$')  // Fix "$ 1.99" to "$1.99"
-            .replace(/(\d)\s+\.(\d)/g, '$1.$2')  // Fix "1 .99" to "1.99"
-            .replace(/\b0\b/g, 'O')  // Context-aware O/0 correction
-            .replace(/\bl\b/g, 'I')  // Context-aware I/l correction
-            .replace(/(\d)\s+(\d)/g, '$1$2')  // Fix spaced numbers
-            .replace(/\s+/g, ' ')  // Normalize whitespace
-            .trim();
-    }
-
-    function enhanceReceiptFormatting(text) {
-        // Improve receipt line formatting
-        const lines = text.split('\n');
-        const processedLines = lines.map(line => {
-            // Ensure price patterns are properly formatted
-            return line.replace(/(\w+)\s+(\$?\d+\.\d{2})/g, '$1 $2');
-        });
-
-        return processedLines.join('\n');
-    }
-
-    function improveNumberRecognition(text) {
-        // Improve number recognition for prices
-        return text.replace(/(\$?\d+)[.,](\d{2})/g, (match, dollars, cents) => {
-            return `${dollars}.${cents}`;
-        });
-    }
-
-// ===============================================
-// STANDARD TESSERACT FALLBACK
-// ===============================================
-
-    async function processImageWithStandardTesseract(imageFile, platformInfo, progressCallback) {
-        console.log('💻 Processing with Standard Tesseract.js (fallback)...');
-
-        try {
-            const Tesseract = (await import('tesseract.js')).default;
-
-            setProcessingStatus('Initializing Standard Tesseract.js...');
-            if (progressCallback) progressCallback(10);
-
-            const worker = await Tesseract.createWorker('eng', 1, {
-                logger: (m) => {
-                    if (m.status === 'recognizing text' && progressCallback) {
-                        const progress = Math.round(30 + (m.progress * 60));
-                        progressCallback(progress);
+                const worker = await Tesseract.createWorker('eng', 1, {
+                    logger: (m) => {
+                        if (m.status === 'recognizing text' && progressCallback) {
+                            const baseProgress = i * 50;
+                            const progress = Math.round(baseProgress + (m.progress * 45));
+                            progressCallback(Math.min(progress, 90));
+                        }
                     }
+                });
+
+                const {data: {text, confidence}} = await worker.recognize(imageBlob, config);
+                await worker.terminate();
+
+                console.log(`✅ ${name} Tesseract: ${Math.round(confidence)}% confidence, ${text.length} chars`);
+
+                if (text.length > 50) { // If we got reasonable amount of text
+                    if (progressCallback) progressCallback(100);
+                    setProcessingStatus('OCR complete!');
+                    return text;
                 }
-            });
 
-            const config = {
-                ...getOptimizedOCRConfig(platformInfo),
-                tessedit_ocr_engine_mode: '1', // LSTM only
-            };
-
-            console.log('📄 Recognizing text with standard Tesseract...');
-            const {data: {text, confidence}} = await worker.recognize(imageFile, config);
-
-            await worker.terminate();
-
-            if (progressCallback) progressCallback(100);
-            setProcessingStatus('Standard Tesseract complete!');
-
-            console.log('✅ Standard Tesseract completed:', {
-                confidence: Math.round(confidence),
-                textLength: text.length
-            });
-
-            return text;
-
-        } catch (error) {
-            console.error('❌ Standard Tesseract processing failed:', error);
-            throw new Error(`Standard Tesseract OCR failed: ${error.message}`);
+            } catch (error) {
+                console.log(`❌ ${name} configuration failed:`, error.message);
+                continue;
+            }
         }
-    }
 
-// ===============================================
-// ALSO UPDATE YOUR BULK ADD CALL TO INCLUDE OCR ENGINE INFO
-// ===============================================
+        throw new Error('All OCR configurations failed');
+    }
 
     async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
@@ -1071,14 +707,12 @@ export default function ReceiptScan() {
         }
 
         try {
-            const text = await processImageWithOptimizedOCR(
+            const text = await processImageWithSimpleTesseract(
                 imageFile,
-                platformInfo,
                 (progress) => {
                     setOcrProgress(progress);
                     if (progress < 90) {
-                        const prefix = receiptType === 'email' ? 'Email receipt processing' : 'Processing';
-                        setProcessingStatus(`${prefix}... ${progress}%`);
+                        setProcessingStatus(`Extracting text... ${progress}%`);
                     }
                 }
             );
