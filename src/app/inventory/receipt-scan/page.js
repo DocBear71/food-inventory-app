@@ -1758,6 +1758,62 @@ export default function ReceiptScan() {
                 }
             }
 
+            // Pattern 10: Sam's Club with O tax code (like "0980037822 EVOOO 22.98 0")
+            if (!itemFound) {
+                const samOPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([O0]+)$/i);
+                if (samOPattern) {
+                    const [, productCode, name, priceStr, tax] = samOPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club O pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 11: Sam's Club with mixed tax codes (like "0980043835 CHTORTELLIN 10.93 0O")
+            if (!itemFound) {
+                const samMixedPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFO0]+)$/i);
+                if (samMixedPattern) {
+                    const [, productCode, name, priceStr, tax] = samMixedPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club mixed pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 12: Sam's Club with E prefix (like "E 990310096 BUFFALOSAUCF 3.91 N")
+            if (!itemFound) {
+                const samEPattern = line.match(/^E\s+(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samEPattern) {
+                    const [, productCode, name, priceStr, tax] = samEPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club E pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 13: Sam's Club E with F suffix (like "E 990374575 TERIYAKI F 5.58 N")
+            if (!itemFound) {
+                const samEFPattern = line.match(/^E\s+(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+F\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samEFPattern) {
+                    const [, productCode, name, priceStr, tax] = samEFPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club E+F pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
             // Create item if we found a valid match
             if (itemFound && itemName && price > 0) {
                 itemName = cleanItemName(itemName);
