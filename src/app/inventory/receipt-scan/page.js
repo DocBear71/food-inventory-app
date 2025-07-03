@@ -2099,6 +2099,39 @@ export default function ReceiptScan() {
                 .replace(/\s+\d{7}\s+Fuel\s+Saver\s+\.\d{2}:\s+\$\d+\.\d{2}/gi, '') // Remove fuel saver
                 .trim();
 
+            // Pattern 3: ITEM_NAME UPC_CODE quantity × $unitPrice [extra_discount_info] $totalPrice
+            const itemPatternWithDiscountInfo = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{2})?)\s*×\s*\$(\d+\.\d{2})\s+.*?\s+\$(\d+\.\d{2})$/);
+
+            if (itemPatternWithDiscountInfo) {
+                const [, itemName, upc, qty, unitPrice, totalPrice] = itemPatternWithDiscountInfo;
+                const quantity = parseFloat(qty);
+                const unitPriceNum = parseFloat(unitPrice);
+                const totalPriceNum = parseFloat(totalPrice);
+
+                // Verify the math is correct (allow small rounding differences)
+                if (Math.abs(quantity * unitPriceNum - totalPriceNum) < 0.05) {
+                    console.log(`✅ Email item with discount info: "${itemName.trim()}" - ${quantity} × $${unitPriceNum} = $${totalPriceNum}`);
+
+                    const item = {
+                        id: Date.now() + Math.random(),
+                        name: cleanItemName(itemName.trim()),
+                        price: totalPriceNum,
+                        quantity: quantity,
+                        unitPrice: unitPriceNum,
+                        upc: upc,
+                        taxCode: '',
+                        category: guessCategory(itemName),
+                        location: guessLocation(itemName),
+                        rawText: line,
+                        selected: true,
+                        needsReview: false
+                    };
+
+                    items.push(item);
+                    continue;
+                }
+            }
+
             // Pattern 1: ITEM_NAME UPC_CODE quantity × $unitPrice $totalPrice (with UPC 4+ digits)
             const itemPatternWithUPC = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{2})?)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
 
