@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from '@/lib/api-config';
-import { findBestInventoryMatch, normalizeIngredientName, extractIngredientName } from '@/lib/utils/ingredientMatching';
+import { findBestInventoryMatch, normalizeIngredientName, extractIngredientName } from '@/utils/ingredientMatching';
 
 export default function MealCompletionModal({
                                                 isOpen,
