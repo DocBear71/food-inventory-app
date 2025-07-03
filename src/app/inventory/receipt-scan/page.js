@@ -1368,7 +1368,7 @@ export default function ReceiptScan() {
         try {
             // Use email-specific preprocessing
             const processedText = preprocessEmailReceiptText(textContent);
-            const items = parseReceiptText(processedText);
+            const items = parseEmailReceiptText(processedText);
 
             if (items.length === 0) {
                 setProcessingStatus('Recording scan attempt...');
@@ -1602,7 +1602,7 @@ export default function ReceiptScan() {
 
         console.log('🔧 After initial cleanup:', preprocessedText);
 
-        // TARGET-SPECIFIC PREPROCESSING - More intelligent splitting
+        // TARGET-SPECIFIC PREPROCESSING - Only for paper receipts
         preprocessedText = preprocessedText
             // Fix price patterns that got mushed together like "$2.99270020094"
             .replace(/(\$\d+\.\d{2})(\d{8,})/g, '$1\n$2')
@@ -2225,6 +2225,73 @@ export default function ReceiptScan() {
 
         console.log(`📋 Extracted ${items.length} items from receipt`);
         return combineDuplicateItems(items);
+    }
+
+    // Add this function specifically for email receipts
+    function parseEmailReceiptText(text) {
+        console.log('📧 Parsing email receipt text directly...');
+
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        const items = [];
+
+        console.log(`📧 Processing ${lines.length} lines from email receipt...`);
+
+        let i = 0;
+        while (i < lines.length) {
+            const line = lines[i];
+
+            // Skip category headers
+            if (line.match(/^(Btl Dep|Dairy|Grocery|Meat|Milk|Pop)\s*[-\s]*\(\d+\):/i)) {
+                i++;
+                continue;
+            }
+
+            // Look for item pattern: ITEM NAME, UPC, quantity × $price, $total
+            const itemName = line;
+            const upcLine = i + 1 < lines.length ? lines[i + 1] : '';
+            const qtyLine = i + 2 < lines.length ? lines[i + 2] : '';
+            const totalLine = i + 3 < lines.length ? lines[i + 3] : '';
+
+            const upcMatch = upcLine.match(/^\d{10,}$/);
+            const qtyMatch = qtyLine.match(/^(\d+)\s*×\s*\$(\d+\.\d{2})$/);
+            const totalMatch = totalLine.match(/^\$(\d+\.\d{2})$/);
+
+            if (itemName && upcMatch && qtyMatch && totalMatch) {
+                const quantity = parseInt(qtyMatch[1]);
+                const unitPrice = parseFloat(qtyMatch[2]);
+                const totalPrice = parseFloat(totalMatch[1]);
+                const upc = upcMatch[0];
+
+                // Verify math
+                if (Math.abs(quantity * unitPrice - totalPrice) < 0.01) {
+                    console.log(`✅ Email item: "${itemName}" - ${quantity} × $${unitPrice} = $${totalPrice}`);
+
+                    const item = {
+                        id: Date.now() + Math.random(),
+                        name: cleanItemName(itemName),
+                        price: totalPrice,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
+                        upc: upc,
+                        taxCode: '',
+                        category: guessCategory(itemName),
+                        location: guessLocation(itemName),
+                        rawText: `${itemName} (${upc}) ${quantity} × $${unitPrice}`,
+                        selected: true,
+                        needsReview: false
+                    };
+
+                    items.push(item);
+                    i += 4; // Skip processed lines
+                    continue;
+                }
+            }
+
+            i++;
+        }
+
+        console.log(`📧 Extracted ${items.length} items from email receipt`);
+        return items;
     }
 
     // Universal quantity detection - works for any product/store
