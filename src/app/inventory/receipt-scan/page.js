@@ -2229,98 +2229,56 @@ export default function ReceiptScan() {
 
     // Replace your parseEmailReceiptText function with this improved version
     function parseEmailReceiptText(text) {
-        console.log('📧 Parsing email receipt text directly...');
+        console.log('📧 Parsing email receipt with robust method...');
 
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
 
-        console.log(`📧 Processing ${lines.length} lines from email receipt...`);
+        // Use regex to find all item patterns in the text, regardless of line breaks
+        const itemPatterns = [
+            // Pattern with UPC: "ITEM NAME 1234567890 12 × $1.25 $15.00"
+            /([A-Z][A-Z\s&.]+?)\s+(\d{10,})\s+(\d+)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})/g,
 
-        // Debug: Log all lines to see the actual format
-        lines.forEach((line, index) => {
-            console.log(`📧 Line ${index + 1}: "${line}"`);
-        });
+            // Pattern without UPC: "ITEM NAME 12 × $1.25 $15.00"
+            /([A-Z][A-Z\s&.]+?)\s+(\d+)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})/g
+        ];
 
-        // The format in your log shows mixed lines, let's parse differently
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+        // Try first pattern (with UPC)
+        let match;
+        while ((match = itemPatterns[0].exec(text)) !== null) {
+            const [fullMatch, itemName, upc, qty, unitPrice, totalPrice] = match;
+            const quantity = parseInt(qty);
+            const unitPriceNum = parseFloat(unitPrice);
+            const totalPriceNum = parseFloat(totalPrice);
 
-            // Skip category headers
-            if (line.match(/^(Btl Dep|Dairy|Grocery|Meat|Milk|Pop)\s*[-\s]*\(\d+\):/i)) {
-                console.log(`📧 Skipping category header: ${line}`);
+            // Skip if it's a category header
+            if (itemName.match(/^(Btl Dep|Dairy|Grocery|Meat|Milk|Pop)/i)) {
                 continue;
             }
 
-            // Look for the pattern: ITEM_NAME UPC_CODE quantity × $price $total
-            // Example: "DAISY SOUR CREAM 7342000011 1 × $2.48 $2.48"
-            const itemPattern = line.match(/^([A-Z\s&]+?)\s+(\d{10,})\s+(\d+)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
+            // Verify math
+            if (Math.abs(quantity * unitPriceNum - totalPriceNum) < 0.01) {
+                console.log(`✅ Found item with UPC: "${itemName.trim()}" - ${quantity} × $${unitPriceNum} = $${totalPriceNum}`);
 
-            if (itemPattern) {
-                const [, itemName, upc, qty, unitPrice, totalPrice] = itemPattern;
-                const quantity = parseInt(qty);
-                const unitPriceNum = parseFloat(unitPrice);
-                const totalPriceNum = parseFloat(totalPrice);
+                const item = {
+                    id: Date.now() + Math.random(),
+                    name: cleanItemName(itemName.trim()),
+                    price: totalPriceNum,
+                    quantity: quantity,
+                    unitPrice: unitPriceNum,
+                    upc: upc,
+                    taxCode: '',
+                    category: guessCategory(itemName),
+                    location: guessLocation(itemName),
+                    rawText: fullMatch,
+                    selected: true,
+                    needsReview: false
+                };
 
-                // Verify the math is correct
-                if (Math.abs(quantity * unitPriceNum - totalPriceNum) < 0.01) {
-                    console.log(`✅ Email item found: "${itemName}" - ${quantity} × $${unitPriceNum} = $${totalPriceNum}`);
-
-                    const item = {
-                        id: Date.now() + Math.random(),
-                        name: cleanItemName(itemName.trim()),
-                        price: totalPriceNum,
-                        quantity: quantity,
-                        unitPrice: unitPriceNum,
-                        upc: upc,
-                        taxCode: '',
-                        category: guessCategory(itemName),
-                        location: guessLocation(itemName),
-                        rawText: line,
-                        selected: true,
-                        needsReview: false
-                    };
-
-                    items.push(item);
-                } else {
-                    console.log(`❌ Math doesn't match for: ${line} (${quantity} × ${unitPriceNum} ≠ ${totalPriceNum})`);
-                }
-            } else {
-                // Also try pattern without UPC for some items
-                const simplePattern = line.match(/^([A-Z\s&.]+?)\s+(\d+)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
-
-                if (simplePattern) {
-                    const [, itemName, qty, unitPrice, totalPrice] = simplePattern;
-                    const quantity = parseInt(qty);
-                    const unitPriceNum = parseFloat(unitPrice);
-                    const totalPriceNum = parseFloat(totalPrice);
-
-                    if (Math.abs(quantity * unitPriceNum - totalPriceNum) < 0.01) {
-                        console.log(`✅ Email item (no UPC): "${itemName}" - ${quantity} × $${unitPriceNum} = $${totalPriceNum}`);
-
-                        const item = {
-                            id: Date.now() + Math.random(),
-                            name: cleanItemName(itemName.trim()),
-                            price: totalPriceNum,
-                            quantity: quantity,
-                            unitPrice: unitPriceNum,
-                            upc: '',
-                            taxCode: '',
-                            category: guessCategory(itemName),
-                            location: guessLocation(itemName),
-                            rawText: line,
-                            selected: true,
-                            needsReview: false
-                        };
-
-                        items.push(item);
-                    }
-                } else {
-                    console.log(`📧 No pattern match for line: "${line}"`);
-                }
+                items.push(item);
             }
         }
 
-        console.log(`📧 Final result: Extracted ${items.length} items from email receipt`);
+        console.log(`📧 Robust parsing found ${items.length} items`);
         return items;
     }
 
