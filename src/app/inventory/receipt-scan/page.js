@@ -1663,6 +1663,85 @@ export default function ReceiptScan() {
                 }
             }
 
+            // Pattern 4: UPC + Name + Price + Tax (Sam's Club format, no $)
+            const samPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TF])$/i);
+            if (samPattern) {
+                const [, productCode, name, priceStr, tax] = samPattern;
+                itemName = name.trim();
+                price = parseFloat(priceStr);
+                upc = productCode;
+                taxCode = tax || '';
+                console.log(`✅ Sam's Club pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                itemFound = true;
+            }
+
+            // Pattern 5: Name + UPC + Price + Tax (Hy-Vee format, no $)
+            if (!itemFound) {
+                const hyVeePattern = line.match(/^([A-Z][A-Z\s&\d]+?)\s+(\d{8,})\s+(\d+\.\d{2,3})\s+([TF]+)$/i);
+                if (hyVeePattern) {
+                    const [, name, productCode, priceStr, tax] = hyVeePattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Hy-Vee pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 6: Smith's/Kroger format - Name + Price + Tax (like "KRO LRG WHITE BAKT 1.49 T")
+            if (!itemFound) {
+                const smithsPattern = line.match(/^([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2})\s+([TF])$/i);
+                if (smithsPattern) {
+                    const [, name, priceStr, tax] = smithsPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    taxCode = tax || '';
+                    console.log(`✅ Smith's pattern: "${itemName}" - $${price} (Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+// Pattern 7: Trader Joe's format - Name + $Price (like "CRACKERS SANDWICH EVERYT $3.49")
+            if (!itemFound) {
+                const traderjoePattern = line.match(/^([A-Z][A-Z\s&\d]+?)\s+\$(\d+\.\d{2})$/i);
+                if (traderjoePattern) {
+                    const [, name, priceStr] = traderjoePattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    console.log(`✅ Trader Joe's pattern: "${itemName}" - $${price}`);
+                    itemFound = true;
+                }
+            }
+
+// Pattern 8: Target format - Code + Name + Tax + Price (like "284020005 GG MILK NF $2.59")
+            if (!itemFound) {
+                const targetPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+([NFTP]+)\s+\$(\d+\.\d{2})$/i);
+                if (targetPattern) {
+                    const [, productCode, name, tax, priceStr] = targetPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Target pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 9: Walmart format - Name + UPC + Tax + Price (like "MTN DEW BAJ 001200024075 F 2.38")
+            if (!itemFound) {
+                const walmartPattern = line.match(/^([A-Z][A-Z\s&\d]+?)\s+(\d{12,14})\s+([FTN])\s+(\d+\.\d{2})$/i);
+                if (walmartPattern) {
+                    const [, name, upcCode, tax, priceStr] = walmartPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = upcCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Walmart pattern: "${itemName}" - $${price} (UPC: ${upcCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
             // Create item if we found a valid match
             if (itemFound && itemName && price > 0) {
                 itemName = cleanItemName(itemName);
