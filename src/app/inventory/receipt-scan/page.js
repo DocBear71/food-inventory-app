@@ -1183,10 +1183,13 @@ export default function ReceiptScan() {
             // Split "T EI" patterns: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(EI)\s+(\d{6,})/g, '$1 $2\n$3 $4')
 
-            // NEW: Split multiple I-prefixed items: "25.98 T I 12956" -> "25.98 T\nI 12956"
+            // Split multiple I-prefixed items: "25.98 T I 12956" -> "25.98 T\nI 12956"
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+I\s+(\d{6,})/g, '$1 $2\nI $3')
 
-            // NEW: Split I items with UPC concatenated: "T I990356952" -> "T\nI990356952"
+            // NEW: Split duplicate I items: "T I 12956 ITEM 25.98 T I 12956" -> "T\nI 12956 ITEM 25.98 T\nI 12956"
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(I\s+\d{4,})/g, '$1 $2\n$3')
+
+            // Split I items with UPC concatenated: "T I990356952" -> "T\nI990356952"
             .replace(/([TFNO]+)\s+I(\d{8,})/g, '$1\nI$2')
 
             // Split items that got concatenated with store header info
