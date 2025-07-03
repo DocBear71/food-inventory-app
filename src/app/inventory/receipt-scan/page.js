@@ -1317,17 +1317,7 @@ export default function ReceiptScan() {
 
             console.log('Selected file:', file.name, file.type);
 
-            if (file.type.startsWith('image/')) {
-                // Handle email receipt screenshot
-                setReceiptType('email');
-                const imageUrl = URL.createObjectURL(file);
-                setCapturedImage(imageUrl);
-
-                // Preprocess for email receipt
-                const enhancedImage = await preprocessEmailReceiptImage(file);
-                await processImage(enhancedImage);
-
-            } else if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.eml')) {
+            if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
                 // Handle text files (copied email content)
                 setReceiptType('email');
                 const reader = new FileReader();
@@ -1337,8 +1327,18 @@ export default function ReceiptScan() {
                 };
                 reader.readAsText(file);
 
+            } else if (file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+                // Handle HTML email receipts
+                setReceiptType('email');
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const htmlContent = e.target.result;
+                    processHTMLReceipt(htmlContent);
+                };
+                reader.readAsText(file);
+
             } else {
-                alert('Please select an image file (screenshot), text file (.txt), or email file (.eml).');
+                alert('Please select a text file (.txt) or HTML file (.html) only. Screenshots and .eml files are not supported for email receipts.');
                 if (emailReceiptInputRef.current) {
                     emailReceiptInputRef.current.value = '';
                 }
@@ -3057,9 +3057,9 @@ export default function ReceiptScan() {
                                             <div className="text-4xl mb-2">📧</div>
                                             <div className="text-lg font-medium text-purple-700">Email Receipt</div>
                                             <div className="text-sm text-gray-500 text-center">
-                                                Screenshot or HTML
+                                                HTML or TXT files
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Most accurate</div>
+                                            <div className="text-xs text-gray-500 mt-1">Copy-paste method</div>
                                         </TouchEnhancedButton>
                                     </div>
 
@@ -3075,7 +3075,7 @@ export default function ReceiptScan() {
                                     <input
                                         ref={emailReceiptInputRef}
                                         type="file"
-                                        accept="image/*,text/plain,.txt,.eml,.msg"
+                                        accept="text/html,.html,.htm,text/plain,.txt"
                                         onChange={handleEmailReceiptFileUpload}
                                         className="hidden"
                                     />
@@ -3132,32 +3132,42 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
-                                    {/* Email Receipt Pro Tips - Corrected for actual options */}
+                                    {/* Email Receipt Pro Tips - Corrected for working methods only */}
                                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-amber-900 mb-2">💡 Email Receipt Pro Tips:</h4>
-                                        <div className="text-sm text-amber-800 space-y-2">
-                                            <p><strong>Best Methods by Email Client:</strong></p>
-                                            <div className="ml-4 space-y-2">
-                                                <div>
-                                                    <p><strong>📱 Screenshots (Universal):</strong></p>
-                                                    <p className="ml-4">• Take clear, high-contrast screenshot of the email</p>
-                                                    <p className="ml-4">• Zoom in before capturing for better text clarity</p>
-                                                    <p className="ml-4">• Ensure good lighting on your screen</p>
-                                                </div>
-                                                <div>
-                                                    <p><strong>💻 Copy & Paste (Most Accurate):</strong></p>
-                                                    <p className="ml-4">• Select all text in the email and copy it</p>
-                                                    <p className="ml-4">• Paste into a text file and save as .txt</p>
-                                                    <p className="ml-4">• Upload the text file (100% accurate!)</p>
-                                                </div>
-                                                <div>
-                                                    <p><strong>🌐 Print to PDF:</strong></p>
-                                                    <p className="ml-4">• Print the email → "Save as PDF"</p>
-                                                    <p className="ml-4">• Screenshot the PDF for upload</p>
+                                        <h4 className="text-sm font-medium text-amber-900 mb-2">💡 Email Receipt Upload Guide:</h4>
+                                        <div className="text-sm text-amber-800 space-y-3">
+                                            <div>
+                                                <p><strong>✅ Method 1: Copy & Paste (Recommended)</strong></p>
+                                                <div className="ml-4 space-y-1 text-amber-700">
+                                                    <p>1. Open your email receipt</p>
+                                                    <p>2. Select all text (Ctrl+A / Cmd+A)</p>
+                                                    <p>3. Copy the text (Ctrl+C / Cmd+C)</p>
+                                                    <p>4. Paste into a text editor (Notepad, TextEdit)</p>
+                                                    <p>5. Save as .txt file and upload here</p>
+                                                    <p className="font-medium text-amber-800">→ This gives 100% accuracy!</p>
                                                 </div>
                                             </div>
-                                            <div className="mt-2 p-2 bg-amber-100 rounded">
-                                                <p className="font-medium">🎯 Best Option: Copy the email text and paste into a text file!</p>
+
+                                            <div>
+                                                <p><strong>✅ Method 2: Save as HTML (Advanced)</strong></p>
+                                                <div className="ml-4 space-y-1 text-amber-700">
+                                                    <p>• <strong>Chrome/Edge:</strong> Right-click → "Save as..." → "Web Page, Complete"</p>
+                                                    <p>• <strong>Firefox:</strong> File → "Save Page As..." → "Web Page, complete"</p>
+                                                    <p>• Upload the .html file here</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-red-100 border border-red-300 rounded p-2">
+                                                <p><strong>❌ These Don't Work:</strong></p>
+                                                <div className="ml-4 text-red-700">
+                                                    <p>• Screenshots (poor OCR quality)</p>
+                                                    <p>• .eml files (no readable content)</p>
+                                                    <p>• .msg files (not supported)</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-green-100 border border-green-300 rounded p-2">
+                                                <p><strong>🎯 Best Results:</strong> Copy-paste method works with ANY email provider (Gmail, Outlook, Yahoo, etc.)</p>
                                             </div>
                                         </div>
                                     </div>
