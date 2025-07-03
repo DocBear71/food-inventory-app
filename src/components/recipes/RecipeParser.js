@@ -285,7 +285,7 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         const lowerLine = line.toLowerCase();
 
         // Contains cooking verbs
-        if (/\b(cook|bake|fry|sauté|saute|boil|simmer|mix|stir|add|combine|heat|preheat|serve|garnish|slice|dice|chop|prepare|remove|place|set|turn|cover|uncover|drain|rinse|wash|cut|blend|whisk|beat|fold|pour|spread|sprinkle|season)\b/i.test(line)) return true;
+        if (/\b(cook|bake|fry|sauté|saute|boil|simmer|mix|stir|add|combine|heat|preheat|season|serve|garnish|slice|dice|chop|prepare|remove|place|set|turn|cover|uncover|drain|rinse|wash|cut|blend|whisk|beat|fold|pour|spread|sprinkle|season)\b/i.test(line)) return true;
 
         // Contains time or temperature references
         if (/\b(\d+\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)|degrees?|°[CF]|\d+°)\b/i.test(line)) return true;
@@ -305,7 +305,9 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
 
         // Remove bullets, pricing, and clean the line
         let cleanLine = line
-            .replace(/^[\*\-\•\d+\.\)]\s*/, '') // Remove bullets and numbers
+            .replace(/^[\*\-\•]\s*/, '') // Remove bullet points only (*, -, •)
+            .replace(/^\d+\.\s*/, '') // Remove numbered list markers like "1. " but not measurements
+            .replace(/^\d+\)\s*/, '') // Remove numbered list markers like "1) " but not measurements
             .replace(/\(\$[\d\.]+\)/g, '') // Remove pricing like ($0.37)
             .replace(/\s+/g, ' ') // Normalize whitespace
             .trim();
@@ -332,7 +334,7 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         }
 
         // Pattern 2: Amount + Unit + Description (e.g., "2 cups flour", "1 tsp salt")
-        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
         if (match) {
             return {
                 name: match[3].trim(),
@@ -348,7 +350,7 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
             const secondPart = match[2].trim();
 
             // Check if second part starts with a unit
-            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
             if (unitMatch) {
                 return {
                     name: unitMatch[2].trim(),
@@ -370,7 +372,7 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         match = cleanLine.match(/^(\d+\/\d+)\s+(.+)$/);
         if (match) {
             const secondPart = match[2].trim();
-            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
 
             if (unitMatch) {
                 return {
