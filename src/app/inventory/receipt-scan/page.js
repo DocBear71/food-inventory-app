@@ -2251,7 +2251,7 @@ export default function ReceiptScan() {
             }
 
             // Clean category headers from the end of lines
-            line = line.replace(/\s+(Btl Dep|Dairy|Grocery|Meat|Milk|Pop)\s*[-\s]*\(\d+\):\s*$/i, '');
+            line = line.replace(/\s+(Btl Dep|Dairy|Grocery|Meat[\s\-]*[\w\s]*|Milk|Pop)\s*[-\s]*\(\d+\):\s*$/i, '');
 
             // Pattern 1: ITEM_NAME UPC_CODE quantity × $unitPrice $totalPrice
             const itemPatternWithUPC = line.match(/^([A-Z\s&.]+?)\s+(\d{10,})\s+(\d+)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
@@ -2327,27 +2327,9 @@ export default function ReceiptScan() {
                 const unitPriceNum = parseFloat(unitPrice);
                 const totalPriceNum = parseFloat(totalPrice);
 
-                if (Math.abs(quantity * unitPriceNum - totalPriceNum) < 0.01) {
-                    console.log(`✅ Email BTL DEP item: "${itemName.trim()}" - ${quantity} × $${unitPriceNum} = $${totalPriceNum}`);
-
-                    const item = {
-                        id: Date.now() + Math.random(),
-                        name: cleanItemName(itemName.trim()),
-                        price: totalPriceNum,
-                        quantity: quantity,
-                        unitPrice: unitPriceNum,
-                        upc: '',
-                        taxCode: '',
-                        category: 'Btl Dep - Pop',
-                        location: guessLocation(itemName),
-                        rawText: line,
-                        selected: true,
-                        needsReview: false
-                    };
-
-                    items.push(item);
-                    continue;
-                }
+                // Skip bottle deposit items - they're fees, not inventory
+                console.log(`📧 Skipping bottle deposit item: "${itemName.trim()}" - not an inventory item`);
+                continue;
             }
 
             console.log(`📧 No pattern match for line: "${line}"`);
