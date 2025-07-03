@@ -2100,7 +2100,7 @@ export default function ReceiptScan() {
                 .trim();
 
             // Pattern 3: ITEM_NAME UPC_CODE quantity × $unitPrice [extra_discount_info] $totalPrice
-            const itemPatternWithDiscountInfo = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{2})?)\s*×\s*\$(\d+\.\d{2})\s+.*?\s+\$(\d+\.\d{2})$/);
+            const itemPatternWithDiscountInfo = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{1,2})?)\s*×\s*\$(\d+\.\d{2})\s+.*?\s+\$(\d+\.\d{2})$/);
 
             if (itemPatternWithDiscountInfo) {
                 const [, itemName, upc, qty, unitPrice, totalPrice] = itemPatternWithDiscountInfo;
@@ -2133,7 +2133,7 @@ export default function ReceiptScan() {
             }
 
             // Pattern 1: ITEM_NAME UPC_CODE quantity × $unitPrice $totalPrice (with UPC 4+ digits)
-            const itemPatternWithUPC = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{2})?)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
+            const itemPatternWithUPC = line.match(/^([A-Z\s&.\-]+?)\s+(\d{4,})\s+(\d+(?:\.\d{1,2})?)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
 
             if (itemPatternWithUPC) {
                 const [, itemName, upc, qty, unitPrice, totalPrice] = itemPatternWithUPC;
@@ -2168,7 +2168,7 @@ export default function ReceiptScan() {
             }
 
             // Pattern 2: ITEM_NAME quantity × $unitPrice $totalPrice (no UPC)
-            const itemPatternNoUPC = line.match(/^([A-Z\s&.\-]+?)\s+(\d+(?:\.\d{2})?)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
+            const itemPatternNoUPC = line.match(/^([A-Z\s&.\-]+?)\s+(\d+(?:\.\d{1,2})?)\s*×\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/);
 
             if (itemPatternNoUPC) {
                 const [, itemName, qty, unitPrice, totalPrice] = itemPatternNoUPC;
