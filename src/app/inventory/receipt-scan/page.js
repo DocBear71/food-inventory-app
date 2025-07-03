@@ -2,7 +2,7 @@
 
 // file: /src/app/inventory/receipt-scan/page.js - v15 Multi-platform OCR with Scribe.js and MLKit
 
-import {useState, useRef, useEffect} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -1162,6 +1162,21 @@ export default function ReceiptScan() {
             .replace(/\n+/g, '\n')
             .trim();
 
+        // Enhanced OCR cleanup for Sam's Club multi-item lines
+        preprocessedText = preprocessedText
+            // Split multiple E items on same line: "E UPC1 ITEM1 N E UPC2 ITEM2 N"
+            .replace(/([TFNO]+)\s+E\s+(\d{6,})/g, '$1\nE $2')
+
+            // Split when UPC appears after tax code: "N 990415958" -> "N\n990415958"
+            .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2')
+
+            // Split "T EI" patterns: "15.98 T EI 571277" -> "15.98 T\nEI 571277"
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(EI)\s+(\d{6,})/g, '$1 $2\n$3 $4')
+
+            // Clean up multiple line breaks
+            .replace(/\n+/g, '\n')
+            .trim();
+
         console.log('🔧 After Target-specific splitting:');
         console.log('=====================================');
         console.log(preprocessedText);
@@ -1989,6 +2004,23 @@ export default function ReceiptScan() {
                 }
             }
 
+            // Pattern 18: Sam's Club basic format - UPC + NAME + PRICE + TAX (like "980286664 DM WHL CORNF 7.78 N")
+            if (!itemFound) {
+                const samBasicPattern = line.match(/^(\d{8,})\s+([A-Z]{2,}[A-Z\s&\d]*?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samBasicPattern) {
+                    const [, productCode, name, priceStr, tax] = samBasicPattern;
+                    // Only if it looks like a food product name (2+ consecutive letters at start)
+                    if (name.length >= 2 && !name.match(/^(SUBTOTAL|TOTAL|PAYMENT|CREDIT|DEBIT|AST|WTY)/i)) {
+                        itemName = name.trim();
+                        price = parseFloat(priceStr);
+                        upc = productCode;
+                        taxCode = tax || '';
+                        console.log(`✅ Sam's Club basic pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                        itemFound = true;
+                    }
+                }
+            }
+
             // Create item if we found a valid match
             if (itemFound && itemName && price > 0) {
                 itemName = cleanItemName(itemName);
@@ -2029,7 +2061,6 @@ export default function ReceiptScan() {
             console.log(`❌ No valid item pattern found: "${line}"`);
         }
 
-
         console.log(`\n📋 FINAL RESULTS:`);
         console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
         items.forEach((item, index) => {
@@ -2037,7 +2068,8 @@ export default function ReceiptScan() {
         });
 
         console.log(`📋 Extracted ${items.length} items from receipt`);
-        return combineDuplicateItems(items);
+        const combinedItems = combineDuplicateItems(items);
+        return filterFoodItemsOnly(combinedItems);
     }
 
     // Replace your parseEmailReceiptText function with this improved version
@@ -2256,6 +2288,58 @@ export default function ReceiptScan() {
         }
 
         return 0; // No lines to skip
+    }
+
+    // Filter out non-food items after parsing
+    function filterFoodItemsOnly(items) {
+        console.log(`🍎 Starting food-only filtering with ${items.length} items...`);
+
+        const nonFoodKeywords = [
+            // Cleaning supplies
+            'lysol', 'glade', 'febreze', 'tide', 'downy', 'bleach', 'detergent', 'fabric softener',
+            'dish soap', 'dishwasher', 'cleaner', 'disinfectant', 'wipes', 'sponges', 'paper towel',
+            'toilet paper', 'tissue', 'napkin',
+
+            // Personal care
+            'degree', 'deodorant', 'shampoo', 'conditioner', 'soap', 'toothpaste', 'toothbrush',
+            'razor', 'shaving', 'lotion', 'makeup', 'cosmetic', 'perfume', 'cologne',
+
+            // Health/pharmacy
+            'vitamin', 'supplement', 'medicine', 'tylenol', 'advil', 'aspirin', 'bandage',
+            'first aid', 'thermometer',
+
+            // Pet supplies
+            'tidy cats', 'cat litter', 'dog food', 'cat food', 'pet food', 'dog treat', 'cat treat',
+            'pet toy', 'leash', 'collar',
+
+            // Electronics/non-food
+            'battery', 'charger', 'cable', 'electronics', 'phone', 'computer', 'tv',
+            'warranty', 'wty', 'seiko', 'watch',
+
+            // Household items
+            'light bulb', 'extension cord', 'tool', 'hardware', 'garden', 'automotive',
+            'motor oil', 'antifreeze'
+        ];
+
+        const filteredItems = items.filter(item => {
+            const itemNameLower = item.name.toLowerCase();
+
+            // Check if item contains any non-food keywords
+            const isNonFood = nonFoodKeywords.some(keyword =>
+                itemNameLower.includes(keyword)
+            );
+
+            if (isNonFood) {
+                console.log(`🚫 Filtered out non-food item: "${item.name}"`);
+                return false;
+            }
+
+            console.log(`✅ Keeping food item: "${item.name}"`);
+            return true;
+        });
+
+        console.log(`🍎 Food filtering complete: ${items.length} items → ${filteredItems.length} food items`);
+        return filteredItems;
     }
 
 // Combine duplicate items function
