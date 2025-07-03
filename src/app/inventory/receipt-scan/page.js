@@ -1147,6 +1147,17 @@ export default function ReceiptScan() {
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(E\s+V\s+INST\s+SV)/gi, '$1 $2\n$3')
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(S\s+INST\s+SV)/gi, '$1 $2\n$3')
 
+            // Enhanced splitting for I-prefixed items and multiple items
+            .replace(/([TFNO]+)\s+I\s+(\d{6,})/g, '$1\nI $2')  // Split "N I 852120" -> "N\nI 852120"
+            .replace(/([TFNO]+)\s+(\d{6,})\s+([A-Z]{3,})/g, '$1\n$2 $3')  // Split "N 165749 GNC" -> "N\n165749 GNC"
+            .replace(/([A-Z]{4,}F)\s+(\d+\.\d{2})\s+([TFNO]+)\s+(\d{6,})/g, '$1 $2 $3\n$4')  // Split after complete items
+
+            // Split before I-prefixed items in middle of line
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+I\s+(\d{6,})/g, '$1 $2\nI $3')
+
+            // Clean up store header issues: "EDWARD E" -> "EDWARD\nE"
+            .replace(/(EDWARD|[A-Z]{4,})\s+E\s+(\d{8,})/g, '$1\nE $2')
+
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
             .trim();
@@ -1477,6 +1488,29 @@ export default function ReceiptScan() {
             /^\d+x\s*\$\d+\.\d+\s*[a-z]\s*—?\s*$/i,
             /deals\s*&?\s*coupons/i,
             /view\s*coupons/i,
+
+            // ============ STORE HEADERS AND INFO ============
+            /^sams\s+club.*edward/i,     // Store header with name
+            /^self\s+checkout/i,         // Self checkout info
+            /^\(\s*\d{3}\s*\)\s*\d{3}\s*-?\s*\d{4}/i, // Phone numbers
+            /cedar\s+rapids.*edward/i,   // Location with name
+
+            // ============ NON-FOOD ITEMS (Pet food, supplements, etc.) ============
+            /temptations/i,           // Cat treats
+            /fancy\s+feast/i,         // Cat food
+            /purina/i,                // Pet food brand
+            /pedigree/i,              // Dog food brand
+            /iams/i,                  // Pet food brand
+            /science\s+diet/i,        // Pet food brand
+            /gnc/i,                   // Supplements
+            /vitamin/i,               // Vitamins/supplements
+            /supplement/i,            // Supplements
+            /protein\s+powder/i,      // Protein supplements
+            /multivitamin/i,          // Vitamins
+            /fish\s+oil/i,           // Supplements (unless cooking oil)
+            /omega/i,                 // Supplements
+            /probiotic/i,            // Supplements
+            /^mm\s+pv/i,             // "MM PV" supplement pattern
 
             // Gift card patterns (Sam's Club, Target, etc.)
             /^\d+\s*\$\d+GPLAY/i,          // "990293119 $50GPLAY"
@@ -1924,6 +1958,34 @@ export default function ReceiptScan() {
                         console.log(`✅ Sam's Club generic pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
                         itemFound = true;
                     }
+                }
+            }
+
+            // Pattern 19: Sam's Club I prefix (like "I 852120 TEMPTATIONS 19.18 T")
+            if (!itemFound) {
+                const samIPattern = line.match(/^I\s+(\d{6,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samIPattern) {
+                    const [, productCode, name, priceStr, tax] = samIPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club I pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 20: Sam's Club short UPC (like "165749 GNC MM PV 31.38 T")
+            if (!itemFound) {
+                const samShortUPCPattern = line.match(/^(\d{6,7})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samShortUPCPattern) {
+                    const [, productCode, name, priceStr, tax] = samShortUPCPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club short UPC pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
                 }
             }
 
