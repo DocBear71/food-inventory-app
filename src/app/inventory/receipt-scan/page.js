@@ -1140,6 +1140,13 @@ export default function ReceiptScan() {
             // Remove trailing artifacts: "24.98 N E I" -> "24.98 N"
             .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+([EI]\s*)+$/gm, '$1 $2')
 
+            // Split before instant savings: "12.79 T V INST SV" -> "12.79 T\nV INST SV"
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(V\s+INST\s+SV)/gi, '$1 $2\n$3')
+
+            // Split before other instant savings patterns
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(E\s+V\s+INST\s+SV)/gi, '$1 $2\n$3')
+            .replace(/(\d+\.\d{2})\s+([TFNO]+)\s+(S\s+INST\s+SV)/gi, '$1 $2\n$3')
+
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
             .trim();
@@ -1886,18 +1893,35 @@ export default function ReceiptScan() {
                 }
             }
 
-            // Pattern 17: Sam's Club missing E prefix (like "990415958 NS SHIN BLAF 13.48 N")
+            // Pattern 17: Sam's Club missing E prefix (expanded criteria)
             if (!itemFound) {
-                const samMissingEPattern = line.match(/^(\d{8,})\s+([A-Z]{2,}\s+[A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                const samMissingEPattern = line.match(/^(\d{8,})\s+([A-Z]{2,}\s*[A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
                 if (samMissingEPattern) {
                     const [, productCode, name, priceStr, tax] = samMissingEPattern;
-                    // Only match if name looks like Sam's Club product (has specific patterns)
-                    if (name.match(/^(NS|MM|KORBBQ|BUFFALO|TERIYAKI|PICNIC|FRUIT)/i)) {
+                    // Expanded Sam's Club product patterns
+                    if (name.match(/^(NS|MM|KORBBQ|KORBBQWINGS|BUFFALO|TERIYAKI|PICNIC|FRUIT|ROASTED|STCKY|TONES|ITAL|CHIVES)/i)) {
                         itemName = name.trim();
                         price = parseFloat(priceStr);
                         upc = productCode;
                         taxCode = tax || '';
                         console.log(`✅ Sam's Club missing E pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                        itemFound = true;
+                    }
+                }
+            }
+
+            // Pattern 18: Sam's Club generic (for any missed items)
+            if (!itemFound) {
+                const samGenericPattern = line.match(/^(\d{8,})\s+([A-Z]{4,}[A-Z\s&\d]*?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samGenericPattern) {
+                    const [, productCode, name, priceStr, tax] = samGenericPattern;
+                    // Only if it looks like a product name (4+ consecutive letters at start)
+                    if (name.length >= 4 && !name.match(/^(SUBTOTAL|TOTAL|PAYMENT|CREDIT|DEBIT)/i)) {
+                        itemName = name.trim();
+                        price = parseFloat(priceStr);
+                        upc = productCode;
+                        taxCode = tax || '';
+                        console.log(`✅ Sam's Club generic pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
                         itemFound = true;
                     }
                 }
