@@ -1366,8 +1366,9 @@ export default function ReceiptScan() {
         setProcessingStatus('Parsing text email receipt...');
 
         try {
-            // No OCR needed - direct text parsing!
-            const items = parseReceiptText(textContent);
+            // Use email-specific preprocessing
+            const processedText = preprocessEmailReceiptText(textContent);
+            const items = parseReceiptText(processedText);
 
             if (items.length === 0) {
                 setProcessingStatus('Recording scan attempt...');
@@ -1389,7 +1390,7 @@ export default function ReceiptScan() {
                     body: JSON.stringify({
                         scanType: 'text-receipt',
                         itemsExtracted: items.length,
-                        ocrEngine: 'Text-Parser'
+                        ocrEngine: 'Text-Parser-HyVee'
                     })
                 });
 
@@ -1488,27 +1489,12 @@ export default function ReceiptScan() {
 
         // Try to detect and fix common email receipt OCR errors
         preprocessedText = preprocessedText
-            // Fix common OCR substitutions in email receipts
-            .replace(/SY\s+SSR\s+EAL/gi, 'DAISY SOUR CREAM')
-            .replace(/pairy/gi, 'DAIRY')
-            .replace(/Groce/gi, 'GROCERY')
-            .replace(/ppp/gi, '')
-            .replace(/Bi\s+Dep/gi, 'BTL DEP')
-            .replace(/pop\s+1/gi, 'POP (1)')
-            .replace(/Wik/gi, 'MILK')
-
-            // Fix price patterns
-            .replace(/(\d)\s+(\d{2})\s+/g, '$1.$2 ') // "2 48" -> "2.48"
-            .replace(/5([0-9])([0-9])([0-9])/g, '$$$1.$2$3') // "5248" -> "$2.48"
-
-            // Try to add line breaks based on categories and prices
-            .replace(/(BTL DEP|DAIRY|GROCERY|MEAT|MILK|POP)/gi, '\n$1')
-            .replace(/(\$\d+\.\d{2})/g, '$1\n')
-            .replace(/(\d{8,})/g, '\n$1')
-
-            // Clean up multiple line breaks
-            .replace(/\n+/g, '\n')
-            .trim();
+            .replace(/Product Image\s+/gi, '\n') // Split at each product
+            .replace(/\n+/g, '\n') // Clean up multiple newlines
+            .split('\n')
+            .filter(line => line.trim().length > 0) // Remove empty lines
+            .filter(line => !line.match(/^(Btl Dep|Dairy|Grocery|Meat|Milk|Pop)\s*\(\d+\):/i)) // Remove category headers
+            .join('\n');
 
         console.log('📧 After email receipt preprocessing:', preprocessedText);
         return preprocessedText;
@@ -2051,6 +2037,79 @@ export default function ReceiptScan() {
             if (line.match(/\$?0\.00/i)) {
                 console.log(`📋 Skipping zero amount: ${line}`);
                 continue;
+            }
+
+            // Add this section BEFORE your existing pattern matching in parseReceiptText
+            if (receiptType === 'email') {
+                console.log('📧 Using email receipt parsing patterns...');
+
+                // HyVee email receipt pattern: "ITEM NAME\nUPC\nqty × $price\n$total"
+                const emailLines = lines;
+                let i = 0;
+
+                while (i < emailLines.length) {
+                    const line = emailLines[i];
+
+                    // Skip category headers and empty lines
+                    if (line.match(/^(Btl Dep|Dairy|Grocery|Meat|Milk|Pop|Product Image)/i) || line.trim() === '') {
+                        i++;
+                        continue;
+                    }
+
+                    // Look for HyVee pattern: Item name, then UPC, then quantity info
+                    const itemName = line.trim();
+                    const upcLine = i + 1 < emailLines.length ? emailLines[i + 1] : '';
+                    const qtyLine = i + 2 < emailLines.length ? emailLines[i + 2] : '';
+                    const totalLine = i + 3 < emailLines.length ? emailLines[i + 3] : '';
+
+                    // Check if this looks like a HyVee item pattern
+                    const upcMatch = upcLine.match(/^\d{10,}$/);
+                    const qtyMatch = qtyLine.match(/^(\d+)\s*×\s*\$(\d+\.\d{2})$/);
+                    const totalMatch = totalLine.match(/^\$(\d+\.\d{2})$/);
+
+                    if (itemName && upcMatch && qtyMatch && totalMatch) {
+                        const quantity = parseInt(qtyMatch[1]);
+                        const unitPrice = parseFloat(qtyMatch[2]);
+                        const totalPrice = parseFloat(totalMatch[1]);
+                        const upc = upcMatch[0];
+
+                        // Verify the math is correct
+                        if (Math.abs(quantity * unitPrice - totalPrice) < 0.01) {
+                            console.log(`✅ HyVee email pattern: "${itemName}" - ${quantity} × $${unitPrice} = $${totalPrice}`);
+
+                            const item = {
+                                id: Date.now() + Math.random(),
+                                name: cleanItemName(itemName),
+                                price: totalPrice,
+                                quantity: quantity,
+                                unitPrice: unitPrice,
+                                upc: upc,
+                                taxCode: '',
+                                category: guessCategory(itemName),
+                                location: guessLocation(itemName),
+                                rawText: `${itemName} (${upc}) ${quantity} × $${unitPrice}`,
+                                selected: true,
+                                needsReview: false
+                            };
+
+                            items.push(item);
+                            i += 4; // Skip the next 3 lines we just processed
+                            continue;
+                        }
+                    }
+
+                    i++;
+                }
+                // If we found items with email patterns, return early
+                if (items.length > 0) {
+                    console.log(`📧 Found ${items.length} items using HyVee email patterns`);
+                    console.log(`\n📋 FINAL RESULTS:`);
+                    console.log(`📊 Extracted ${items.length} items from ${lines.length} lines`);
+                    items.forEach((item, index) => {
+                        console.log(`${index + 1}. "${item.name}" - $${item.price} (${item.category})`);
+                    });
+                    return combineDuplicateItems(items);
+                }
             }
 
             // Look for Target item patterns specifically
