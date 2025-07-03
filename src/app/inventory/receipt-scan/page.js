@@ -1326,19 +1326,8 @@ export default function ReceiptScan() {
                     processTextReceipt(textContent);
                 };
                 reader.readAsText(file);
-
-            } else if (file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
-                // Handle HTML email receipts
-                setReceiptType('email');
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const htmlContent = e.target.result;
-                    processHTMLReceipt(htmlContent);
-                };
-                reader.readAsText(file);
-
             } else {
-                alert('Please select a text file (.txt) or HTML file (.html) only. Screenshots and .eml files are not supported for email receipts.');
+                alert('Please select a text file (.txt) only. Copy the email content and paste it into a text file first.');
                 if (emailReceiptInputRef.current) {
                     emailReceiptInputRef.current.value = '';
                 }
@@ -1417,66 +1406,6 @@ export default function ReceiptScan() {
         }
     }
 
-    // Replace your preprocessEmailReceiptImage function with this improved version
-    async function preprocessEmailReceiptImage(imageBlob) {
-        console.log('📧 Preprocessing email receipt screenshot...');
-
-        return new Promise((resolve) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-
-            img.onload = () => {
-                // Scale up the image for better OCR
-                const scale = 2; // Double the size
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
-
-                // Use better image smoothing
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-
-                // Draw scaled image
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                // Apply gentler enhancement
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                // Gentler contrast enhancement for email receipts
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    // Convert to grayscale
-                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-                    // Apply gentle contrast enhancement instead of harsh thresholding
-                    const contrast = 1.5; // Moderate contrast boost
-                    const brightness = 10; // Slight brightness boost
-
-                    let enhanced = contrast * (gray - 128) + 128 + brightness;
-                    enhanced = Math.max(0, Math.min(255, enhanced)); // Clamp to valid range
-
-                    data[i] = enhanced;
-                    data[i + 1] = enhanced;
-                    data[i + 2] = enhanced;
-                }
-
-                ctx.putImageData(imageData, 0, 0);
-                canvas.toBlob(resolve, 'image/png', 1.0);
-            };
-
-            img.onerror = (error) => {
-                console.error('Error loading image:', error);
-                resolve(imageBlob); // Fallback to original
-            };
-
-            img.src = URL.createObjectURL(imageBlob);
-        });
-    }
-
     // Add this new function to handle email receipt text parsing
     function preprocessEmailReceiptText(text) {
         console.log('📧 Preprocessing email receipt OCR text...');
@@ -1498,87 +1427,6 @@ export default function ReceiptScan() {
 
         console.log('📧 After email receipt preprocessing:', preprocessedText);
         return preprocessedText;
-    }
-
-// Add this function for HTML email receipt processing
-    async function processHTMLReceipt(htmlContent) {
-        setIsProcessing(true);
-        setStep('processing');
-        setProcessingStatus('Parsing HTML email receipt...');
-
-        try {
-            const items = parseHTMLReceiptContent(htmlContent);
-
-            if (items.length === 0) {
-                setProcessingStatus('Recording scan attempt...');
-                await recordReceiptScanUsage(0, 'no-items-found');
-
-                alert('❌ No items could be extracted from this email receipt. Please try with a screenshot instead.');
-                setStep('upload');
-                return;
-            }
-
-            setProcessingStatus('Recording successful scan...');
-
-            try {
-                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        scanType: 'email-receipt',
-                        itemsExtracted: items.length,
-                        ocrEngine: 'HTML-Parser'
-                    })
-                });
-
-                if (!recordResponse.ok) {
-                    console.error('Failed to record receipt scan usage');
-                } else {
-                    const recordData = await recordResponse.json();
-                    console.log('Receipt scan usage recorded:', recordData);
-                }
-            } catch (recordError) {
-                console.error('Error recording receipt scan usage:', recordError);
-            }
-
-            setExtractedItems(items);
-            setProcessingStatus('Complete!');
-            setStep('review');
-
-        } catch (error) {
-            console.error('HTML receipt processing error:', error);
-
-            try {
-                await recordReceiptScanUsage(0, 'processing-failed');
-            } catch (recordError) {
-                console.error('Failed to record failed scan:', recordError);
-            }
-
-            alert('❌ Error processing email receipt. Please try with a screenshot instead.');
-            setStep('upload');
-        } finally {
-            setIsProcessing(false);
-        }
-    }
-
-    function parseHTMLReceiptContent(htmlContent) {
-        console.log('📧 Parsing HTML email receipt...');
-
-        // Create a temporary DOM parser
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
-
-        const items = [];
-        const textContent = doc.body?.textContent || doc.body?.innerText || htmlContent;
-
-        // For now, just parse as text using existing function
-        // This can be enhanced later for specific email receipt formats
-        const lines = textContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-
-        console.log('📧 Converting HTML to text and parsing...');
-        return parseReceiptText(lines.join('\n'));
     }
 
     // ===============================================
@@ -3057,9 +2905,9 @@ export default function ReceiptScan() {
                                             <div className="text-4xl mb-2">📧</div>
                                             <div className="text-lg font-medium text-purple-700">Email Receipt</div>
                                             <div className="text-sm text-gray-500 text-center">
-                                                HTML or TXT files
+                                                Copy-paste to TXT file
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Copy-paste method</div>
+                                            <div className="text-xs text-gray-500 mt-1">100% accurate</div>
                                         </TouchEnhancedButton>
                                     </div>
 
@@ -3071,11 +2919,11 @@ export default function ReceiptScan() {
                                         onChange={handleReceiptFileUpload}
                                         className="hidden"
                                     />
-                                    {/* Update your email receipt file input */}
+                                    {/* Simplified email receipt file input - TXT only */}
                                     <input
                                         ref={emailReceiptInputRef}
                                         type="file"
-                                        accept="text/html,.html,.htm,text/plain,.txt"
+                                        accept="text/plain,.txt"
                                         onChange={handleEmailReceiptFileUpload}
                                         className="hidden"
                                     />
@@ -3132,42 +2980,32 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
-                                    {/* Email Receipt Pro Tips - Corrected for working methods only */}
-                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-amber-900 mb-2">💡 Email Receipt Upload Guide:</h4>
-                                        <div className="text-sm text-amber-800 space-y-3">
-                                            <div>
-                                                <p><strong>✅ Method 1: Copy & Paste (Recommended)</strong></p>
-                                                <div className="ml-4 space-y-1 text-amber-700">
-                                                    <p>1. Open your email receipt</p>
-                                                    <p>2. Select all text (Ctrl+A / Cmd+A)</p>
-                                                    <p>3. Copy the text (Ctrl+C / Cmd+C)</p>
-                                                    <p>4. Paste into a text editor (Notepad, TextEdit)</p>
-                                                    <p>5. Save as .txt file and upload here</p>
-                                                    <p className="font-medium text-amber-800">→ This gives 100% accuracy!</p>
+                                    {/* Email Receipt Simple Instructions */}
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-green-900 mb-2">📧 Email Receipt Instructions:</h4>
+                                        <div className="text-sm text-green-800">
+                                            <div className="bg-white border border-green-200 rounded p-3 mb-3">
+                                                <p className="font-medium text-green-900 mb-2">Simple 5-Step Process:</p>
+                                                <ol className="space-y-1 text-green-700">
+                                                    <li><strong>1.</strong> Open your email receipt</li>
+                                                    <li><strong>2.</strong> Select all text (Ctrl+A / Cmd+A)</li>
+                                                    <li><strong>3.</strong> Copy (Ctrl+C / Cmd+C)</li>
+                                                    <li><strong>4.</strong> Paste into Notepad/TextEdit and save as .txt</li>
+                                                    <li><strong>5.</strong> Upload the .txt file here</li>
+                                                </ol>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <p><strong>✅ Works with ALL email providers:</strong></p>
+                                                <div className="ml-4 text-green-700">
+                                                    <p>• Gmail, Outlook, Yahoo, Apple Mail, etc.</p>
+                                                    <p>• Perfect accuracy (no OCR errors)</p>
+                                                    <p>• Gets all items, quantities, and prices</p>
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <p><strong>✅ Method 2: Save as HTML (Advanced)</strong></p>
-                                                <div className="ml-4 space-y-1 text-amber-700">
-                                                    <p>• <strong>Chrome/Edge:</strong> Right-click → "Save as..." → "Web Page, Complete"</p>
-                                                    <p>• <strong>Firefox:</strong> File → "Save Page As..." → "Web Page, complete"</p>
-                                                    <p>• Upload the .html file here</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-red-100 border border-red-300 rounded p-2">
-                                                <p><strong>❌ These Don't Work:</strong></p>
-                                                <div className="ml-4 text-red-700">
-                                                    <p>• Screenshots (poor OCR quality)</p>
-                                                    <p>• .eml files (no readable content)</p>
-                                                    <p>• .msg files (not supported)</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-green-100 border border-green-300 rounded p-2">
-                                                <p><strong>🎯 Best Results:</strong> Copy-paste method works with ANY email provider (Gmail, Outlook, Yahoo, etc.)</p>
+                                            <div className="mt-3 p-2 bg-green-100 rounded">
+                                                <p className="font-medium text-green-800">🎯 Why this works: Pure text = 100% accurate parsing!</p>
                                             </div>
                                         </div>
                                     </div>
