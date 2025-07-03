@@ -1082,6 +1082,8 @@ export default function ReceiptScan() {
         // ENHANCED TEXT PREPROCESSING - Target-specific patterns
         let preprocessedText = text;
 
+        preprocessedText = preprocessedText.replace(/(\$\d+\.\d{2})\s+([A-Z])/g, '$1\n$2');
+
         // First, clean up and normalize the text
         preprocessedText = preprocessedText
             .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
@@ -1664,7 +1666,7 @@ export default function ReceiptScan() {
             }
 
             // Pattern 4: UPC + Name + Price + Tax (Sam's Club format, no $)
-            const samPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TF])$/i);
+            const samPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFO]+)$/i);
             if (samPattern) {
                 const [, productCode, name, priceStr, tax] = samPattern;
                 itemName = name.trim();
@@ -1738,6 +1740,20 @@ export default function ReceiptScan() {
                     upc = upcCode;
                     taxCode = tax || '';
                     console.log(`✅ Walmart pattern: "${itemName}" - $${price} (UPC: ${upcCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 10: Sam's Club with E prefix - E + UPC + Name + Price + Tax
+            if (!itemFound) {
+                const samEPattern = line.match(/^E\s+(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samEPattern) {
+                    const [, productCode, name, priceStr, tax] = samEPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club E pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
                     itemFound = true;
                 }
             }
