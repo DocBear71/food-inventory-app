@@ -1082,7 +1082,10 @@ export default function ReceiptScan() {
         // ENHANCED TEXT PREPROCESSING - Target-specific patterns
         let preprocessedText = text;
 
-        preprocessedText = preprocessedText.replace(/(\$\d+\.\d{2})\s+([A-Z])/g, '$1\n$2');
+        // Split lines that have multiple price patterns (for Trader Joe's receipts)
+        if (preprocessedText.includes('$') && preprocessedText.match(/\$\d+\.\d{2}\s+[A-Z]/)) {
+            preprocessedText = preprocessedText.replace(/(\$\d+\.\d{2})\s+([A-Z])/g, '$1\n$2');
+        }
 
         // First, clean up and normalize the text
         preprocessedText = preprocessedText
@@ -1119,6 +1122,16 @@ export default function ReceiptScan() {
 
             // Clean up multiple line breaks
             .replace(/\n+/g, '\n')
+            .trim();
+
+        // Add this AFTER the initial cleanup in parseReceiptText, around line 600:
+
+        // Clean up OCR artifacts where next line prefixes get stuck to current line
+        preprocessedText = preprocessedText
+            .replace(/(\d+\.\d{2})\s+([TFO]+)\s+([EI])\s*$/gm, '$1 $2')  // Remove trailing E/I
+            .replace(/(\d+\.\d{2})\s+([TFO]+)\s+([EI]\s+\d{8,})/g, '$1 $2\n$3') // Split when E/I starts new UPC
+            .replace(/([TFNO]+)\s+E\s+(\d{8,})/g, '$1\nE $2') // Split "N E 990310096" -> "N" + "E 990310096"
+            .replace(/([TFNO]+)\s+(\d{8,})/g, '$1\n$2') // Split "N 990310096" -> "N" + "990310096"
             .trim();
 
         console.log('🔧 After Target-specific splitting:');
@@ -1606,6 +1619,7 @@ export default function ReceiptScan() {
             let itemFound = false;
             let itemName = '';
             let price = 0;
+            let unitPrice = 0;
             let quantity = 1;
             let upc = '';
             let taxCode = '';
@@ -1810,6 +1824,35 @@ export default function ReceiptScan() {
                     upc = productCode;
                     taxCode = tax || '';
                     console.log(`✅ Sam's Club E+F pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+            // Pattern 14: Sam's Club quantity deals (like "0990065690 SAUSAGE 2 AT 1 FOR 13.84 27.68 O")
+            if (!itemFound) {
+                const samQuantityPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+)\s+AT\s+\d+\s+FOR\s+[\d.]+\s+(\d+\.\d{2,3})\s+([TFNO]+)$/i);
+                if (samQuantityPattern) {
+                    const [, productCode, name, qty, totalPriceStr, tax] = samQuantityPattern;
+                    itemName = name.trim();
+                    price = parseFloat(totalPriceStr);
+                    quantity = parseInt(qty);
+                    unitPrice = price / quantity;
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club quantity pattern: "${itemName}" - ${quantity} @ $${unitPrice.toFixed(2)} = $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
+                    itemFound = true;
+                }
+            }
+
+            // Pattern 15: Sam's Club with trailing artifacts (like "990310096 BUFFALOSAUCF 3.91 N E")
+            if (!itemFound) {
+                const samTrailingPattern = line.match(/^(\d{8,})\s+([A-Z][A-Z\s&\d]+?)\s+(\d+\.\d{2,3})\s+([TFNO]+)\s+[EI]*\s*$/i);
+                if (samTrailingPattern) {
+                    const [, productCode, name, priceStr, tax] = samTrailingPattern;
+                    itemName = name.trim();
+                    price = parseFloat(priceStr);
+                    upc = productCode;
+                    taxCode = tax || '';
+                    console.log(`✅ Sam's Club trailing pattern: "${itemName}" - $${price} (UPC: ${productCode}, Tax: ${taxCode})`);
                     itemFound = true;
                 }
             }
