@@ -19,9 +19,9 @@ const enhancedAuthOptions = {
                 httpOnly: true,
                 sameSite: 'lax',
                 path: '/',
-                secure: false, // Set to false for mobile
-                domain: undefined, // Let it default to current domain
-                maxAge: 24 * 60 * 60, // 24 hours
+                secure: false,
+                domain: '.docbearscomfort.kitchen',
+                maxAge: 24 * 60 * 60,
             },
         },
         callbackUrl: {
