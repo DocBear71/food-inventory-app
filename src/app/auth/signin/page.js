@@ -76,17 +76,19 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
-        // Enhanced native platform detection
+        // Enhanced platform detection
         let isNative = false;
         let isAndroid = false;
+        let deviceInfo = {};
+
         try {
             const { Capacitor } = await import('@capacitor/core');
             isNative = Capacitor.isNativePlatform();
 
             if (isNative) {
                 const { Device } = await import('@capacitor/device');
-                const info = await Device.getInfo();
-                isAndroid = info.platform === 'android';
+                deviceInfo = await Device.getInfo();
+                isAndroid = deviceInfo.platform === 'android';
             }
         } catch (e) {
             isNative = false;
@@ -94,9 +96,8 @@ function SignInContent() {
         }
 
         console.log('=== ENHANCED LOGIN ATTEMPT ===');
+        console.log('Platform Info:', { isNative, isAndroid, deviceInfo });
         console.log('Email:', formData.email);
-        console.log('Is native platform:', isNative);
-        console.log('Is Android:', isAndroid);
 
         try {
             const result = await signIn('credentials', {
@@ -118,18 +119,18 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful, enhanced session handling...');
+                console.log('Login successful, establishing session...');
                 setRedirecting(true);
 
-                // Enhanced session establishment for Android
-                const maxRetries = isAndroid ? 5 : 3;
+                // Enhanced session establishment with multiple strategies
+                const maxRetries = isAndroid ? 10 : 5; // More retries for Android
                 let sessionEstablished = false;
 
                 for (let attempt = 1; attempt <= maxRetries; attempt++) {
                     console.log(`Session establishment attempt ${attempt}/${maxRetries}`);
 
-                    // Progressive delay for Android
-                    const delay = isAndroid ? attempt * 1000 : 500;
+                    // Progressive delay, longer for Android
+                    const delay = isAndroid ? attempt * 1500 : attempt * 500;
                     await new Promise(resolve => setTimeout(resolve, delay));
 
                     try {
@@ -137,44 +138,72 @@ function SignInContent() {
                         const session = await getSession();
 
                         if (session?.user) {
-                            console.log('✅ Session confirmed on attempt', attempt);
-                            sessionEstablished = true;
+                            console.log('✅ NextAuth session confirmed:', session.user.email);
 
-                            // Enhanced mobile session storage for Android
-                            try {
-                                console.log('💾 Enhanced mobile session storage...');
+                            // AGGRESSIVE session storage for Android
+                            if (isAndroid) {
+                                console.log('🤖 Implementing aggressive Android session storage...');
 
-                                const mobileSessionData = {
+                                const sessionData = {
                                     user: session.user,
                                     expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
                                     timestamp: Date.now(),
-                                    platform: isAndroid ? 'android' : 'native'
+                                    platform: 'android',
+                                    deviceInfo: deviceInfo,
+                                    attempt: attempt
                                 };
 
-                                const success = await MobileSession.setSession(mobileSessionData);
-                                console.log('Mobile session storage result:', success);
+                                // Strategy 1: Mobile session storage
+                                try {
+                                    const success = await MobileSession.setSession(sessionData);
+                                    console.log('📱 MobileSession result:', success);
+                                } catch (e) {
+                                    console.error('📱 MobileSession failed:', e);
+                                }
 
-                                // Android-specific backup storage
-                                if (isAndroid && typeof localStorage !== 'undefined') {
-                                    localStorage.setItem('android-auth-session', JSON.stringify(mobileSessionData));
+                                // Strategy 2: Multiple localStorage keys
+                                try {
+                                    localStorage.setItem('android-auth-session', JSON.stringify(sessionData));
+                                    localStorage.setItem('android-session-backup', JSON.stringify(sessionData));
+                                    localStorage.setItem('auth-session-backup', JSON.stringify(sessionData));
                                     localStorage.setItem('android-last-login', Date.now().toString());
-                                    console.log('Android backup session stored');
+                                    localStorage.setItem('android-user-email', session.user.email);
+                                    localStorage.setItem('session-established', 'true');
+                                    console.log('💾 Multiple localStorage backups created');
+                                } catch (e) {
+                                    console.error('💾 localStorage failed:', e);
                                 }
 
-                                // Verify storage worked
-                                const verification = await MobileSession.getSession();
-                                if (verification?.user) {
-                                    console.log('🔍 Session verification successful:', {
-                                        email: verification.user.email,
-                                        isAdmin: verification.user.isAdmin
-                                    });
+                                // Strategy 3: SessionStorage
+                                try {
+                                    sessionStorage.setItem('android-active-session', JSON.stringify(sessionData));
+                                    sessionStorage.setItem('current-user', session.user.email);
+                                    console.log('🗂️ SessionStorage backups created');
+                                } catch (e) {
+                                    console.error('🗂️ SessionStorage failed:', e);
                                 }
 
-                            } catch (storageError) {
-                                console.error('💥 Session storage error:', storageError);
-                                // Continue anyway - NextAuth session might still work
+                                // Strategy 4: Force another session refresh
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                const verifySession = await getSession();
+                                console.log('🔄 Session verification:', !!verifySession);
+                            } else {
+                                // Standard session storage for non-Android
+                                try {
+                                    const sessionData = {
+                                        user: session.user,
+                                        expires: session.expires,
+                                        timestamp: Date.now(),
+                                        platform: 'web'
+                                    };
+                                    await MobileSession.setSession(sessionData);
+                                    localStorage.setItem('auth-session-backup', JSON.stringify(sessionData));
+                                } catch (e) {
+                                    console.error('Standard session storage failed:', e);
+                                }
                             }
 
+                            sessionEstablished = true;
                             break;
                         }
                     } catch (sessionError) {
@@ -184,49 +213,75 @@ function SignInContent() {
 
                 if (!sessionEstablished) {
                     console.error('❌ Failed to establish session after all attempts');
-                    // For Android, try a page reload as last resort
+
+                    // For Android, try manual session creation as last resort
                     if (isAndroid) {
-                        console.log('Android fallback: forcing page reload');
-                        setTimeout(() => {
-                            window.location.href = '/dashboard';
-                        }, 1000);
-                        return;
+                        console.log('🚨 Android emergency session creation...');
+                        try {
+                            const emergencySession = {
+                                user: { email: formData.email },
+                                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                                timestamp: Date.now(),
+                                platform: 'android-emergency'
+                            };
+
+                            localStorage.setItem('android-emergency-session', JSON.stringify(emergencySession));
+                            localStorage.setItem('emergency-redirect-flag', 'true');
+
+                            // Force redirect anyway
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 2000);
+                            return;
+                        } catch (e) {
+                            console.error('Emergency session creation failed:', e);
+                        }
                     }
+
+                    setError('Session establishment failed. Please try signing in again.');
+                    setLoading(false);
+                    setRedirecting(false);
+                    return;
                 }
 
-                console.log('Redirecting to dashboard...');
+                console.log('🎯 Redirecting to dashboard...');
 
+                // Platform-specific redirects with longer delays for Android
                 if (isAndroid) {
-                    console.log('Using Android-specific redirect');
-                    // For Android, use window.location.href with longer delay
+                    console.log('🤖 Android redirect with extended delay...');
                     setTimeout(() => {
+                        console.log('🤖 Executing Android redirect...');
                         window.location.href = '/dashboard';
-                    }, 2000);
+                    }, 3000); // 3 second delay for Android
                 } else if (isNative) {
-                    console.log('Using generic native platform redirect');
+                    console.log('📱 Native platform redirect...');
                     setTimeout(() => {
                         window.location.replace('/dashboard');
-                    }, 1000);
+                    }, 1500);
                 } else {
-                    console.log('Using web platform redirect');
+                    console.log('🌐 Web platform redirect...');
                     router.replace('/dashboard');
                 }
             }
         } catch (error) {
             console.error('Login exception:', error);
             setError('Network error. Please try again.');
-        } finally {
-            // Don't reset loading/redirecting immediately for Android
-            if (!isAndroid) {
+            setLoading(false);
+            setRedirecting(false);
+        }
+
+        // Keep loading state longer for Android
+        if (!isAndroid) {
+            setTimeout(() => {
                 setLoading(false);
                 setRedirecting(false);
-            } else {
-                // Keep loading state longer for Android
-                setTimeout(() => {
-                    setLoading(false);
-                    setRedirecting(false);
-                }, 3000);
-            }
+            }, 1000);
+        } else {
+            // Android keeps loading state for 4 seconds
+            setTimeout(() => {
+                setLoading(false);
+                setRedirecting(false);
+            }, 4000);
         }
     };
 
