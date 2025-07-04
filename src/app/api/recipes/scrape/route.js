@@ -1,8 +1,17 @@
-// file: /src/app/api/recipes/scrape/route.js - v2
+// file: /src/app/api/recipes/scrape/route.js - v3 - Enhanced with RecipeParser.js logic
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import {
+    parseIngredientLine,
+    parseInstructionLine,
+    extractMetadata,
+    extractNumericValue,
+    extractText,
+    parseDuration,
+    cleanTitle
+} from '@/lib/recipe-parsing-utils';
 
 // Popular recipe websites that typically use JSON-LD structured data
 const SUPPORTED_DOMAINS = [
@@ -19,179 +28,58 @@ const SUPPORTED_DOMAINS = [
     'yummly.com',
     'recipetineats.com',
     'thekitchn.com',
-    'bonappetit.com'
+    'bonappetit.com',
+    'allrecipes.co.uk',
+    'bbcgoodfood.com',
+    'jamieoliver.com',
+    'kingarthurbaking.com',
+    'seriouseats.com',
+    'foodandwine.com'
 ];
 
-// Helper function to extract numeric values from nutrition data
-const extractNumericValue = (value) => {
-    if (!value) return '';
-
-    // Convert to string if it's not already
-    const strValue = String(value);
-
-    // Extract just the number from strings like "203 kcal", "12 g", "9 mg"
-    const match = strValue.match(/^(\d+(?:\.\d+)?)/);
-    return match ? match[1] : '';
-};
-
-// Parse ingredient text into structured format
+// Enhanced ingredient parsing using RecipeParser.js logic
 function parseIngredientText(text) {
     if (!text) return { name: '', amount: '', unit: '', optional: false };
 
-    console.log('Parsing ingredient text:', text);
+    console.log('🥕 Server-side parsing ingredient text:', text);
 
-    // Clean up the text first
-    text = text.trim();
+    // Use the shared parsing utility
+    const parsed = parseIngredientLine(text);
 
-    // Convert fraction characters
-    text = text
-        .replace(/½/g, '1/2')
-        .replace(/¼/g, '1/4')
-        .replace(/¾/g, '3/4')
-        .replace(/⅓/g, '1/3')
-        .replace(/⅔/g, '2/3')
-        .replace(/⅛/g, '1/8');
-
-    // Enhanced unit lists including metric
-    const units = [
-        // US measurements
-        'cups?', 'cup', 'tablespoons?', 'tablespoon', 'tbsp', 'teaspoons?', 'teaspoon', 'tsp',
-        'pounds?', 'pound', 'lbs?', 'lb', 'ounces?', 'ounce', 'oz', 'fluid ounces?', 'fl oz',
-        'pints?', 'pint', 'pt', 'quarts?', 'quart', 'qt', 'gallons?', 'gallon', 'gal',
-
-        // Metric measurements
-        'grams?', 'gram', 'g', 'kilograms?', 'kilogram', 'kg', 'milligrams?', 'milligram', 'mg',
-        'liters?', 'liter', 'litres?', 'litre', 'l', 'milliliters?', 'milliliter', 'ml', 'millilitres?', 'millitre',
-
-        // Count-based units
-        'pieces?', 'piece', 'slices?', 'slice', 'cloves?', 'clove', 'bulbs?', 'bulb', 'ribs', 'rib',
-        'stalks?', 'stalk', 'sprigs?', 'sprig', 'leaves?', 'leaf', 'strips?', 'strip',
-        'wedges?', 'wedge', 'segments?', 'segment', 'cans?', 'can', 'jars?', 'jar',
-        'bottles?', 'bottle', 'packages?', 'package', 'boxes?', 'box', 'bags?', 'bag', 'bunches?', 'bunch',
-
-        // Size descriptors (treated as units for parsing purposes)
-        'large', 'medium', 'small', 'extra-large', 'extra large', 'xl',
-        'jumbo', 'mini', 'baby', 'whole', 'half', 'quarter'
-    ];
-
-    // Create a comprehensive pattern for all units - more specific matching
-    const unitPattern = units.join('|');
-
-    // Enhanced patterns for different ingredient formats - order matters!
-    const patterns = [
-        // "to taste" items like "salt, to taste" or "vegetable oil, to taste"
-        /^(.+?),?\s+to\s+taste$/i,
-
-        // "2 tablespoons vegetable oil" (amount + unit + ingredient)
-        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})\\s+(.+)$`, 'i'),
-
-        // "vegetable oil, 2 tablespoons" (ingredient first, then amount + unit)
-        new RegExp(`^([^,]+),\\s*(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(${unitPattern})$`, 'i'),
-
-        // "2 large eggs" or "1 medium onion" (amount + size + ingredient)
-        new RegExp(`^(\\d+(?:\\.\\d+)?(?:\\/\\d+)?)\\s+(large|medium|small|extra-large|extra large|xl|jumbo|mini|baby|whole)\\s+(.+)$`, 'i'),
-
-        // "1 (15 oz) can tomatoes" - handle parenthetical amounts
-        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s*\([^)]+\)\s*(.+)$/i,
-
-        // "2 pounds ground beef" - general amount + item (fallback)
-        /^(\d+(?:\.\d+)?(?:\/\d+)?)\s+(.+)$/i
-    ];
-
-    // Try each pattern in order
-    for (let i = 0; i < patterns.length; i++) {
-        const pattern = patterns[i];
-        const match = text.match(pattern);
-
-        if (match) {
-            console.log(`Pattern ${i + 1} matched:`, match);
-
-            // Handle "to taste" items (Pattern 1)
-            if (pattern.source.includes('to\\s+taste')) {
-                return {
-                    name: match[1].trim(),
-                    amount: 'to taste',
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle "amount + unit + ingredient" (Pattern 2)
-            if (i === 1) {
-                return {
-                    name: match[3].trim(),
-                    amount: match[1],
-                    unit: match[2],
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle "ingredient, amount + unit" (Pattern 3)
-            if (i === 2) {
-                return {
-                    name: match[1].trim(),
-                    amount: match[2],
-                    unit: match[3],
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle "amount + size + ingredient" (Pattern 4)
-            if (i === 3) {
-                return {
-                    name: `${match[2]} ${match[3]}`.trim(),
-                    amount: match[1],
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle parenthetical amounts (Pattern 5)
-            if (i === 4) {
-                return {
-                    name: match[2].trim(),
-                    amount: match[1],
-                    unit: '',
-                    optional: text.toLowerCase().includes('optional')
-                };
-            }
-
-            // Handle general amount + item (Pattern 6 - fallback)
-            if (i === 5) {
-                // Check if the second part starts with a known unit
-                const remainingText = match[2].trim();
-                const unitMatch = remainingText.match(new RegExp(`^(${unitPattern})\\s+(.+)$`, 'i'));
-
-                if (unitMatch) {
-                    return {
-                        name: unitMatch[2].trim(),
-                        amount: match[1],
-                        unit: unitMatch[1],
-                        optional: text.toLowerCase().includes('optional')
-                    };
-                } else {
-                    return {
-                        name: remainingText,
-                        amount: match[1],
-                        unit: '',
-                        optional: text.toLowerCase().includes('optional')
-                    };
-                }
-            }
-        }
+    // If parsing failed, return the text as ingredient name
+    if (!parsed) {
+        return {
+            name: text.trim(),
+            amount: '',
+            unit: '',
+            optional: text.toLowerCase().includes('optional')
+        };
     }
 
-    console.log('No pattern matched, using entire text as ingredient name');
-    // No pattern matched, return the whole text as ingredient name
-    return {
-        name: text.trim(),
-        amount: '',
-        unit: '',
-        optional: text.toLowerCase().includes('optional')
-    };
+    return parsed;
 }
 
-// Clean and normalize recipe data
+// Enhanced instruction parsing using RecipeParser.js logic
+function parseInstructionText(text, stepNumber) {
+    if (!text) return null;
+
+    console.log('📝 Server-side parsing instruction text:', text);
+
+    // Use the shared parsing utility
+    const parsed = parseInstructionLine(text, stepNumber);
+
+    // If parsing failed, return the text as instruction
+    if (!parsed) {
+        return {
+            step: stepNumber + 1,
+            instruction: text.trim()
+        };
+    }
+
+    return parsed;
+}
+
+// Clean and normalize recipe data with enhanced parsing
 function normalizeRecipeData(jsonLdData) {
     console.log('Raw JSON-LD data received:', JSON.stringify(jsonLdData, null, 2));
 
@@ -215,31 +103,7 @@ function normalizeRecipeData(jsonLdData) {
     console.log('Recipe ingredients raw:', recipe.recipeIngredient);
     console.log('Recipe instructions raw:', recipe.recipeInstructions);
 
-    // Helper function to extract text from various formats
-    const extractText = (data) => {
-        if (!data) return '';
-        if (typeof data === 'string') return data;
-        if (Array.isArray(data)) return data.join(' ');
-        if (data.text) return data.text;
-        if (data['@value']) return data['@value'];
-        return String(data);
-    };
-
-    // Helper function to parse duration (ISO 8601 format like "PT30M")
-    const parseDuration = (duration) => {
-        if (!duration) return null;
-        if (typeof duration === 'number') return duration;
-
-        const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-        if (match) {
-            const hours = parseInt(match[1] || 0);
-            const minutes = parseInt(match[2] || 0);
-            return hours * 60 + minutes;
-        }
-        return null;
-    };
-
-    // Helper function to normalize ingredients
+    // Enhanced ingredient normalization with RecipeParser.js logic
     const normalizeIngredients = (ingredients) => {
         if (!ingredients) return [];
 
@@ -264,7 +128,7 @@ function normalizeRecipeData(jsonLdData) {
                 text = ing.text || ing.ingredient || ing.name || extractText(ing);
             }
 
-            // Parse the text format
+            // Use enhanced parsing from RecipeParser.js
             const parsed = parseIngredientText(text);
 
             // Additional cleanup for common issues
@@ -291,19 +155,21 @@ function normalizeRecipeData(jsonLdData) {
         }).filter(ing => ing.name && ing.name.trim());
     };
 
-    // Helper function to normalize instructions
+    // Enhanced instruction normalization with RecipeParser.js logic
     const normalizeInstructions = (instructions) => {
         if (!instructions) return [];
 
-        return instructions.map(inst => {
+        return instructions.map((inst, index) => {
             let text = extractText(inst);
-            // Remove step numbers if they exist
-            text = text.replace(/^\d+\.\s*/, '').trim();
-            return text;
-        }).filter(inst => inst && inst.trim());
+
+            // Use enhanced parsing from RecipeParser.js
+            const parsed = parseInstructionText(text, index);
+
+            return parsed;
+        }).filter(inst => inst && inst.instruction && inst.instruction.trim());
     };
 
-    // Extract tags from various sources
+    // Enhanced tag extraction with auto-tagging from RecipeParser.js
     const extractTags = (recipe) => {
         const tags = new Set();
 
@@ -351,7 +217,7 @@ function normalizeRecipeData(jsonLdData) {
 
     // Build normalized recipe object
     const normalizedRecipe = {
-        title: extractText(recipe.name) || 'Imported Recipe',
+        title: cleanTitle(extractText(recipe.name)) || 'Imported Recipe',
         description: extractText(recipe.description) || '',
         ingredients: normalizeIngredients(recipe.recipeIngredient),
         instructions: normalizeInstructions(recipe.recipeInstructions),
@@ -360,9 +226,9 @@ function normalizeRecipeData(jsonLdData) {
         servings: recipe.recipeYield ? parseInt(Array.isArray(recipe.recipeYield) ? recipe.recipeYield[0] : recipe.recipeYield) : null,
         tags: extractTags(recipe),
         source: recipe.url || 'Imported from URL',
-        difficulty: 'medium', // Default, could be smarter based on cook time
+        difficulty: 'medium', // Will be enhanced by extractMetadata
 
-        // Nutrition information if available
+        // Enhanced nutrition information
         nutrition: recipe.nutrition ? {
             calories: {
                 value: parseFloat(extractNumericValue(recipe.nutrition.calories)) || 0,
@@ -408,12 +274,28 @@ function normalizeRecipeData(jsonLdData) {
         }
     };
 
+    // Enhanced metadata extraction with auto-tagging from RecipeParser.js
+    const fullText = [
+        normalizedRecipe.title,
+        normalizedRecipe.description,
+        ...normalizedRecipe.ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`),
+        ...normalizedRecipe.instructions.map(inst => inst.instruction)
+    ].join(' ');
+
+    extractMetadata(fullText, normalizedRecipe);
+
     // Quality check - if we didn't get enough ingredients, try alternative parsing
     if (normalizedRecipe.ingredients.length === 0 && recipe.recipeIngredient) {
         console.log('No ingredients parsed, trying fallback parsing...');
         normalizedRecipe.ingredients = recipe.recipeIngredient.map(ing => {
             const text = extractText(ing);
             console.log('Fallback parsing ingredient:', text);
+
+            // Try one more time with enhanced parsing
+            const parsed = parseIngredientText(text);
+            if (parsed && parsed.name) {
+                return parsed;
+            }
 
             // Simple fallback - just put everything in the name field
             return {
@@ -423,6 +305,27 @@ function normalizeRecipeData(jsonLdData) {
                 optional: text.toLowerCase().includes('optional')
             };
         }).filter(ing => ing.name && ing.name.trim());
+    }
+
+    // Quality check for instructions
+    if (normalizedRecipe.instructions.length === 0 && recipe.recipeInstructions) {
+        console.log('No instructions parsed, trying fallback parsing...');
+        normalizedRecipe.instructions = recipe.recipeInstructions.map((inst, index) => {
+            const text = extractText(inst);
+            console.log('Fallback parsing instruction:', text);
+
+            // Try one more time with enhanced parsing
+            const parsed = parseInstructionText(text, index);
+            if (parsed && parsed.instruction) {
+                return parsed;
+            }
+
+            // Simple fallback
+            return {
+                step: index + 1,
+                instruction: text.trim()
+            };
+        }).filter(inst => inst.instruction && inst.instruction.trim());
     }
 
     console.log('Final normalized recipe:', normalizedRecipe);
@@ -492,16 +395,16 @@ function extractJSONLD(html) {
     throw new Error('No recipe found in JSON-LD structured data');
 }
 
-// Main scraping function
+// Main scraping function with enhanced parsing
 async function scrapeRecipeFromUrl(url) {
-    console.log('Scraping recipe from URL:', url);
+    console.log('🌐 Scraping recipe from URL:', url);
 
     // Validate URL
     try {
         const urlObj = new URL(url);
         const domain = urlObj.hostname.replace('www.', '');
 
-        console.log('Domain:', domain);
+        console.log('🔍 Domain:', domain);
 
         // Check if domain is supported (optional warning)
         const isSupported = SUPPORTED_DOMAINS.some(supportedDomain =>
@@ -509,7 +412,7 @@ async function scrapeRecipeFromUrl(url) {
         );
 
         if (!isSupported) {
-            console.log('Warning: Domain not in supported list, but attempting anyway');
+            console.log('⚠️ Warning: Domain not in supported list, but attempting anyway');
         }
 
     } catch (error) {
@@ -532,11 +435,19 @@ async function scrapeRecipeFromUrl(url) {
     }
 
     const html = await response.text();
-    console.log('Fetched HTML, length:', html.length);
+    console.log('✅ Fetched HTML, length:', html.length);
 
-    // Extract and normalize recipe data
+    // Extract and normalize recipe data with enhanced parsing
     const jsonLdData = extractJSONLD(html);
     const normalizedRecipe = normalizeRecipeData(jsonLdData);
+
+    console.log('🎉 Successfully scraped and parsed recipe:', normalizedRecipe.title);
+    console.log('📊 Results: ', {
+        ingredients: normalizedRecipe.ingredients.length,
+        instructions: normalizedRecipe.instructions.length,
+        tags: normalizedRecipe.tags.length,
+        difficulty: normalizedRecipe.difficulty
+    });
 
     return normalizedRecipe;
 }
@@ -544,7 +455,7 @@ async function scrapeRecipeFromUrl(url) {
 // API Route Handler
 export async function POST(request) {
     try {
-        console.log('=== Recipe URL Scraping API START ===');
+        console.log('=== Enhanced Recipe URL Scraping API START ===');
 
         const session = await getServerSession(authOptions);
 
@@ -564,21 +475,36 @@ export async function POST(request) {
             );
         }
 
-        console.log('Scraping recipe from URL:', url);
+        console.log('🚀 Scraping recipe from URL:', url);
 
-        // Scrape the recipe
+        // Scrape the recipe with enhanced parsing
         const scrapedRecipe = await scrapeRecipeFromUrl(url);
 
-        console.log('Successfully scraped recipe:', scrapedRecipe.title);
+        console.log('✅ Successfully scraped recipe:', scrapedRecipe.title);
+        console.log('📈 Enhanced parsing results:', {
+            ingredients: scrapedRecipe.ingredients.length,
+            instructions: scrapedRecipe.instructions.length,
+            autoTags: scrapedRecipe.tags.length,
+            hasPrepTime: !!scrapedRecipe.prepTime,
+            hasCookTime: !!scrapedRecipe.cookTime,
+            hasServings: !!scrapedRecipe.servings,
+            difficulty: scrapedRecipe.difficulty
+        });
 
         return NextResponse.json({
             success: true,
             recipe: scrapedRecipe,
-            message: 'Recipe successfully imported from URL'
+            message: 'Recipe successfully imported and parsed with enhanced logic',
+            stats: {
+                ingredients: scrapedRecipe.ingredients.length,
+                instructions: scrapedRecipe.instructions.length,
+                tags: scrapedRecipe.tags.length,
+                difficulty: scrapedRecipe.difficulty
+            }
         });
 
     } catch (error) {
-        console.error('=== Recipe URL Scraping Error ===');
+        console.error('=== Enhanced Recipe URL Scraping Error ===');
         console.error('Error:', error.message);
         console.error('Stack:', error.stack);
 
@@ -591,13 +517,16 @@ export async function POST(request) {
             errorMessage = 'Could not access the recipe page. Please check the URL and try again.';
         } else if (error.message.includes('No recipe found')) {
             errorMessage = 'No recipe data found on this page. This website might not be supported yet.';
+        } else if (error.message.includes('Unauthorized')) {
+            errorMessage = 'Please log in to import recipes.';
         }
 
         return NextResponse.json(
             {
                 error: errorMessage,
                 details: error.message,
-                supportedSites: 'Try URLs from: AllRecipes, Food Network, Epicurious, Simply Recipes, Cookist, and other major recipe sites.'
+                supportedSites: 'Try URLs from: AllRecipes, Food Network, Epicurious, Simply Recipes, Cookist, BBC Good Food, Jamie Oliver, King Arthur Baking, Serious Eats, and other major recipe sites.',
+                enhancedParsing: 'This version includes enhanced ingredient and instruction parsing with auto-tagging capabilities.'
             },
             { status: 400 }
         );
