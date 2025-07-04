@@ -1,7 +1,6 @@
-// file: /src/lib/api-config.js - Enhanced with automatic session injection
+// file: /src/lib/api-config.js - Safe session injection without blocking
 
 import { Capacitor } from '@capacitor/core';
-import { MobileSession } from '@/lib/mobile-session';
 
 // Your Vercel deployment URL
 const PRODUCTION_API_URL = 'https://www.docbearscomfort.kitchen';
@@ -24,14 +23,24 @@ export function getApiUrl(endpoint) {
     return `${baseUrl}${cleanEndpoint}`;
 }
 
-// Enhanced function to get session headers for mobile
+// Safe function to get session headers for mobile (non-blocking)
 export async function getSessionHeaders() {
     const headers = {};
 
-    // For mobile platforms, try to get session data and add it to headers
+    // For mobile platforms, try to get session data but don't block if it fails
     if (Capacitor.isNativePlatform()) {
         try {
-            const mobileSession = await MobileSession.getSession();
+            // Dynamic import to avoid initialization issues
+            const { MobileSession } = await import('@/lib/mobile-session');
+
+            // Add timeout to prevent hanging
+            const sessionPromise = MobileSession.getSession();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Session timeout')), 1000)
+            );
+
+            const mobileSession = await Promise.race([sessionPromise, timeoutPromise]);
+
             if (mobileSession?.user) {
                 // Add session data to headers
                 headers['X-User-Email'] = mobileSession.user.email;
@@ -51,35 +60,61 @@ export async function getSessionHeaders() {
                 console.log('📱 Added mobile session headers for API call');
             }
         } catch (error) {
-            console.warn('Could not add mobile session to headers:', error);
+            console.warn('Could not add mobile session to headers (non-blocking):', error.message);
+            // Don't block the request, just proceed without session headers
         }
     }
 
     return headers;
 }
 
-// Override the global fetch function for mobile platforms
+// Safer fetch override that doesn't block initialization
 if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-    const originalFetch = window.fetch;
+    // Wait for the app to be fully initialized before overriding fetch
+    document.addEventListener('DOMContentLoaded', () => {
+        const originalFetch = window.fetch;
 
-    window.fetch = async function(url, options = {}) {
-        // Only enhance API calls (not external URLs)
-        if (typeof url === 'string' && (url.startsWith('/api/') || url.includes('/api/'))) {
-            const sessionHeaders = await getSessionHeaders();
+        window.fetch = async function(url, options = {}) {
+            // Only enhance API calls (not external URLs)
+            if (typeof url === 'string' && (url.startsWith('/api/') || url.includes('/api/'))) {
+                try {
+                    const sessionHeaders = await getSessionHeaders();
 
-            const enhancedOptions = {
-                ...options,
-                headers: {
-                    ...sessionHeaders,
-                    ...options.headers
+                    const enhancedOptions = {
+                        ...options,
+                        headers: {
+                            ...sessionHeaders,
+                            ...options.headers
+                        }
+                    };
+
+                    console.log('🌐 Enhanced API call to:', url);
+                    return originalFetch.call(this, url, enhancedOptions);
+                } catch (error) {
+                    console.warn('Error enhancing API call, proceeding without session headers:', error);
+                    // If session header injection fails, proceed with original options
+                    return originalFetch.call(this, url, options);
                 }
-            };
+            }
 
-            console.log('🌐 Enhanced API call to:', url);
-            return originalFetch.call(this, url, enhancedOptions);
+            // For non-API calls, use original fetch
+            return originalFetch.call(this, url, options);
+        };
+    });
+}
+
+// Alternative approach: Manual session injection function
+export async function fetchWithSession(url, options = {}) {
+    const sessionHeaders = await getSessionHeaders();
+
+    const enhancedOptions = {
+        ...options,
+        headers: {
+            ...sessionHeaders,
+            ...options.headers
         }
-
-        // For non-API calls, use original fetch
-        return originalFetch.call(this, url, options);
     };
+
+    console.log('🌐 Making session-aware API call to:', url);
+    return fetch(url, enhancedOptions);
 }
