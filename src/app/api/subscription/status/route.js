@@ -4,9 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
-import { withAuth } from '@/lib/api-auth';
 
-export const GET = withAuth(async (request) => {
+export async function GET(request) {
     try {
         console.log('🔍 === SUBSCRIPTION API DEBUG START ===');
         console.log('Subscription status API called');
@@ -352,4 +351,4 @@ export const GET = withAuth(async (request) => {
             { status: 500 }
         );
     }
-});
+}

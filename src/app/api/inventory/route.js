@@ -6,12 +6,12 @@ import {authOptions} from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import {UserInventory, User} from '@/lib/models';
 import {FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier} from '@/lib/subscription-config';
-import { withAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export const GET = withAuth(async (request) => {
+// GET - Fetch user's inventory
+export async function GET(request) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -47,7 +47,7 @@ export const GET = withAuth(async (request) => {
             {status: 500}
         );
     }
-});
+}
 
 // POST - Add item to inventory (with subscription limits and duplicate detection)
 export async function POST(request) {

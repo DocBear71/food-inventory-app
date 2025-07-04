@@ -1,187 +1,23 @@
 'use client';
-// file: /src/app/page.js v5 - Enhanced debugging for mobile PWA
+// file: /src/app/page.js v3 - FIXED: Show landing page when not authenticated
 
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import {useEffect} from 'react';
+import {useRouter} from 'next/navigation';
 import Link from 'next/link';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 export default function Home() {
-    const { data: session, status } = useSafeSession();
+    const {data: session, status} = useSafeSession();
     const router = useRouter();
-    const [debugInfo, setDebugInfo] = useState({});
-    const [showDebug, setShowDebug] = useState(false);
-    const [isAndroid, setIsAndroid] = useState(false);
-    const [isNative, setIsNative] = useState(false);
 
     useEffect(() => {
-        // Enhanced debugging for mobile PWA
-        const collectDebugInfo = async () => {
-            let androidDetected = false;
-            let nativeDetected = false;
-
-            // Platform detection
-            try {
-                const { Capacitor } = await import('@capacitor/core');
-                nativeDetected = Capacitor.isNativePlatform();
-
-                if (nativeDetected) {
-                    const { Device } = await import('@capacitor/device');
-                    const info = await Device.getInfo();
-                    androidDetected = info.platform === 'android';
-                }
-            } catch (e) {
-                // Not available - web environment
-            }
-
-            // Update state
-            setIsAndroid(androidDetected);
-            setIsNative(nativeDetected);
-
-            const debug = {
-                timestamp: new Date().toISOString(),
-                status: status,
-                hasSession: !!session,
-                sessionUser: session?.user?.email || 'none',
-                userAgent: navigator.userAgent,
-                isStandalone: window.matchMedia('(display-mode: standalone)').matches,
-                isPWA: window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches,
-                isNative: nativeDetected,
-                isAndroid: androidDetected,
-                windowLocation: window.location.href,
-                windowWidth: window.innerWidth,
-                localStorage: {},
-                sessionStorage: {}
-            };
-
-            // Check storage
-            try {
-                if (typeof localStorage !== 'undefined') {
-                    debug.localStorage = {
-                        hasAndroidSession: !!localStorage.getItem('android-session-backup'),
-                        hasAuthBackup: !!localStorage.getItem('auth-session-backup'),
-                        androidLastSeen: localStorage.getItem('android-last-seen'),
-                        keys: Object.keys(localStorage)
-                    };
-                }
-            } catch (e) {
-                debug.localStorage = { error: e.message };
-            }
-
-            try {
-                if (typeof sessionStorage !== 'undefined') {
-                    debug.sessionStorage = {
-                        hasActiveSession: !!sessionStorage.getItem('android-active-session'),
-                        keys: Object.keys(sessionStorage)
-                    };
-                }
-            } catch (e) {
-                debug.sessionStorage = { error: e.message };
-            }
-
-            // Check mobile session
-            try {
-                const { MobileSession } = await import('@/lib/mobile-session-simple');
-                const mobileSession = await MobileSession.getSession();
-                debug.mobileSession = {
-                    exists: !!mobileSession,
-                    user: mobileSession?.user?.email || 'none'
-                };
-            } catch (e) {
-                debug.mobileSession = { error: e.message };
-            }
-
-            console.log('🏠 Home page debug info:', debug);
-            setDebugInfo(debug);
-        };
-
-        collectDebugInfo();
-
-        // Enhanced session checking with debug
-        const checkSession = async () => {
-            console.log('🔍 Home page session check:', {
-                status,
-                hasSession: !!session,
-                sessionUser: session?.user?.email,
-                isPWA: window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
-            });
-
-            // If authenticated, redirect to dashboard
-            if (status === 'authenticated' && session?.user) {
-                console.log('✅ Authenticated user found, redirecting to dashboard');
-                router.push('/dashboard');
-                return;
-            }
-
-            // For PWA, check mobile session storage as backup
-            if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
-                console.log('📱 PWA detected, checking mobile session storage...');
-
-                try {
-                    const { MobileSession } = await import('@/lib/mobile-session-simple');
-                    const mobileSession = await MobileSession.getSession();
-
-                    if (mobileSession?.user) {
-                        console.log('📱 Mobile session found:', mobileSession.user.email);
-                        console.log('📱 Attempting redirect to dashboard...');
-                        router.push('/dashboard');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('📱 Mobile session check failed:', error);
-                }
-
-                // Check localStorage backup for PWA
-                try {
-                    const backupSession = localStorage.getItem('auth-session-backup');
-                    if (backupSession) {
-                        const parsed = JSON.parse(backupSession);
-                        if (parsed.user) {
-                            console.log('📱 PWA backup session found:', parsed.user.email);
-                            router.push('/dashboard');
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.error('📱 PWA backup session check failed:', error);
-                }
-            }
-
-            console.log('ℹ️ No valid session found, staying on landing page');
-        };
-
-        if (status !== 'loading') {
-            checkSession();
+        // FIXED: Only redirect if authenticated
+        if (status === 'authenticated' && session) {
+            router.push('/dashboard');
         }
     }, [status, session, router]);
-
-    // Show debug info on triple tap (for mobile testing)
-    useEffect(() => {
-        let tapCount = 0;
-        let tapTimer;
-
-        const handleTap = () => {
-            tapCount++;
-            clearTimeout(tapTimer);
-
-            if (tapCount === 3) {
-                setShowDebug(prev => !prev);
-                tapCount = 0;
-            } else {
-                tapTimer = setTimeout(() => {
-                    tapCount = 0;
-                }, 500);
-            }
-        };
-
-        document.addEventListener('click', handleTap);
-        return () => {
-            document.removeEventListener('click', handleTap);
-            clearTimeout(tapTimer);
-        };
-    }, []);
 
     if (status === 'loading') {
         return (
@@ -189,33 +25,18 @@ export default function Home() {
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                        <div className="text-lg text-gray-600">Loading session...</div>
+                        <div className="text-lg text-gray-600">Loading...</div>
                     </div>
                 </div>
             </MobileOptimizedLayout>
         );
     }
 
+    // FIXED: Show landing page when not authenticated (removed the problematic return null)
+    // If user is authenticated, the useEffect will redirect them to dashboard
     return (
         <MobileOptimizedLayout>
             <div className="min-h-screen bg-gray-50 flex flex-col">
-                {/* Debug Panel (triple tap to show/hide) */}
-                {showDebug && (
-                    <div className="fixed top-0 left-0 right-0 bg-red-100 border-b-2 border-red-300 p-4 z-50 max-h-64 overflow-y-auto text-xs">
-                        <h3 className="font-bold mb-2">Debug Info (Triple tap to hide)</h3>
-                        <div className="space-y-1">
-                            <div><strong>Status:</strong> {debugInfo.status}</div>
-                            <div><strong>Session:</strong> {debugInfo.hasSession ? 'Yes' : 'No'}</div>
-                            <div><strong>User:</strong> {debugInfo.sessionUser}</div>
-                            <div><strong>Native:</strong> {debugInfo.isNative ? 'Yes' : 'No'}</div>
-                            <div><strong>Android:</strong> {debugInfo.isAndroid ? 'Yes' : 'No'}</div>
-                            <div><strong>PWA:</strong> {debugInfo.isPWA ? 'Yes' : 'No'}</div>
-                            <div><strong>Mobile Session:</strong> {debugInfo.mobileSession?.exists ? 'Yes' : 'No'}</div>
-                            <div><strong>localStorage:</strong> {JSON.stringify(debugInfo.localStorage)}</div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Header */}
                 <header className="bg-white shadow">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -245,18 +66,7 @@ export default function Home() {
                 </header>
                 <br/>
                 <br/>
-
-                {/* Enhanced debug info for Android */}
-                {isAndroid && process.env.NODE_ENV === 'development' && (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 mx-4 rounded">
-                        <h3 className="font-bold">Android Debug Info:</h3>
-                        <p>Status: {status}</p>
-                        <p>Session: {session ? 'Yes' : 'No'}</p>
-                        <p>User: {session?.user?.email || 'None'}</p>
-                    </div>
-                )}
-
-                {/* Rest of the landing page content remains the same */}
+                {/* Hero section */}
                 <main className="flex-1">
                     <div className="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
                         <div className="text-center">

@@ -76,28 +76,18 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
-        // Enhanced platform detection
+        // Use dynamic import for Capacitor to avoid require() issues
         let isNative = false;
-        let isAndroid = false;
-        let deviceInfo = {};
-
         try {
             const { Capacitor } = await import('@capacitor/core');
             isNative = Capacitor.isNativePlatform();
-
-            if (isNative) {
-                const { Device } = await import('@capacitor/device');
-                deviceInfo = await Device.getInfo();
-                isAndroid = deviceInfo.platform === 'android';
-            }
         } catch (e) {
             isNative = false;
-            isAndroid = false;
         }
 
-        console.log('=== ENHANCED LOGIN ATTEMPT ===');
-        console.log('Platform Info:', { isNative, isAndroid, deviceInfo });
+        console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
+        console.log('Is native platform:', isNative);
 
         try {
             const result = await signIn('credentials', {
@@ -119,169 +109,93 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login successful, establishing session...');
+                console.log('Login appears successful, checking session...');
                 setRedirecting(true);
 
-                // Enhanced session establishment with multiple strategies
-                const maxRetries = isAndroid ? 10 : 5; // More retries for Android
-                let sessionEstablished = false;
+                // Wait a moment for session to be established
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-                for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                    console.log(`Session establishment attempt ${attempt}/${maxRetries}`);
+                // Check if session was actually created
+                const { getSession } = await import('next-auth/react');
+                const session = await getSession();
+                console.log('Session after login:', session);
 
-                    // Progressive delay, longer for Android
-                    const delay = isAndroid ? attempt * 1500 : attempt * 500;
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                if (session) {
+                    console.log('Session confirmed, user data:', {
+                        email: session.user?.email,
+                        name: session.user?.name,
+                        id: session.user?.id,
+                        // Log any admin/role fields
+                        ...session.user
+                    });
 
                     try {
-                        const { getSession } = await import('next-auth/react');
-                        const session = await getSession();
+                        console.log('💾 Storing session in mobile session storage...');
+                        console.log('📋 Session data being stored:', {
+                            email: session.user.email,
+                            subscriptionTier: session.user.subscriptionTier,
+                            effectiveTier: session.user.effectiveTier,
+                            isAdmin: session.user.isAdmin,
+                            subscriptionStatus: session.user.subscriptionStatus
+                        });
 
-                        if (session?.user) {
-                            console.log('✅ NextAuth session confirmed:', session.user.email);
+                        // Create the session object that mobile session expects
+                        const mobileSessionData = {
+                            user: session.user,  // **FIXED: Use session.user**
+                            expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                        };
 
-                            // AGGRESSIVE session storage for Android
-                            if (isAndroid) {
-                                console.log('🤖 Implementing aggressive Android session storage...');
+                        const success = await MobileSession.setSession(mobileSessionData);
 
-                                const sessionData = {
-                                    user: session.user,
-                                    expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                                    timestamp: Date.now(),
-                                    platform: 'android',
-                                    deviceInfo: deviceInfo,
-                                    attempt: attempt
-                                };
+                        if (success) {
+                            console.log('✅ Mobile session stored successfully');
 
-                                // Strategy 1: Mobile session storage
-                                try {
-                                    const success = await MobileSession.setSession(sessionData);
-                                    console.log('📱 MobileSession result:', success);
-                                } catch (e) {
-                                    console.error('📱 MobileSession failed:', e);
-                                }
-
-                                // Strategy 2: Multiple localStorage keys
-                                try {
-                                    localStorage.setItem('android-auth-session', JSON.stringify(sessionData));
-                                    localStorage.setItem('android-session-backup', JSON.stringify(sessionData));
-                                    localStorage.setItem('auth-session-backup', JSON.stringify(sessionData));
-                                    localStorage.setItem('android-last-login', Date.now().toString());
-                                    localStorage.setItem('android-user-email', session.user.email);
-                                    localStorage.setItem('session-established', 'true');
-                                    console.log('💾 Multiple localStorage backups created');
-                                } catch (e) {
-                                    console.error('💾 localStorage failed:', e);
-                                }
-
-                                // Strategy 3: SessionStorage
-                                try {
-                                    sessionStorage.setItem('android-active-session', JSON.stringify(sessionData));
-                                    sessionStorage.setItem('current-user', session.user.email);
-                                    console.log('🗂️ SessionStorage backups created');
-                                } catch (e) {
-                                    console.error('🗂️ SessionStorage failed:', e);
-                                }
-
-                                // Strategy 4: Force another session refresh
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                                const verifySession = await getSession();
-                                console.log('🔄 Session verification:', !!verifySession);
+                            // Verify it worked
+                            const verification = await MobileSession.getSession();
+                            if (verification?.user) {
+                                console.log('🔍 Stored mobile session verification:', {
+                                    email: verification.user.email,
+                                    subscriptionTier: verification.user.subscriptionTier,
+                                    effectiveTier: verification.user.effectiveTier,
+                                    isAdmin: verification.user.isAdmin
+                                });
                             } else {
-                                // Standard session storage for non-Android
-                                try {
-                                    const sessionData = {
-                                        user: session.user,
-                                        expires: session.expires,
-                                        timestamp: Date.now(),
-                                        platform: 'web'
-                                    };
-                                    await MobileSession.setSession(sessionData);
-                                    localStorage.setItem('auth-session-backup', JSON.stringify(sessionData));
-                                } catch (e) {
-                                    console.error('Standard session storage failed:', e);
-                                }
+                                console.error('❌ Verification failed - mobile session empty');
                             }
-
-                            sessionEstablished = true;
-                            break;
+                        } else {
+                            console.error('❌ Failed to store mobile session');
                         }
-                    } catch (sessionError) {
-                        console.error(`Session check attempt ${attempt} failed:`, sessionError);
-                    }
-                }
-
-                if (!sessionEstablished) {
-                    console.error('❌ Failed to establish session after all attempts');
-
-                    // For Android, try manual session creation as last resort
-                    if (isAndroid) {
-                        console.log('🚨 Android emergency session creation...');
-                        try {
-                            const emergencySession = {
-                                user: { email: formData.email },
-                                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                                timestamp: Date.now(),
-                                platform: 'android-emergency'
-                            };
-
-                            localStorage.setItem('android-emergency-session', JSON.stringify(emergencySession));
-                            localStorage.setItem('emergency-redirect-flag', 'true');
-
-                            // Force redirect anyway
-                            setTimeout(() => {
-                                window.location.href = '/dashboard';
-                            }, 2000);
-                            return;
-                        } catch (e) {
-                            console.error('Emergency session creation failed:', e);
-                        }
+                    } catch (error) {
+                        console.error('💥 Error storing mobile session:', error);
                     }
 
-                    setError('Session establishment failed. Please try signing in again.');
-                    setLoading(false);
-                    setRedirecting(false);
-                    return;
-                }
+                    console.log('Redirecting to dashboard...');
 
-                console.log('🎯 Redirecting to dashboard...');
-
-                // Platform-specific redirects with longer delays for Android
-                if (isAndroid) {
-                    console.log('🤖 Android redirect with extended delay...');
-                    setTimeout(() => {
-                        console.log('🤖 Executing Android redirect...');
-                        window.location.href = '/dashboard';
-                    }, 3000); // 3 second delay for Android
-                } else if (isNative) {
-                    console.log('📱 Native platform redirect...');
+                    if (isNative) {
+                        console.log('Using native platform redirect');
+                        // For native, use window.location with a longer delay
+                        setTimeout(() => {
+                            window.location.replace('/dashboard');
+                        }, 1000);
+                    } else {
+                        console.log('Using web platform redirect');
+                        // For web, use router.replace instead of push to prevent back button issues
+                        router.replace('/dashboard');
+                    }
+                } else {
+                    console.log('No session found after successful login');
+                    // Try forcing a page reload to establish session
                     setTimeout(() => {
                         window.location.replace('/dashboard');
-                    }, 1500);
-                } else {
-                    console.log('🌐 Web platform redirect...');
-                    router.replace('/dashboard');
+                    }, 1000);
                 }
             }
         } catch (error) {
             console.error('Login exception:', error);
             setError('Network error. Please try again.');
+        } finally {
             setLoading(false);
-            setRedirecting(false);
-        }
-
-        // Keep loading state longer for Android
-        if (!isAndroid) {
-            setTimeout(() => {
-                setLoading(false);
-                setRedirecting(false);
-            }, 1000);
-        } else {
-            // Android keeps loading state for 4 seconds
-            setTimeout(() => {
-                setLoading(false);
-                setRedirecting(false);
-            }, 4000);
+            setRedirecting(false); // ADDED: Reset redirecting state
         }
     };
 

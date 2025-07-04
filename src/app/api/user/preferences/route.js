@@ -5,9 +5,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
-import { withAuth } from '@/lib/api-auth';
 
-export const GET = withAuth(async (request) => {
+// GET - Fetch user preferences
+export async function GET(request) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -51,7 +51,7 @@ export const GET = withAuth(async (request) => {
             { status: 500 }
         );
     }
-});
+}
 
 // PUT - Update user preferences
 export async function PUT(request) {

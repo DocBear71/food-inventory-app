@@ -11,7 +11,6 @@ import ViewportHandler from '@/components/ViewportHandler';
 
 // ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
-import SessionBridge from "@/components/SessionBridge";
 
 const inter = Inter({subsets: ['latin']});
 
@@ -75,7 +74,6 @@ export default async function RootLayout({children}) {
             {isNativeMobileApp ? (
                 // FIXED: Native mobile apps with proper auth handling
                 <SessionProvider>
-                    {/* <SessionBridge /> */}
                     <SubscriptionProvider>
                         <NativeAuthHandler>
                             {children}
@@ -85,7 +83,6 @@ export default async function RootLayout({children}) {
             ) : (
                 // Web builds (including PWA) - full PWA functionality
                 <SessionProvider>
-                    {/* <SessionBridge /> */}
                     <SubscriptionProvider>
                         <PWAWrapper>
                             {children}
