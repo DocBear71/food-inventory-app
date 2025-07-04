@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v4 - Fixed native platform detection and redirect
+// file: /src/app/auth/signin/page.js v5 - FIXED: Direct session storage for mobile
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -109,85 +109,69 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful, checking session...');
+                console.log('Login appears successful');
                 setRedirecting(true);
 
-                // Wait a moment for session to be established
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                // Check if session was actually created
-                const { getSession } = await import('next-auth/react');
-                const session = await getSession();
-                console.log('Session after login:', session);
-
-                if (session) {
-                    console.log('Session confirmed, user data:', {
-                        email: session.user?.email,
-                        name: session.user?.name,
-                        id: session.user?.id,
-                        // Log any admin/role fields
-                        ...session.user
-                    });
+                if (isNative) {
+                    // For native platforms, we need to get the session data directly
+                    // since NextAuth session retrieval might fail
+                    console.log('🔄 Native platform - fetching session data directly...');
 
                     try {
-                        console.log('💾 Storing session in mobile session storage...');
-                        console.log('📋 Session data being stored:', {
-                            email: session.user.email,
-                            subscriptionTier: session.user.subscriptionTier,
-                            effectiveTier: session.user.effectiveTier,
-                            isAdmin: session.user.isAdmin,
-                            subscriptionStatus: session.user.subscriptionStatus
+                        // Make direct API call to get user data
+                        const response = await fetch(getApiUrl('/api/auth/session'), {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                         });
 
-                        // Create the session object that mobile session expects
-                        const mobileSessionData = {
-                            user: session.user,  // **FIXED: Use session.user**
-                            expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                        };
+                        if (response.ok) {
+                            const sessionData = await response.json();
+                            console.log('✅ Direct session fetch successful:', sessionData);
 
-                        const success = await MobileSession.setSession(mobileSessionData);
+                            if (sessionData?.user) {
+                                // Store the session in mobile storage
+                                const mobileSessionData = {
+                                    user: sessionData.user,
+                                    expires: sessionData.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                                };
 
-                        if (success) {
-                            console.log('✅ Mobile session stored successfully');
+                                const success = await MobileSession.setSession(mobileSessionData);
+                                console.log('📱 Mobile session storage result:', success);
 
-                            // Verify it worked
-                            const verification = await MobileSession.getSession();
-                            if (verification?.user) {
-                                console.log('🔍 Stored mobile session verification:', {
-                                    email: verification.user.email,
-                                    subscriptionTier: verification.user.subscriptionTier,
-                                    effectiveTier: verification.user.effectiveTier,
-                                    isAdmin: verification.user.isAdmin
-                                });
+                                if (success) {
+                                    console.log('✅ Session stored successfully, redirecting...');
+                                    setTimeout(() => {
+                                        window.location.replace('/dashboard');
+                                    }, 1000);
+                                } else {
+                                    console.error('❌ Failed to store mobile session');
+                                    // Still try to redirect, maybe the web session will work
+                                    setTimeout(() => {
+                                        window.location.replace('/dashboard');
+                                    }, 1000);
+                                }
                             } else {
-                                console.error('❌ Verification failed - mobile session empty');
+                                console.error('❌ No user data in session response');
+                                // Fallback: try to get the session a different way
+                                await handleFallbackSessionRetrieval(isNative);
                             }
                         } else {
-                            console.error('❌ Failed to store mobile session');
+                            console.error('❌ Direct session fetch failed:', response.status);
+                            // Fallback: try to get the session a different way
+                            await handleFallbackSessionRetrieval(isNative);
                         }
-                    } catch (error) {
-                        console.error('💥 Error storing mobile session:', error);
-                    }
-
-                    console.log('Redirecting to dashboard...');
-
-                    if (isNative) {
-                        console.log('Using native platform redirect');
-                        // For native, use window.location with a longer delay
-                        setTimeout(() => {
-                            window.location.replace('/dashboard');
-                        }, 1000);
-                    } else {
-                        console.log('Using web platform redirect');
-                        // For web, use router.replace instead of push to prevent back button issues
-                        router.replace('/dashboard');
+                    } catch (fetchError) {
+                        console.error('❌ Error during direct session fetch:', fetchError);
+                        // Fallback: try to get the session a different way
+                        await handleFallbackSessionRetrieval(isNative);
                     }
                 } else {
-                    console.log('No session found after successful login');
-                    // Try forcing a page reload to establish session
-                    setTimeout(() => {
-                        window.location.replace('/dashboard');
-                    }, 1000);
+                    // For web platforms, use the original logic
+                    console.log('🌐 Web platform - using NextAuth session...');
+                    await handleWebSessionRetrieval();
                 }
             }
         } catch (error) {
@@ -195,7 +179,58 @@ function SignInContent() {
             setError('Network error. Please try again.');
         } finally {
             setLoading(false);
-            setRedirecting(false); // ADDED: Reset redirecting state
+        }
+    };
+
+    const handleFallbackSessionRetrieval = async (isNative) => {
+        console.log('🔄 Attempting fallback session retrieval...');
+
+        // Try to create a session based on the login credentials
+        // This is a fallback when direct session fetch fails
+        try {
+            // Create a minimal session object based on what we know
+            const fallbackSession = {
+                user: {
+                    email: formData.email,
+                    // We don't have all the user data, but we can redirect and let the app fetch it
+                },
+                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            };
+
+            if (isNative) {
+                await MobileSession.setSession(fallbackSession);
+            }
+
+            setTimeout(() => {
+                window.location.replace('/dashboard');
+            }, 1000);
+        } catch (error) {
+            console.error('❌ Fallback session retrieval failed:', error);
+            // Final fallback - just redirect and hope for the best
+            setTimeout(() => {
+                window.location.replace('/dashboard');
+            }, 1000);
+        }
+    };
+
+    const handleWebSessionRetrieval = async () => {
+        // Wait a moment for session to be established
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Check if session was actually created
+        const { getSession } = await import('next-auth/react');
+        const session = await getSession();
+        console.log('Session after login:', session);
+
+        if (session) {
+            console.log('Session confirmed, redirecting...');
+            router.replace('/dashboard');
+        } else {
+            console.log('No session found after successful login');
+            // Try forcing a page reload to establish session
+            setTimeout(() => {
+                window.location.replace('/dashboard');
+            }, 1000);
         }
     };
 

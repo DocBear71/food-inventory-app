@@ -1,13 +1,13 @@
 'use client'
 
-// file: /src/components/providers/CapacitorAuthProvider.js - v4 - Enhanced mobile auth flow
+// file: /src/components/providers/CapacitorAuthProvider.js - v5 - FIXED: Mobile session handling
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
 export default function CapacitorAuthProvider({ children }) {
     useEffect(() => {
-        console.log('CapacitorAuthProvider v4 started')
+        console.log('CapacitorAuthProvider v5 started')
 
         if (Capacitor.isNativePlatform()) {
             console.log('Installing mobile auth override for native platform')
@@ -66,14 +66,106 @@ export default function CapacitorAuthProvider({ children }) {
                         });
                     }
 
-                    // FIXED: Be more specific about which auth requests to redirect
-                    // Only redirect session and provider requests
-                    if (url.includes('/api/auth/session') || url.includes('/api/auth/providers')) {
+                    // FIXED: Handle session requests specially for mobile
+                    if (url.includes('/api/auth/session')) {
+                        console.log('Session request detected - attempting production fetch with fallback')
+
+                        const newUrl = `https://www.docbearscomfort.kitchen${url}`
+                        console.log('Session redirect:', url, '→', newUrl)
+
+                        return originalFetch(newUrl, {
+                            ...options,
+                            credentials: 'include'
+                        }).then(async response => {
+                            console.log('Session response status:', response.status)
+
+                            if (response.ok) {
+                                try {
+                                    const data = await response.json()
+                                    console.log('Session data received:', data)
+
+                                    // ENHANCED: Store session in mobile storage when retrieved
+                                    if (data?.user) {
+                                        console.log('📱 Storing session from auth provider...')
+                                        try {
+                                            const { MobileSession } = await import('@/lib/mobile-session-simple')
+                                            await MobileSession.setSession(data)
+                                            console.log('✅ Session stored in mobile storage from auth provider')
+                                        } catch (error) {
+                                            console.error('❌ Failed to store session in mobile storage:', error)
+                                        }
+                                    }
+
+                                    // Return the response with the data
+                                    return new Response(JSON.stringify(data), {
+                                        status: response.status,
+                                        statusText: response.statusText,
+                                        headers: response.headers
+                                    })
+                                } catch (error) {
+                                    console.error('Error parsing session response:', error)
+                                    return response
+                                }
+                            } else {
+                                console.log('Session request failed, checking mobile storage...')
+
+                                // ENHANCED: Fallback to mobile storage if server request fails
+                                try {
+                                    const { MobileSession } = await import('@/lib/mobile-session-simple')
+                                    const mobileSession = await MobileSession.getSession()
+
+                                    if (mobileSession) {
+                                        console.log('✅ Found session in mobile storage, using as fallback')
+                                        return new Response(JSON.stringify(mobileSession), {
+                                            status: 200,
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            }
+                                        })
+                                    }
+                                } catch (error) {
+                                    console.error('Error checking mobile storage:', error)
+                                }
+
+                                return response
+                            }
+                        }).catch(async error => {
+                            console.error('Session fetch error:', error)
+
+                            // ENHANCED: Fallback to mobile storage on network error
+                            try {
+                                const { MobileSession } = await import('@/lib/mobile-session-simple')
+                                const mobileSession = await MobileSession.getSession()
+
+                                if (mobileSession) {
+                                    console.log('✅ Network error - using mobile storage as fallback')
+                                    return new Response(JSON.stringify(mobileSession), {
+                                        status: 200,
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        }
+                                    })
+                                }
+                            } catch (fallbackError) {
+                                console.error('Fallback error:', fallbackError)
+                            }
+
+                            // If all else fails, return a proper error response
+                            return new Response(JSON.stringify({}), {
+                                status: 401,
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                        })
+                    }
+
+                    // Handle provider requests
+                    if (url.includes('/api/auth/providers')) {
                         const newUrl = `https://www.docbearscomfort.kitchen${url}`
                         console.log('Auth redirect for:', url, '→', newUrl)
                         return originalFetch(newUrl, {
                             ...options,
-                            // Ensure credentials are included for auth requests
                             credentials: 'include'
                         })
                     }
@@ -99,6 +191,15 @@ export default function CapacitorAuthProvider({ children }) {
                             window.next.auth.signOut = async function(options = {}) {
                                 console.log('Mobile NextAuth signOut called')
                                 try {
+                                    // Clear mobile session first
+                                    try {
+                                        const { MobileSession } = await import('@/lib/mobile-session-simple')
+                                        await MobileSession.clearSession()
+                                        console.log('✅ Mobile session cleared')
+                                    } catch (error) {
+                                        console.error('Error clearing mobile session:', error)
+                                    }
+
                                     const result = await originalSignOut({
                                         ...options,
                                         callbackUrl: '/',

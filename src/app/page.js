@@ -1,25 +1,87 @@
 'use client';
-// file: /src/app/page.js v3 - FIXED: Show landing page when not authenticated
+// file: /src/app/page.js v4 - FIXED: Enhanced native session detection
 
 import { useSafeSession } from '@/hooks/useSafeSession';
-import {useEffect} from 'react';
+import {useEffect, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import Link from 'next/link';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import { MobileSession } from '@/lib/mobile-session-simple';
 
 export default function Home() {
     const {data: session, status} = useSafeSession();
     const router = useRouter();
+    const [isNative, setIsNative] = useState(false);
+    const [nativeSessionChecked, setNativeSessionChecked] = useState(false);
+    const [debugInfo, setDebugInfo] = useState('');
 
+    // Check if we're on native platform
     useEffect(() => {
-        // FIXED: Only redirect if authenticated
-        if (status === 'authenticated' && session) {
+        async function checkPlatform() {
+            try {
+                const { Capacitor } = await import('@capacitor/core');
+                const native = Capacitor.isNativePlatform();
+                setIsNative(native);
+
+                if (native) {
+                    console.log('📱 Native platform detected in home page');
+                    setDebugInfo('Native platform detected');
+
+                    // For native, give extra time for session to load and check directly
+                    setTimeout(async () => {
+                        console.log('🔍 Checking mobile session directly...');
+                        const mobileSession = await MobileSession.getSession();
+
+                        if (mobileSession?.user) {
+                            console.log('✅ Found mobile session, redirecting to dashboard');
+                            setDebugInfo('Found mobile session, redirecting...');
+                            router.replace('/dashboard');
+                        } else {
+                            console.log('❌ No mobile session found');
+                            setDebugInfo('No mobile session found');
+                            setNativeSessionChecked(true);
+                        }
+                    }, 2000); // Give 2 seconds for session to stabilize
+                } else {
+                    setNativeSessionChecked(true);
+                }
+            } catch (error) {
+                console.error('Error checking platform:', error);
+                setNativeSessionChecked(true);
+            }
+        }
+
+        checkPlatform();
+    }, [router]);
+
+    // Handle session-based redirect for web platforms
+    useEffect(() => {
+        if (!isNative && status === 'authenticated' && session) {
+            console.log('🌐 Web platform: Redirecting authenticated user to dashboard');
             router.push('/dashboard');
         }
-    }, [status, session, router]);
+    }, [status, session, router, isNative]);
 
-    if (status === 'loading') {
+    // Show loading state while checking native session
+    if (isNative && !nativeSessionChecked) {
+        return (
+            <MobileOptimizedLayout>
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div className="text-lg text-gray-600">Checking your session...</div>
+                        {debugInfo && (
+                            <div className="text-sm text-gray-500 mt-2">{debugInfo}</div>
+                        )}
+                    </div>
+                </div>
+            </MobileOptimizedLayout>
+        );
+    }
+
+    // Show loading state for web platforms
+    if (!isNative && status === 'loading') {
         return (
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
@@ -32,8 +94,7 @@ export default function Home() {
         );
     }
 
-    // FIXED: Show landing page when not authenticated (removed the problematic return null)
-    // If user is authenticated, the useEffect will redirect them to dashboard
+    // Show landing page (user is not authenticated or session check completed)
     return (
         <MobileOptimizedLayout>
             <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -64,6 +125,16 @@ export default function Home() {
                         </div>
                     </div>
                 </header>
+
+                {/* Debug info for native apps */}
+                {isNative && (
+                    <div className="bg-blue-50 border border-blue-200 mx-4 mt-4 p-3 rounded-lg">
+                        <div className="text-sm text-blue-800">
+                            <strong>Debug Info:</strong> Native app detected. Status: {status}. Session: {session ? 'Found' : 'None'}
+                        </div>
+                    </div>
+                )}
+
                 <br/>
                 <br/>
                 {/* Hero section */}
