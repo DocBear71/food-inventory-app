@@ -147,6 +147,11 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* Override checkbox margins for form layouts */
+.ingredient-checkbox {
+    margin-right: 0.75rem !important; /* 12px spacing */
+}
+
 /* Checkbox styling */
 input[type="checkbox"] {
     -webkit-appearance: none !important;

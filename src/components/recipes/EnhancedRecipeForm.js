@@ -1,6 +1,7 @@
 'use client';
 // file: /src/components/recipes/EnhancedRecipeForm.js v5 - MOBILE RESPONSIVE LAYOUT
 
+
 import { useState, useEffect, useRef } from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -119,7 +120,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         setInputMethod('manual'); // Switch back to manual editing
     };
 
-    // Handle URL import
+    // Enhanced URL import with smart parsing
     const handleUrlImport = async (url) => {
         if (!url || !url.trim()) {
             setImportError('Please enter a valid URL');
@@ -145,14 +146,44 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             if (data.success) {
                 console.log('Successfully imported recipe:', data.recipe);
 
-                // Transform scraped data to match our form structure
+                // ENHANCED: Use smart parsing for ingredients like RecipeParser
+                const parseImportedIngredients = (ingredients) => {
+                    if (!ingredients || !Array.isArray(ingredients)) return [{ name: '', amount: '', unit: '', optional: false }];
+
+                    return ingredients.map(ingredient => {
+                        // If ingredient is already parsed as object, use it
+                        if (typeof ingredient === 'object' && ingredient.name) {
+                            return {
+                                name: ingredient.name || '',
+                                amount: ingredient.amount || '',
+                                unit: ingredient.unit || '',
+                                optional: ingredient.optional || false
+                            };
+                        }
+
+                        // If ingredient is a string, parse it using RecipeParser logic
+                        const ingredientString = typeof ingredient === 'string' ? ingredient : (ingredient.name || '');
+                        return parseIngredientLine(ingredientString);
+                    }).filter(ing => ing && ing.name); // Remove any null results
+                };
+
+                // ENHANCED: Use smart parsing for instructions
+                const parseImportedInstructions = (instructions) => {
+                    if (!instructions || !Array.isArray(instructions)) return [{ step: 1, instruction: '' }];
+
+                    return instructions.map((instruction, index) => {
+                        const instructionText = typeof instruction === 'string' ? instruction : (instruction.instruction || instruction);
+                        const cleanInstruction = parseInstructionLine(instructionText, index);
+                        return cleanInstruction || { step: index + 1, instruction: instructionText };
+                    }).filter(inst => inst && inst.instruction);
+                };
+
+                // Transform scraped data with enhanced parsing
                 const importedRecipe = {
                     title: data.recipe.title || '',
                     description: data.recipe.description || '',
-                    ingredients: data.recipe.ingredients.length > 0 ? data.recipe.ingredients : [{ name: '', amount: '', unit: '', optional: false }],
-                    instructions: data.recipe.instructions.length > 0
-                        ? data.recipe.instructions.map((inst, index) => ({ step: index + 1, instruction: inst }))
-                        : [{ step: 1, instruction: '' }],
+                    ingredients: parseImportedIngredients(data.recipe.ingredients),
+                    instructions: parseImportedInstructions(data.recipe.instructions),
                     prepTime: data.recipe.prepTime || '',
                     cookTime: data.recipe.cookTime || '',
                     servings: data.recipe.servings || '',
@@ -160,6 +191,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     tags: data.recipe.tags || [],
                     source: data.recipe.source || url,
                     isPublic: false, // Default to private, user can change
+                    category: 'entrees',
                     nutrition: {
                         // Convert from structured format to simple values for form
                         calories: data.recipe.nutrition?.calories?.value || '',
@@ -186,6 +218,140 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         } finally {
             setIsImporting(false);
         }
+    };
+
+    // ENHANCED PARSING FUNCTIONS (from RecipeParser)
+    // Enhanced ingredient parsing (same logic as RecipeParser)
+    const parseIngredientLine = (line) => {
+        if (!line || line.length < 2) return null;
+
+        // Remove bullets, pricing, and clean the line
+        let cleanLine = line
+            .replace(/^[\*\-\•]\s*/, '') // Remove bullet points only (*, -, •)
+            .replace(/^\d+\.\s*/, '') // Remove numbered list markers like "1. " but not measurements
+            .replace(/^\d+\)\s*/, '') // Remove numbered list markers like "1) " but not measurements
+            .replace(/\(\$[\d\.]+\)/g, '') // Remove pricing like ($0.37)
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim();
+
+        if (!cleanLine) return null;
+
+        console.log('🥕 Parsing URL import ingredient:', cleanLine);
+
+        // Convert fraction characters
+        cleanLine = convertFractions(cleanLine);
+
+        let match;
+
+        // Pattern 1: "to taste" ingredients
+        match = cleanLine.match(/^(.+?)\s*,?\s*to\s+taste$/i);
+        if (match) {
+            return {
+                name: match[1].trim(),
+                amount: 'to taste',
+                unit: '',
+                optional: false
+            };
+        }
+
+        // Pattern 2: Amount + Unit + Description (e.g., "2 cups flour", "1 tsp salt")
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
+        if (match) {
+            return {
+                name: match[3].trim(),
+                amount: match[1].trim(),
+                unit: match[2].toLowerCase(),
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Pattern 3: Amount + Description (no unit)
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(.+)$/);
+        if (match) {
+            const secondPart = match[2].trim();
+
+            // Check if second part starts with a unit
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            if (unitMatch) {
+                return {
+                    name: unitMatch[2].trim(),
+                    amount: match[1].trim(),
+                    unit: unitMatch[1].toLowerCase(),
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            }
+
+            return {
+                name: secondPart,
+                amount: match[1].trim(),
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Pattern 4: Fractional amounts (e.g., "1/2 onion", "3/4 cup butter")
+        match = cleanLine.match(/^(\d+\/\d+)\s+(.+)$/);
+        if (match) {
+            const secondPart = match[2].trim();
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+
+            if (unitMatch) {
+                return {
+                    name: unitMatch[2].trim(),
+                    amount: match[1],
+                    unit: unitMatch[1].toLowerCase(),
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            }
+
+            return {
+                name: secondPart,
+                amount: match[1],
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        // Fallback: treat entire line as ingredient name
+        return {
+            name: cleanLine,
+            amount: '',
+            unit: '',
+            optional: cleanLine.toLowerCase().includes('optional')
+        };
+    };
+
+    // Enhanced instruction parsing (same logic as RecipeParser)
+    const parseInstructionLine = (line, stepNumber) => {
+        if (!line || line.length < 5) return null;
+
+        // Clean the line
+        let cleanLine = line
+            .replace(/^[\*\-\•]\s*/, '') // Remove bullets
+            .replace(/^\d+[\.\)]\s*/, '') // Remove step numbers
+            .replace(/^(step\s*\d*[:.]?\s*)/i, '') // Remove "Step X:" prefixes
+            .trim();
+
+        if (!cleanLine || cleanLine.length < 5) return null;
+
+        return {
+            step: stepNumber + 1,
+            instruction: cleanLine
+        };
+    };
+
+    // Helper function for fraction conversion
+    const convertFractions = (text) => {
+        return text
+            .replace(/½/g, '1/2')
+            .replace(/¼/g, '1/4')
+            .replace(/¾/g, '3/4')
+            .replace(/⅓/g, '1/3')
+            .replace(/⅔/g, '2/3')
+            .replace(/⅛/g, '1/8')
+            .replace(/⅜/g, '3/8')
+            .replace(/⅝/g, '5/8')
+            .replace(/⅞/g, '7/8');
     };
 
     // Original manual form handlers
@@ -640,19 +806,19 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                                     {/* Top row: Optional checkbox and Delete button */}
                                     <div className="flex items-center justify-between mb-3">
-                                        <label className="flex items-center text-sm text-gray-600">
+                                        <label className="flex items-center text-sm text-gray-600 pl-2"> {/* Add pl-2 for left padding */}
                                             <input
                                                 type="checkbox"
                                                 checked={ingredient.optional}
                                                 onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                                className="mr-2 h-4 w-4"
+                                                className="ingredient-checkbox h-4 w-4"
                                             />
                                             Optional
                                         </label>
                                         <TouchEnhancedButton
                                             type="button"
                                             onClick={() => removeIngredient(index)}
-                                            className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            className="text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                             disabled={recipe.ingredients.length === 1}
                                         >
                                             ✕
