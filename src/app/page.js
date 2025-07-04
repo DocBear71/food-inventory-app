@@ -16,7 +16,7 @@ export default function Home() {
     const [nativeSessionChecked, setNativeSessionChecked] = useState(false);
     const [debugInfo, setDebugInfo] = useState('');
 
-    // Check if we're on native platform
+    // Check if we're on native platform and handle session detection
     useEffect(() => {
         async function checkPlatform() {
             try {
@@ -29,7 +29,9 @@ export default function Home() {
                     setDebugInfo('Native platform detected');
 
                     // For native, give extra time for session to load and check directly
-                    setTimeout(async () => {
+                    const timeoutId = setTimeout(async () => {
+                        if (nativeSessionChecked) return; // Prevent multiple checks
+
                         console.log('🔍 Checking mobile session directly...');
                         const mobileSession = await MobileSession.getSession();
 
@@ -43,6 +45,9 @@ export default function Home() {
                             setNativeSessionChecked(true);
                         }
                     }, 2000); // Give 2 seconds for session to stabilize
+
+                    // Cleanup timeout on unmount
+                    return () => clearTimeout(timeoutId);
                 } else {
                     setNativeSessionChecked(true);
                 }
@@ -53,7 +58,7 @@ export default function Home() {
         }
 
         checkPlatform();
-    }, [router]);
+    }, [router, nativeSessionChecked]); // Add nativeSessionChecked to dependencies
 
     // Handle session-based redirect for web platforms
     useEffect(() => {

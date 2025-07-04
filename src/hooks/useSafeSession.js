@@ -1,6 +1,6 @@
 'use client'
 
-// file: src/hooks/useSafeSession.js v3
+// file: src/hooks/useSafeSession.js v4
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
@@ -23,6 +23,7 @@ export function useSafeSession() {
     const [mobileSessionStatus, setMobileSessionStatus] = useState('loading');
     const [isNative, setIsNative] = useState(null);
     const [initialized, setInitialized] = useState(false);
+    const [isCheckingSession, setIsCheckingSession] = useState(false); // Prevent concurrent checks
 
     // Check platform and load mobile session
     useEffect(() => {
@@ -88,14 +89,20 @@ export function useSafeSession() {
     // FIXED: Don't clear mobile session just because NextAuth is unauthenticated
     // On native platforms, NextAuth often fails to get sessions, so rely on mobile storage
     useEffect(() => {
-        if (isNative && initialized) {
-            // Only clear mobile session if we're explicitly told to sign out
-            // Don't clear just because NextAuth reports unauthenticated
+        // Only run this effect when we have the necessary data and avoid infinite loops
+        if (!isNative || !initialized) return;
+
+        // Debounce the session check to prevent rapid successive calls
+        const debounceTimeout = setTimeout(() => {
+            if (isCheckingSession) return; // Prevent concurrent checks
+
             console.log('🔍 Native platform session check - NextAuth:', nextAuthResult?.status, 'Mobile:', mobileSessionStatus);
 
             // Only clear if we have a specific sign-out event or expired session
-            if (nextAuthResult?.status === 'unauthenticated' && mobileSession) {
-                // Check if the mobile session is still valid
+            if (nextAuthResult?.status === 'unauthenticated' && mobileSession && mobileSessionStatus === 'authenticated') {
+                setIsCheckingSession(true);
+
+                // Check if the mobile session is still valid (but only if we don't already have a valid session)
                 MobileSession.getSession().then(currentSession => {
                     if (!currentSession) {
                         console.log('🔄 Mobile session expired - clearing state');
@@ -103,15 +110,22 @@ export function useSafeSession() {
                         setMobileSessionStatus('unauthenticated');
                     } else {
                         console.log('✅ Mobile session still valid, keeping it');
-                        setMobileSession(currentSession);
-                        setMobileSessionStatus('authenticated');
+                        // Update the session data if it changed
+                        if (JSON.stringify(currentSession) !== JSON.stringify(mobileSession)) {
+                            setMobileSession(currentSession);
+                            setMobileSessionStatus('authenticated');
+                        }
                     }
                 }).catch(error => {
                     console.error('Error checking mobile session validity:', error);
+                }).finally(() => {
+                    setIsCheckingSession(false);
                 });
             }
-        }
-    }, [isNative, initialized, nextAuthResult?.status, mobileSession, mobileSessionStatus]);
+        }, 100); // 100ms debounce
+
+        return () => clearTimeout(debounceTimeout);
+    }, [isNative, initialized, nextAuthResult?.status, mobileSessionStatus]); // Removed mobileSession from dependencies to prevent loop
 
     // Return appropriate session based on platform
     if (isNative === null || !initialized) {
