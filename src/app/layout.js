@@ -75,7 +75,7 @@ export default async function RootLayout({children}) {
             {isNativeMobileApp ? (
                 // FIXED: Native mobile apps with proper auth handling
                 <SessionProvider>
-                    <SessionBridge />
+                    {/* <SessionBridge /> */}
                     <SubscriptionProvider>
                         <NativeAuthHandler>
                             {children}
@@ -85,7 +85,7 @@ export default async function RootLayout({children}) {
             ) : (
                 // Web builds (including PWA) - full PWA functionality
                 <SessionProvider>
-                    <SessionBridge />
+                    {/* <SessionBridge /> */}
                     <SubscriptionProvider>
                         <PWAWrapper>
                             {children}

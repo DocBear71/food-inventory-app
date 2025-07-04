@@ -8,13 +8,20 @@ import { useSession } from 'next-auth/react';
 export default function SessionBridge() {
     const { data: session, status, update } = useSession();
     const [restoreAttempted, setRestoreAttempted] = useState(false);
+    const [restoreInProgress, setRestoreInProgress] = useState(false);
 
     useEffect(() => {
         const bridgeSessions = async () => {
+            // Prevent multiple simultaneous restore attempts
+            if (restoreInProgress) {
+                console.log('🔄 Restore already in progress, skipping...');
+                return;
+            }
+
             try {
                 // If NextAuth session exists, ensure mobile session is in sync
                 if (session?.user) {
-                    console.log('🌉 Bridging NextAuth session to mobile storage...');
+                    console.log('🌉 NextAuth session found, syncing to mobile storage...');
 
                     const { MobileSession } = await import('@/lib/mobile-session-simple');
                     const mobileSession = await MobileSession.getSession();
@@ -25,26 +32,21 @@ export default function SessionBridge() {
                             user: session.user,
                             expires: session.expires,
                             timestamp: Date.now(),
-                            source: 'session-bridge'
+                            source: 'session-bridge-sync'
                         };
 
                         await MobileSession.setSession(sessionData);
-
-                        // Also update localStorage for API calls
-                        localStorage.setItem('nextauth-session-active', 'true');
-                        localStorage.setItem('current-user-id', session.user.id);
-                        localStorage.setItem('current-user-email', session.user.email);
-
                         console.log('✅ Mobile session synchronized with NextAuth');
                     }
 
                     return;
                 }
 
-                // If no NextAuth session, check if mobile session exists and try to restore
-                if (status !== 'loading' && !session && !restoreAttempted) {
+                // Only attempt restore once and if not already in progress
+                if (status !== 'loading' && !session && !restoreAttempted && !restoreInProgress) {
                     console.log('🔄 No NextAuth session, checking mobile session...');
                     setRestoreAttempted(true);
+                    setRestoreInProgress(true);
 
                     const { MobileSession } = await import('@/lib/mobile-session-simple');
                     const mobileSession = await MobileSession.getSession();
@@ -69,46 +71,59 @@ export default function SessionBridge() {
                                 const result = await response.json();
                                 console.log('✅ Session restoration API success:', result);
 
-                                // Force NextAuth to refresh its session
-                                await update();
-
-                                // Small delay then check again
+                                // Wait a bit, then check if NextAuth picked up the session
                                 setTimeout(async () => {
                                     const { getSession } = await import('next-auth/react');
                                     const refreshedSession = await getSession();
 
                                     if (refreshedSession?.user) {
                                         console.log('🎉 NextAuth session successfully restored!');
+                                        // Force a refresh of the current page content
+                                        await update();
                                     } else {
-                                        console.log('⚠️ Session restoration API succeeded but NextAuth session not found');
-                                        // Force page reload as last resort
-                                        window.location.reload();
+                                        console.log('⚠️ Session restoration failed, redirecting to sign-in');
+                                        // Clear the problematic mobile session and redirect
+                                        await MobileSession.clearSession();
+                                        localStorage.removeItem('mobile_session');
+                                        localStorage.removeItem('mobile_session_expiry');
+                                        window.location.href = '/auth/signin';
                                     }
-                                }, 1000);
+                                    setRestoreInProgress(false);
+                                }, 2000);
 
                             } else {
                                 const error = await response.json();
                                 console.error('❌ Session restoration API failed:', error);
+                                setRestoreInProgress(false);
+
+                                // Clear bad mobile session
+                                await MobileSession.clearSession();
+                                localStorage.removeItem('mobile_session');
+                                localStorage.removeItem('mobile_session_expiry');
                             }
 
                         } catch (restoreError) {
                             console.error('💥 Session restoration error:', restoreError);
+                            setRestoreInProgress(false);
                         }
                     } else {
                         console.log('ℹ️ No mobile session found');
+                        setRestoreInProgress(false);
                     }
                 }
 
             } catch (error) {
                 console.error('Session bridge error:', error);
+                setRestoreInProgress(false);
             }
         };
 
-        // Run bridge after a short delay to ensure everything is loaded
-        const timer = setTimeout(bridgeSessions, 1000);
-
-        return () => clearTimeout(timer);
-    }, [session, status, update, restoreAttempted]);
+        // Only run if we haven't attempted restoration yet
+        if (!restoreAttempted && !restoreInProgress) {
+            const timer = setTimeout(bridgeSessions, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [session, status, update, restoreAttempted, restoreInProgress]);
 
     // This component doesn't render anything
     return null;
