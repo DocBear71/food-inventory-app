@@ -204,10 +204,10 @@ export function SubscriptionProvider({ children }) {
         }
     }, [session?.user?.id, retryCount, isFetching, clearSubscriptionCache]);
 
-    // FIXED: Clear signout flags for admin user
+    // FIXED: Clear signout flags for admin user and prevent API calls
     useEffect(() => {
-        if (session?.user?.email === 'e.g.mckeown@gmail.com') {
-            console.log('🧹 SubscriptionProvider: Clearing signout flags for admin user');
+        if (session?.user?.email === 'e.g.mckeown@gmail.com' || session?.user?.isAdmin) {
+            console.log('🧹 SubscriptionProvider: Admin user detected - clearing signout flags and preventing API calls');
 
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('prevent-session-calls');
@@ -215,12 +215,23 @@ export function SubscriptionProvider({ children }) {
                 sessionStorage.removeItem('just-signed-out');
             }
 
-            // Force refresh subscription data for admin
-            setTimeout(() => {
-                fetchSubscriptionData(true);
-            }, 100);
+            // For admin users, set subscription data directly and don't fetch from API
+            if (session?.user) {
+                setSubscriptionData({
+                    tier: 'admin',
+                    isAdmin: true,
+                    isActive: true,
+                    isTrialActive: false,
+                    usage: {},
+                    timestamp: new Date().toISOString()
+                });
+                setLoading(false);
+                setError(null);
+                setRetryCount(0);
+                setIsFetching(false);
+            }
         }
-    }, [session?.user?.email, fetchSubscriptionData]);
+    }, [session?.user?.email, session?.user?.isAdmin, session?.user]);
 
     // FIXED: Main effect with better session handling
     useEffect(() => {
@@ -260,7 +271,7 @@ export function SubscriptionProvider({ children }) {
 
         // FIXED: Use session data directly if available (for mobile sessions)
         if (session?.user?.subscriptionTier && session?.user?.effectiveTier) {
-            console.log('📋 Using session data for subscription:', {
+            console.log('📋 Using session data for subscription - SKIPPING API CALL:', {
                 tier: session.user.effectiveTier,
                 isAdmin: session.user.isAdmin
             });
@@ -280,9 +291,31 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // Only fetch from API if we don't have subscription data in session
+        // FIXED: Also check for basic subscription data in session
+        if (session?.user?.isAdmin || session?.user?.subscriptionStatus) {
+            console.log('📋 Using basic session data for subscription - SKIPPING API CALL:', {
+                isAdmin: session.user.isAdmin,
+                subscriptionStatus: session.user.subscriptionStatus
+            });
+
+            setSubscriptionData({
+                tier: session.user.isAdmin ? 'admin' : (session.user.subscriptionTier || 'free'),
+                isAdmin: session.user.isAdmin || false,
+                isActive: true,
+                isTrialActive: false,
+                usage: session.user.usage || {},
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            setError(null);
+            setRetryCount(0);
+            setIsFetching(false);
+            return;
+        }
+
+        // Only fetch from API if we don't have ANY subscription data in session
         if (session?.user?.id) {
-            console.log('📊 Session found, fetching subscription data...');
+            console.log('📊 Session found but no subscription data, fetching from API...');
             fetchSubscriptionData(true);
         }
 
