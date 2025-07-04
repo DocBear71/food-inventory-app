@@ -255,7 +255,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         }
 
         // Pattern 2: Amount + Unit + Description (e.g., "2 cups flour", "1 tsp salt")
-        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
         if (match) {
             return {
                 name: match[3].trim(),
@@ -271,7 +271,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             const secondPart = match[2].trim();
 
             // Check if second part starts with a unit
-            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
             if (unitMatch) {
                 return {
                     name: unitMatch[2].trim(),
@@ -293,7 +293,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         match = cleanLine.match(/^(\d+\/\d+)\s+(.+)$/);
         if (match) {
             const secondPart = match[2].trim();
-            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
 
             if (unitMatch) {
                 return {
