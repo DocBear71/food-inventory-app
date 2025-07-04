@@ -87,6 +87,8 @@ function useAndroidStatusBar() {
 // Android Session Persistence Hook
 function useAndroidSessionPersistence() {
     useEffect(() => {
+        let cleanupFunction = null;
+
         const setupAndroidSession = async () => {
             // Only run on client side
             if (typeof window === 'undefined') return;
@@ -174,8 +176,8 @@ function useAndroidSessionPersistence() {
 
                     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-                    // Cleanup
-                    return () => {
+                    // Set cleanup function
+                    cleanupFunction = () => {
                         clearInterval(backupInterval);
                         document.removeEventListener('visibilitychange', handleVisibilityChange);
                     };
@@ -185,8 +187,15 @@ function useAndroidSessionPersistence() {
             }
         };
 
-        const cleanup = setupAndroidSession();
-        return cleanup;
+        // Run setup
+        setupAndroidSession();
+
+        // Return cleanup function
+        return () => {
+            if (cleanupFunction) {
+                cleanupFunction();
+            }
+        };
     }, []);
 }
 
