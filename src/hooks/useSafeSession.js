@@ -96,7 +96,11 @@ export function useSafeSession() {
         const debounceTimeout = setTimeout(() => {
             if (isCheckingSession) return; // Prevent concurrent checks
 
-            console.log('🔍 Native platform session check - NextAuth:', nextAuthResult?.status, 'Mobile:', mobileSessionStatus);
+            // Only log periodically to reduce noise
+            if (Date.now() - (window.lastSessionLogTime || 0) > 5000) {
+                console.log('🔍 Native platform session check - NextAuth:', nextAuthResult?.status, 'Mobile:', mobileSessionStatus);
+                window.lastSessionLogTime = Date.now();
+            }
 
             // Only clear if we have a specific sign-out event or expired session
             if (nextAuthResult?.status === 'unauthenticated' && mobileSession && mobileSessionStatus === 'authenticated') {
@@ -109,9 +113,9 @@ export function useSafeSession() {
                         setMobileSession(null);
                         setMobileSessionStatus('unauthenticated');
                     } else {
-                        console.log('✅ Mobile session still valid, keeping it');
-                        // Update the session data if it changed
+                        // Only update if the session actually changed
                         if (JSON.stringify(currentSession) !== JSON.stringify(mobileSession)) {
+                            console.log('✅ Mobile session updated with new data');
                             setMobileSession(currentSession);
                             setMobileSessionStatus('authenticated');
                         }
@@ -122,7 +126,7 @@ export function useSafeSession() {
                     setIsCheckingSession(false);
                 });
             }
-        }, 100); // 100ms debounce
+        }, 500); // Increased debounce to 500ms
 
         return () => clearTimeout(debounceTimeout);
     }, [isNative, initialized, nextAuthResult?.status, mobileSessionStatus]); // Removed mobileSession from dependencies to prevent loop

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/hooks/useSubscription.js v5 - FIXED mobile caching and admin support
+// file: /src/hooks/useSubscription.js v6 - Merged version with infinite loop fixes
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -22,8 +22,15 @@ export function SubscriptionProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [retryCount, setRetryCount] = useState(0);
+    const [isFetching, setIsFetching] = useState(false);
+
     const fetchTimeoutRef = useRef(null);
     const lastFetchRef = useRef(0);
+
+    // FIXED: Add maximum retry limit and better error handling
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000; // 2 seconds
+    const FETCH_COOLDOWN = 3000; // 3 seconds between fetches
 
     // FIXED: Clear cache function for mobile issues
     const clearSubscriptionCache = useCallback(() => {
@@ -55,10 +62,11 @@ export function SubscriptionProvider({ children }) {
         setSubscriptionData(null);
         setError(null);
         setRetryCount(0);
+        setIsFetching(false);
         lastFetchRef.current = 0;
     }, []);
 
-    // FIXED: Enhanced fetch function with better cache busting
+    // FIXED: Enhanced fetch function with better cache busting and loop prevention
     const fetchSubscriptionData = useCallback(async (force = false) => {
         // Check for signout flags before making API calls
         const preventCalls = typeof window !== 'undefined' && localStorage.getItem('prevent-session-calls') === 'true';
@@ -72,9 +80,14 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // Prevent excessive calls - only allow one call per 3 seconds unless forced
+        // FIXED: Prevent excessive calls and concurrent fetches
         const now = Date.now();
-        if (!force && (now - lastFetchRef.current) < 3000) {
+        if (isFetching || retryCount >= MAX_RETRIES) {
+            console.log('Subscription fetch blocked - already fetching or max retries reached');
+            return;
+        }
+
+        if (!force && (now - lastFetchRef.current) < FETCH_COOLDOWN) {
             console.log('Subscription fetch throttled - too soon since last call');
             return;
         }
@@ -84,11 +97,12 @@ export function SubscriptionProvider({ children }) {
             clearTimeout(fetchTimeoutRef.current);
         }
 
-        try {
-            setLoading(true);
-            setError(null);
-            lastFetchRef.current = now;
+        setIsFetching(true);
+        setLoading(true);
+        setError(null);
+        lastFetchRef.current = now;
 
+        try {
             console.log('📊 Fetching subscription data...');
 
             // FIXED: Enhanced cache busting for mobile devices
@@ -106,23 +120,20 @@ export function SubscriptionProvider({ children }) {
                     'Pragma': 'no-cache',
                     'Expires': '0',
                     'X-Requested-With': 'XMLHttpRequest',
-                    // FIXED: Add mobile-specific headers
                     'X-Cache-Buster': cacheBreaker
                 },
-                // FIXED: Disable all caching
                 cache: 'no-store'
             });
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('📊 Raw subscription data received:', data);
+                console.log('✅ Subscription data fetched:', data);
 
-                // FIXED: Immediate state update and cache clear
                 setSubscriptionData(data);
                 setError(null);
                 setRetryCount(0);
 
-                // FIXED: Store in sessionStorage with timestamp for debugging
+                // Store in sessionStorage with timestamp for debugging
                 if (typeof window !== 'undefined') {
                     sessionStorage.setItem('subscription-debug', JSON.stringify({
                         data,
@@ -141,51 +152,59 @@ export function SubscriptionProvider({ children }) {
             } else {
                 const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                 const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-                console.error('Subscription API error:', errorMessage);
+                console.error('❌ Subscription fetch error:', errorMessage);
 
-                // Don't set error state for auth issues
                 if (response.status === 401) {
                     console.log('User not authenticated, clearing subscription data');
                     clearSubscriptionCache();
-                    setLoading(false);
-                } else {
-                    setError(errorMessage);
-
-                    // Exponential backoff retry for server errors
-                    if (response.status >= 500 && retryCount < 3) {
-                        const retryDelay = Math.pow(2, retryCount) * 2000;
-                        console.log(`Retrying subscription fetch in ${retryDelay}ms (attempt ${retryCount + 1}/3)`);
-
-                        fetchTimeoutRef.current = setTimeout(() => {
-                            setRetryCount(prev => prev + 1);
-                            fetchSubscriptionData(true);
-                        }, retryDelay);
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Network error fetching subscription data:', err);
-
-            // Only set error for network issues if we have a session
-            if (session?.user?.id) {
-                setError('Network error while fetching subscription data');
-
-                // Retry network errors with exponential backoff
-                if (retryCount < 3) {
-                    const retryDelay = Math.pow(2, retryCount) * 2000;
-                    console.log(`Retrying subscription fetch in ${retryDelay}ms due to network error`);
+                } else if (retryCount < MAX_RETRIES) {
+                    console.log(`⏳ Retrying subscription fetch (${retryCount + 1}/${MAX_RETRIES}) in ${RETRY_DELAY}ms`);
 
                     fetchTimeoutRef.current = setTimeout(() => {
                         setRetryCount(prev => prev + 1);
+                        setIsFetching(false);
                         fetchSubscriptionData(true);
-                    }, retryDelay);
+                    }, RETRY_DELAY);
+                } else {
+                    console.log('❌ Max retries reached, using fallback data');
+                    // Use fallback data from session if available
+                    const fallbackTier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
+                    const fallbackIsAdmin = session?.user?.isAdmin || false;
+
+                    setSubscriptionData({
+                        tier: fallbackTier,
+                        isAdmin: fallbackIsAdmin,
+                        isActive: true,
+                        isTrialActive: false,
+                        usage: {},
+                        timestamp: new Date().toISOString()
+                    });
+                    setError('Failed to fetch subscription data - using fallback');
                 }
             }
+        } catch (err) {
+            console.error('❌ Network error fetching subscription data:', err);
+
+            if (session?.user?.id && retryCount < MAX_RETRIES) {
+                const retryDelay = Math.pow(2, retryCount) * RETRY_DELAY;
+                console.log(`⏳ Retrying subscription fetch in ${retryDelay}ms due to network error`);
+
+                fetchTimeoutRef.current = setTimeout(() => {
+                    setRetryCount(prev => prev + 1);
+                    setIsFetching(false);
+                    fetchSubscriptionData(true);
+                }, retryDelay);
+            } else {
+                console.log('❌ Network error - max retries reached or no session');
+                setError('Network error while fetching subscription data');
+            }
         } finally {
+            setIsFetching(false);
             setLoading(false);
         }
-    }, [session?.user?.id, retryCount, clearSubscriptionCache]);
+    }, [session?.user?.id, retryCount, isFetching, clearSubscriptionCache]);
 
+    // FIXED: Clear signout flags for admin user
     useEffect(() => {
         if (session?.user?.email === 'e.g.mckeown@gmail.com') {
             console.log('🧹 SubscriptionProvider: Clearing signout flags for admin user');
@@ -196,20 +215,22 @@ export function SubscriptionProvider({ children }) {
                 sessionStorage.removeItem('just-signed-out');
             }
 
-            // Also force refresh subscription data
+            // Force refresh subscription data for admin
             setTimeout(() => {
                 fetchSubscriptionData(true);
             }, 100);
         }
-    }, [session?.user?.email]);
+    }, [session?.user?.email, fetchSubscriptionData]);
 
-    // Effect to fetch subscription data when session changes
+    // FIXED: Main effect with better session handling
     useEffect(() => {
+        console.log('📊 SubscriptionProvider: Session status:', status);
+
         if (status === 'loading') {
             return; // Wait for session to load
         }
 
-        // Check for signout flags before making API calls
+        // Check for signout flags
         const preventCalls = typeof window !== 'undefined' && localStorage.getItem('prevent-session-calls') === 'true';
         const signingOut = typeof window !== 'undefined' && sessionStorage.getItem('signout-in-progress') === 'true';
         const justSignedOut = typeof window !== 'undefined' && sessionStorage.getItem('just-signed-out') === 'true';
@@ -217,17 +238,52 @@ export function SubscriptionProvider({ children }) {
         if (preventCalls || signingOut || justSignedOut) {
             console.log('Subscription: Skipping data fetch - signout flags active');
             clearSubscriptionCache();
-            setLoading(false);
             return;
         }
 
+        if (status === 'unauthenticated' || !session) {
+            console.log('No session, clearing subscription data');
+            setSubscriptionData({
+                tier: 'free',
+                isAdmin: false,
+                isActive: false,
+                isTrialActive: false,
+                usage: {},
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            setError(null);
+            setRetryCount(0);
+            setIsFetching(false);
+            return;
+        }
+
+        // FIXED: Use session data directly if available (for mobile sessions)
+        if (session?.user?.subscriptionTier && session?.user?.effectiveTier) {
+            console.log('📋 Using session data for subscription:', {
+                tier: session.user.effectiveTier,
+                isAdmin: session.user.isAdmin
+            });
+
+            setSubscriptionData({
+                tier: session.user.effectiveTier,
+                isAdmin: session.user.isAdmin,
+                isActive: true,
+                isTrialActive: false,
+                usage: session.user.usage || {},
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            setError(null);
+            setRetryCount(0);
+            setIsFetching(false);
+            return;
+        }
+
+        // Only fetch from API if we don't have subscription data in session
         if (session?.user?.id) {
             console.log('📊 Session found, fetching subscription data...');
             fetchSubscriptionData(true);
-        } else {
-            console.log('No session, clearing subscription data');
-            clearSubscriptionCache();
-            setLoading(false);
         }
 
         // Cleanup timeout on unmount or session change
@@ -236,7 +292,7 @@ export function SubscriptionProvider({ children }) {
                 clearTimeout(fetchTimeoutRef.current);
             }
         };
-    }, [session?.user?.id, status, fetchSubscriptionData, clearSubscriptionCache]);
+    }, [session, status, clearSubscriptionCache, fetchSubscriptionData]);
 
     // FIXED: Force refresh function for mobile cache issues
     const forceRefresh = useCallback(async () => {
@@ -258,9 +314,15 @@ export function SubscriptionProvider({ children }) {
         subscriptionData,
         loading,
         error,
-        refetch: () => fetchSubscriptionData(true),
-        forceRefresh, // FIXED: Add force refresh for mobile issues
-        clearCache: clearSubscriptionCache // FIXED: Add cache clear function
+        refetch: () => {
+            if (retryCount < MAX_RETRIES) {
+                setRetryCount(0);
+                setIsFetching(false);
+                fetchSubscriptionData(true);
+            }
+        },
+        forceRefresh,
+        clearCache: clearSubscriptionCache
     };
 
     return (
@@ -282,7 +344,7 @@ export function useSubscription() {
     const checkFeature = (feature) => {
         if (!subscriptionData) return false;
 
-        // NEW: Admin always has access to all features
+        // Admin always has access to all features
         if (subscriptionData.isAdmin) return true;
 
         try {
@@ -296,7 +358,7 @@ export function useSubscription() {
     const checkLimit = (feature, currentCount) => {
         if (!subscriptionData) return false;
 
-        // NEW: Admin always passes limit checks
+        // Admin always passes limit checks
         if (subscriptionData.isAdmin) return true;
 
         try {
@@ -320,7 +382,7 @@ export function useSubscription() {
     const getRemainingCount = (feature) => {
         if (!subscriptionData) return 0;
 
-        // NEW: Admin always has unlimited
+        // Admin always has unlimited
         if (subscriptionData.isAdmin) return 'Unlimited';
 
         try {
@@ -332,47 +394,30 @@ export function useSubscription() {
         }
     };
 
-    const DEBUG_SUBSCRIPTION = false;
-
-    // NEW: Admin status checks
+    // Admin status checks
     const isAdmin = () => {
-        const adminStatus = subscriptionData?.isAdmin === true;
-        if (DEBUG_SUBSCRIPTION) {
-            console.log('🔍 Admin status check:', adminStatus, 'from data:', subscriptionData?.isAdmin);
-        }
-        return adminStatus;
+        return subscriptionData?.isAdmin === true;
     };
 
     const getEffectiveTier = () => {
-        if (DEBUG_SUBSCRIPTION) {
-            console.log('🔍 Getting effective tier from subscriptionData:', subscriptionData);
-        }
         if (subscriptionData?.isAdmin) {
-            if (DEBUG_SUBSCRIPTION) {
-                console.log('✅ User is admin, returning admin tier');
-            }
             return 'admin';
         }
-        const tier = subscriptionData?.tier || 'free';
-        if (DEBUG_SUBSCRIPTION) {
-            console.log('📊 Returning tier:', tier);
-        }
-        return tier;
+        return subscriptionData?.tier || 'free';
     };
 
-    // Rest of existing functions...
     const isGoldOrHigher = () => {
-        if (subscriptionData?.isAdmin) return true; // Admin is higher than gold
+        if (subscriptionData?.isAdmin) return true;
         const tier = subscriptionData?.tier || 'free';
         return tier === 'gold' || tier === 'platinum';
     };
 
     const isPlatinum = () => {
-        if (subscriptionData?.isAdmin) return true; // Admin is higher than platinum
+        if (subscriptionData?.isAdmin) return true;
         return subscriptionData?.tier === 'platinum';
     };
 
-    // FIXED: Map feature gates to correct usage tracking fields with SAVE_RECIPE support
+    // Map feature gates to correct usage tracking fields
     const getCurrentUsageCount = (feature) => {
         if (!subscriptionData?.usage) return 0;
 
@@ -389,24 +434,8 @@ export function useSubscription() {
                 return subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
                 return subscriptionData.usage.recipeCollections || 0;
-            case FEATURE_GATES.SAVE_RECIPE: // ADDED: Support for saved recipes
+            case FEATURE_GATES.SAVE_RECIPE:
                 return subscriptionData.usage.savedRecipes || 0;
-
-            // Feature-access gates that don't have usage counts:
-            case FEATURE_GATES.COMMON_ITEMS_WIZARD:
-            case FEATURE_GATES.CONSUMPTION_HISTORY:
-            case FEATURE_GATES.CREATE_MEAL_PLAN:
-            case FEATURE_GATES.EMAIL_SHARING:
-            case FEATURE_GATES.EMAIL_NOTIFICATIONS:
-            case FEATURE_GATES.WRITE_REVIEW:
-            case FEATURE_GATES.NUTRITION_ACCESS:
-            case FEATURE_GATES.NUTRITION_SEARCH:
-            case FEATURE_GATES.NUTRITION_ANALYSIS:
-            case FEATURE_GATES.NUTRITION_GOALS:
-            case FEATURE_GATES.PUBLIC_RECIPES:
-            case FEATURE_GATES.BULK_INVENTORY_ADD:
-                return 0; // These are access-based, not usage-limited
-
             default:
                 return 0;
         }
@@ -421,7 +450,7 @@ export function useSubscription() {
         isTrialActive: subscriptionData?.isTrialActive || false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
-        // NEW: Add missing date fields
+        // Date fields
         startDate: subscriptionData?.startDate,
         endDate: subscriptionData?.endDate,
         trialStartDate: subscriptionData?.trialStartDate,
@@ -429,7 +458,7 @@ export function useSubscription() {
         lastPaymentDate: subscriptionData?.lastPaymentDate,
         nextBillingDate: subscriptionData?.nextBillingDate,
 
-        // NEW: Admin status
+        // Admin status
         isAdmin: isAdmin(),
 
         // Usage counts
@@ -452,7 +481,7 @@ export function useSubscription() {
         getRemainingCount,
         getCurrentUsageCount,
 
-        // All existing feature helpers will now work with admin
+        // Feature helpers
         canAddInventoryItem: checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
         canScanUPC: checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
         canScanReceipt: checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
@@ -469,7 +498,7 @@ export function useSubscription() {
         hasConsumptionHistory: checkFeature(FEATURE_GATES.CONSUMPTION_HISTORY),
         hasRecipeCollections: checkFeature(FEATURE_GATES.RECIPE_COLLECTIONS),
 
-        // Remaining counts (all now show unlimited for admin)
+        // Remaining counts
         remainingInventoryItems: getRemainingCount(FEATURE_GATES.INVENTORY_LIMIT),
         remainingPersonalRecipes: getRemainingCount(FEATURE_GATES.PERSONAL_RECIPES),
         remainingUPCScans: getRemainingCount(FEATURE_GATES.UPC_SCANNING),
@@ -477,10 +506,10 @@ export function useSubscription() {
         remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE),
         remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
 
-        // Actions - FIXED: Add mobile-specific refresh functions
+        // Actions
         refetch,
-        forceRefresh, // NEW: For mobile cache issues
-        clearCache    // NEW: For debugging mobile issues
+        forceRefresh,
+        clearCache
     };
 }
 
@@ -505,7 +534,6 @@ export function useFeatureGate(feature, currentCount = null) {
     }
 
     if (subscription.error) {
-        // Default to allowing access on error for better UX
         console.warn('Subscription error in useFeatureGate:', subscription.error);
         return {
             hasAccess: true,
@@ -522,7 +550,7 @@ export function useFeatureGate(feature, currentCount = null) {
     }
 
     try {
-        // NEW: Admin users always have full access
+        // Admin users always have full access
         if (subscription.isAdmin) {
             return {
                 hasAccess: true,
@@ -558,7 +586,6 @@ export function useFeatureGate(feature, currentCount = null) {
         };
     } catch (err) {
         console.error('Error in useFeatureGate:', err);
-        // Return safe defaults on error - allow access
         return {
             hasAccess: true,
             hasCapacity: true,
@@ -586,7 +613,6 @@ export function useUpgradePrompt() {
             if (options.onUpgrade) {
                 options.onUpgrade(requiredTier, message);
             } else {
-                // Default behavior - redirect to pricing or billing page
                 const targetPage = subscription.tier === 'free'
                     ? `/pricing?source=feature-gate&feature=${feature}&required=${requiredTier}`
                     : `/account/billing?source=feature-gate&feature=${feature}&required=${requiredTier}`;
@@ -594,7 +620,6 @@ export function useUpgradePrompt() {
             }
         } catch (err) {
             console.error('Error in promptUpgrade:', err);
-            // Fallback to pricing page
             window.location.href = '/pricing?source=feature-gate';
         }
     };
@@ -604,7 +629,7 @@ export function useUpgradePrompt() {
         tier: subscription.tier,
         isTrialActive: subscription.isTrialActive,
         daysUntilTrialEnd: subscription.daysUntilTrialEnd,
-        forceRefresh: subscription.forceRefresh, // NEW: For mobile debugging
-        clearCache: subscription.clearCache      // NEW: For mobile debugging
+        forceRefresh: subscription.forceRefresh,
+        clearCache: subscription.clearCache
     };
 }
