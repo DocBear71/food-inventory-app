@@ -795,15 +795,15 @@ The parser will automatically:
                                 </h3>
                                 <div className="space-y-3 max-h-64 overflow-y-auto">
                                     {parsedRecipe.ingredients.map((ingredient, index) => (
-                                        <div key={index} className="border border-gray-200 rounded-lg p-3">
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
                                             {/* Top row: Optional checkbox and delete button */}
-                                            <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center justify-between mb-3">
                                                 <label className="flex items-center text-sm text-gray-600">
                                                     <input
                                                         type="checkbox"
                                                         checked={ingredient.optional || false}
                                                         onChange={(e) => handleEditIngredient(index, 'optional', e.target.checked)}
-                                                        className="mr-2 h-4 w-4"
+                                                        className="ingredient-checkbox h-4 w-4"
                                                     />
                                                     <span className="ml-3">Optional</span>
                                                 </label>
