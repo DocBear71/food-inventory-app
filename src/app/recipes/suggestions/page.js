@@ -1,18 +1,18 @@
 'use client';
-// file: /src/app/recipes/suggestions/page.js v8 - OPTIMIZED with pre-indexing and deferred analysis
+// file: /src/app/recipes/suggestions/page.js v9 - ADDED DIETARY FILTERING SYSTEM
 
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
 import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import {getApiUrl} from '@/lib/api-config';
 import React from 'react';
 
 // Enhanced Flashy Loading Modal Component
-const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes = [] }) => {
+const LoadingModal = ({isOpen, progress, currentTask, inventory = [], recipes = []}) => {
     if (!isOpen) return null;
 
     const getLoadingEmoji = () => {
@@ -41,10 +41,12 @@ const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes =
                 <div className="flex justify-center mb-6">
                     <div className="relative">
                         {/* Outer spinning ring */}
-                        <div className="w-20 h-20 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+                        <div
+                            className="w-20 h-20 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
                         {/* Center emoji */}
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                            <div
+                                className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
                                 <span className="text-white text-xl">{getLoadingEmoji()}</span>
                             </div>
                         </div>
@@ -70,7 +72,7 @@ const LoadingModal = ({ isOpen, progress, currentTask, inventory = [], recipes =
                 <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
                     <div
                         className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
+                        style={{width: `${progress}%`}}
                     ></div>
                 </div>
 
@@ -124,6 +126,7 @@ export default function RecipeSuggestions() {
     const [inventory, setInventory] = useState([]);
     const [recipes, setRecipes] = useState([]);
     const [curatedMeals, setCuratedMeals] = useState([]);
+    const [userProfile, setUserProfile] = useState(null); // NEW: Store user profile
 
     // Analysis state
     const [suggestions, setSuggestions] = useState([]);
@@ -143,6 +146,14 @@ export default function RecipeSuggestions() {
     const [sortBy, setSortBy] = useState('match');
     const [activeTab, setActiveTab] = useState('curated');
 
+    // NEW: Dietary Filter State
+    const [dietaryFilters, setDietaryFilters] = useState({
+        useProfileDefaults: true, // Use user's profile dietary restrictions as default
+        includeFilters: [], // Show only these types
+        excludeFilters: [], // Hide these types
+        avoidIngredients: [] // Ingredients to avoid
+    });
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -154,9 +165,17 @@ export default function RecipeSuggestions() {
     const [showRecipeModal, setShowRecipeModal] = useState(null);
     const [loadingRecipe, setLoadingRecipe] = useState(false);
 
-    // NEW: Pre-indexing state
+    // Pre-indexing state
     const [ingredientIndex, setIngredientIndex] = useState(null);
     const [dataLoaded, setDataLoaded] = useState(false);
+
+    // NEW: Available dietary options
+    const DIETARY_OPTIONS = [
+        {id: 'vegan', label: 'Vegan', description: 'Plant-based recipes only'},
+        {id: 'vegetarian', label: 'Vegetarian', description: 'No meat or fish'},
+        {id: 'gluten-free', label: 'Gluten-Free', description: 'No gluten-containing ingredients'},
+        {id: 'keto', label: 'Keto/Low-Carb', description: 'Ketogenic and low-carb recipes'}
+    ];
 
     const recipeCategories = [
         {value: 'all', label: 'All Categories'},
@@ -179,19 +198,192 @@ export default function RecipeSuggestions() {
     ];
 
     const perPageOptions = [
-        { value: 5, label: '5 per page' },
-        { value: 10, label: '10 per page' },
-        { value: 20, label: '20 per page' },
-        { value: 50, label: '50 per page' },
-        { value: 100, label: '100 per page' }
+        {value: 5, label: '5 per page'},
+        {value: 10, label: '10 per page'},
+        {value: 20, label: '20 per page'},
+        {value: 50, label: '50 per page'},
+        {value: 100, label: '100 per page'}
     ];
 
     const curatedPerPageOptions = [
-        { value: 4, label: '4 per page' },
-        { value: 8, label: '8 per page' },
-        { value: 12, label: '12 per page' },
-        { value: 20, label: '20 per page' }
+        {value: 4, label: '4 per page'},
+        {value: 8, label: '8 per page'},
+        {value: 12, label: '12 per page'},
+        {value: 20, label: '20 per page'}
     ];
+
+    // NEW: Dietary filtering functions
+    const checkRecipeDietaryMatch = (recipe, dietaryFilters) => {
+        if (!dietaryFilters || (!dietaryFilters.includeFilters.length && !dietaryFilters.excludeFilters.length && !dietaryFilters.avoidIngredients.length)) {
+            return true; // No filters applied
+        }
+
+        const recipeText = `${recipe.title} ${(recipe.tags || []).join(' ')} ${recipe.description || ''}`.toLowerCase();
+        const recipeIngredients = (recipe.ingredients || []).map(ing =>
+            typeof ing === 'string' ? ing.toLowerCase() : (ing.name || '').toLowerCase()
+        ).join(' ');
+
+        // Check include filters (if any are set, recipe must match at least one)
+        if (dietaryFilters.includeFilters.length > 0) {
+            let matchesInclude = false;
+
+            for (const filter of dietaryFilters.includeFilters) {
+                switch (filter) {
+                    case 'vegan':
+                        if (recipeText.includes('vegan')) {
+                            matchesInclude = true;
+                        }
+                        break;
+                    case 'vegetarian':
+                        // Vegetarian includes vegan recipes
+                        if (recipeText.includes('vegetarian') || recipeText.includes('vegan')) {
+                            matchesInclude = true;
+                        }
+                        break;
+                    case 'gluten-free':
+                        if (recipeText.includes('gluten-free') || recipeText.includes('gluten free')) {
+                            matchesInclude = true;
+                        }
+                        break;
+                    case 'keto':
+                        if (recipeText.includes('keto') || recipeText.includes('low carb') || recipeText.includes('low-carb')) {
+                            matchesInclude = true;
+                        }
+                        break;
+                }
+            }
+
+            if (!matchesInclude) {
+                return false;
+            }
+        }
+
+        // Check exclude filters (if recipe matches any, exclude it)
+        for (const filter of dietaryFilters.excludeFilters) {
+            switch (filter) {
+                case 'vegan':
+                    if (recipeText.includes('vegan')) {
+                        return false;
+                    }
+                    break;
+                case 'vegetarian':
+                    if (recipeText.includes('vegetarian') || recipeText.includes('vegan')) {
+                        return false;
+                    }
+                    break;
+                case 'gluten-free':
+                    if (recipeText.includes('gluten-free') || recipeText.includes('gluten free')) {
+                        return false;
+                    }
+                    break;
+                case 'keto':
+                    if (recipeText.includes('keto') || recipeText.includes('low carb') || recipeText.includes('low-carb')) {
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        // Check ingredients to avoid
+        if (dietaryFilters.avoidIngredients.length > 0) {
+            for (const avoidIngredient of dietaryFilters.avoidIngredients) {
+                const normalizedAvoid = avoidIngredient.toLowerCase().trim();
+                if (normalizedAvoid && (recipeText.includes(normalizedAvoid) || recipeIngredients.includes(normalizedAvoid))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    // NEW: Load user profile for dietary defaults
+    const loadUserProfile = async () => {
+        try {
+            const response = await fetch(getApiUrl('/api/user/profile'));
+            const data = await response.json();
+
+            if (data.success && data.user) {
+                setUserProfile(data.user);
+
+                // Set dietary filter defaults from profile if user wants to use them
+                if (data.user.mealPlanningPreferences && dietaryFilters.useProfileDefaults) {
+                    setDietaryFilters(prev => ({
+                        ...prev,
+                        avoidIngredients: data.user.mealPlanningPreferences.avoidIngredients || []
+                        // Note: includeFilters will be set based on dietaryRestrictions in applyProfileDefaults
+                    }));
+
+                    // Convert profile dietary restrictions to include filters
+                    applyProfileDefaults(data.user.mealPlanningPreferences);
+                }
+            }
+        } catch (error) {
+            console.warn('Could not load user profile for dietary defaults:', error);
+        }
+    };
+
+    // NEW: Convert profile dietary restrictions to filter format
+    const applyProfileDefaults = (mealPlanningPreferences) => {
+        if (!mealPlanningPreferences || !mealPlanningPreferences.dietaryRestrictions) return;
+
+        const includeFilters = [];
+        const restrictions = mealPlanningPreferences.dietaryRestrictions.map(r => r.toLowerCase());
+
+        // Map dietary restrictions to our filter IDs
+        if (restrictions.some(r => r.includes('vegan'))) {
+            includeFilters.push('vegan');
+        } else if (restrictions.some(r => r.includes('vegetarian'))) {
+            includeFilters.push('vegetarian');
+        }
+
+        if (restrictions.some(r => r.includes('gluten-free') || r.includes('gluten free'))) {
+            includeFilters.push('gluten-free');
+        }
+
+        if (restrictions.some(r => r.includes('keto') || r.includes('low carb') || r.includes('low-carb'))) {
+            includeFilters.push('keto');
+        }
+
+        setDietaryFilters(prev => ({
+            ...prev,
+            includeFilters,
+            avoidIngredients: mealPlanningPreferences.avoidIngredients || []
+        }));
+    };
+
+    // NEW: Handle dietary filter changes
+    const handleDietaryFilterChange = (filterType, value, isChecked) => {
+        setDietaryFilters(prev => {
+            const newFilters = {...prev};
+
+            if (filterType === 'include') {
+                if (isChecked) {
+                    newFilters.includeFilters = [...prev.includeFilters, value];
+                    // Remove from exclude if it was there
+                    newFilters.excludeFilters = prev.excludeFilters.filter(f => f !== value);
+                } else {
+                    newFilters.includeFilters = prev.includeFilters.filter(f => f !== value);
+                }
+            } else if (filterType === 'exclude') {
+                if (isChecked) {
+                    newFilters.excludeFilters = [...prev.excludeFilters, value];
+                    // Remove from include if it was there
+                    newFilters.includeFilters = prev.includeFilters.filter(f => f !== value);
+                } else {
+                    newFilters.excludeFilters = prev.excludeFilters.filter(f => f !== value);
+                }
+            } else if (filterType === 'useProfileDefaults') {
+                newFilters.useProfileDefaults = value;
+                if (value && userProfile) {
+                    // Re-apply profile defaults
+                    applyProfileDefaults(userProfile.mealPlanningPreferences);
+                }
+            }
+
+            return newFilters;
+        });
+    };
 
     // OPTIMIZED: Pre-compute ingredient index for fast lookups
     const createIngredientIndex = (inventory) => {
@@ -510,15 +702,17 @@ export default function RecipeSuggestions() {
         }
     }, [session, dataLoaded]);
 
-    // NEW: Load data but don't analyze until user clicks "Analyze"
+    // Load data but don't analyze until user clicks "Analyze"
     const loadInitialData = async () => {
         setLoading(true);
-        // REMOVED: setShowLoadingModal(true); - no modal needed for initial load
 
         try {
             console.log('🔄 Loading initial data...');
 
-            // Step 1: Load inventory
+            // Step 1: Load user profile for dietary defaults
+            await loadUserProfile();
+
+            // Step 2: Load inventory
             const inventoryResponse = await fetch(getApiUrl('/api/inventory'));
             const inventoryData = await inventoryResponse.json();
 
@@ -527,12 +721,12 @@ export default function RecipeSuggestions() {
                 console.log('✅ Loaded inventory items:', inventoryData.inventory.length);
             }
 
-            // Step 2: Create ingredient index
+            // Step 3: Create ingredient index
             console.log('🗂️ Creating ingredient index...');
             const index = createIngredientIndex(inventoryData.inventory || []);
             setIngredientIndex(index);
 
-            // Step 3: Load curated meals
+            // Step 4: Load curated meals
             const curatedResponse = await fetch(getApiUrl('/api/admin/meals?status=approved&limit=100'));
             const curatedData = await curatedResponse.json();
 
@@ -541,7 +735,7 @@ export default function RecipeSuggestions() {
                 console.log('✅ Loaded curated meals:', curatedData.meals.length);
             }
 
-            // Step 4: Load recipes
+            // Step 5: Load recipes
             const recipesResponse = await fetch(getApiUrl('/api/recipes'));
             const recipesData = await recipesResponse.json();
 
@@ -560,7 +754,7 @@ export default function RecipeSuggestions() {
         }
     };
 
-    // NEW: Separate analysis function that runs when user clicks "Analyze"
+    // ENHANCED: Analysis function with dietary filtering
     const runAnalysis = async () => {
         if (!ingredientIndex || recipes.length === 0) {
             console.error('Missing data for analysis');
@@ -580,6 +774,13 @@ export default function RecipeSuggestions() {
             if (selectedCategory !== 'all') {
                 filteredRecipes = recipes.filter(recipe => recipe.category === selectedCategory);
                 console.log(`Filtered to ${filteredRecipes.length} recipes in category: ${selectedCategory}`);
+            }
+
+            // NEW: Apply dietary filtering
+            if (dietaryFilters.includeFilters.length > 0 || dietaryFilters.excludeFilters.length > 0 || dietaryFilters.avoidIngredients.length > 0) {
+                const beforeDietaryFilter = filteredRecipes.length;
+                filteredRecipes = filteredRecipes.filter(recipe => checkRecipeDietaryMatch(recipe, dietaryFilters));
+                console.log(`Dietary filtering: ${beforeDietaryFilter} → ${filteredRecipes.length} recipes`);
             }
 
             setCurrentLoadingTask(`Analyzing ${filteredRecipes.length} recipes...`);
@@ -642,7 +843,8 @@ export default function RecipeSuggestions() {
             setAnalyzedWithSettings({
                 matchThreshold,
                 selectedCategory,
-                sortBy
+                sortBy,
+                dietaryFilters: {...dietaryFilters} // Include dietary filters in settings
             });
 
             setLoadingProgress(100);
@@ -663,14 +865,15 @@ export default function RecipeSuggestions() {
         }
     };
 
-    // Check if analysis needs to be re-run
+    // ENHANCED: Check if analysis needs to be re-run (now includes dietary filters)
     const needsReanalysis = () => {
         if (!analysisComplete || !analyzedWithSettings) return true;
 
         return (
             analyzedWithSettings.matchThreshold !== matchThreshold ||
             analyzedWithSettings.selectedCategory !== selectedCategory ||
-            analyzedWithSettings.sortBy !== sortBy
+            analyzedWithSettings.sortBy !== sortBy ||
+            JSON.stringify(analyzedWithSettings.dietaryFilters) !== JSON.stringify(dietaryFilters)
         );
     };
 
@@ -741,7 +944,8 @@ export default function RecipeSuggestions() {
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div
+                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <div className="text-lg text-gray-600">Loading dashboard...</div>
                     </div>
                 </div>
@@ -771,7 +975,8 @@ export default function RecipeSuggestions() {
                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">What Can I Make?</h1>
-                        <p className="text-gray-600">Smart meal suggestions and recipe matches based on your inventory</p>
+                        <p className="text-gray-600">Smart meal suggestions and recipe matches based on your
+                            inventory</p>
                     </div>
                     <div>
                         <TouchEnhancedButton
@@ -797,7 +1002,8 @@ export default function RecipeSuggestions() {
                         </div>
                         <div>
                             <div className="text-sm font-medium text-gray-700">Analysis Status</div>
-                            <div className={`text-sm font-medium ${analysisComplete ? 'text-green-600' : 'text-gray-400'}`}>
+                            <div
+                                className={`text-sm font-medium ${analysisComplete ? 'text-green-600' : 'text-gray-400'}`}>
                                 {analysisComplete ? '✅ Complete' : '⏳ Ready to analyze'}
                             </div>
                         </div>
@@ -810,7 +1016,7 @@ export default function RecipeSuggestions() {
                     </div>
                 </div>
 
-                {/* NEW: Analysis Controls */}
+                {/* ENHANCED: Analysis Controls with Dietary Filtering */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 Analysis Settings</h3>
 
@@ -865,8 +1071,168 @@ export default function RecipeSuggestions() {
                         </div>
                     </div>
 
+                    {/* NEW: Dietary Filtering Section */}
+                    <div className="border-t border-gray-200 pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-md font-semibold text-gray-900">🥗 Dietary Filters</h4>
+                            <div className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="useProfileDefaults"
+                                    checked={dietaryFilters.useProfileDefaults}
+                                    onChange={(e) => handleDietaryFilterChange('useProfileDefaults', e.target.checked, null)}
+                                    className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="useProfileDefaults" className="text-sm text-gray-700">
+                                    Use my profile defaults
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Include Filters */}
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <h5 className="text-sm font-semibold text-green-800 mb-3">✅ Show Only These Types</h5>
+                                <div className="space-y-2">
+                                    {DIETARY_OPTIONS.map(option => (
+                                        <label key={option.id} className="flex items-start space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={dietaryFilters.includeFilters.includes(option.id)}
+                                                onChange={(e) => handleDietaryFilterChange('include', option.id, e.target.checked)}
+                                                className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                            />
+                                            <div>
+                                                <span
+                                                    className="text-sm font-medium text-gray-700">{option.label}</span>
+                                                <p className="text-xs text-gray-500">{option.description}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                {dietaryFilters.includeFilters.length > 0 && (
+                                    <p className="text-xs text-green-700 mt-2 font-medium">
+                                        Showing only: {dietaryFilters.includeFilters.map(f =>
+                                        DIETARY_OPTIONS.find(opt => opt.id === f)?.label
+                                    ).join(', ')} recipes
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Exclude Filters */}
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                                <h5 className="text-sm font-semibold text-red-800 mb-3">❌ Hide These Types</h5>
+                                <div className="space-y-2">
+                                    {DIETARY_OPTIONS.map(option => (
+                                        <label key={option.id} className="flex items-start space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={dietaryFilters.excludeFilters.includes(option.id)}
+                                                onChange={(e) => handleDietaryFilterChange('exclude', option.id, e.target.checked)}
+                                                className="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                                            />
+                                            <div>
+                                                <span
+                                                    className="text-sm font-medium text-gray-700">{option.label}</span>
+                                                <p className="text-xs text-gray-500">{option.description}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                {dietaryFilters.excludeFilters.length > 0 && (
+                                    <p className="text-xs text-red-700 mt-2 font-medium">
+                                        Hiding: {dietaryFilters.excludeFilters.map(f =>
+                                        DIETARY_OPTIONS.find(opt => opt.id === f)?.label
+                                    ).join(', ')} recipes
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Ingredients to Avoid */}
+                        <div className="mt-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
+                            <h5 className="text-sm font-semibold text-orange-800 mb-2">🚫 Avoid Ingredients</h5>
+                            <input
+                                type="text"
+                                value={dietaryFilters.avoidIngredients.join(', ')}
+                                onChange={(e) => {
+                                    const ingredients = e.target.value
+                                        .split(',')
+                                        .map(item => item.trim())
+                                        .filter(item => item.length > 0);
+                                    setDietaryFilters(prev => ({...prev, avoidIngredients: ingredients}));
+                                }}
+                                placeholder="nuts, shellfish, mushrooms, etc."
+                                className="w-full border border-orange-300 rounded-md px-3 py-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                            />
+                            <p className="text-xs text-orange-700 mt-1">
+                                Recipes containing these ingredients will be hidden. Separate with commas.
+                            </p>
+                        </div>
+
+                        {/* Quick Dietary Presets */}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryFilters(prev => ({
+                                    ...prev,
+                                    includeFilters: ['vegan'],
+                                    excludeFilters: [],
+                                    useProfileDefaults: false
+                                }))}
+                                className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs hover:bg-green-200"
+                            >
+                                🌱 Vegan Only
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryFilters(prev => ({
+                                    ...prev,
+                                    includeFilters: ['vegetarian'],
+                                    excludeFilters: [],
+                                    useProfileDefaults: false
+                                }))}
+                                className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs hover:bg-green-200"
+                            >
+                                🥬 Vegetarian Only
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryFilters(prev => ({
+                                    ...prev,
+                                    includeFilters: ['gluten-free'],
+                                    excludeFilters: [],
+                                    useProfileDefaults: false
+                                }))}
+                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs hover:bg-blue-200"
+                            >
+                                🌾 Gluten-Free Only
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryFilters(prev => ({
+                                    ...prev,
+                                    includeFilters: ['keto'],
+                                    excludeFilters: [],
+                                    useProfileDefaults: false
+                                }))}
+                                className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs hover:bg-purple-200"
+                            >
+                                🥩 Keto Only
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryFilters(prev => ({
+                                    ...prev,
+                                    includeFilters: [],
+                                    excludeFilters: [],
+                                    avoidIngredients: [],
+                                    useProfileDefaults: false
+                                }))}
+                                className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs hover:bg-gray-200"
+                            >
+                                🔄 Clear All
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+
                     {/* Analysis Button */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
                         <div className="text-sm text-gray-600">
                             {!dataLoaded ? (
                                 "Load your data first, then set your preferences and analyze"
@@ -901,7 +1267,7 @@ export default function RecipeSuggestions() {
                     </div>
                 </div>
 
-                {/* Results Section */}
+                {/* Results Section - keep existing code for tabs and results display */}
                 {analysisComplete && !needsReanalysis() && (
                     <div className="bg-white shadow rounded-lg">
                         <div className="border-b border-gray-200">
@@ -941,6 +1307,31 @@ export default function RecipeSuggestions() {
                                                     • Filtered by {recipeCategories.find(cat => cat.value === selectedCategory)?.label}
                                                 </span>
                                             )}
+                                            {/* NEW: Show active dietary filters */}
+                                            {(dietaryFilters.includeFilters.length > 0 || dietaryFilters.excludeFilters.length > 0 || dietaryFilters.avoidIngredients.length > 0) && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    {dietaryFilters.includeFilters.length > 0 && (
+                                                        <span className="text-green-600">
+                                                            • Showing only: {dietaryFilters.includeFilters.map(f =>
+                                                            DIETARY_OPTIONS.find(opt => opt.id === f)?.label
+                                                        ).join(', ')}
+                                                        </span>
+                                                    )}
+                                                    {dietaryFilters.excludeFilters.length > 0 && (
+                                                        <span className="text-red-600 ml-2">
+                                                            • Hiding: {dietaryFilters.excludeFilters.map(f =>
+                                                            DIETARY_OPTIONS.find(opt => opt.id === f)?.label
+                                                        ).join(', ')}
+                                                        </span>
+                                                    )}
+                                                    {dietaryFilters.avoidIngredients.length > 0 && (
+                                                        <span className="text-orange-600 ml-2">
+                                                            • Avoiding: {dietaryFilters.avoidIngredients.slice(0, 3).join(', ')}
+                                                            {dietaryFilters.avoidIngredients.length > 3 && '...'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </h3>
                                         {filteredSuggestions.length > 10 && (
                                             <div className="flex items-center space-x-3">
@@ -968,28 +1359,67 @@ export default function RecipeSuggestions() {
                                             <div className="text-gray-500 mb-4">
                                                 No recipes match your current settings
                                             </div>
-                                            <TouchEnhancedButton
-                                                onClick={() => setMatchThreshold(0.1)}
-                                                className="text-indigo-600 hover:text-indigo-900 text-sm"
-                                            >
-                                                Try lowering the match threshold to 10%
-                                            </TouchEnhancedButton>
+                                            <div className="space-y-2">
+                                                <TouchEnhancedButton
+                                                    onClick={() => setMatchThreshold(0.1)}
+                                                    className="text-indigo-600 hover:text-indigo-900 text-sm block mx-auto"
+                                                >
+                                                    Try lowering the match threshold to 10%
+                                                </TouchEnhancedButton>
+                                                {(dietaryFilters.includeFilters.length > 0 || dietaryFilters.excludeFilters.length > 0) && (
+                                                    <TouchEnhancedButton
+                                                        onClick={() => setDietaryFilters(prev => ({
+                                                            ...prev,
+                                                            includeFilters: [],
+                                                            excludeFilters: [],
+                                                            useProfileDefaults: false
+                                                        }))}
+                                                        className="text-indigo-600 hover:text-indigo-900 text-sm block mx-auto"
+                                                    >
+                                                        or clear dietary filters
+                                                    </TouchEnhancedButton>
+                                                )}
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="space-y-6">
                                             {getPaginatedData(filteredSuggestions, currentPage, itemsPerPage).map((recipe) => (
                                                 <div key={recipe._id} className="border border-gray-200 rounded-lg p-6">
-                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-3 sm:space-y-0">
+                                                    <div
+                                                        className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-3 sm:space-y-0">
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex flex-col space-y-2 mb-3">
-                                                                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+                                                                <div
+                                                                    className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
                                                                     <h4 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
                                                                         {recipe.title}
                                                                     </h4>
-                                                                    <div className="flex-shrink-0 mt-2 sm:mt-0">
-                                                                        <div className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
-                                                                            {Math.round(recipe.analysis.matchPercentage * 100)}% Match
+                                                                    <div
+                                                                        className="flex-shrink-0 mt-2 sm:mt-0 flex gap-2">
+                                                                        <div
+                                                                            className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getMatchColor(recipe.analysis.matchPercentage)}`}>
+                                                                            {Math.round(recipe.analysis.matchPercentage * 100)}%
+                                                                            Match
                                                                         </div>
+                                                                        {/* NEW: Show dietary tags */}
+                                                                        {recipe.tags && recipe.tags.some(tag =>
+                                                                            ['vegan', 'vegetarian', 'gluten-free', 'gluten free', 'keto', 'low carb', 'low-carb'].some(diet =>
+                                                                                tag.toLowerCase().includes(diet)
+                                                                            )
+                                                                        ) && (
+                                                                            <div className="flex gap-1">
+                                                                                {recipe.tags.filter(tag =>
+                                                                                    ['vegan', 'vegetarian', 'gluten-free', 'gluten free', 'keto', 'low carb', 'low-carb'].some(diet =>
+                                                                                        tag.toLowerCase().includes(diet)
+                                                                                    )
+                                                                                ).slice(0, 2).map((tag, idx) => (
+                                                                                    <span key={idx}
+                                                                                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                                                        {tag}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                                 {recipe.description && (
@@ -1002,10 +1432,12 @@ export default function RecipeSuggestions() {
                                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                                                         {/* Recipe Info */}
                                                         <div className="lg:col-span-1">
-                                                            <h5 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Recipe Details</h5>
+                                                            <h5 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Recipe
+                                                                Details</h5>
                                                             <div className="space-y-1 text-xs sm:text-sm text-gray-600">
                                                                 <div className="flex items-center space-x-2">
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                                                    <span
+                                                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
                                                                         {recipe.difficulty}
                                                                     </span>
                                                                 </div>
@@ -1027,20 +1459,24 @@ export default function RecipeSuggestions() {
                                                         {/* Available Ingredients */}
                                                         <div className="lg:col-span-1">
                                                             <h5 className="font-medium text-green-700 mb-2 text-sm sm:text-base">
-                                                                ✅ You Have ({recipe.analysis.availableIngredients.length})
+                                                                ✅ You Have
+                                                                ({recipe.analysis.availableIngredients.length})
                                                             </h5>
                                                             <div className="space-y-1 text-xs sm:text-sm">
                                                                 {recipe.analysis.availableIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                    <div key={index} className="text-green-600 break-words">
+                                                                    <div key={index}
+                                                                         className="text-green-600 break-words">
                                                                         • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                                         {ingredient.matchType === 'substitution' && (
-                                                                            <span className="text-xs text-blue-600 ml-1">(substitute)</span>
+                                                                            <span
+                                                                                className="text-xs text-blue-600 ml-1">(substitute)</span>
                                                                         )}
                                                                     </div>
                                                                 ))}
                                                                 {recipe.analysis.availableIngredients.length > 5 && (
                                                                     <div className="text-green-600 text-xs">
-                                                                        +{recipe.analysis.availableIngredients.length - 5} more available
+                                                                        +{recipe.analysis.availableIngredients.length - 5} more
+                                                                        available
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -1053,13 +1489,15 @@ export default function RecipeSuggestions() {
                                                             </h5>
                                                             <div className="space-y-1 text-xs sm:text-sm">
                                                                 {recipe.analysis.missingIngredients.slice(0, 5).map((ingredient, index) => (
-                                                                    <div key={index} className="text-red-600 break-words">
+                                                                    <div key={index}
+                                                                         className="text-red-600 break-words">
                                                                         • {ingredient.amount} {ingredient.unit} {ingredient.name}
                                                                     </div>
                                                                 ))}
                                                                 {recipe.analysis.missingIngredients.length > 5 && (
                                                                     <div className="text-red-600 text-xs">
-                                                                        +{recipe.analysis.missingIngredients.length - 5} more needed
+                                                                        +{recipe.analysis.missingIngredients.length - 5} more
+                                                                        needed
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -1067,7 +1505,8 @@ export default function RecipeSuggestions() {
                                                     </div>
 
                                                     {/* Action Buttons */}
-                                                    <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                                                    <div
+                                                        className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
                                                         <div className="text-xs sm:text-sm text-gray-500">
                                                             {recipe.analysis.canMake ? (
                                                                 <span className="text-green-600 font-medium">
@@ -1079,74 +1518,75 @@ export default function RecipeSuggestions() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <TouchEnhancedButton
-                                                            onClick={() => loadRecipeDetails(recipe._id)}
-                                                            disabled={loadingRecipe}
-                                                            className="w-half sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                                                            style={{ height: '36px', minHeight: '36px', width: '36px', minWidth: '36px'}}
-                                                        >
-                                                            {loadingRecipe ? 'Loading...' : 'View Recipe'}
-                                                        </TouchEnhancedButton>
-                                                        {(recipe.analysis.matchPercentage * 100) < 100 && (
+                                                        <div className="flex gap-2">
                                                             <TouchEnhancedButton
-                                                                onClick={() => {
-                                                                    // Find the recipe to get its missing ingredients
-                                                                    if (!recipe || !recipe.analysis) {
-                                                                        alert('Recipe analysis not available');
-                                                                        return;
-                                                                    }
-
-                                                                    // Create shopping list from missing ingredients
-                                                                    const shoppingListData = {
-                                                                        items: {
-                                                                            'Grocery': recipe.analysis.missingIngredients.map(ingredient => ({
-                                                                                name: ingredient.name,
-                                                                                ingredient: ingredient.name,
-                                                                                amount: ingredient.amount || '',
-                                                                                unit: ingredient.unit || '',
-                                                                                category: 'Grocery',
-                                                                                recipes: [recipe.title],
-                                                                                inInventory: false,
-                                                                                inventoryItem: null,
-                                                                                purchased: false,
-                                                                                itemKey: `${ingredient.name}-Grocery`,
-                                                                                haveAmount: '',
-                                                                                needAmount: ingredient.amount || '',
-                                                                                notes: ''
-                                                                            }))
-                                                                        },
-                                                                        summary: {
-                                                                            totalItems: recipe.analysis.missingIngredients.length,
-                                                                            needToBuy: recipe.analysis.missingIngredients.length,
-                                                                            inInventory: 0,
-                                                                            purchased: 0
-                                                                        },
-                                                                        recipes: [recipe.title],
-                                                                        generatedAt: new Date().toISOString()
-                                                                    };
-
-                                                                    setShowShoppingList({
-                                                                        recipeId: recipe._id,
-                                                                        recipeName: recipe.title,
-                                                                        type: 'recipe',
-                                                                        shoppingListData: shoppingListData
-                                                                    });
-                                                                }}
-                                                                className="w-half sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                                                                style={{ height: '36px', minHeight: '36px', width: '36px', minWidth: '36px'}}
+                                                                onClick={() => loadRecipeDetails(recipe._id)}
+                                                                disabled={loadingRecipe}
+                                                                className="inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 min-h-[36px]"
                                                             >
-                                                                Shopping List
+                                                                {loadingRecipe ? 'Loading...' : 'View Recipe'}
                                                             </TouchEnhancedButton>
-                                                        )}
+                                                            {(recipe.analysis.matchPercentage * 100) < 100 && (
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => {
+                                                                        // Find the recipe to get its missing ingredients
+                                                                        if (!recipe || !recipe.analysis) {
+                                                                            alert('Recipe analysis not available');
+                                                                            return;
+                                                                        }
+
+                                                                        // Create shopping list from missing ingredients
+                                                                        const shoppingListData = {
+                                                                            items: {
+                                                                                'Grocery': recipe.analysis.missingIngredients.map(ingredient => ({
+                                                                                    name: ingredient.name,
+                                                                                    ingredient: ingredient.name,
+                                                                                    amount: ingredient.amount || '',
+                                                                                    unit: ingredient.unit || '',
+                                                                                    category: 'Grocery',
+                                                                                    recipes: [recipe.title],
+                                                                                    inInventory: false,
+                                                                                    inventoryItem: null,
+                                                                                    purchased: false,
+                                                                                    itemKey: `${ingredient.name}-Grocery`,
+                                                                                    haveAmount: '',
+                                                                                    needAmount: ingredient.amount || '',
+                                                                                    notes: ''
+                                                                                }))
+                                                                            },
+                                                                            summary: {
+                                                                                totalItems: recipe.analysis.missingIngredients.length,
+                                                                                needToBuy: recipe.analysis.missingIngredients.length,
+                                                                                inInventory: 0,
+                                                                                purchased: 0
+                                                                            },
+                                                                            recipes: [recipe.title],
+                                                                            generatedAt: new Date().toISOString()
+                                                                        };
+
+                                                                        setShowShoppingList({
+                                                                            recipeId: recipe._id,
+                                                                            recipeName: recipe.title,
+                                                                            type: 'recipe',
+                                                                            shoppingListData: shoppingListData
+                                                                        });
+                                                                    }}
+                                                                    className="inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 min-h-[36px]"
+                                                                >
+                                                                    Shopping List
+                                                                </TouchEnhancedButton>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
-                                    {/* Pagination */}
+                                    {/* Pagination - keep existing pagination code */}
                                     {filteredSuggestions.length > itemsPerPage && (
-                                        <div className="mt-8 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+                                        <div
+                                            className="mt-8 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
                                             <div className="flex flex-1 justify-between sm:hidden">
                                                 <TouchEnhancedButton
                                                     onClick={() => setCurrentPage(currentPage - 1)}
@@ -1163,7 +1603,8 @@ export default function RecipeSuggestions() {
                                                     Next
                                                 </TouchEnhancedButton>
                                             </div>
-                                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                                            <div
+                                                className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                                                 <div>
                                                     <p className="text-sm text-gray-700">
                                                         Showing{' '}
@@ -1175,23 +1616,29 @@ export default function RecipeSuggestions() {
                                                             {Math.min(currentPage * itemsPerPage, filteredSuggestions.length)}
                                                         </span>{' '}
                                                         of{' '}
-                                                        <span className="font-medium">{filteredSuggestions.length}</span> results
+                                                        <span
+                                                            className="font-medium">{filteredSuggestions.length}</span> results
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                                    <nav
+                                                        className="isolate inline-flex -space-x-px rounded-md shadow-sm"
+                                                        aria-label="Pagination">
                                                         <TouchEnhancedButton
                                                             onClick={() => setCurrentPage(currentPage - 1)}
                                                             disabled={currentPage === 1}
                                                             className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
                                                         >
                                                             <span className="sr-only">Previous</span>
-                                                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                                <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                                                            <svg className="h-5 w-5" viewBox="0 0 20 20"
+                                                                 fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd"
+                                                                      d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+                                                                      clipRule="evenodd"/>
                                                             </svg>
                                                         </TouchEnhancedButton>
 
-                                                        {Array.from({ length: getTotalPages(filteredSuggestions.length, itemsPerPage) }, (_, i) => i + 1)
+                                                        {Array.from({length: getTotalPages(filteredSuggestions.length, itemsPerPage)}, (_, i) => i + 1)
                                                             .filter(page => {
                                                                 const totalPages = getTotalPages(filteredSuggestions.length, itemsPerPage);
                                                                 if (totalPages <= 7) return true;
@@ -1204,7 +1651,8 @@ export default function RecipeSuggestions() {
                                                                 return (
                                                                     <div key={page} className="flex items-center">
                                                                         {showEllipsis && (
-                                                                            <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">
+                                                                            <span
+                                                                                className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">
                                                                                 ...
                                                                             </span>
                                                                         )}
@@ -1228,8 +1676,11 @@ export default function RecipeSuggestions() {
                                                             className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
                                                         >
                                                             <span className="sr-only">Next</span>
-                                                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                                                            <svg className="h-5 w-5" viewBox="0 0 20 20"
+                                                                 fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd"
+                                                                      d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                                                                      clipRule="evenodd"/>
                                                             </svg>
                                                         </TouchEnhancedButton>
                                                     </nav>
@@ -1240,7 +1691,7 @@ export default function RecipeSuggestions() {
                                 </div>
                             )}
 
-                            {/* Curated Meals Tab - Restored functionality */}
+                            {/* Curated Meals Tab - keep existing code */}
                             {activeTab === 'curated' && (
                                 <div id="curated-results">
                                     <div className="flex justify-between items-center mb-4">
@@ -1261,22 +1712,27 @@ export default function RecipeSuggestions() {
                                     ) : (
                                         <div className="space-y-6">
                                             {curatedMeals.slice(0, 10).map((meal, index) => (
-                                                <div key={meal._id} className="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gradient-to-r from-purple-50 to-indigo-50">
-                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-2 sm:space-y-0">
+                                                <div key={meal._id}
+                                                     className="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gradient-to-r from-purple-50 to-indigo-50">
+                                                    <div
+                                                        className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-2 sm:space-y-0">
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2">
+                                                            <div
+                                                                className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2">
                                                                 <h4 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
                                                                     {meal.name}
                                                                 </h4>
                                                                 <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
-                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                                    <span
+                                                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                                                         {meal.difficulty}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                             <p className="text-gray-600 mb-3 text-sm sm:text-base">{meal.description}</p>
 
-                                                            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-4">
+                                                            <div
+                                                                className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-4">
                                                                 <span>⏱️ {meal.estimatedTime} min</span>
                                                                 <span>👥 {meal.servings} servings</span>
                                                                 <span>🍽️ {meal.mealType}</span>
@@ -1293,14 +1749,19 @@ export default function RecipeSuggestions() {
                                                             </h5>
                                                             <div className="space-y-2">
                                                                 {meal.components?.slice(0, 5).map((component, idx) => (
-                                                                    <div key={idx} className="flex items-center space-x-3 bg-white p-2 sm:p-3 rounded-lg border border-gray-200">
-                                                                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                                                    <div key={idx}
+                                                                         className="flex items-center space-x-3 bg-white p-2 sm:p-3 rounded-lg border border-gray-200">
+                                                                        <div
+                                                                            className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
                                                                         <div className="flex-1 min-w-0">
-                                                                            <div className="font-medium text-gray-900 text-sm break-words">
+                                                                            <div
+                                                                                className="font-medium text-gray-900 text-sm break-words">
                                                                                 {component.itemName}
-                                                                                {!component.required && <span className="text-gray-500 text-xs ml-1">(optional)</span>}
+                                                                                {!component.required && <span
+                                                                                    className="text-gray-500 text-xs ml-1">(optional)</span>}
                                                                             </div>
-                                                                            <div className="text-xs text-gray-500 capitalize">
+                                                                            <div
+                                                                                className="text-xs text-gray-500 capitalize">
                                                                                 {component.category}
                                                                             </div>
                                                                         </div>
@@ -1322,18 +1783,22 @@ export default function RecipeSuggestions() {
                                                             {meal.cookingTips && meal.cookingTips.length > 0 ? (
                                                                 <div className="space-y-2">
                                                                     {meal.cookingTips.slice(0, 3).map((tip, tipIndex) => (
-                                                                        <div key={tipIndex} className="bg-white p-2 sm:p-3 rounded-lg border border-yellow-200">
-                                                                            <div className="text-xs sm:text-sm text-gray-700">• {tip}</div>
+                                                                        <div key={tipIndex}
+                                                                             className="bg-white p-2 sm:p-3 rounded-lg border border-yellow-200">
+                                                                            <div
+                                                                                className="text-xs sm:text-sm text-gray-700">• {tip}</div>
                                                                         </div>
                                                                     ))}
                                                                     {meal.cookingTips.length > 3 && (
-                                                                        <div className="text-xs text-gray-500 italic p-2">
+                                                                        <div
+                                                                            className="text-xs text-gray-500 italic p-2">
                                                                             +{meal.cookingTips.length - 3} more tips
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             ) : (
-                                                                <div className="bg-white p-3 rounded-lg border border-gray-200">
+                                                                <div
+                                                                    className="bg-white p-3 rounded-lg border border-gray-200">
                                                                     <div className="text-sm text-gray-500 italic">
                                                                         No specific cooking tips for this meal
                                                                     </div>
@@ -1343,13 +1808,15 @@ export default function RecipeSuggestions() {
                                                     </div>
 
                                                     {/* Action Bar */}
-                                                    <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                                                    <div
+                                                        className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
                                                         <div className="text-xs sm:text-sm text-gray-500">
                                                             <span className="text-indigo-600 font-medium">
                                                                 🍽️ Curated meal suggestion
                                                             </span>
                                                         </div>
-                                                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                                                        <div
+                                                            className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
                                                             <TouchEnhancedButton
                                                                 onClick={() => {
                                                                     alert('Add to meal plan feature coming soon!');
@@ -1375,25 +1842,29 @@ export default function RecipeSuggestions() {
                     <div className="bg-white shadow rounded-lg p-8">
                         <div className="text-center">
                             <div className="text-gray-400 mb-4">
-                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                 </svg>
                             </div>
                             <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Find Recipes!</h3>
                             <p className="text-gray-500 mb-6">
-                                Your data is loaded and indexed. Set your preferences above and click "Find Recipes" to see what you can make with your current inventory.
+                                Your data is loaded and indexed. Set your preferences above and click "Find Recipes" to
+                                see what you can make with your current inventory.
                             </p>
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <div className="text-blue-800 text-sm">
-                                    <strong>💡 Tip:</strong> Start with a 40% match threshold to see recipes where you have most ingredients.
-                                    You can always adjust and re-analyze!
+                                    <strong>💡 Tip:</strong> Start with a 40% match threshold and experiment with dietary
+                                    filters to find recipes that match your preferences. You can always adjust and
+                                    re-analyze!
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Recipe Modal */}
+                {/* Recipe Modal - keep existing modal code */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -1438,7 +1909,8 @@ export default function RecipeSuggestions() {
                                         <ol className="space-y-4">
                                             {showRecipeModal.instructions?.map((instruction, index) => (
                                                 <li key={index} className="flex items-start space-x-4">
-                                                    <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                                    <span
+                                                        className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                                                         {index + 1}
                                                     </span>
                                                     <p className="text-gray-700 leading-relaxed">{instruction}</p>
@@ -1465,7 +1937,7 @@ export default function RecipeSuggestions() {
                     <UnifiedShoppingListModal
                         isOpen={true}
                         onClose={() => setShowShoppingList(null)}
-                        shoppingList={showShoppingList.shoppingListData} // Use the generated data
+                        shoppingList={showShoppingList.shoppingListData}
                         title="🛒 Shopping List"
                         subtitle={showShoppingList.type === 'recipe' ? showShoppingList.recipeName : showShoppingList.mealName}
                         sourceRecipeIds={showShoppingList.type === 'recipe' ? [showShoppingList.recipeId] : []}
@@ -1479,14 +1951,6 @@ export default function RecipeSuggestions() {
         </MobileOptimizedLayout>
     );
 }
-
-// CORE INGREDIENT MATCHING FUNCTIONS (keep your existing functions here)
-// These need to be added at the bottom - all the functions like:
-// - normalizeIngredientName
-// - extractIngredientName
-// - getIngredientVariations
-// - INTELLIGENT_SUBSTITUTIONS
-// - etc.
 
 // COMPLETE INGREDIENT MATCHING SYSTEM - All original logic preserved
 
