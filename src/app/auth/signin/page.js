@@ -209,6 +209,9 @@ function SignInContent() {
 
                         console.log('🔍 Method 4: Trying user data by email...');
 
+                        // Add a small delay to ensure the callback processing is complete
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
                         // Try to get user data by email
                         const userResponse = await fetch(getApiUrl('/api/user/by-email'), {
                             method: 'POST',
@@ -218,6 +221,8 @@ function SignInContent() {
                             },
                             body: JSON.stringify({ email: formData.email })
                         });
+
+                        console.log('📡 User by email API response status:', userResponse.status);
 
                         if (userResponse.ok) {
                             const userData = await userResponse.json();
@@ -240,6 +245,14 @@ function SignInContent() {
                                     }, 1000);
                                     return;
                                 }
+                            }
+                        } else {
+                            console.error('❌ User by email API failed:', userResponse.status, userResponse.statusText);
+                            try {
+                                const errorData = await userResponse.text();
+                                console.error('Error response:', errorData);
+                            } catch (e) {
+                                console.error('Could not read error response');
                             }
                         }
 

@@ -55,12 +55,10 @@ export default function CapacitorAuthProvider({ children }) {
                         }).then(response => {
                             console.log('Auth response status:', response.status);
 
-                            // If successful and it's a callback, redirect to dashboard
+                            // If successful and it's a callback, log success but don't redirect
+                            // Let the signin page handle the redirect after session storage
                             if (response.ok && url.includes('/callback')) {
-                                console.log('Successful auth callback - redirecting to dashboard');
-                                setTimeout(() => {
-                                    window.location.href = '/dashboard';
-                                }, 1000);
+                                console.log('Successful auth callback - signin page will handle redirect');
                             }
 
                             return response;

@@ -6,17 +6,24 @@ import { User } from '@/lib/models';
 
 export async function POST(request) {
     try {
+        console.log('📥 User by email API called');
+
         const { email } = await request.json();
+        console.log('📧 Looking up user by email:', email);
 
         if (!email) {
+            console.log('❌ No email provided');
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
         await connectDB();
+        console.log('✅ Connected to database');
 
         const user = await User.findOne({ email });
+        console.log('🔍 User lookup result:', user ? 'found' : 'not found');
 
         if (!user) {
+            console.log('❌ User not found in database');
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
@@ -39,11 +46,18 @@ export async function POST(request) {
             roles: user.roles || [],
         };
 
-        console.log('📤 Returning user data for email:', email, userData);
+        console.log('📤 Returning user data for email:', email);
+        console.log('👤 User data:', {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            subscriptionTier: userData.subscriptionTier,
+            isAdmin: userData.isAdmin
+        });
 
         return NextResponse.json(userData);
     } catch (error) {
-        console.error('Error fetching user by email:', error);
+        console.error('💥 Error in user by email API:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
