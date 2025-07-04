@@ -64,7 +64,7 @@ function parseIngredientText(text) {
         'liters?', 'liter', 'litres?', 'litre', 'l', 'milliliters?', 'milliliter', 'ml', 'millilitres?', 'millitre',
 
         // Count-based units
-        'pieces?', 'piece', 'slices?', 'slice', 'cloves?', 'clove', 'bulbs?', 'bulb',
+        'pieces?', 'piece', 'slices?', 'slice', 'cloves?', 'clove', 'bulbs?', 'bulb', 'ribs', 'rib',
         'stalks?', 'stalk', 'sprigs?', 'sprig', 'leaves?', 'leaf', 'strips?', 'strip',
         'wedges?', 'wedge', 'segments?', 'segment', 'cans?', 'can', 'jars?', 'jar',
         'bottles?', 'bottle', 'packages?', 'package', 'boxes?', 'box', 'bags?', 'bag', 'bunches?', 'bunch',

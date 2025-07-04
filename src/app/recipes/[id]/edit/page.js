@@ -469,15 +469,15 @@ export default function EditRecipePage() {
                                                 type="checkbox"
                                                 checked={ingredient.optional || false}
                                                 onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-2 h-4 w-4"
+                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ingredient-checkbox h-4 w-4"
                                             />
-                                            Optional
+                                            <span className="ml-3">Optional</span>
                                         </label>
                                         {formData.ingredients.length > 1 && (
                                             <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => removeIngredient(index)}
-                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
                                                 title="Remove ingredient"
                                             >
                                                 ✕
@@ -563,7 +563,7 @@ export default function EditRecipePage() {
                                             <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => removeInstruction(index)}
-                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
                                                 title="Remove step"
                                             >
                                                 ✕
