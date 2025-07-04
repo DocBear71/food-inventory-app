@@ -1,10 +1,7 @@
-// file: /src/app/api/collections/route.js v5 - FIXED to work with existing subscription system
-// GET /api/collections - Fetch user's collections
-// POST /api/collections - Create new collection (with subscription limits)
+// file: /src/app/api/collections/route.js v6 - Added mobile session support
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { RecipeCollection, User } from '@/lib/models';
 
@@ -13,7 +10,8 @@ const checkCollectionLimits = (userTier, currentCount) => {
     const limits = {
         free: 2,
         gold: 10,
-        platinum: -1 // unlimited
+        platinum: -1, // unlimited
+        admin: -1 // unlimited
     };
 
     const limit = limits[userTier] || limits.free;
@@ -35,14 +33,17 @@ const checkCollectionLimits = (userTier, currentCount) => {
 
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('GET /api/collections - No session found');
             return NextResponse.json(
                 { error: 'Authentication required' },
                 { status: 401 }
             );
         }
+
+        console.log('GET /api/collections - Session found:', session.user.email, 'source:', session.source);
 
         await connectDB();
 
@@ -56,6 +57,8 @@ export async function GET(request) {
                 model: 'Recipe'
             })
             .sort({ updatedAt: -1 });
+
+        console.log(`GET /api/collections - Found ${collections.length} collections`);
 
         return NextResponse.json({
             success: true,
@@ -73,14 +76,17 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('POST /api/collections - No session found');
             return NextResponse.json(
                 { error: 'Authentication required' },
                 { status: 401 }
             );
         }
+
+        console.log('POST /api/collections - Session found:', session.user.email, 'source:', session.source);
 
         const body = await request.json();
         const { name, description, recipes = [], isPublic = false } = body;
@@ -109,7 +115,7 @@ export async function POST(request) {
 
         await connectDB();
 
-                // Get user
+        // Get user
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json(
@@ -119,14 +125,7 @@ export async function POST(request) {
         }
 
         // Get effective tier
-        const userTier = user.subscription?.tier || 'free';
-
-        // Check if collections feature is available for this tier
-        if (userTier === 'free') {
-            // Free users can create limited collections
-        } else {
-            // Paid users have access
-        }
+        const userTier = user.getEffectiveTier();
 
         const currentCollectionCount = await RecipeCollection.countDocuments({
             userId: session.user.id
@@ -194,6 +193,8 @@ export async function POST(request) {
             select: 'title description difficulty prepTime cookTime servings isPublic createdAt',
             model: 'Recipe'
         });
+
+        console.log('POST /api/collections - Collection created successfully');
 
         return NextResponse.json({
             success: true,

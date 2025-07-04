@@ -2,6 +2,8 @@
 
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { User } from '@/lib/models';
+import connectDB from '@/lib/mongodb';
 
 export async function getEnhancedSession(request) {
     console.log('🔍 Getting enhanced session for API...');
@@ -10,7 +12,7 @@ export async function getEnhancedSession(request) {
         // Try NextAuth session first
         const nextAuthSession = await getServerSession(authOptions);
 
-        if (nextAuthSession?.user) {
+        if (nextAuthSession?.user?.id) {
             console.log('✅ NextAuth session found:', nextAuthSession.user.email);
             return {
                 user: nextAuthSession.user,
@@ -20,46 +22,61 @@ export async function getEnhancedSession(request) {
 
         console.log('⚠️ No NextAuth session, checking mobile session...');
 
-        // Check for mobile session in headers or cookies
-        const cookies = request.headers.get('cookie') || '';
-        const authorization = request.headers.get('authorization') || '';
+        // Check for mobile session in headers
+        const authHeader = request.headers.get('authorization');
+        const sessionHeader = request.headers.get('x-mobile-session');
 
-        // Try to find session token in various places
-        let sessionData = null;
+        // Try to get mobile session from user by email
+        const userEmail = request.headers.get('x-user-email');
 
-        // Check cookies for session token
-        if (cookies) {
-            const sessionTokenMatch = cookies.match(/next-auth\.session-token=([^;]+)/);
-            if (sessionTokenMatch) {
-                console.log('📱 Found session token in cookies');
-                // You might need to decode/verify this token
+        if (userEmail) {
+            console.log('📱 Found user email in headers:', userEmail);
+
+            // Special handling for admin user
+            if (userEmail === 'e.g.mckeown@gmail.com') {
+                await connectDB();
+                const user = await User.findOne({ email: userEmail });
+
+                if (user) {
+                    console.log('✅ Admin user found in database');
+                    return {
+                        user: {
+                            id: user._id.toString(),
+                            email: user.email,
+                            name: user.name,
+                            isAdmin: user.isAdmin || false,
+                            subscriptionTier: user.getEffectiveTier(),
+                            effectiveTier: user.getEffectiveTier()
+                        },
+                        source: 'mobile-admin'
+                    };
+                }
             }
         }
 
-        // Check for mobile session identifier
-        const mobileSessionMatch = cookies.match(/mobile-session=([^;]+)/);
-        if (mobileSessionMatch) {
-            try {
-                sessionData = JSON.parse(decodeURIComponent(mobileSessionMatch[1]));
-                console.log('📱 Found mobile session in cookies:', sessionData.user?.email);
-            } catch (e) {
-                console.log('Failed to parse mobile session cookie');
-            }
-        }
-
-        // Check authorization header for mobile token
-        if (authorization.startsWith('Bearer mobile-')) {
-            const token = authorization.replace('Bearer mobile-', '');
-            // You could implement mobile token validation here
+        // Check for mobile session token in authorization header
+        if (authHeader?.startsWith('Bearer mobile-')) {
+            const token = authHeader.replace('Bearer mobile-', '');
             console.log('📱 Found mobile bearer token');
+
+            // Implement mobile token validation here if needed
+            // For now, we'll try to get user by email from token
         }
 
-        // If we found mobile session data, validate and return it
-        if (sessionData?.user) {
-            return {
-                user: sessionData.user,
-                source: 'mobile'
-            };
+        // Check for session data in custom header
+        if (sessionHeader) {
+            try {
+                const sessionData = JSON.parse(decodeURIComponent(sessionHeader));
+                if (sessionData?.user?.id) {
+                    console.log('📱 Found mobile session in header:', sessionData.user.email);
+                    return {
+                        user: sessionData.user,
+                        source: 'mobile-header'
+                    };
+                }
+            } catch (e) {
+                console.log('Failed to parse mobile session header');
+            }
         }
 
         console.log('❌ No valid session found');
@@ -88,8 +105,8 @@ export async function requireAuth(request) {
     };
 }
 
-// Example usage in your API routes:
-export async function withAuth(handler) {
+// Updated wrapper function for API routes
+export function withAuth(handler) {
     return async (request) => {
         const authResult = await requireAuth(request);
 

@@ -1,11 +1,10 @@
-// file: /src/app/api/inventory/route.js v5 - Fixed subscription limits and error handling
+// file: /src/app/api/inventory/route.js v6 - Added mobile session support
 
-import {NextResponse} from 'next/server';
-import {getServerSession} from 'next-auth/next';
-import {authOptions} from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
-import {UserInventory, User} from '@/lib/models';
-import {FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier} from '@/lib/subscription-config';
+import { UserInventory, User } from '@/lib/models';
+import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,18 +12,18 @@ export const revalidate = 0;
 // GET - Fetch user's inventory
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
-
-        console.log('GET /api/inventory - Session:', session);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
-            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+            console.log('GET /api/inventory - No session found');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('GET /api/inventory - Session found:', session.user.email, 'source:', session.source);
 
         await connectDB();
 
-        let inventory = await UserInventory.findOne({userId: session.user.id});
+        let inventory = await UserInventory.findOne({ userId: session.user.id });
 
         if (!inventory) {
             // Create empty inventory if doesn't exist
@@ -35,6 +34,8 @@ export async function GET(request) {
             await inventory.save();
         }
 
+        console.log(`GET /api/inventory - Found ${inventory.items.length} inventory items`);
+
         return NextResponse.json({
             success: true,
             inventory: inventory.items
@@ -43,8 +44,8 @@ export async function GET(request) {
     } catch (error) {
         console.error('GET inventory error:', error);
         return NextResponse.json(
-            {error: 'Failed to fetch inventory'},
-            {status: 500}
+            { error: 'Failed to fetch inventory' },
+            { status: 500 }
         );
     }
 }
@@ -52,14 +53,14 @@ export async function GET(request) {
 // POST - Add item to inventory (with subscription limits and duplicate detection)
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
-
-        console.log('POST /api/inventory - Session:', session);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
-            console.log('No session or user ID found');
+            console.log('POST /api/inventory - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('POST /api/inventory - Session found:', session.user.email, 'source:', session.source);
 
         const body = await request.json();
         const {
@@ -74,10 +75,8 @@ export async function POST(request) {
             nutrition,
             secondaryQuantity,
             secondaryUnit,
-            mergeDuplicates = true  // Default to true
+            mergeDuplicates = true
         } = body;
-
-        console.log('POST /api/inventory - Body:', body);
 
         if (!name) {
             return NextResponse.json(
@@ -116,7 +115,6 @@ export async function POST(request) {
             console.log('🔍 Checking for duplicate items...');
 
             const existingItemIndex = inventory.items.findIndex(existingItem => {
-                // Ensure we have valid strings for comparison
                 const existingName = (existingItem.name || '').toLowerCase().trim();
                 const newName = (name || '').toLowerCase().trim();
                 const existingBrand = (existingItem.brand || '').toLowerCase().trim();
@@ -151,40 +149,30 @@ export async function POST(request) {
                 console.log('✅ Merging with existing item at index:', existingItemIndex);
 
                 const existingItem = inventory.items[existingItemIndex];
-
-                // Calculate new PRIMARY quantity (this is what gets added)
                 const newPrimaryQuantity = (existingItem.quantity || 0) + (parseFloat(quantity) || 1);
 
-                // FIXED: Secondary quantity logic - it represents size per unit, not additive quantity
                 let newSecondaryQuantity = null;
                 let newSecondaryUnit = null;
 
                 if (existingItem.secondaryQuantity && secondaryQuantity) {
-                    // Both have secondary quantities - check if they match
                     const existingSecondary = parseFloat(existingItem.secondaryQuantity);
                     const newSecondary = parseFloat(secondaryQuantity);
 
                     if (Math.abs(existingSecondary - newSecondary) < 0.01) {
-                        // They match (within rounding), keep the existing one
                         newSecondaryQuantity = existingItem.secondaryQuantity;
                         newSecondaryUnit = existingItem.secondaryUnit;
-                        console.log(`📦 Secondary quantities match (${existingSecondary} ${existingItem.secondaryUnit}), keeping existing`);
+                        console.log(`📦 Secondary quantities match, keeping existing`);
                     } else {
-                        // They don't match - keep existing and warn
                         newSecondaryQuantity = existingItem.secondaryQuantity;
                         newSecondaryUnit = existingItem.secondaryUnit;
-                        console.log(`⚠️ Secondary quantity mismatch: existing ${existingSecondary} ${existingItem.secondaryUnit} vs new ${newSecondary} ${secondaryUnit}, keeping existing`);
+                        console.log(`⚠️ Secondary quantity mismatch, keeping existing`);
                     }
                 } else if (existingItem.secondaryQuantity) {
-                    // Keep existing secondary quantity
                     newSecondaryQuantity = existingItem.secondaryQuantity;
                     newSecondaryUnit = existingItem.secondaryUnit;
-                    console.log(`📦 Keeping existing secondary quantity: ${newSecondaryQuantity} ${newSecondaryUnit}`);
                 } else if (secondaryQuantity) {
-                    // Use new secondary quantity (existing item didn't have one)
                     newSecondaryQuantity = parseFloat(secondaryQuantity);
                     newSecondaryUnit = secondaryUnit;
-                    console.log(`📦 Adding new secondary quantity: ${newSecondaryQuantity} ${newSecondaryUnit}`);
                 }
 
                 // Update the existing item
@@ -193,7 +181,7 @@ export async function POST(request) {
                 inventory.items[existingItemIndex].secondaryUnit = newSecondaryUnit;
                 inventory.items[existingItemIndex].lastUpdated = new Date();
 
-                // Only update fields if the existing field is empty/null AND we have new data
+                // Update fields if existing field is empty
                 if (!existingItem.brand && brand) {
                     inventory.items[existingItemIndex].brand = brand;
                 }
@@ -210,10 +198,8 @@ export async function POST(request) {
                     inventory.items[existingItemIndex].nutrition = nutrition;
                 }
 
-                // Mark the inventory as modified and save
                 inventory.markModified('items');
                 inventory.lastUpdated = new Date();
-
                 await inventory.save();
 
                 // Update user's usage tracking
@@ -228,7 +214,6 @@ export async function POST(request) {
                     { runValidators: false }
                 );
 
-                // Calculate remaining items
                 let remainingItems;
                 if (userSubscription.tier === 'free') {
                     remainingItems = Math.max(0, 50 - inventory.items.length);
@@ -238,13 +223,12 @@ export async function POST(request) {
                     remainingItems = 'Unlimited';
                 }
 
-                console.log('✅ Item merged successfully');
-
-                // FIXED: Better message that explains the secondary quantity logic
                 let mergeMessage = `Merged with existing item. New quantity: ${newPrimaryQuantity} ${unit}`;
                 if (newSecondaryQuantity) {
                     mergeMessage += ` (${newSecondaryQuantity} ${newSecondaryUnit} each)`;
                 }
+
+                console.log('✅ Item merged successfully');
 
                 return NextResponse.json({
                     success: true,
@@ -287,7 +271,7 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // CREATE NEW ITEM (no duplicates found or mergeDuplicates is false)
+        // CREATE NEW ITEM
         const newItem = {
             name,
             brand: brand || '',
@@ -307,7 +291,6 @@ export async function POST(request) {
 
         inventory.items.push(newItem);
         inventory.lastUpdated = new Date();
-
         await inventory.save();
 
         // Update user's usage tracking
@@ -322,7 +305,7 @@ export async function POST(request) {
             { runValidators: false }
         );
 
-        console.log('Item added successfully:', newItem);
+        console.log('✅ Item added successfully:', newItem.name);
 
         // Calculate remaining items
         let remainingItems;
@@ -355,35 +338,33 @@ export async function POST(request) {
 // PUT - Update inventory item
 export async function PUT(request) {
     try {
-        const session = await getServerSession(authOptions);
-
-        console.log('PUT /api/inventory - Session:', session);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
-            console.log('PUT: No session or user ID found');
-            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+            console.log('PUT /api/inventory - No session found');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const {itemId, ...updateData} = body;
+        console.log('PUT /api/inventory - Session found:', session.user.email, 'source:', session.source);
 
-        console.log('PUT /api/inventory - Body:', body);
+        const body = await request.json();
+        const { itemId, ...updateData } = body;
 
         if (!itemId) {
             return NextResponse.json(
-                {error: 'Item ID is required'},
-                {status: 400}
+                { error: 'Item ID is required' },
+                { status: 400 }
             );
         }
 
         await connectDB();
 
-        const inventory = await UserInventory.findOne({userId: session.user.id});
+        const inventory = await UserInventory.findOne({ userId: session.user.id });
 
         if (!inventory) {
             return NextResponse.json(
-                {error: 'Inventory not found'},
-                {status: 404}
+                { error: 'Inventory not found' },
+                { status: 404 }
             );
         }
 
@@ -393,12 +374,12 @@ export async function PUT(request) {
 
         if (itemIndex === -1) {
             return NextResponse.json(
-                {error: 'Item not found'},
-                {status: 404}
+                { error: 'Item not found' },
+                { status: 404 }
             );
         }
 
-        // FIXED: Better validation for updates
+        // Update item fields
         Object.keys(updateData).forEach(key => {
             if (updateData[key] !== undefined) {
                 if (key === 'quantity') {
@@ -423,7 +404,7 @@ export async function PUT(request) {
         inventory.lastUpdated = new Date();
         await inventory.save();
 
-        console.log('PUT: Item updated successfully:', inventory.items[itemIndex]);
+        console.log('✅ Item updated successfully');
 
         return NextResponse.json({
             success: true,
@@ -434,8 +415,8 @@ export async function PUT(request) {
     } catch (error) {
         console.error('PUT inventory error:', error);
         return NextResponse.json(
-            {error: 'Failed to update item'},
-            {status: 500}
+            { error: 'Failed to update item' },
+            { status: 500 }
         );
     }
 }
@@ -443,35 +424,33 @@ export async function PUT(request) {
 // DELETE - Remove item from inventory
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
-
-        console.log('DELETE /api/inventory - Session:', session);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
-            console.log('DELETE: No session or user ID found');
-            return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+            console.log('DELETE /api/inventory - No session found');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const {searchParams} = new URL(request.url);
-        const itemId = searchParams.get('itemId');
+        console.log('DELETE /api/inventory - Session found:', session.user.email, 'source:', session.source);
 
-        console.log('DELETE /api/inventory - ItemId:', itemId);
+        const { searchParams } = new URL(request.url);
+        const itemId = searchParams.get('itemId');
 
         if (!itemId) {
             return NextResponse.json(
-                {error: 'Item ID is required'},
-                {status: 400}
+                { error: 'Item ID is required' },
+                { status: 400 }
             );
         }
 
         await connectDB();
 
-        const inventory = await UserInventory.findOne({userId: session.user.id});
+        const inventory = await UserInventory.findOne({ userId: session.user.id });
 
         if (!inventory) {
             return NextResponse.json(
-                {error: 'Inventory not found'},
-                {status: 404}
+                { error: 'Inventory not found' },
+                { status: 404 }
             );
         }
 
@@ -482,8 +461,8 @@ export async function DELETE(request) {
 
         if (inventory.items.length === initialLength) {
             return NextResponse.json(
-                {error: 'Item not found'},
-                {status: 404}
+                { error: 'Item not found' },
+                { status: 404 }
             );
         }
 
@@ -501,7 +480,7 @@ export async function DELETE(request) {
             await user.save();
         }
 
-        console.log('DELETE: Item removed successfully');
+        console.log('✅ Item removed successfully');
 
         return NextResponse.json({
             success: true,
@@ -511,8 +490,8 @@ export async function DELETE(request) {
     } catch (error) {
         console.error('DELETE inventory error:', error);
         return NextResponse.json(
-            {error: 'Failed to remove item'},
-            {status: 500}
+            { error: 'Failed to remove item' },
+            { status: 500 }
         );
     }
 }

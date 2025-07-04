@@ -1,8 +1,7 @@
-// file: /src/app/api/recipes/route.js v5 - Added subscription-based recipe creation limits
+// file: /src/app/api/recipes/route.js v6 - Added mobile session support
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe, User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
@@ -49,11 +48,14 @@ async function checkPublicRecipePermission(userId, requestedIsPublic) {
 // GET - Fetch user's recipes or a single recipe
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('GET /api/recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('GET /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
@@ -69,8 +71,8 @@ export async function GET(request) {
                     { isPublic: true }
                 ]
             })
-                .populate('createdBy', 'name email') // Populate creator info
-                .populate('lastEditedBy', 'name email'); // Populate last editor info
+                .populate('createdBy', 'name email')
+                .populate('lastEditedBy', 'name email');
 
             if (!recipe) {
                 return NextResponse.json(
@@ -95,6 +97,8 @@ export async function GET(request) {
                 .populate('lastEditedBy', 'name email')
                 .sort({ createdAt: -1 });
 
+            console.log(`GET /api/recipes - Found ${recipes.length} recipes for user`);
+
             return NextResponse.json({
                 success: true,
                 recipes
@@ -113,11 +117,14 @@ export async function GET(request) {
 // POST - Add new recipe (with subscription limits)
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('POST /api/recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
         const body = await request.json();
         const {
@@ -134,7 +141,7 @@ export async function POST(request) {
             isPublic,
             category,
             nutrition,
-            importedFrom // ADD THIS for imported recipes
+            importedFrom
         } = body;
 
         if (!title || !ingredients || ingredients.length === 0) {
@@ -193,7 +200,6 @@ export async function POST(request) {
             importedFrom: importedFrom || null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            // PUBLIC RECIPE SUBSCRIPTION CHECK
             isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
             ...(nutrition && Object.keys(nutrition).length > 0 && {
                 nutrition: nutrition,
@@ -216,6 +222,8 @@ export async function POST(request) {
         // Populate user info for response
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
+
+        console.log('POST /api/recipes - Recipe created successfully');
 
         return NextResponse.json({
             success: true,
@@ -243,11 +251,14 @@ export async function POST(request) {
 // PUT - Update recipe
 export async function PUT(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('PUT /api/recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('PUT /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
         const body = await request.json();
         const { recipeId, ...updateData } = body;
@@ -288,7 +299,6 @@ export async function PUT(request) {
             const canMakePublic = await checkPublicRecipePermission(session.user.id, updateData.isPublic);
 
             if (updateData.isPublic && !canMakePublic) {
-                // User wants to make it public but doesn't have permission
                 const user = await User.findById(session.user.id);
                 const userTier = user?.getEffectiveTier() || 'free';
 
@@ -339,6 +349,8 @@ export async function PUT(request) {
             .populate('createdBy', 'name email')
             .populate('lastEditedBy', 'name email');
 
+        console.log('PUT /api/recipes - Recipe updated successfully');
+
         return NextResponse.json({
             success: true,
             recipe: updatedRecipe,
@@ -357,11 +369,14 @@ export async function PUT(request) {
 // DELETE - Remove recipe (with usage tracking update)
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
+            console.log('DELETE /api/recipes - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        console.log('DELETE /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
@@ -399,6 +414,8 @@ export async function DELETE(request) {
             user.usageTracking.lastUpdated = new Date();
             await user.save();
         }
+
+        console.log('DELETE /api/recipes - Recipe deleted successfully');
 
         return NextResponse.json({
             success: true,
