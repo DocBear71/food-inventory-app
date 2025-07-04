@@ -4,6 +4,15 @@ const config: CapacitorConfig = {
     appId: 'kitchen.docbearscomfort',
     appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
+
+    // ADDED: Server configuration for Android session persistence
+    server: {
+        androidScheme: 'https',
+        cleartext: true,
+        hostname: 'localhost',
+        iosScheme: 'ionic'
+    },
+
     plugins: {
         Camera: {
             // FIXED: Proper camera permissions configuration for Capacitor 7
@@ -34,12 +43,18 @@ const config: CapacitorConfig = {
         loggingBehavior: 'debug',
 
         // Handle system bars properly
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+
+        // ADDED: Additional Android session handling
+        appendUserAgent: 'DocBearsKitchen'
     },
 
     // Add iOS config for completeness
     ios: {
-        contentInset: 'automatic'
+        contentInset: 'automatic',
+
+        // ADDED: iOS session handling
+        allowsLinkPreview: false
     }
 };
 

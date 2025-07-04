@@ -76,18 +76,27 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
-        // Use dynamic import for Capacitor to avoid require() issues
+        // Enhanced native platform detection
         let isNative = false;
+        let isAndroid = false;
         try {
             const { Capacitor } = await import('@capacitor/core');
             isNative = Capacitor.isNativePlatform();
+
+            if (isNative) {
+                const { Device } = await import('@capacitor/device');
+                const info = await Device.getInfo();
+                isAndroid = info.platform === 'android';
+            }
         } catch (e) {
             isNative = false;
+            isAndroid = false;
         }
 
-        console.log('=== LOGIN ATTEMPT ===');
+        console.log('=== ENHANCED LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
         console.log('Is native platform:', isNative);
+        console.log('Is Android:', isAndroid);
 
         try {
             const result = await signIn('credentials', {
@@ -109,93 +118,115 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful, checking session...');
+                console.log('Login appears successful, enhanced session handling...');
                 setRedirecting(true);
 
-                // Wait a moment for session to be established
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Enhanced session establishment for Android
+                const maxRetries = isAndroid ? 5 : 3;
+                let sessionEstablished = false;
 
-                // Check if session was actually created
-                const { getSession } = await import('next-auth/react');
-                const session = await getSession();
-                console.log('Session after login:', session);
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    console.log(`Session establishment attempt ${attempt}/${maxRetries}`);
 
-                if (session) {
-                    console.log('Session confirmed, user data:', {
-                        email: session.user?.email,
-                        name: session.user?.name,
-                        id: session.user?.id,
-                        // Log any admin/role fields
-                        ...session.user
-                    });
+                    // Progressive delay for Android
+                    const delay = isAndroid ? attempt * 1000 : 500;
+                    await new Promise(resolve => setTimeout(resolve, delay));
 
                     try {
-                        console.log('💾 Storing session in mobile session storage...');
-                        console.log('📋 Session data being stored:', {
-                            email: session.user.email,
-                            subscriptionTier: session.user.subscriptionTier,
-                            effectiveTier: session.user.effectiveTier,
-                            isAdmin: session.user.isAdmin,
-                            subscriptionStatus: session.user.subscriptionStatus
-                        });
+                        const { getSession } = await import('next-auth/react');
+                        const session = await getSession();
 
-                        // Create the session object that mobile session expects
-                        const mobileSessionData = {
-                            user: session.user,  // **FIXED: Use session.user**
-                            expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                        };
+                        if (session?.user) {
+                            console.log('✅ Session confirmed on attempt', attempt);
+                            sessionEstablished = true;
 
-                        const success = await MobileSession.setSession(mobileSessionData);
+                            // Enhanced mobile session storage for Android
+                            try {
+                                console.log('💾 Enhanced mobile session storage...');
 
-                        if (success) {
-                            console.log('✅ Mobile session stored successfully');
+                                const mobileSessionData = {
+                                    user: session.user,
+                                    expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                                    timestamp: Date.now(),
+                                    platform: isAndroid ? 'android' : 'native'
+                                };
 
-                            // Verify it worked
-                            const verification = await MobileSession.getSession();
-                            if (verification?.user) {
-                                console.log('🔍 Stored mobile session verification:', {
-                                    email: verification.user.email,
-                                    subscriptionTier: verification.user.subscriptionTier,
-                                    effectiveTier: verification.user.effectiveTier,
-                                    isAdmin: verification.user.isAdmin
-                                });
-                            } else {
-                                console.error('❌ Verification failed - mobile session empty');
+                                const success = await MobileSession.setSession(mobileSessionData);
+                                console.log('Mobile session storage result:', success);
+
+                                // Android-specific backup storage
+                                if (isAndroid && typeof localStorage !== 'undefined') {
+                                    localStorage.setItem('android-auth-session', JSON.stringify(mobileSessionData));
+                                    localStorage.setItem('android-last-login', Date.now().toString());
+                                    console.log('Android backup session stored');
+                                }
+
+                                // Verify storage worked
+                                const verification = await MobileSession.getSession();
+                                if (verification?.user) {
+                                    console.log('🔍 Session verification successful:', {
+                                        email: verification.user.email,
+                                        isAdmin: verification.user.isAdmin
+                                    });
+                                }
+
+                            } catch (storageError) {
+                                console.error('💥 Session storage error:', storageError);
+                                // Continue anyway - NextAuth session might still work
                             }
-                        } else {
-                            console.error('❌ Failed to store mobile session');
+
+                            break;
                         }
-                    } catch (error) {
-                        console.error('💥 Error storing mobile session:', error);
+                    } catch (sessionError) {
+                        console.error(`Session check attempt ${attempt} failed:`, sessionError);
                     }
+                }
 
-                    console.log('Redirecting to dashboard...');
-
-                    if (isNative) {
-                        console.log('Using native platform redirect');
-                        // For native, use window.location with a longer delay
+                if (!sessionEstablished) {
+                    console.error('❌ Failed to establish session after all attempts');
+                    // For Android, try a page reload as last resort
+                    if (isAndroid) {
+                        console.log('Android fallback: forcing page reload');
                         setTimeout(() => {
-                            window.location.replace('/dashboard');
+                            window.location.href = '/dashboard';
                         }, 1000);
-                    } else {
-                        console.log('Using web platform redirect');
-                        // For web, use router.replace instead of push to prevent back button issues
-                        router.replace('/dashboard');
+                        return;
                     }
-                } else {
-                    console.log('No session found after successful login');
-                    // Try forcing a page reload to establish session
+                }
+
+                console.log('Redirecting to dashboard...');
+
+                if (isAndroid) {
+                    console.log('Using Android-specific redirect');
+                    // For Android, use window.location.href with longer delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                } else if (isNative) {
+                    console.log('Using generic native platform redirect');
                     setTimeout(() => {
                         window.location.replace('/dashboard');
                     }, 1000);
+                } else {
+                    console.log('Using web platform redirect');
+                    router.replace('/dashboard');
                 }
             }
         } catch (error) {
             console.error('Login exception:', error);
             setError('Network error. Please try again.');
         } finally {
-            setLoading(false);
-            setRedirecting(false); // ADDED: Reset redirecting state
+            // Don't reset loading/redirecting immediately for Android
+            if (!isAndroid) {
+                setLoading(false);
+                setRedirecting(false);
+            } else {
+                // Keep loading state longer for Android
+                setTimeout(() => {
+                    setLoading(false);
+                    setRedirecting(false);
+                }, 3000);
+            }
         }
     };
 
