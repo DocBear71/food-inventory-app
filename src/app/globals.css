@@ -2343,3 +2343,75 @@ div[style*="background-color: #f1f5f9"] {
         box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
     }
 }
+
+/* Android Safe Area Support */
+@supports (padding: env(safe-area-inset-top)) {
+    /* For Android APK - ensure body respects safe areas */
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* Android APK specific fixes */
+@media (display-mode: standalone) {
+    /* This applies when the app is running as a standalone PWA or APK */
+    body {
+        /* Fallback padding for devices that don't support env() */
+        padding-top: 24px; /* Typical Android status bar height */
+        padding-bottom: 0px; /* Navigation gestures area */
+    }
+
+    /* Override with env() if supported */
+    @supports (padding: env(safe-area-inset-top)) {
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+    }
+}
+
+/* Ensure full height calculations include safe areas */
+.min-h-screen {
+    min-height: 100vh;
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Android-specific header fixes */
+@media (display-mode: standalone) {
+    /* Ensure headers don't overlap with status bar */
+    header {
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Fix for any fixed positioned elements */
+    .fixed {
+        top: env(safe-area-inset-top, 24px);
+    }
+
+    /* Fix for sticky headers */
+    .sticky {
+        top: env(safe-area-inset-top, 0px);
+    }
+}
+
+/* Debug helper for development - remove in production */
+@media (display-mode: standalone) {
+    .android-debug::before {
+        content: 'Safe areas: ' attr(data-safe-top) ' / ' attr(data-safe-bottom);
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: rgba(255, 0, 0, 0.8);
+        color: white;
+        padding: 4px 8px;
+        font-size: 12px;
+        z-index: 9999;
+        pointer-events: none;
+    }
+}

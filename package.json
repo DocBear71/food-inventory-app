@@ -22,6 +22,7 @@
     "@capacitor/filesystem": "^7.1.1",
     "@capacitor/ios": "^7.3.0",
     "@capacitor/preferences": "^7.0.1",
+    "@capacitor/status-bar": "^7.0.1",
     "@ericblade/quagga2": "^1.8.4",
     "@heroicons/react": "^2.2.0",
     "@next-auth/mongodb-adapter": "^1.1.3",
