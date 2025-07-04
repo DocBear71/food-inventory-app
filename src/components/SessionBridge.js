@@ -1,12 +1,13 @@
 'use client';
 
-// file: /src/components/SessionBridge.js - Bridges mobile sessions with NextAuth
+// file: /src/components/SessionBridge.js - Enhanced with session restoration API
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
 export default function SessionBridge() {
-    const { data: session, status } = useSession();
+    const { data: session, status, update } = useSession();
+    const [restoreAttempted, setRestoreAttempted] = useState(false);
 
     useEffect(() => {
         const bridgeSessions = async () => {
@@ -41,37 +42,60 @@ export default function SessionBridge() {
                 }
 
                 // If no NextAuth session, check if mobile session exists and try to restore
-                if (status !== 'loading' && !session) {
+                if (status !== 'loading' && !session && !restoreAttempted) {
                     console.log('🔄 No NextAuth session, checking mobile session...');
+                    setRestoreAttempted(true);
 
                     const { MobileSession } = await import('@/lib/mobile-session-simple');
                     const mobileSession = await MobileSession.getSession();
 
                     if (mobileSession?.user) {
-                        console.log('📱 Found mobile session, attempting to restore NextAuth...');
+                        console.log('📱 Found mobile session, attempting restoration...', mobileSession.user.email);
 
-                        // Try to trigger NextAuth session refresh
-                        const { signIn } = await import('next-auth/react');
-
-                        // Don't actually sign in again, but trigger session refresh
-                        // This is a workaround - you might need a custom API endpoint
                         try {
-                            const response = await fetch('/api/auth/session', {
-                                method: 'GET',
+                            // Call our session restoration API
+                            const response = await fetch('/api/auth/restore-session', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    mobileSession: mobileSession
+                                }),
                                 credentials: 'include'
                             });
 
                             if (response.ok) {
-                                const sessionData = await response.json();
-                                if (sessionData.user) {
-                                    console.log('✅ NextAuth session restored from mobile session');
-                                    // Force a page refresh to pick up the session
-                                    window.location.reload();
-                                }
+                                const result = await response.json();
+                                console.log('✅ Session restoration API success:', result);
+
+                                // Force NextAuth to refresh its session
+                                await update();
+
+                                // Small delay then check again
+                                setTimeout(async () => {
+                                    const { getSession } = await import('next-auth/react');
+                                    const refreshedSession = await getSession();
+
+                                    if (refreshedSession?.user) {
+                                        console.log('🎉 NextAuth session successfully restored!');
+                                    } else {
+                                        console.log('⚠️ Session restoration API succeeded but NextAuth session not found');
+                                        // Force page reload as last resort
+                                        window.location.reload();
+                                    }
+                                }, 1000);
+
+                            } else {
+                                const error = await response.json();
+                                console.error('❌ Session restoration API failed:', error);
                             }
-                        } catch (error) {
-                            console.error('Failed to restore NextAuth session:', error);
+
+                        } catch (restoreError) {
+                            console.error('💥 Session restoration error:', restoreError);
                         }
+                    } else {
+                        console.log('ℹ️ No mobile session found');
                     }
                 }
 
@@ -84,7 +108,7 @@ export default function SessionBridge() {
         const timer = setTimeout(bridgeSessions, 1000);
 
         return () => clearTimeout(timer);
-    }, [session, status]);
+    }, [session, status, update, restoreAttempted]);
 
     // This component doesn't render anything
     return null;
