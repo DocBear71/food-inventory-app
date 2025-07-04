@@ -1,7 +1,7 @@
 'use client';
 // file: /src/components/recipes/RecipeParser.js v4 - Using shared parsing utilities
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {
     parseIngredientLine,
@@ -20,6 +20,46 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
     const [parsedRecipe, setParsedRecipe] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
+
+    // Auto-expanding textarea hook
+    const useAutoExpandingTextarea = () => {
+        const textareaRef = useRef(null);
+
+        const adjustHeight = () => {
+            const textarea = textareaRef.current;
+            if (textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
+            }
+        };
+
+        useEffect(() => {
+            adjustHeight();
+        });
+
+        return [textareaRef, adjustHeight];
+    };
+
+    // Auto-expanding textarea component
+    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+        const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
+
+        return (
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => {
+                    onChange(e);
+                    setTimeout(adjustHeight, 0);
+                }}
+                onInput={adjustHeight}
+                placeholder={placeholder}
+                className={`${className} resize-none overflow-hidden`}
+                style={{ minHeight: '48px' }}
+                {...props}
+            />
+        );
+    };
 
     // Enhanced parsing function with admin-level intelligence using shared utilities
     const parseRecipeText = (text) => {
@@ -518,12 +558,11 @@ The parser will automatically:
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Description
                                 </label>
-                                <textarea
+                                <AutoExpandingTextarea
                                     value={parsedRecipe.description}
                                     onChange={(e) => handleEditField('description', e.target.value)}
-                                    rows={2}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 resize-none overflow-hidden"
-                                    style={{ minHeight: '48px' }}
+                                    placeholder="Brief description of the recipe..."
+                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                 />
                             </div>
 
@@ -636,10 +675,10 @@ The parser will automatically:
                                             </div>
 
                                             {/* Textarea */}
-                                            <textarea
+                                            <AutoExpandingTextarea
                                                 value={instruction.instruction}
                                                 onChange={(e) => handleEditInstruction(index, e.target.value)}
-                                                rows={2}
+                                                placeholder={`Step ${instruction.step} instructions...`}
                                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
                                         </div>
