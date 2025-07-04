@@ -13,10 +13,33 @@ export default function Home() {
     const router = useRouter();
     const [debugInfo, setDebugInfo] = useState({});
     const [showDebug, setShowDebug] = useState(false);
+    const [isAndroid, setIsAndroid] = useState(false);
+    const [isNative, setIsNative] = useState(false);
 
     useEffect(() => {
         // Enhanced debugging for mobile PWA
         const collectDebugInfo = async () => {
+            let androidDetected = false;
+            let nativeDetected = false;
+
+            // Platform detection
+            try {
+                const { Capacitor } = await import('@capacitor/core');
+                nativeDetected = Capacitor.isNativePlatform();
+
+                if (nativeDetected) {
+                    const { Device } = await import('@capacitor/device');
+                    const info = await Device.getInfo();
+                    androidDetected = info.platform === 'android';
+                }
+            } catch (e) {
+                // Not available - web environment
+            }
+
+            // Update state
+            setIsAndroid(androidDetected);
+            setIsNative(nativeDetected);
+
             const debug = {
                 timestamp: new Date().toISOString(),
                 status: status,
@@ -25,6 +48,8 @@ export default function Home() {
                 userAgent: navigator.userAgent,
                 isStandalone: window.matchMedia('(display-mode: standalone)').matches,
                 isPWA: window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches,
+                isNative: nativeDetected,
+                isAndroid: androidDetected,
                 windowLocation: window.location.href,
                 windowWidth: window.innerWidth,
                 localStorage: {},
@@ -182,6 +207,8 @@ export default function Home() {
                             <div><strong>Status:</strong> {debugInfo.status}</div>
                             <div><strong>Session:</strong> {debugInfo.hasSession ? 'Yes' : 'No'}</div>
                             <div><strong>User:</strong> {debugInfo.sessionUser}</div>
+                            <div><strong>Native:</strong> {debugInfo.isNative ? 'Yes' : 'No'}</div>
+                            <div><strong>Android:</strong> {debugInfo.isAndroid ? 'Yes' : 'No'}</div>
                             <div><strong>PWA:</strong> {debugInfo.isPWA ? 'Yes' : 'No'}</div>
                             <div><strong>Mobile Session:</strong> {debugInfo.mobileSession?.exists ? 'Yes' : 'No'}</div>
                             <div><strong>localStorage:</strong> {JSON.stringify(debugInfo.localStorage)}</div>
