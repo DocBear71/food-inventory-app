@@ -118,8 +118,29 @@ function SignInContent() {
                     console.log('🔄 Native platform - fetching session data directly...');
 
                     try {
-                        // Make direct API call to get user data
-                        const response = await fetch(getApiUrl('/api/auth/session'), {
+                        // ENHANCED: Try multiple methods to get user data
+                        console.log('🔍 Method 1: Trying NextAuth session...');
+
+                        // First try NextAuth session
+                        const { getSession } = await import('next-auth/react');
+                        const nextAuthSession = await getSession();
+
+                        if (nextAuthSession?.user) {
+                            console.log('✅ NextAuth session found:', nextAuthSession.user);
+                            const success = await MobileSession.setSession(nextAuthSession);
+                            if (success) {
+                                console.log('✅ NextAuth session stored, redirecting...');
+                                setTimeout(() => {
+                                    window.location.replace('/dashboard');
+                                }, 1000);
+                                return;
+                            }
+                        }
+
+                        console.log('🔍 Method 2: Trying direct session API...');
+
+                        // Try direct API call to get session data
+                        const sessionResponse = await fetch(getApiUrl('/api/auth/session'), {
                             method: 'GET',
                             credentials: 'include',
                             headers: {
@@ -127,11 +148,11 @@ function SignInContent() {
                             },
                         });
 
-                        if (response.ok) {
-                            const sessionData = await response.json();
-                            console.log('✅ Direct session fetch successful:', sessionData);
+                        if (sessionResponse.ok) {
+                            const sessionData = await sessionResponse.json();
+                            console.log('✅ Direct session fetch response:', sessionData);
 
-                            if (sessionData?.user) {
+                            if (sessionData?.user && Object.keys(sessionData.user).length > 1) {
                                 // Store the session in mobile storage
                                 const mobileSessionData = {
                                     user: sessionData.user,
@@ -146,25 +167,87 @@ function SignInContent() {
                                     setTimeout(() => {
                                         window.location.replace('/dashboard');
                                     }, 1000);
-                                } else {
-                                    console.error('❌ Failed to store mobile session');
-                                    // Still try to redirect, maybe the web session will work
+                                    return;
+                                }
+                            }
+                        }
+
+                        console.log('🔍 Method 3: Trying user profile API...');
+
+                        // Try to get user data from profile endpoint
+                        const profileResponse = await fetch(getApiUrl('/api/user/profile'), {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                        });
+
+                        if (profileResponse.ok) {
+                            const userData = await profileResponse.json();
+                            console.log('✅ User profile fetch successful:', userData);
+
+                            if (userData?.email) {
+                                // Create session from user data
+                                const sessionData = {
+                                    user: userData,
+                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                                };
+
+                                const success = await MobileSession.setSession(sessionData);
+                                console.log('📱 Profile session storage result:', success);
+
+                                if (success) {
+                                    console.log('✅ Profile session stored successfully, redirecting...');
                                     setTimeout(() => {
                                         window.location.replace('/dashboard');
                                     }, 1000);
+                                    return;
                                 }
-                            } else {
-                                console.error('❌ No user data in session response');
-                                // Fallback: try to get the session a different way
-                                await handleFallbackSessionRetrieval(isNative);
                             }
-                        } else {
-                            console.error('❌ Direct session fetch failed:', response.status);
-                            // Fallback: try to get the session a different way
-                            await handleFallbackSessionRetrieval(isNative);
                         }
+
+                        console.log('🔍 Method 4: Trying user data by email...');
+
+                        // Try to get user data by email
+                        const userResponse = await fetch(getApiUrl('/api/user/by-email'), {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ email: formData.email })
+                        });
+
+                        if (userResponse.ok) {
+                            const userData = await userResponse.json();
+                            console.log('✅ User data by email successful:', userData);
+
+                            if (userData?.email) {
+                                // Create session from user data
+                                const sessionData = {
+                                    user: userData,
+                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                                };
+
+                                const success = await MobileSession.setSession(sessionData);
+                                console.log('📱 Email user session storage result:', success);
+
+                                if (success) {
+                                    console.log('✅ Email user session stored successfully, redirecting...');
+                                    setTimeout(() => {
+                                        window.location.replace('/dashboard');
+                                    }, 1000);
+                                    return;
+                                }
+                            }
+                        }
+
+                        console.log('❌ All methods failed, using fallback...');
+                        await handleFallbackSessionRetrieval(isNative);
+
                     } catch (fetchError) {
-                        console.error('❌ Error during direct session fetch:', fetchError);
+                        console.error('❌ Error during session retrieval:', fetchError);
                         // Fallback: try to get the session a different way
                         await handleFallbackSessionRetrieval(isNative);
                     }

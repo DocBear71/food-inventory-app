@@ -1,13 +1,13 @@
 'use client'
 
-// file: /src/components/providers/CapacitorAuthProvider.js - v5 - FIXED: Mobile session handling
+// file: /src/components/providers/CapacitorAuthProvider.js - v6 - FIXED: URL concatenation bug
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
 export default function CapacitorAuthProvider({ children }) {
     useEffect(() => {
-        console.log('CapacitorAuthProvider v5 started')
+        console.log('CapacitorAuthProvider v6 started')
 
         if (Capacitor.isNativePlatform()) {
             console.log('Installing mobile auth override for native platform')
@@ -45,7 +45,8 @@ export default function CapacitorAuthProvider({ children }) {
 
                     // ENHANCED: Handle successful sign-in redirects
                     if (url.includes('/api/auth/callback') || url.includes('/api/auth/signin')) {
-                        const newUrl = `https://www.docbearscomfort.kitchen${url}`
+                        // FIXED: Proper URL handling
+                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
                         console.log('Auth callback/signin redirect:', url, '→', newUrl)
 
                         return originalFetch(newUrl, {
@@ -70,7 +71,8 @@ export default function CapacitorAuthProvider({ children }) {
                     if (url.includes('/api/auth/session')) {
                         console.log('Session request detected - attempting production fetch with fallback')
 
-                        const newUrl = `https://www.docbearscomfort.kitchen${url}`
+                        // FIXED: Proper URL handling to avoid duplication
+                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
                         console.log('Session redirect:', url, '→', newUrl)
 
                         return originalFetch(newUrl, {
@@ -84,16 +86,18 @@ export default function CapacitorAuthProvider({ children }) {
                                     const data = await response.json()
                                     console.log('Session data received:', data)
 
-                                    // ENHANCED: Store session in mobile storage when retrieved
-                                    if (data?.user) {
-                                        console.log('📱 Storing session from auth provider...')
+                                    // FIXED: Only store if we have actual user data
+                                    if (data?.user && Object.keys(data.user).length > 1) {
+                                        console.log('📱 Storing complete session from auth provider...')
                                         try {
                                             const { MobileSession } = await import('@/lib/mobile-session-simple')
                                             await MobileSession.setSession(data)
-                                            console.log('✅ Session stored in mobile storage from auth provider')
+                                            console.log('✅ Complete session stored in mobile storage from auth provider')
                                         } catch (error) {
                                             console.error('❌ Failed to store session in mobile storage:', error)
                                         }
+                                    } else {
+                                        console.log('⚠️ Session data incomplete, not storing:', data)
                                     }
 
                                     // Return the response with the data
@@ -162,7 +166,8 @@ export default function CapacitorAuthProvider({ children }) {
 
                     // Handle provider requests
                     if (url.includes('/api/auth/providers')) {
-                        const newUrl = `https://www.docbearscomfort.kitchen${url}`
+                        // FIXED: Proper URL handling
+                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
                         console.log('Auth redirect for:', url, '→', newUrl)
                         return originalFetch(newUrl, {
                             ...options,
@@ -176,80 +181,6 @@ export default function CapacitorAuthProvider({ children }) {
                 }
 
                 return originalFetch(url, options)
-            }
-
-            // ENHANCED: Override NextAuth signOut and signIn for mobile
-            if (typeof window !== 'undefined') {
-                // Wait for NextAuth to be available
-                const setupNextAuthOverrides = () => {
-                    if (window.next?.auth) {
-                        console.log('Setting up NextAuth overrides for mobile')
-
-                        // Override signOut
-                        const originalSignOut = window.next.auth.signOut
-                        if (originalSignOut) {
-                            window.next.auth.signOut = async function(options = {}) {
-                                console.log('Mobile NextAuth signOut called')
-                                try {
-                                    // Clear mobile session first
-                                    try {
-                                        const { MobileSession } = await import('@/lib/mobile-session-simple')
-                                        await MobileSession.clearSession()
-                                        console.log('✅ Mobile session cleared')
-                                    } catch (error) {
-                                        console.error('Error clearing mobile session:', error)
-                                    }
-
-                                    const result = await originalSignOut({
-                                        ...options,
-                                        callbackUrl: '/',
-                                        redirect: false
-                                    })
-                                    console.log('Mobile signOut result:', result)
-                                    window.location.href = '/'
-                                    return result
-                                } catch (error) {
-                                    console.error('Mobile signOut error:', error)
-                                    window.location.href = '/'
-                                }
-                            }
-                        }
-
-                        // Override signIn to handle redirects
-                        const originalSignIn = window.next.auth.signIn
-                        if (originalSignIn) {
-                            window.next.auth.signIn = async function(provider, options = {}) {
-                                console.log('Mobile NextAuth signIn called for provider:', provider)
-                                try {
-                                    const result = await originalSignIn(provider, {
-                                        ...options,
-                                        callbackUrl: '/dashboard',
-                                        redirect: false
-                                    })
-                                    console.log('Mobile signIn result:', result)
-
-                                    // If successful, redirect to dashboard
-                                    if (result?.ok) {
-                                        setTimeout(() => {
-                                            window.location.href = '/dashboard'
-                                        }, 1000)
-                                    }
-
-                                    return result
-                                } catch (error) {
-                                    console.error('Mobile signIn error:', error)
-                                    throw error
-                                }
-                            }
-                        }
-                    } else {
-                        // NextAuth not ready yet, try again in 500ms
-                        setTimeout(setupNextAuthOverrides, 500)
-                    }
-                }
-
-                // Start trying to set up overrides
-                setTimeout(setupNextAuthOverrides, 1000)
             }
 
             console.log('Mobile auth override installed successfully')

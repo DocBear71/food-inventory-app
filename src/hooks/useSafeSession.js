@@ -1,6 +1,6 @@
 'use client'
 
-// file: src/hooks/useSafeSession.js v2
+// file: src/hooks/useSafeSession.js v3
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
@@ -85,20 +85,33 @@ export function useSafeSession() {
         }
     }, [isNative, nextAuthResult?.data, nextAuthResult?.status, mobileSession]);
 
-    // ENHANCED: Handle session clearing when NextAuth session is lost
+    // FIXED: Don't clear mobile session just because NextAuth is unauthenticated
+    // On native platforms, NextAuth often fails to get sessions, so rely on mobile storage
     useEffect(() => {
-        if (isNative && nextAuthResult?.status === 'unauthenticated' && mobileSession) {
-            console.log('🔄 NextAuth session lost - clearing mobile session');
-            MobileSession.clearSession()
-                .then(() => {
-                    setMobileSession(null);
-                    setMobileSessionStatus('unauthenticated');
-                })
-                .catch((error) => {
-                    console.error('Error clearing mobile session:', error);
+        if (isNative && initialized) {
+            // Only clear mobile session if we're explicitly told to sign out
+            // Don't clear just because NextAuth reports unauthenticated
+            console.log('🔍 Native platform session check - NextAuth:', nextAuthResult?.status, 'Mobile:', mobileSessionStatus);
+
+            // Only clear if we have a specific sign-out event or expired session
+            if (nextAuthResult?.status === 'unauthenticated' && mobileSession) {
+                // Check if the mobile session is still valid
+                MobileSession.getSession().then(currentSession => {
+                    if (!currentSession) {
+                        console.log('🔄 Mobile session expired - clearing state');
+                        setMobileSession(null);
+                        setMobileSessionStatus('unauthenticated');
+                    } else {
+                        console.log('✅ Mobile session still valid, keeping it');
+                        setMobileSession(currentSession);
+                        setMobileSessionStatus('authenticated');
+                    }
+                }).catch(error => {
+                    console.error('Error checking mobile session validity:', error);
                 });
+            }
         }
-    }, [isNative, nextAuthResult?.status, mobileSession]);
+    }, [isNative, initialized, nextAuthResult?.status, mobileSession, mobileSessionStatus]);
 
     // Return appropriate session based on platform
     if (isNative === null || !initialized) {
@@ -111,10 +124,10 @@ export function useSafeSession() {
     }
 
     if (isNative) {
-        // Native platform - use mobile session with NextAuth fallback
+        // Native platform - prioritize mobile session
         const sessionData = mobileSession || nextAuthResult?.data;
         const sessionStatus = sessionData ? 'authenticated' :
-            mobileSessionStatus === 'loading' ? 'loading' : 'unauthenticated';
+            (mobileSessionStatus === 'loading' || nextAuthResult?.status === 'loading') ? 'loading' : 'unauthenticated';
 
         return {
             data: sessionData,
@@ -122,7 +135,15 @@ export function useSafeSession() {
             update: async () => {
                 console.log('🔄 Updating session...');
 
-                // First try to get fresh session from NextAuth
+                // For native, always check mobile storage first
+                const fresh = await MobileSession.getSession();
+                if (fresh) {
+                    setMobileSession(fresh);
+                    setMobileSessionStatus('authenticated');
+                    return fresh;
+                }
+
+                // Then try to get fresh session from NextAuth
                 if (nextAuthResult?.update) {
                     try {
                         const updated = await nextAuthResult.update();
@@ -137,16 +158,10 @@ export function useSafeSession() {
                     }
                 }
 
-                // Fallback to mobile storage
-                const fresh = await MobileSession.getSession();
-                if (fresh) {
-                    setMobileSession(fresh);
-                    setMobileSessionStatus('authenticated');
-                } else {
-                    setMobileSession(null);
-                    setMobileSessionStatus('unauthenticated');
-                }
-                return fresh;
+                // No valid session found
+                setMobileSession(null);
+                setMobileSessionStatus('unauthenticated');
+                return null;
             },
         };
     }
