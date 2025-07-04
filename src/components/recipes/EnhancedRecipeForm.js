@@ -813,12 +813,12 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                                 onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
                                                 className="ingredient-checkbox h-4 w-4"
                                             />
-                                            Optional
+                                            <span className="ml-3">Optional</span>
                                         </label>
                                         <TouchEnhancedButton
                                             type="button"
                                             onClick={() => removeIngredient(index)}
-                                            className="text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                             disabled={recipe.ingredients.length === 1}
                                         >
                                             ✕
@@ -903,7 +903,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         <TouchEnhancedButton
                                             type="button"
                                             onClick={() => removeInstruction(index)}
-                                            className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                             disabled={recipe.instructions.length === 1}
                                         >
                                             ✕

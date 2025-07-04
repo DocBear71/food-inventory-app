@@ -805,7 +805,7 @@ The parser will automatically:
                                                         onChange={(e) => handleEditIngredient(index, 'optional', e.target.checked)}
                                                         className="mr-2 h-4 w-4"
                                                     />
-                                                    Optional
+                                                    <span className="ml-3">Optional</span>
                                                 </label>
                                                 <TouchEnhancedButton
                                                     type="button"
@@ -813,7 +813,7 @@ The parser will automatically:
                                                         const updated = parsedRecipe.ingredients.filter((_, i) => i !== index);
                                                         setParsedRecipe(prev => ({ ...prev, ingredients: updated }));
                                                     }}
-                                                    className="text-red-500 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    className="font-semibold text-red-600 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
                                                 >
                                                     ✕
                                                 </TouchEnhancedButton>
@@ -890,7 +890,7 @@ The parser will automatically:
                                                             .map((inst, i) => ({ ...inst, step: i + 1 }));
                                                         setParsedRecipe(prev => ({ ...prev, instructions: updated }));
                                                     }}
-                                                    className="text-red-500 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    className="font-semibold text-red-600 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
                                                 >
                                                     ✕
                                                 </TouchEnhancedButton>
