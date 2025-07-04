@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-community-image-to-text')
     implementation project(':capacitor-mlkit-barcode-scanning')
     implementation project(':capacitor-camera')
+    implementation project(':capacitor-device')
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-preferences')
     implementation project(':capacitor-status-bar')

@@ -8,51 +8,75 @@ import AdminDebug from "@/components/debug/AdminDebug";
 function useAndroidStatusBar() {
     useEffect(() => {
         const setupAndroidStatusBar = async () => {
+            // Only run on client side
+            if (typeof window === 'undefined') return;
+
             try {
-                const { Capacitor } = await import('@capacitor/core');
+                // Check if we're in a Capacitor environment first
+                if (typeof window.Capacitor === 'undefined') {
+                    // Try dynamic import as fallback
+                    try {
+                        const capacitorModule = await import('@capacitor/core');
+                        if (!capacitorModule?.Capacitor) return;
 
-                if (Capacitor.isNativePlatform()) {
-                    const { Device } = await import('@capacitor/device');
+                        const { Capacitor } = capacitorModule;
+                        if (!Capacitor.isNativePlatform()) return;
 
-                    const info = await Device.getInfo();
+                        const deviceModule = await import('@capacitor/device');
+                        if (!deviceModule?.Device) return;
 
-                    if (info.platform === 'android') {
-                        console.log('🤖 Setting up Android status bar and safe areas...');
+                        const { Device } = deviceModule;
+                        const info = await Device.getInfo();
 
-                        try {
-                            // Set up status bar if plugin is available
-                            const { StatusBar } = await import('@capacitor/status-bar');
+                        if (info.platform === 'android') {
+                            console.log('🤖 Setting up Android status bar and safe areas...');
 
-                            // Set status bar style
-                            await StatusBar.setStyle({ style: 'DARK' });
+                            try {
+                                // Set up status bar if plugin is available
+                                const statusBarModule = await import('@capacitor/status-bar');
+                                if (statusBarModule?.StatusBar) {
+                                    const { StatusBar } = statusBarModule;
 
-                            // Set status bar background color (indigo to match your theme)
-                            await StatusBar.setBackgroundColor({ color: '#6366f1' });
+                                    // Set status bar style
+                                    await StatusBar.setStyle({ style: 'DARK' });
 
-                            // Show status bar
-                            await StatusBar.show();
+                                    // Set status bar background color (indigo to match your theme)
+                                    await StatusBar.setBackgroundColor({ color: '#6366f1' });
 
-                            console.log('✅ Android status bar configured');
-                        } catch (statusBarError) {
-                            console.log('Status bar plugin not available:', statusBarError);
+                                    // Show status bar
+                                    await StatusBar.show();
+
+                                    console.log('✅ Android status bar configured');
+                                }
+                            } catch (statusBarError) {
+                                console.log('Status bar plugin not available:', statusBarError);
+                            }
+
+                            // Add safe area CSS variables for Android
+                            const root = document.documentElement;
+                            root.style.setProperty('--safe-area-inset-top', '24px');
+                            root.style.setProperty('--safe-area-inset-bottom', '48px');
+                            root.style.setProperty('--safe-area-inset-left', '0px');
+                            root.style.setProperty('--safe-area-inset-right', '0px');
+
+                            // Add Android-specific body styles
+                            document.body.style.paddingTop = 'env(safe-area-inset-top, 24px)';
+                            document.body.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+
+                            console.log('✅ Android safe area insets configured');
                         }
-
-                        // Add safe area CSS variables for Android
-                        const root = document.documentElement;
-                        root.style.setProperty('--safe-area-inset-top', '24px'); // Android status bar height
-                        root.style.setProperty('--safe-area-inset-bottom', '48px'); // Android nav bar height
-                        root.style.setProperty('--safe-area-inset-left', '0px');
-                        root.style.setProperty('--safe-area-inset-right', '0px');
-
-                        // Add Android-specific body styles
-                        document.body.style.paddingTop = 'env(safe-area-inset-top, 24px)';
-                        document.body.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
-
-                        console.log('✅ Android safe area insets configured');
+                    } catch (importError) {
+                        console.log('Capacitor modules not available (web environment):', importError.message);
                     }
+                } else {
+                    // Capacitor is available globally
+                    if (!window.Capacitor.isNativePlatform()) return;
+
+                    // Use global Capacitor - this shouldn't happen but just in case
+                    console.log('Using global Capacitor (should not happen in normal builds)');
                 }
             } catch (error) {
-                console.log('Android setup not available:', error);
+                console.log('Android setup failed (normal for web):', error.message);
             }
         };
 
@@ -64,77 +88,100 @@ function useAndroidStatusBar() {
 function useAndroidSessionPersistence() {
     useEffect(() => {
         const setupAndroidSession = async () => {
+            // Only run on client side
+            if (typeof window === 'undefined') return;
+
             try {
-                const { Capacitor } = await import('@capacitor/core');
+                // Check if we're in a Capacitor environment first
+                let isAndroid = false;
 
-                if (Capacitor.isNativePlatform()) {
-                    const { Device } = await import('@capacitor/device');
-                    const info = await Device.getInfo();
-
-                    if (info.platform === 'android') {
-                        console.log('🤖 Setting up Android session persistence...');
-
-                        // Set up periodic session backup for Android
-                        const backupSession = async () => {
-                            try {
-                                const { getSession } = await import('next-auth/react');
-                                const session = await getSession();
-
-                                if (session?.user) {
-                                    // Multiple backup strategies for Android
-                                    const sessionData = {
-                                        user: session.user,
-                                        expires: session.expires,
-                                        timestamp: Date.now(),
-                                        platform: 'android'
-                                    };
-
-                                    // Backup 1: Mobile session storage
-                                    const { MobileSession } = await import('@/lib/mobile-session-simple');
-                                    await MobileSession.setSession(sessionData);
-
-                                    // Backup 2: localStorage
-                                    if (typeof localStorage !== 'undefined') {
-                                        localStorage.setItem('android-session-backup', JSON.stringify(sessionData));
-                                        localStorage.setItem('android-last-seen', Date.now().toString());
-                                    }
-
-                                    // Backup 3: sessionStorage
-                                    if (typeof sessionStorage !== 'undefined') {
-                                        sessionStorage.setItem('android-active-session', JSON.stringify(sessionData));
-                                    }
-
-                                    console.log('📱 Android session backed up successfully');
-                                }
-                            } catch (error) {
-                                console.error('Android session backup failed:', error);
-                            }
-                        };
-
-                        // Initial backup
-                        await backupSession();
-
-                        // Backup every 30 seconds while app is active
-                        const backupInterval = setInterval(backupSession, 30000);
-
-                        // Backup on page visibility change (app focus/blur)
-                        const handleVisibilityChange = () => {
-                            if (!document.hidden) {
-                                backupSession();
-                            }
-                        };
-
-                        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-                        // Cleanup
-                        return () => {
-                            clearInterval(backupInterval);
-                            document.removeEventListener('visibilitychange', handleVisibilityChange);
-                        };
+                try {
+                    const capacitorModule = await import('@capacitor/core');
+                    if (capacitorModule?.Capacitor && capacitorModule.Capacitor.isNativePlatform()) {
+                        const deviceModule = await import('@capacitor/device');
+                        if (deviceModule?.Device) {
+                            const { Device } = deviceModule;
+                            const info = await Device.getInfo();
+                            isAndroid = info.platform === 'android';
+                        }
                     }
+                } catch (importError) {
+                    console.log('Capacitor not available (web environment):', importError.message);
+                    return; // Exit early for web
+                }
+
+                if (isAndroid) {
+                    console.log('🤖 Setting up Android session persistence...');
+
+                    // Set up periodic session backup for Android
+                    const backupSession = async () => {
+                        try {
+                            const nextAuthModule = await import('next-auth/react');
+                            if (!nextAuthModule?.getSession) return;
+
+                            const { getSession } = nextAuthModule;
+                            const session = await getSession();
+
+                            if (session?.user) {
+                                // Multiple backup strategies for Android
+                                const sessionData = {
+                                    user: session.user,
+                                    expires: session.expires,
+                                    timestamp: Date.now(),
+                                    platform: 'android'
+                                };
+
+                                // Backup 1: Mobile session storage
+                                try {
+                                    const mobileSessionModule = await import('@/lib/mobile-session-simple');
+                                    if (mobileSessionModule?.MobileSession) {
+                                        await mobileSessionModule.MobileSession.setSession(sessionData);
+                                    }
+                                } catch (mobileSessionError) {
+                                    console.log('Mobile session storage not available:', mobileSessionError.message);
+                                }
+
+                                // Backup 2: localStorage
+                                if (typeof localStorage !== 'undefined') {
+                                    localStorage.setItem('android-session-backup', JSON.stringify(sessionData));
+                                    localStorage.setItem('android-last-seen', Date.now().toString());
+                                }
+
+                                // Backup 3: sessionStorage
+                                if (typeof sessionStorage !== 'undefined') {
+                                    sessionStorage.setItem('android-active-session', JSON.stringify(sessionData));
+                                }
+
+                                console.log('📱 Android session backed up successfully');
+                            }
+                        } catch (error) {
+                            console.error('Android session backup failed:', error);
+                        }
+                    };
+
+                    // Initial backup
+                    await backupSession();
+
+                    // Backup every 30 seconds while app is active
+                    const backupInterval = setInterval(backupSession, 30000);
+
+                    // Backup on page visibility change (app focus/blur)
+                    const handleVisibilityChange = () => {
+                        if (!document.hidden) {
+                            backupSession();
+                        }
+                    };
+
+                    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+                    // Cleanup
+                    return () => {
+                        clearInterval(backupInterval);
+                        document.removeEventListener('visibilitychange', handleVisibilityChange);
+                    };
                 }
             } catch (error) {
-                console.log('Android session setup not available:', error);
+                console.log('Android session setup failed (normal for web):', error.message);
             }
         };
 
