@@ -669,7 +669,7 @@ export default function RecipeSuggestions() {
 
                     const matchPercentage = recipe.ingredients.length > 0 ?
                         (availableIngredients.length / recipe.ingredients.length) : 0;
-                    const canMake = availableIngredients.length >= Math.ceil(recipe.ingredients.length * 0.8);
+                    const canMake = availableIngredients.length === recipe.ingredients.length;
 
                     return {
                         ...recipe,
@@ -1514,7 +1514,7 @@ export default function RecipeSuggestions() {
                                                                 </span>
                                                             ) : (
                                                                 <span className="text-red-600">
-                                                                    Missing ingredients needed
+                                                                   🛒 Missing ingredients needed ⚠️
                                                                 </span>
                                                             )}
                                                         </div>
