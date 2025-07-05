@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function ExpirationNotifications({ onItemsUpdated }) {
     const { data: session } = useSafeSession();
@@ -34,7 +34,7 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
 
     const fetchNotifications = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/notifications/expiration'));
+            const response = await apiGet('/api/notifications/expiration');
             const data = await response.json();
 
             if (data.success) {
@@ -67,13 +67,9 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
         setProcessingAction(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/notifications/expiration'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    itemIds: Array.from(selectedItems),
-                    action
-                })
+            const response = await apiPost('/api/notifications/expiration', {
+                itemIds: Array.from(selectedItems),
+                action
             });
 
             const data = await response.json();

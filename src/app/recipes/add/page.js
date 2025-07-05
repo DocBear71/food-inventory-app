@@ -7,7 +7,7 @@ import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 
 export default function AddRecipePage() {
     const router = useRouter();
@@ -70,11 +70,7 @@ export default function AddRecipePage() {
                 transformed: apiData.nutrition
             });
 
-            const response = await fetch(getApiUrl('/api/recipes'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(apiData)
-            });
+            const response = await apiPost('/api/recipes', apiData);
 
             const data = await response.json();
 

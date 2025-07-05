@@ -6,7 +6,6 @@ import {useSafeSession} from '@/hooks/useSafeSession';
 import EmailSharingModal from '@/components/sharing/EmailSharingModal'; // Using newer subscription-gated version
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {getApiUrl} from '@/lib/api-config';
 
 export default function UnifiedShoppingListModal({
                                                      isOpen,

@@ -11,8 +11,7 @@ import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
-import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
+import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
@@ -57,13 +56,13 @@ export default function RecipeDetailPage() {
 
     const fetchRecipe = async () => {
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`));
+            const response = await apiGet(`/api/recipes/${recipeId}`);
             const data = await response.json();
 
             if (data.success) {
                 setRecipe(data.recipe);
                 // Increment view count
-                await fetch(getApiUrl(`/api/recipes/${recipeId}/view`), { method: 'POST' });
+                await apiPost(`/api/recipes/${recipeId}/view`, {});
             } else {
                 setError(data.error || 'Recipe not found');
             }
@@ -78,7 +77,7 @@ export default function RecipeDetailPage() {
     const fetchMealPlans = async () => {
         setLoadingMealPlans(true);
         try {
-            const response = await fetch(getApiUrl('/api/meal-plans'));
+            const response = await apiGet('/api/meal-plans');
             const data = await response.json();
             if (data.success) {
                 setMealPlans(data.mealPlans);
@@ -92,9 +91,7 @@ export default function RecipeDetailPage() {
 
     const addToMealPlan = async (mealPlanId, day, mealType) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`), {
-                method: 'GET'
-            });
+            const response = await apiGet(`/api/meal-plans/${mealPlanId}`);
 
             const data = await response.json();
             if (!data.success) {
@@ -119,14 +116,8 @@ export default function RecipeDetailPage() {
                 [day]: [...(mealPlan.meals[day] || []), newMeal]
             };
 
-            const updateResponse = await fetch(getApiUrl(`/api/meal-plans/${mealPlanId}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    meals: updatedMeals
-                })
+            const updateResponse = await apiPut(`/api/meal-plans/${mealPlanId}`, {
+                meals: updatedMeals
             });
 
             const updateData = await updateResponse.json();

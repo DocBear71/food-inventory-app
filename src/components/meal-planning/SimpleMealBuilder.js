@@ -3,7 +3,7 @@
 
 import {useState, useEffect} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {getApiUrl} from '@/lib/api-config';
+import { apiGet } from '@/lib/api-config';
 
 const MEAL_CATEGORIES = [
     {id: 'protein', name: 'Protein', icon: '🥩', color: 'bg-red-50 border-red-200 text-red-700'},
@@ -269,7 +269,7 @@ export default function SimpleMealBuilder({
     const fetchInventory = async () => {
         setLoading(true);
         try {
-            const response = await fetch(getApiUrl('/api/inventory'));
+            const response = await apiGet('/api/inventory');
             const data = await response.json();
 
             if (data.success) {

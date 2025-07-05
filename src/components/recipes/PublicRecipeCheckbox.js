@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet } from '@/lib/api-config';
 
 export default function PublicRecipeCheckbox({
                                                  isPublic,
@@ -26,7 +26,7 @@ export default function PublicRecipeCheckbox({
 
     const fetchPublicRecipeStats = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/recipes/public-stats'));
+            const response = await apiGet('/api/recipes/public-stats');
             const data = await response.json();
 
             if (data.success) {

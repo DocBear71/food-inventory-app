@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function AddToCollectionButton({ recipeId, recipeName, className = '' }) {
     const [collections, setCollections] = useState([]);
@@ -36,7 +36,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
     const fetchCollections = async () => {
         try {
             setLoading(true);
-            const response = await fetch(getApiUrl('/api/collections'));
+            const response = await apiGet('/api/collections');
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -59,13 +59,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
 
     const handleAddToCollection = async (collectionId) => {
         try {
-            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ recipeId })
-            });
+            const response = await apiPost(`/api/collections/${collectionId}/recipes`, { recipeId });
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -113,16 +107,10 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                 return;
             }
 
-            const response = await fetch(getApiUrl('/api/collections'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    description: description?.trim() || '',
-                    recipes: [{ recipeId }] // Add current recipe to new collection
-                })
+            const response = await apiPost('/api/collections', {
+                name: name.trim(),
+                description: description?.trim() || '',
+                recipes: [{ recipeId }]
             });
 
             if (!response.ok) {

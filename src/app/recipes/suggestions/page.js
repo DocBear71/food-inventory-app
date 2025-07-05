@@ -8,8 +8,8 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
 import React from 'react';
+import { apiGet } from '@/lib/api-config';
 
 // Enhanced Flashy Loading Modal Component
 const LoadingModal = ({isOpen, progress, currentTask, inventory = [], recipes = []}) => {
@@ -300,7 +300,7 @@ export default function RecipeSuggestions() {
     // NEW: Load user profile for dietary defaults
     const loadUserProfile = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/user/profile'));
+            const response = await apiGet('/api/user/profile');
             const data = await response.json();
 
             if (data.success && data.user) {
@@ -713,7 +713,7 @@ export default function RecipeSuggestions() {
             await loadUserProfile();
 
             // Step 2: Load inventory
-            const inventoryResponse = await fetch(getApiUrl('/api/inventory'));
+            const inventoryResponse = await apiGet('/api/inventory');
             const inventoryData = await inventoryResponse.json();
 
             if (inventoryData.success) {
@@ -727,7 +727,7 @@ export default function RecipeSuggestions() {
             setIngredientIndex(index);
 
             // Step 4: Load curated meals
-            const curatedResponse = await fetch(getApiUrl('/api/admin/meals?status=approved&limit=100'));
+            const curatedResponse = await apiGet('/api/admin/meals?status=approved&limit=100');
             const curatedData = await curatedResponse.json();
 
             if (curatedData.success) {
@@ -736,7 +736,7 @@ export default function RecipeSuggestions() {
             }
 
             // Step 5: Load recipes
-            const recipesResponse = await fetch(getApiUrl('/api/recipes'));
+            const recipesResponse = await apiGet('/api/recipes');
             const recipesData = await recipesResponse.json();
 
             if (recipesData.success) {
@@ -891,7 +891,7 @@ export default function RecipeSuggestions() {
     const loadRecipeDetails = async (recipeId) => {
         setLoadingRecipe(true);
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`));
+            const response = await apiGet(`/api/recipes/${recipeId}`);
             const data = await response.json();
 
             if (data.success) {

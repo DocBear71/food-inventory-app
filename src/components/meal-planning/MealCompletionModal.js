@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 import { findBestInventoryMatch, normalizeIngredientName, extractIngredientName } from '@/utils/ingredientMatching';
 
 export default function MealCompletionModal({
@@ -66,7 +66,7 @@ export default function MealCompletionModal({
 
         setLoading(true);
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${meal.recipeId}`));
+            const response = await apiGet(`/api/recipes/${meal.recipeId}`);
             const data = await response.json();
 
             if (data.success) {
@@ -197,15 +197,9 @@ export default function MealCompletionModal({
             console.log('📤 Consuming ingredients:', itemsToConsume);
 
             // Call the consumption API
-            const response = await fetch(getApiUrl('/api/inventory/consume'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mode: 'batch',
-                    consumptions: itemsToConsume
-                })
+            const response = await apiPost('/api/inventory/consume', {
+                mode: 'batch',
+                consumptions: itemsToConsume
             });
 
             const result = await response.json();

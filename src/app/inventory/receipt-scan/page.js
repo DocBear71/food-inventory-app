@@ -8,7 +8,7 @@ import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
+import { apiGet, apiPost, fetchWithSession } from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
@@ -347,31 +347,26 @@ export default function ReceiptScan() {
         setProcessingStatus('Adding items to inventory...');
 
         try {
-            const response = await fetch(getApiUrl('/api/inventory/bulk-add'), {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    items: selectedItems.map(item => ({
-                        name: item.name,
-                        brand: item.brand || '',
-                        category: item.category,
-                        quantity: item.quantity,
-                        unit: 'item',
-                        location: item.location,
-                        upc: item.upc,
-                        expirationDate: null,
-                        rawText: item.rawText,
-                        unitPrice: item.unitPrice,
-                        price: item.price
-                    })),
-                    source: 'receipt-scan-enhanced',
-                    ocrEngine: 'Enhanced-Tesseract-Dual-Model',
-                    metadata: {
-                        // FIXED: Use platformInfo instead of deviceInfo
-                        platform: platformInfo.isIOSPWA ? 'iOS-PWA' : platformInfo.isIOS ? 'iOS' : 'Web',
-                        ocrMethod: 'scribe-enhanced-dual-model'
-                    }
-                })
+            const response = await apiPost('/api/inventory/bulk-add', {
+                items: selectedItems.map(item => ({
+                    name: item.name,
+                    brand: item.brand || '',
+                    category: item.category,
+                    quantity: item.quantity,
+                    unit: 'item',
+                    location: item.location,
+                    upc: item.upc,
+                    expirationDate: null,
+                    rawText: item.rawText,
+                    unitPrice: item.unitPrice,
+                    price: item.price
+                })),
+                source: 'receipt-scan-enhanced',
+                ocrEngine: 'Enhanced-Tesseract-Dual-Model',
+                metadata: {
+                    platform: platformInfo.isIOSPWA ? 'iOS-PWA' : platformInfo.isIOS ? 'iOS' : 'Web',
+                    ocrMethod: 'scribe-enhanced-dual-model'
+                }
             });
 
             if (response.ok) {
@@ -735,16 +730,10 @@ export default function ReceiptScan() {
             setProcessingStatus('Recording successful scan...');
 
             try {
-                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        scanType: 'receipt',
-                        itemsExtracted: items.length,
-                        ocrEngine: 'Enhanced-Tesseract-Dual-Model'
-                    })
+                const recordResponse = await apiPost('/api/receipt-scan/usage', {
+                    scanType: 'receipt',
+                    itemsExtracted: items.length,
+                    ocrEngine: 'Enhanced-Tesseract-Dual-Model'
                 });
 
                 if (!recordResponse.ok) {
@@ -784,16 +773,10 @@ export default function ReceiptScan() {
 
     async function recordReceiptScanUsage(itemsExtracted, scanType = 'receipt') {
         try {
-            const response = await fetch(getApiUrl('/api/receipt-scan/usage'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    scanType,
-                    itemsExtracted,
-                    ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
-                })
+            const response = await apiPost('/api/receipt-scan/usage', {
+                scanType,
+                itemsExtracted,
+                ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
             });
 
             if (response.ok) {
@@ -1005,16 +988,10 @@ export default function ReceiptScan() {
             setProcessingStatus('Recording successful scan...');
 
             try {
-                const recordResponse = await fetch(getApiUrl('/api/receipt-scan/usage'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        scanType: 'text-receipt',
-                        itemsExtracted: items.length,
-                        ocrEngine: 'Text-Parser-HyVee'
-                    })
+                const recordResponse = await apiPost('/api/receipt-scan/usage', {
+                    scanType: 'text-receipt',
+                    itemsExtracted: items.length,
+                    ocrEngine: 'Text-Parser-HyVee'
                 });
 
                 if (!recordResponse.ok) {
@@ -2645,7 +2622,7 @@ export default function ReceiptScan() {
         if (!item.upc) return;
 
         async function tryUPCLookup(upcCode) {
-            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${upcCode}`));
+            const response = await apiGet(`/api/upc/lookup?upc=${upcCode}`);
             if (!response.ok) {
                 return null;
             }
@@ -2788,7 +2765,7 @@ export default function ReceiptScan() {
                 formData.append(`additionalFile_${index}`, file, file.name);
             });
 
-            const response = await fetch(getApiUrl('/api/receipt-issue-report'), {
+            const response = await fetchWithSession('/api/receipt-issue-report', {
                 method: 'POST',
                 body: formData
             });

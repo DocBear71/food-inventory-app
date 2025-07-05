@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { fetchWithSession } from '@/lib/api-config';
 
 
 export default function IssueReporter({
@@ -85,7 +85,7 @@ export default function IssueReporter({
                 formData.append(`additionalFile_${index}`, file, file.name);
             });
 
-            const response = await fetch(getApiUrl('/api/general-issue-report'), {
+            const response = await fetchWithSession('/api/general-issue-report', {
                 method: 'POST',
                 body: formData
             });

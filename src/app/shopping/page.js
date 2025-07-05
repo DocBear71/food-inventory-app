@@ -9,10 +9,10 @@ import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsBu
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function ShoppingPage() {
     const {data: session, status} = useSafeSession();
@@ -157,7 +157,7 @@ export default function ShoppingPage() {
 
     const fetchRecipes = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/recipes'));
+            const response = await apiGet('/api/recipes');
             const result = await response.json();
             if (result.success) {
                 setRecipes(result.recipes);
@@ -308,14 +308,8 @@ export default function ShoppingPage() {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/shopping/generate'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipeIds: selectedRecipes
-                }),
+            const response = await apiPost('/api/shopping/generate', {
+                recipeIds: selectedRecipes
             });
 
             const result = await response.json();

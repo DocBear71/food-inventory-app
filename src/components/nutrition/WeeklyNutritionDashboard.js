@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
@@ -111,12 +111,12 @@ function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, se
         try {
             // Fetch goals and analysis in parallel
             const promises = [
-                fetch(getApiUrl(`/api/nutrition/analyze?mealPlanId=${mealPlanId}`))
+                apiGet(`/api/nutrition/analyze?mealPlanId=${mealPlanId}`)
             ];
 
             // Only fetch goals if user has access
             if (nutritionGoalsGate.hasAccess) {
-                promises.unshift(fetch(getApiUrl('/api/nutrition/goals')));
+                promises.unshift(apiGet('/api/nutrition/goals'));
             }
 
             const responses = await Promise.all(promises);
@@ -150,13 +150,7 @@ function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, se
 
     const generateAnalysis = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/analyze'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ mealPlanId }),
-            });
+            const response = await apiPost('/api/nutrition/analyze', { mealPlanId });
 
             const result = await response.json();
 
@@ -623,13 +617,7 @@ function GoalsEditor({ goals, onUpdate }) {
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/goals'), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-            });
+            const response = await apiPut('/api/nutrition/goals', formData);
 
             const result = await response.json();
 
@@ -656,12 +644,7 @@ function GoalsEditor({ goals, onUpdate }) {
     const resetToDefaults = async () => {
         setLoading(true);
         try {
-            const response = await fetch(getApiUrl('/api/nutrition/goals'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            const response = await apiPost('/api/nutrition/goals', {});
 
             const result = await response.json();
 

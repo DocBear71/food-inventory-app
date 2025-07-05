@@ -5,10 +5,10 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 
 // Simple Star Rating Component
 function StarRating({ rating, maxRating = 5, onRatingChange, interactive = false, size = 'medium' }) {
@@ -126,19 +126,15 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
         setSubmitting(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    rating,
-                    comment: comment.trim(),
-                    aspects: Object.keys(aspects).reduce((acc, key) => {
-                        if (aspects[key] > 0) acc[key] = aspects[key];
-                        return acc;
-                    }, {}),
-                    modifications: modifications.trim(),
-                    wouldMakeAgain
-                })
+            const response = await apiPost(`/api/recipes/${recipeId}/reviews`, {
+                rating,
+                comment: comment.trim(),
+                aspects: Object.keys(aspects).reduce((acc, key) => {
+                    if (aspects[key] > 0) acc[key] = aspects[key];
+                    return acc;
+                }, {}),
+                modifications: modifications.trim(),
+                wouldMakeAgain
             });
 
             const data = await response.json();
@@ -329,7 +325,7 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
 
     const fetchReviews = async () => {
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews`));
+            const response = await apiGet(`/api/recipes/${recipeId}/reviews`);
             const data = await response.json();
 
             if (data.success) {

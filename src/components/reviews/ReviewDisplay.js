@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { StarRating } from './RecipeRating';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiPost } from '@/lib/api-config';
 
 export default function ReviewDisplay({
                                           review,
@@ -32,11 +32,7 @@ export default function ReviewDisplay({
         setIsVoting(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews/${review._id}/vote`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vote: voteType })
-            });
+            const response = await apiPost(`/api/recipes/${recipeId}/reviews/${review._id}/vote`, { vote: voteType });
 
             const data = await response.json();
 

@@ -8,7 +8,7 @@ import {useSafeSession} from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
-import {getApiUrl} from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function SaveRecipeButton({
                                              recipeId,
@@ -59,7 +59,7 @@ export default function SaveRecipeButton({
 
     const fetchCollections = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/collections'));
+            const response = await apiGet('/api/collections');
             const data = await response.json();
             if (data.success) {
                 setCollections(data.collections);
@@ -80,13 +80,7 @@ export default function SaveRecipeButton({
         setSuccess('');
 
         try {
-            const response = await fetch(getApiUrl(`/api/collections/${collectionId}/recipes`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ recipeId })
-            });
+            const response = await apiPost(`/api/collections/${collectionId}/recipes`, { recipeId });
 
             const data = await response.json();
 

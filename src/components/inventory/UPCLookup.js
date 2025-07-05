@@ -4,9 +4,8 @@
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {getApiUrl} from "@/lib/api-config";
+import { apiGet } from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
-import {FEATURE_GATES} from '@/lib/subscription-config';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -186,7 +185,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
         try {
             console.log('🔍 Starting UPC lookup for:', upc);
-            const response = await fetch(getApiUrl(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`));
+            const response = await apiGet(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`);
             const data = await response.json();
 
             console.log('🔍 UPC lookup response:', {
@@ -295,19 +294,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
         try {
             // FIXED: Use absolute URL with proper encoding
-            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=${page}&page_size=15`);
-            console.log('🔍 Making search request to:', searchUrl);
-
-            const response = await fetch(searchUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                // Add credentials if needed
-                credentials: 'include'
-            });
+            const response = apiGet(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=${page}&page_size=15`);
 
             console.log('🔍 Search response status:', response.status);
 
@@ -514,14 +501,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             setIsLoadingUsage(true);
             console.log('📊 Loading UPC usage information...');
 
-            const response = await fetch(getApiUrl('/api/upc/usage'), {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // Force fresh data, no cache
-                cache: 'no-cache'
-            });
+            const response = await apiGet('/api/upc/usage');
 
             if (response.ok) {
                 const data = await response.json();
@@ -641,17 +621,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
         try {
             // FIXED: Use absolute URL and proper encoding
-            const searchUrl = getApiUrl(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=1&page_size=5`);
-            console.log('🔍 Making autocomplete request to:', searchUrl);
-
-            const response = await fetch(searchUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include'
-            });
+            const response = apiGet(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=1&page_size=5`);
 
             console.log('🔍 Autocomplete response status:', response.status);
 

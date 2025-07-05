@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from "@/lib/api-config";
+import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 
 export default function EditRecipePage() {
     let session = null;
@@ -110,7 +110,7 @@ export default function EditRecipePage() {
 
     const fetchRecipe = async () => {
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`));
+            const response = await apiGet(`/api/recipes/${recipeId}`);
             const data = await response.json();
 
             if (data.success) {
@@ -216,11 +216,7 @@ export default function EditRecipePage() {
                 servings: formData.servings ? parseInt(formData.servings) : null
             };
 
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(recipeData)
-            });
+            const response = await apiPut(`/api/recipes/${recipeId}`, recipeData);
 
             const data = await response.json();
 

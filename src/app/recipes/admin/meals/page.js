@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 
 const MEAL_CATEGORIES = [
     { value: 'protein', label: 'Protein', icon: '🥩' },
@@ -97,7 +97,7 @@ export default function CuratedMealsAdmin() {
     const fetchMeals = async () => {
         setLoading(true);
         try {
-            const response = await fetch(getApiUrl(`/api/admin/meals?status=${filterStatus}&limit=50`));
+            const response = await apiGet(`/api/admin/meals?status=${filterStatus}&limit=50`);
             const data = await response.json();
 
             if (data.success) {
@@ -118,17 +118,13 @@ export default function CuratedMealsAdmin() {
         setLoading(true);
 
         try {
-            const url = editingMeal ? `/api/admin/meals` : `/api/admin/meals`;
-            const method = editingMeal ? 'PUT' : 'POST';
             const body = editingMeal
                 ? { mealId: editingMeal._id, ...formData }
                 : formData;
 
-            const response = await fetch(getApiUrl(url), {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
+            const response = editingMeal
+                ? await apiPut('/api/admin/meals', body)
+                : await apiPost('/api/admin/meals', body);
 
             const data = await response.json();
 
@@ -177,9 +173,7 @@ export default function CuratedMealsAdmin() {
         if (!confirm('Are you sure you want to delete this meal?')) return;
 
         try {
-            const response = await fetch(getApiUrl(`/api/admin/meals?mealId=${mealId}`), {
-                method: 'DELETE',
-            });
+            const response = await apiDelete(`/api/admin/meals?mealId=${mealId}`);
 
             const data = await response.json();
 
@@ -197,11 +191,7 @@ export default function CuratedMealsAdmin() {
 
     const handleApprove = async (mealId) => {
         try {
-            const response = await fetch(getApiUrl('/api/admin/meals'), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mealId, action: 'approve' }),
-            });
+            const response = await apiPut('/api/admin/meals', { mealId, action: 'approve' });
 
             const data = await response.json();
 
@@ -221,11 +211,7 @@ export default function CuratedMealsAdmin() {
         if (!reason) return;
 
         try {
-            const response = await fetch(getApiUrl('/api/admin/meals'), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mealId, action: 'reject', rejectionReason: reason }),
-            });
+            const response = await apiPut('/api/admin/meals', { mealId, action: 'reject', rejectionReason: reason });
 
             const data = await response.json();
 

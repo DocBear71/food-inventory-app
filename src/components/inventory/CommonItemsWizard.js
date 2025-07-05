@@ -5,10 +5,10 @@
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { COMMON_ITEMS } from '@/lib/commonItems';
-import { getApiUrl } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import { apiPost } from '@/lib/api-config';
 
 export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [selectedItems, setSelectedItems] = useState(new Map());
@@ -200,15 +200,9 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         try {
             const itemsToAdd = Array.from(validatedItems.values());
 
-            const response = await fetch(getApiUrl('/api/inventory/bulk-add'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    items: itemsToAdd,
-                    source: 'Common Items Wizard'
-                }),
+            const response = await apiPost('/api/inventory/bulk-add', {
+                items: itemsToAdd,
+                source: 'Common Items Wizard'
             });
 
             const data = await response.json();

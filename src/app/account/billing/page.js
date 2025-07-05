@@ -8,7 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
@@ -84,17 +84,11 @@ function BillingContent() {
         setSuccess('');
 
         try {
-            const response = await fetch(getApiUrl('/api/payments/create-checkout'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    tier: newTier,
-                    billingCycle: newBilling,
-                    currentTier: subscription.tier,
-                    source: urlSource || 'billing-page'
-                }),
+            const response = await apiPost('/api/payments/create-checkout', {
+                tier: newTier,
+                billingCycle: newBilling,
+                currentTier: subscription.tier,
+                source: urlSource || 'billing-page'
             });
 
             const data = await response.json();
@@ -123,14 +117,8 @@ function BillingContent() {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/subscription/start-trial'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    source: urlSource || 'billing-page'
-                }),
+            const response = await apiPost('/api/subscription/start-trial', {
+                source: urlSource || 'billing-page'
             });
 
             const data = await response.json();
@@ -160,12 +148,7 @@ function BillingContent() {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/subscription/cancel'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await apiPost('/api/subscription/cancel', {});
 
             const data = await response.json();
 

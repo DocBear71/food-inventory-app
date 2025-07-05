@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 
 export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSafeSession();
@@ -30,14 +30,8 @@ export default function ShoppingListGenerator({ mealPlanId, mealPlanName, onClos
             console.log('Meal Plan ID:', mealPlanId);
             console.log('User ID:', session?.user?.id);
 
-            const response = await fetch(getApiUrl('/api/shopping/generate'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mealPlanId: mealPlanId
-                }),
+            const response = await apiPost('/api/shopping/generate', {
+                mealPlanId: mealPlanId
             });
 
             console.log('Response status:', response.status);

@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function EmailShareModal({
                                             isOpen,
@@ -41,7 +41,7 @@ export default function EmailShareModal({
 
     const fetchContacts = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/contacts'));
+            const response = await apiGet('/api/contacts');
             const data = await response.json();
             if (data.success) {
                 setContacts(data.contacts);
@@ -83,11 +83,7 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/contacts'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newContact)
-            });
+            const response = await apiPost('/api/contacts', newContact);
 
             const data = await response.json();
             if (data.success) {
@@ -126,16 +122,12 @@ export default function EmailShareModal({
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/email/send-shopping-list'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    recipients: validRecipients,
-                    personalMessage,
-                    shoppingList,
-                    context,
-                    contextName
-                })
+            const response = await apiPost('/api/email/send-shopping-list', {
+                recipients: validRecipients,
+                personalMessage,
+                shoppingList,
+                context,
+                contextName
             });
 
             const data = await response.json();

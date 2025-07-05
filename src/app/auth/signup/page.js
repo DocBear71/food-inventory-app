@@ -8,7 +8,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import PrivacyPolicy from '@/components/legal/PrivacyPolicy';
 import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
 
 // Separate component for search params to wrap in Suspense
@@ -161,24 +161,18 @@ function SignUpContent() {
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/register'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: formData.name,
-                    email: formData.email,
-                    password: formData.password,
-                    acceptedTerms: true,
-                    acceptedPrivacy: true,
-                    acceptanceDate: new Date().toISOString(),
-                    // Subscription details
-                    selectedTier,
-                    billingCycle: selectedTier === 'free' ? null : billingCycle,
-                    startTrial: selectedTier !== 'free',
-                    source: urlSource
-                }),
+            const response = await apiPost('/api/auth/register', {
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+                acceptedTerms: true,
+                acceptedPrivacy: true,
+                acceptanceDate: new Date().toISOString(),
+                // Subscription details
+                selectedTier,
+                billingCycle: selectedTier === 'free' ? null : billingCycle,
+                startTrial: selectedTier !== 'free',
+                source: urlSource
             });
 
             const data = await response.json();

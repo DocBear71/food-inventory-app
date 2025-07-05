@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 
 export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSafeSession();
@@ -32,7 +32,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
         try {
             // First try to fetch existing suggestions
-            const response = await fetch(getApiUrl(`/api/meal-prep/generate?mealPlanId=${mealPlanId}`));
+            const response = await apiGet(`/api/meal-prep/generate?mealPlanId=${mealPlanId}`);
             const result = await response.json();
 
             if (result.success && result.suggestions) {
@@ -55,16 +55,10 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/meal-prep/generate'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mealPlanId,
-                    userPreferences,
-                    regenerate
-                }),
+            const response = await apiPost('/api/meal-prep/generate', {
+                mealPlanId,
+                userPreferences,
+                regenerate
             });
 
             const result = await response.json();
@@ -85,15 +79,9 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     const handleTaskComplete = async (taskId) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-prep/${suggestions._id}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'markTaskComplete',
-                    taskId
-                }),
+            const response = await apiPut(`/api/meal-prep/${suggestions._id}`, {
+                action: 'markTaskComplete',
+                taskId
             });
 
             if (response.ok) {

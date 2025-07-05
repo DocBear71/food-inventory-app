@@ -1,12 +1,11 @@
 'use client';
 // file: /src/app/auth/reset-password/page.js v3 - WITH PASSWORD REQUIREMENTS DISPLAY
 
-
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import {getApiUrl} from "@/lib/api-config";
+import { apiPost } from '@/lib/api-config';
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -38,13 +37,7 @@ function ResetPasswordContent() {
 
     const verifyToken = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/auth/verify-reset-token'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token }),
-            });
+            const response = await apiPost('/api/auth/verify-reset-token', { token });
 
             const data = await response.json();
 
@@ -127,16 +120,10 @@ function ResetPasswordContent() {
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/reset-password'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token,
-                    password: formData.password,
-                    confirmPassword: formData.confirmPassword
-                }),
+            const response = await apiPost('/api/auth/reset-password', {
+                token,
+                password: formData.password,
+                confirmPassword: formData.confirmPassword
             });
 
             const data = await response.json();

@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost, apiDelete } from '@/lib/api-config';
 
 export default function MealPlanTemplateLibrary({
                                                     mealPlanId,
@@ -53,7 +53,7 @@ export default function MealPlanTemplateLibrary({
             }
             params.append('limit', '20');
 
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates?${params}`));
+            const response = await apiGet(`/api/meal-plan-templates?${params}`);
             const data = await response.json();
 
             if (data.success) {
@@ -71,15 +71,9 @@ export default function MealPlanTemplateLibrary({
 
     const handleApplyTemplate = async (templateId, mergeMeals = false) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}/apply`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mealPlanId,
-                    mergeMeals
-                }),
+            const response = await apiPost(`/api/meal-plan-templates/${templateId}/apply`, {
+                mealPlanId,
+                mergeMeals
             });
 
             const result = await response.json();
@@ -104,9 +98,7 @@ export default function MealPlanTemplateLibrary({
         }
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}`), {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`/api/meal-plan-templates/${templateId}`);
 
             if (response.ok) {
                 setTemplates(prev => prev.filter(t => t._id !== templateId));
@@ -122,7 +114,7 @@ export default function MealPlanTemplateLibrary({
 
     const handlePreviewTemplate = async (templateId) => {
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plan-templates/${templateId}/apply`));
+            const response = await apiGet(`/api/meal-plan-templates/${templateId}/apply`);
             const data = await response.json();
 
             if (data.success) {
@@ -454,15 +446,9 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/meal-plan-templates'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mealPlanId,
-                    ...formData
-                }),
+            const response = await apiPost('/api/meal-plan-templates', {
+                mealPlanId,
+                ...formData
             });
 
             const result = await response.json();

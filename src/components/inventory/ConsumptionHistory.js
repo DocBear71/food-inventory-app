@@ -4,9 +4,9 @@
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {getApiUrl} from "@/lib/api-config";
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
+import { apiGet, apiDelete } from '@/lib/api-config';
 
 export default function ConsumptionHistory({onClose}) {
     const {data: session} = useSafeSession();
@@ -34,7 +34,7 @@ export default function ConsumptionHistory({onClose}) {
                 reason: filterReason
             });
 
-            const response = await fetch(getApiUrl(`/api/inventory/consume?${params}`));
+            const response = await apiGet(`/api/inventory/consume?${params}`);
             const result = await response.json();
 
             if (result.success) {
@@ -214,9 +214,8 @@ export default function ConsumptionHistory({onClose}) {
         try {
             console.log('Making undo request with ID:', consumptionRecord._id);
 
-            const response = await fetch(getApiUrl(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`), {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`);
+
 
             const result = await response.json();
             console.log('Undo response:', result);

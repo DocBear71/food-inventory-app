@@ -9,7 +9,7 @@ import { DragDropMealCard, MealDropZone } from '@/components/mobile/DragDropMeal
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton";
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 
 export default function MobileMealPlanningPage() {
     const { data: session } = useSafeSession();
@@ -29,7 +29,7 @@ export default function MobileMealPlanningPage() {
 
     const fetchMealPlans = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/meal-plans'));
+            const response = await apiGet('/api/meal-plans');
             const data = await response.json();
             if (data.success) {
                 setMealPlans(data.mealPlans);
@@ -66,19 +66,15 @@ export default function MobileMealPlanningPage() {
         if (!activeMealPlan) {
             // Create new meal plan if none exists
             try {
-                const response = await fetch(getApiUrl('/api/meal-plans'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: `Week of ${currentWeekStart.toLocaleDateString()}`,
-                        weekStartDate: currentWeekStart,
-                        meals: {
-                            [targetDay]: [{
-                                ...meal,
-                                mealType: targetMealType
-                            }]
-                        }
-                    })
+                const response = await apiPost('/api/meal-plans', {
+                    name: `Week of ${currentWeekStart.toLocaleDateString()}`,
+                    weekStartDate: currentWeekStart,
+                    meals: {
+                        [targetDay]: [{
+                            ...meal,
+                            mealType: targetMealType
+                        }]
+                    }
                 });
 
                 if (response.ok) {
@@ -111,11 +107,7 @@ export default function MobileMealPlanningPage() {
                 mealType: targetMealType
             });
 
-            const response = await fetch(getApiUrl(`/api/meal-plans/${activeMealPlan._id}`), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meals: updatedMeals })
-            });
+            const response = await apiPut(`/api/meal-plans/${activeMealPlan._id}`, { meals: updatedMeals });
 
             if (response.ok) {
                 await fetchMealPlans();

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiGet } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
@@ -45,7 +45,7 @@ export default function NutritionSearch({
         setError(null);
 
         try {
-            const response = await fetch(getApiUrl(`/api/nutrition?query=${encodeURIComponent(query)}&limit=8`));
+            const response = await apiGet(`/api/nutrition?query=${encodeURIComponent(query)}&limit=8`);
             const data = await response.json();
 
             if (data.success) {
@@ -70,7 +70,7 @@ export default function NutritionSearch({
 
         // Get detailed nutrition information
         try {
-            const response = await fetch(getApiUrl(`/api/nutrition?fdcId=${food.fdcId}`));
+            const response = await apiGet(`/api/nutrition?fdcId=${food.fdcId}`);
             const data = await response.json();
 
             if (data.success && data.food) {

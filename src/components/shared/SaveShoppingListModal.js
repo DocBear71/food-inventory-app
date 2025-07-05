@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 
 export default function SaveShoppingListModal({
                                                   isOpen,
@@ -85,13 +85,7 @@ export default function SaveShoppingListModal({
                 isTemplate: formData.isTemplate
             };
 
-            const response = await fetch(getApiUrl('/api/shopping/saved'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(saveData),
-            });
+            const response = await apiPost('/api/shopping/saved', saveData);
 
             const result = await response.json();
 

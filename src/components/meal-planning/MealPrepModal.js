@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiGet } from '@/lib/api-config';
 
 export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSafeSession();
@@ -25,7 +25,7 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-prep/${mealPlanId}`));
+            const response = await apiGet(`/api/meal-prep/${mealPlanId}`);
             const data = await response.json();
 
             if (data.success) {

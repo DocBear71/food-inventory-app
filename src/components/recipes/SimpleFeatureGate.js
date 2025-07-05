@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet } from '@/lib/api-config';
 
 export default function SimpleFeatureGate({
                                               feature,
@@ -25,7 +25,7 @@ export default function SimpleFeatureGate({
     const checkAccess = async () => {
         try {
             setLoading(true);
-            const response = await fetch(getApiUrl('/api/subscription/status'));
+            const response = await apiGet('/api/subscription/status');
 
             if (response.ok) {
                 const data = await response.json();

@@ -8,7 +8,7 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost, apiDelete, fetchWithSession } from '@/lib/api-config';
 
 // Category options for the dropdown
 const CATEGORY_OPTIONS = [
@@ -84,7 +84,7 @@ export default function AdminRecipes() {
             formData.append('file', file);
             formData.append('volume', selectedVolume);
 
-            const response = await fetch(getApiUrl('/api/recipes/extract'), {
+            const response = await fetchWithSession('/api/recipes/extract', {
                 method: 'POST',
                 body: formData,
             });
@@ -130,15 +130,9 @@ export default function AdminRecipes() {
         setIsProcessing(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/recipes/bulk-import'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipes: parsedRecipes,
-                    volume: selectedVolume,
-                }),
+            const response = await apiPost('/api/recipes/bulk-import', {
+                recipes: parsedRecipes,
+                volume: selectedVolume,
             });
 
             const data = await response.json();
@@ -208,9 +202,7 @@ export default function AdminRecipes() {
         setIsProcessing(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/delete-volume?volume=${selectedVolume}`), {
-                method: 'DELETE',
-            });
+            const response = await apiDelete(`/api/recipes/delete-volume?volume=${selectedVolume}`);
 
             const data = await response.json();
 

@@ -10,8 +10,8 @@ import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
 import TemplateLibraryButton from './TemplateLibraryButton';
 import SimpleMealBuilder from './SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
 import MealCompletionModal from './MealCompletionModal';
+import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 
 
 export default function MealPlanningCalendar() {
@@ -292,7 +292,7 @@ export default function MealPlanningCalendar() {
     // Add this function to fetch inventory:
     const fetchInventory = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/inventory'));
+            const response = await apiGet('/api/inventory');
             const data = await response.json();
             if (data.success) {
                 setInventory(data.inventory);
@@ -329,11 +329,7 @@ export default function MealPlanningCalendar() {
                 dayMeals[mealIndex] = updatedMeal;
             }
 
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meals: updatedMeals })
-            });
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, { meals: updatedMeals });
 
             if (response.ok) {
                 setMealPlan(prev => ({
@@ -392,11 +388,7 @@ export default function MealPlanningCalendar() {
             }
 
             // Update meal plan
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meals: updatedMeals })
-            });
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, { meals: updatedMeals });
 
             if (response.ok) {
                 setMealPlan(prev => ({
@@ -511,7 +503,7 @@ export default function MealPlanningCalendar() {
 
     const loadUserPreferences = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/user/preferences'));
+            const response = await apiGet('/api/user/preferences');
             const data = await response.json();
             if (data.success && data.preferences) {
                 // Set week start day
@@ -547,14 +539,8 @@ export default function MealPlanningCalendar() {
 
     const updateWeekStartPreference = async (newStartDay) => {
         try {
-            const response = await fetch(getApiUrl('/api/user/preferences'), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    weekStartDay: newStartDay
-                })
+            const response = await apiPut('/api/user/preferences', {
+                weekStartDay: newStartDay
             });
 
             const data = await response.json();
@@ -570,14 +556,8 @@ export default function MealPlanningCalendar() {
 
     const updateMealTypePreferences = async (newMealTypes) => {
         try {
-            const response = await fetch(getApiUrl('/api/user/preferences'), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    defaultMealTypes: newMealTypes
-                })
+            const response = await apiPut('/api/user/preferences', {
+                defaultMealTypes: newMealTypes
             });
 
             const data = await response.json();
@@ -631,7 +611,7 @@ export default function MealPlanningCalendar() {
         const weekStartParam = getFormattedWeekStart(currentWeek);
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans?weekStart=${weekStartParam}`));
+            const response = await apiGet(`/api/meal-plans?weekStart=${weekStartParam}`);
             const data = await response.json();
 
             if (data.success && data.mealPlans.length > 0) {
@@ -655,27 +635,20 @@ export default function MealPlanningCalendar() {
                 mealsObject[day] = [];
             });
 
-            const response = await fetch(getApiUrl('/api/meal-plans'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: `Week of ${weekStart.toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric'
-                    })}`,
-                    weekStartDate: weekStart.toISOString(),
-                    meals: mealsObject,
-                    preferences: {
-                        mealTypes: userMealTypes,
-                        weekStartDay: weekStartDay,
-                        // Include dietary preferences in meal plan
-                        dietaryRestrictions: userDietaryRestrictions,
-                        avoidIngredients: userAvoidIngredients
-                    }
-                })
+            const response = await apiPost('/api/meal-plans', {
+                name: `Week of ${weekStart.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                })}`,
+                weekStartDate: weekStart.toISOString(),
+                meals: mealsObject,
+                preferences: {
+                    mealTypes: userMealTypes,
+                    weekStartDay: weekStartDay,
+                    dietaryRestrictions: userDietaryRestrictions,
+                    avoidIngredients: userAvoidIngredients
+                }
             });
 
             const data = await response.json();
@@ -689,7 +662,7 @@ export default function MealPlanningCalendar() {
 
     const fetchRecipes = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/recipes'));
+            const response = await apiGet('/api/recipes');
             const data = await response.json();
             if (data.success) {
                 setRecipes(data.recipes);
@@ -725,14 +698,8 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    meals: updatedMeals
-                })
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
             });
 
             const data = await response.json();
@@ -771,14 +738,8 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    meals: updatedMeals
-                })
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
             });
 
             const data = await response.json();
@@ -806,14 +767,8 @@ export default function MealPlanningCalendar() {
         };
 
         try {
-            const response = await fetch(getApiUrl(`/api/meal-plans/${mealPlan._id}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    meals: updatedMeals
-                })
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
             });
 
             const data = await response.json();

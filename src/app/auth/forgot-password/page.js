@@ -1,13 +1,12 @@
 'use client';
 // file: /src/app/auth/forgot-password/page.js
 
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from "@/lib/api-config";
+import { apiPost } from '@/lib/api-config';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -37,13 +36,7 @@ export default function ForgotPasswordPage() {
         }
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/forgot-password'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
+            const response = await apiPost('/api/auth/forgot-password', { email });
 
             const data = await response.json();
 

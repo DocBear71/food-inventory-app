@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet } from '@/lib/api-config';
 
 // Global state to prevent duplicate API calls
 let globalSavedRecipes = null;
@@ -107,8 +107,7 @@ export function useSavedRecipes() {
 
         globalOngoingRequest = (async () => {
             try {
-                const response = await fetch(getApiUrl('/api/saved-recipes'), {
-                    method: 'GET',
+                const response = await apiGet('/api/saved-recipes', null, {
                     headers: {
                         'Cache-Control': 'no-cache',
                     },

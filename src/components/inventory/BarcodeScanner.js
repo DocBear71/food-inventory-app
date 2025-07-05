@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
-import {getApiUrl} from '@/lib/api-config';
+import { apiGet } from '@/lib/api-config';
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const videoRef = useRef(null);
@@ -49,11 +49,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const loadUsageInfo = useCallback(async () => {
         try {
             setIsLoadingUsage(true);
-            const response = await fetch(getApiUrl('/api/upc/usage'), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                cache: 'no-cache'
-            });
+            const response = await apiGet('/api/upc/usage');
 
             if (response.ok) {
                 const data = await response.json();

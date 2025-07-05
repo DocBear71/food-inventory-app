@@ -6,8 +6,7 @@ import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
-import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiDelete } from '@/lib/api-config';
 
 export default function ConsumptionHistoryPage() {
     const { data: session, status } = useSafeSession();
@@ -42,15 +41,7 @@ export default function ConsumptionHistoryPage() {
                 params.append('reason', filterReason);
             }
 
-            let apiUrl;
-            try {
-                apiUrl = getApiUrl(`/api/inventory/consume?${params}`);
-            } catch (e) {
-                console.error('getApiUrl failed:', e);
-                apiUrl = `/api/inventory/consume?${params}`;
-            }
-
-            const response = await fetch(apiUrl);
+            const response = await apiGet(`/api/inventory/consume?${params}`);
             const result = await response.json();
 
             if (result.success) {
@@ -165,16 +156,7 @@ export default function ConsumptionHistoryPage() {
         }
 
         try {
-            let apiUrl;
-            try {
-                apiUrl = getApiUrl(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`);
-            } catch (e) {
-                apiUrl = `/api/inventory/consume?consumptionId=${consumptionRecord._id}`;
-            }
-
-            const response = await fetch(apiUrl, {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`/api/inventory/consume?consumptionId=${consumptionRecord._id}`);
 
             const result = await response.json();
 

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 
 export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
     const [shoppingList, setShoppingList] = useState(null);
@@ -21,14 +21,8 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/shopping/generate'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipeIds: [recipeId]
-                }),
+            const response = await apiPost('/api/shopping/generate', {
+                recipeIds: [recipeId]
             });
 
             const result = await response.json();

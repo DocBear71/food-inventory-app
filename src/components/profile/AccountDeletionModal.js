@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const router = useRouter();
@@ -44,7 +44,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const fetchDataSummary = async () => {
         try {
             setLoading(true);
-            const response = await fetch(getApiUrl('/api/user/delete-account'));
+            const response = await apiGet('/api/user/delete-account');
             const data = await response.json();
 
             if (response.ok) {
@@ -64,15 +64,9 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl('/api/user/delete-account'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    password: formData.password,
-                    confirmDeletion: formData.confirmDeletion
-                }),
+            const response = await apiPost('/api/user/delete-account', {
+                password: formData.password,
+                confirmDeletion: formData.confirmDeletion
             });
 
             const data = await response.json();

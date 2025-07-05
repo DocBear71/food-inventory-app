@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiPost } from '@/lib/api-config';
 
 export default function UrlImportTest() {
     const [url, setUrl] = useState('');
@@ -33,13 +33,7 @@ export default function UrlImportTest() {
         setResult(null);
 
         try {
-            const response = await fetch(getApiUrl('/api/recipes/scrape'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ url: testUrl })
-            });
+            const response = await apiPost('/api/recipes/scrape', { url: testUrl });
 
             const data = await response.json();
 

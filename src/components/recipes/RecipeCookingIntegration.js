@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 
 export default function RecipeCookingIntegration({
                                                      recipe,
@@ -32,7 +32,7 @@ export default function RecipeCookingIntegration({
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/inventory'));
+            const response = await apiGet('/api/inventory');
             const data = await response.json();
 
             if (data.success) {
@@ -129,15 +129,9 @@ export default function RecipeCookingIntegration({
 
     const handleCookingConsumption = async (consumptions) => {
         try {
-            const response = await fetch(getApiUrl('/api/inventory/consume'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    consumptions: consumptions,
-                    mode: 'recipe'
-                }),
+            const response = await apiPost('/api/inventory/consume', {
+                consumptions: consumptions,
+                mode: 'recipe'
             });
 
             const result = await response.json();

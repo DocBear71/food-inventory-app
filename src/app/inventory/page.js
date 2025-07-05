@@ -12,11 +12,10 @@ import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import { apiGet } from '@/lib/api-config';
+import { apiGet, apiPost, apiDelete } from '@/lib/api-config';
 
 
 // Import smart display utilities
@@ -471,15 +470,9 @@ function InventoryContent() {
         try {
             console.log('Handling consumption:', {consumptionData, mode});
 
-            const response = await fetch(getApiUrl('/api/inventory/consume'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    consumptions: consumptionData,
-                    mode: mode
-                }),
+            const response = await apiPost('/api/inventory/consume', {
+                consumptions: consumptionData,
+                mode
             });
 
             const result = await response.json();
@@ -721,7 +714,7 @@ function InventoryContent() {
         }
 
         try {
-            const url = getApiUrl('/api/inventory');
+            const url = apiPost('/api/inventory');
             const method = editingItem ? 'PUT' : 'POST';
             const body = editingItem
                 ? {itemId: editingItem._id, ...formData}
@@ -854,9 +847,7 @@ function InventoryContent() {
         if (!confirm('Are you sure you want to delete this item?')) return;
 
         try {
-            const response = await fetch(getApiUrl(`/api/inventory?itemId=${itemId}`), {
-                method: 'DELETE',
-            });
+            const response = await apiDelete(`/api/inventory?itemId=${itemId}`);
 
             const data = await response.json();
 

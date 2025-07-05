@@ -5,8 +5,8 @@
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
 import { Capacitor } from '@capacitor/core';
+import { apiGet, apiPut } from '@/lib/api-config';
 
 export function PWAInstallBanner() {
     if (Capacitor.isNativePlatform()) {
@@ -114,7 +114,7 @@ function PWAInstallBannerContent() {
 
             try {
                 console.log('PWA Banner: Fetching user preferences...');
-                const response = await fetch(getApiUrl('/api/user/preferences'));
+                const response = await apiGet('/api/user/preferences');
                 if (response.ok) {
                     const data = await response.json();
                     console.log('PWA Banner: User preferences received:', data.preferences?.disablePWABanner);
@@ -203,6 +203,21 @@ function PWAInstallBannerContent() {
         }
     };
 
+    const disablePWABanner = async () => {
+        try {
+            const response = await apiPut('/api/user/preferences', { disablePWABanner: true });
+            if (response.ok) {
+                document.querySelector('.fixed').remove();
+                window.location.reload();
+            } else {
+                throw new Error('Failed to disable banner');
+            }
+        } catch (error) {
+            console.error('Failed to disable PWA banner:', error);
+            document.querySelector('.fixed').remove();
+        }
+    };
+
     const showIOSInstructions = () => {
         if (typeof document === 'undefined') return;
 
@@ -237,25 +252,13 @@ function PWAInstallBannerContent() {
                             Got it!
                         </button>
                         ${sessionStatus === 'authenticated' && userId && !isSigningOut ? `
-                        <button 
-                            onclick="
-                                fetch(getApiUrl('/api/user/preferences'), { 
-                                    method: 'PATCH', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify({ disablePWABanner: true }) 
-                                }).then(() => {
-                                    this.closest('.fixed').remove();
-                                    window.location.reload();
-                                }).catch(err => {
-                                    console.error('Failed to disable PWA banner:', err);
-                                    this.closest('.fixed').remove();
-                                });
-                            "
-                            style="width: 100%; background: transparent; color: #6b7280; padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer; font-size: 14px;"
-                        >
-                            Don't show again
-                        </button>
-                        ` : ''}
+                            <button 
+                                onclick="window.disablePWABanner()"
+                                style="width: 100%; background: transparent; color: #6b7280; padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer; font-size: 14px;"
+                            >
+                                Don't show again
+                            </button>
+                            ` : ''}
                     </div>
                 </div>
             </div>
@@ -269,6 +272,10 @@ function PWAInstallBannerContent() {
             }
         });
     };
+
+    if (typeof window !== 'undefined') {
+        window.disablePWABanner = disablePWABanner;
+    }
 
     const showManualInstructions = () => {
         if (typeof window !== 'undefined') {

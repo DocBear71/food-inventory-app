@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
 
 function VerifyEmailContent() {
@@ -31,13 +31,7 @@ function VerifyEmailContent() {
 
     const verifyEmail = async (verificationToken) => {
         try {
-            const response = await fetch(getApiUrl('/api/auth/verify-email'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token: verificationToken }),
-            });
+            const response = await apiPost('/api/auth/verify-email', { token: verificationToken });
 
             const data = await response.json();
 
@@ -65,13 +59,7 @@ function VerifyEmailContent() {
         setLoading(true);
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/resend-verification'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
+            const response = await apiPost('/api/auth/resend-verification', { email });
 
             const data = await response.json();
 

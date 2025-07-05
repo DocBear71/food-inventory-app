@@ -11,7 +11,7 @@ import Footer from '@/components/legal/Footer';
 import FeatureGate from '@/components/subscription/FeatureGate'; // FIXED: Changed to default import
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { useFeatureGate } from '@/hooks/useSubscription';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 
 export default function ProfilePage() {
     let session = null;
@@ -253,7 +253,7 @@ export default function ProfilePage() {
 
             let response;
             try {
-                response = await fetch(getApiUrl('/api/user/avatar'), {
+                const response = await fetchWithSession('/api/user/avatar', {
                     method: 'POST',
                     body: uploadFormData,
                     signal: controller.signal
@@ -327,8 +327,7 @@ export default function ProfilePage() {
                 controller.abort();
             }, 10000); // 10 second timeout
 
-            const response = await fetch(getApiUrl('/api/user/avatar'), {
-                method: 'DELETE',
+            const response = await apiDelete('/api/user/avatar', {
                 signal: controller.signal
             });
 
@@ -376,7 +375,7 @@ export default function ProfilePage() {
     const fetchProfile = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetch(getApiUrl('/api/user/profile'));
+            const response = await apiGet('/api/user/profile');
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -556,13 +555,7 @@ export default function ProfilePage() {
                 }
             };
 
-            const response = await fetch(getApiUrl('/api/user/profile'), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(finalFormData),
-            });
+            const response = await apiPut('/api/user/profile', finalFormData);
 
             const data = await parseResponse(response);
 

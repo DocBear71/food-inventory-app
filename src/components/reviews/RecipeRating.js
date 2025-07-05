@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiPost } from '@/lib/api-config';
 
 // Star Rating Display Component
 export function StarRating({ rating, size = 'medium', showNumber = true, interactive = false, onRatingChange }) {
@@ -174,19 +174,15 @@ export function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
         setSubmitting(true);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}/reviews`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    rating,
-                    comment: comment.trim(),
-                    aspects: Object.keys(aspects).reduce((acc, key) => {
-                        if (aspects[key] > 0) acc[key] = aspects[key];
-                        return acc;
-                    }, {}),
-                    modifications: modifications.trim(),
-                    wouldMakeAgain
-                })
+            const response = await apiPost(`/api/recipes/${recipeId}/reviews`, {
+                rating,
+                comment: comment.trim(),
+                aspects: Object.keys(aspects).reduce((acc, key) => {
+                    if (aspects[key] > 0) acc[key] = aspects[key];
+                    return acc;
+                }, {}),
+                modifications: modifications.trim(),
+                wouldMakeAgain
             });
 
             const data = await response.json();

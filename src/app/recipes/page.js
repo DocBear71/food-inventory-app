@@ -11,13 +11,12 @@ import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
 import RecipesLoadingModal from "@/components/recipes/RecipesLoadingModal";
 import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipeCollections from '@/components/recipes/RecipeCollections';
 import {FEATURE_GATES} from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import { apiGet, apiDelete } from '@/lib/api-config';
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
@@ -194,12 +193,7 @@ function RecipesContent() {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-                    const response = await fetch(getApiUrl(url), {
-                        signal: controller.signal,
-                        headers: {
-                            'Cache-Control': 'no-cache',
-                        },
-                    });
+                    const response = await apiGet(url);
 
                     clearTimeout(timeoutId);
                     return {response, name, success: true};

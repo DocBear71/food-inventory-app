@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from '@/lib/api-config';
+import { apiPost } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
@@ -72,19 +72,13 @@ export default function EmailSharingModal({
         try {
             const validEmails = recipients.filter(email => email.trim());
 
-            const response = await fetch(getApiUrl('/api/sharing/email'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    toEmails: validEmails,
-                    senderName: senderName.trim(),
-                    shoppingList,
-                    personalMessage: personalMessage.trim(),
-                    context,
-                    contextName
-                }),
+            const response = await apiPost('/api/sharing/email', {
+                toEmails: validEmails,
+                senderName: senderName.trim(),
+                shoppingList,
+                personalMessage: personalMessage.trim(),
+                context,
+                contextName
             });
 
             const data = await response.json();

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl} from "@/lib/api-config";
+import { apiGet } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
@@ -39,7 +39,7 @@ export default function NutritionFacts({
         setError(null);
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/nutrition?recipeId=${recipeId}`));
+            const response = await apiGet(`/api/recipes/nutrition?recipeId=${recipeId}`);
             const data = await response.json();
 
             if (data.success) {

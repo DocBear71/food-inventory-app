@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
-import { getApiUrl } from '@/lib/api-config';
+import { apiGet, apiPost } from '@/lib/api-config';
 import { MobileSession } from '@/lib/mobile-session-simple';
 
 function SignInContent() {
@@ -140,13 +140,7 @@ function SignInContent() {
                         console.log('🔍 Method 2: Trying direct session API...');
 
                         // Try direct API call to get session data
-                        const sessionResponse = await fetch(getApiUrl('/api/auth/session'), {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                        });
+                        const sessionResponse = await apiGet('/api/auth/session');
 
                         if (sessionResponse.ok) {
                             const sessionData = await sessionResponse.json();
@@ -175,13 +169,7 @@ function SignInContent() {
                         console.log('🔍 Method 3: Trying user profile API...');
 
                         // Try to get user data from profile endpoint
-                        const profileResponse = await fetch(getApiUrl('/api/user/profile'), {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                        });
+                        const profileResponse = await apiGet('/api/user/profile');
 
                         if (profileResponse.ok) {
                             const userData = await profileResponse.json();
@@ -213,14 +201,7 @@ function SignInContent() {
                         await new Promise(resolve => setTimeout(resolve, 1000));
 
                         // Try to get user data by email
-                        const userResponse = await fetch(getApiUrl('/api/user/by-email'), {
-                            method: 'POST',
-                            credentials: 'include',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ email: formData.email })
-                        });
+                        const userResponse = await apiPost('/api/user/by-email', { email: formData.email });
 
                         console.log('📡 User by email API response status:', userResponse.status);
 
@@ -341,13 +322,7 @@ function SignInContent() {
         setMessage('');
 
         try {
-            const response = await fetch(getApiUrl('/api/auth/resend-verification'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: formData.email }),
-            });
+            const response = await apiPost('/api/auth/resend-verification', { email: formData.email });
 
             const data = await response.json();
 
