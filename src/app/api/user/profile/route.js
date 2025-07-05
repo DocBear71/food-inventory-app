@@ -1,14 +1,14 @@
 // file: /src/app/api/user/profile/route.js
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { withAuth } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
-export async function GET(request) {
+export const GET = withAuth(async (request) => {
     try {
-        const session = await getServerSession(authOptions);
+        // Now request.session contains your enhanced session
+        const session = request.session;
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -51,11 +51,11 @@ export async function GET(request) {
             { status: 500 }
         );
     }
-}
+});
 
-export async function PUT(request) {
+export const PUT = withAuth(async(request) => {
     try {
-        const session = await getServerSession(authOptions);
+        const session = request.session;
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -204,4 +204,4 @@ export async function PUT(request) {
             { status: 500 }
         );
     }
-}
+});
