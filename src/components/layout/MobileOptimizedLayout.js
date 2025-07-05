@@ -12,6 +12,40 @@ export default function MobileOptimizedLayout({ children }) {
     const [isReady, setIsReady] = useState(false);
     const [statusBarHeight, setStatusBarHeight] = useState(0);
 
+    // ADD THIS useEffect WITH THE OTHER HOOKS AT THE TOP:
+    useEffect(() => {
+        const logPaddingValues = () => {
+            if (Capacitor.isNativePlatform()) {
+                const isAndroid = Capacitor.getPlatform() === 'android';
+                const topPadding = Math.max(statusBarHeight, 48);
+                const bottomPadding = isAndroid ? 80 : 40;
+
+                console.log('🎯 CALCULATED PADDING VALUES:');
+                console.log('📱 statusBarHeight:', statusBarHeight);
+                console.log('📱 topPadding calculated:', topPadding);
+                console.log('📱 bottomPadding calculated:', bottomPadding);
+                console.log('📱 isAndroid:', isAndroid);
+
+                // Check if container element actually has the padding
+                setTimeout(() => {
+                    const container = document.querySelector('.mobile-safe-layout');
+                    if (container) {
+                        const styles = window.getComputedStyle(container);
+                        console.log('🎯 ACTUAL CONTAINER STYLES:');
+                        console.log('📱 container paddingTop:', styles.paddingTop);
+                        console.log('📱 container paddingBottom:', styles.paddingBottom);
+                        console.log('📱 container position:', styles.position);
+                        console.log('📱 container display:', styles.display);
+                    }
+                }, 100);
+            }
+        };
+
+        if (mounted && statusBarHeight > 0) {
+            logPaddingValues();
+        }
+    }, [mounted, statusBarHeight]);
+
     useEffect(() => {
         const testStatusBar = async () => {
             if (Capacitor.isNativePlatform()) {
@@ -82,9 +116,9 @@ export default function MobileOptimizedLayout({ children }) {
                     console.log('📱 Setting up StatusBar aggressively...');
 
                     // Force status bar configuration
-                    await StatusBar.setOverlaysWebView({ overlay: false });
-                    await StatusBar.setStyle({ style: 'default' });
-                    await StatusBar.setBackgroundColor({ color: '#ffffff' });
+                    await StatusBar.setOverlaysWebView({overlay: false});
+                    await StatusBar.setStyle({style: 'default'});
+                    await StatusBar.setBackgroundColor({color: '#ffffff'});
 
                     // Get actual status bar height
                     const info = await StatusBar.getInfo();
@@ -143,8 +177,8 @@ export default function MobileOptimizedLayout({ children }) {
 
     // Force container styles with high specificity
     const containerStyle = {
-        paddingTop: `${topPadding}px`,
-        paddingBottom: `${bottomPadding}px`,
+        paddingTop: `${topPadding}px !important`,
+        paddingBottom: `${bottomPadding}px !important`,
         paddingLeft: '0px',
         paddingRight: '0px',
         minHeight: '100vh',
@@ -152,14 +186,23 @@ export default function MobileOptimizedLayout({ children }) {
         boxSizing: 'border-box',
         position: 'relative',
         backgroundColor: '#ffffff',
-        // Force override any conflicting styles
-        margin: '0 !important',
-        overflow: 'visible'
+        margin: '0',
+        overflow: 'visible',
+        // Force all child elements to respect the container
+        isolation: 'isolate'
+    };
+
+// And add this style object for the inner content
+    const innerContentStyle = {
+        width: '100%',
+        minHeight: `calc(100vh - ${topPadding + bottomPadding}px)`,
+        position: 'relative',
+        zIndex: 1
     };
 
     return (
         <>
-            {/* Debug info at the very top */}
+            {/* Debug info */}
             {process.env.NODE_ENV === 'development' && (
                 <div style={{
                     position: 'fixed',
@@ -181,16 +224,16 @@ export default function MobileOptimizedLayout({ children }) {
                 </div>
             )}
 
-            {process.env.NODE_ENV === 'development' && Capacitor.isNativePlatform() && (
+            {/* Visual safe area indicators */}
+            {process.env.NODE_ENV === 'development' && isNative && (
                 <>
-                    {/* Top safe area indicator */}
                     <div style={{
                         position: 'fixed',
                         top: 0,
                         left: 0,
                         right: 0,
                         height: `${topPadding}px`,
-                        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                        backgroundColor: 'rgba(255, 0, 0, 0.5)',
                         zIndex: 9998,
                         pointerEvents: 'none',
                         display: 'flex',
@@ -203,14 +246,13 @@ export default function MobileOptimizedLayout({ children }) {
                         TOP SAFE AREA ({topPadding}px)
                     </div>
 
-                    {/* Bottom safe area indicator */}
                     <div style={{
                         position: 'fixed',
                         bottom: 0,
                         left: 0,
                         right: 0,
                         height: `${bottomPadding}px`,
-                        backgroundColor: 'rgba(0, 0, 255, 0.3)',
+                        backgroundColor: 'rgba(0, 0, 255, 0.5)',
                         zIndex: 9998,
                         pointerEvents: 'none',
                         display: 'flex',
@@ -225,10 +267,12 @@ export default function MobileOptimizedLayout({ children }) {
                 </>
             )}
 
-            <div style={containerStyle}>
-                <LayoutComponent>
-                    {children}
-                </LayoutComponent>
+            <div style={containerStyle} className="mobile-safe-layout">
+                <div style={innerContentStyle}>
+                    <LayoutComponent>
+                        {children}
+                    </LayoutComponent>
+                </div>
             </div>
         </>
     );
