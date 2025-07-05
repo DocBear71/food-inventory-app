@@ -9,7 +9,7 @@ import ExpirationNotifications from '@/components/notifications/ExpirationNotifi
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {getApiUrl} from '@/lib/api-config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 
 export default function Dashboard() {
     const {data: session, status} = useSafeSession();
@@ -37,7 +37,7 @@ export default function Dashboard() {
 
     const fetchInventoryStats = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/inventory'));
+            const response = await apiGet('/api/inventory'); // Changed this line
             const data = await response.json();
 
             if (data.success) {

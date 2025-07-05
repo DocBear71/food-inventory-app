@@ -17,6 +17,7 @@ import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipeCollections from '@/components/recipes/RecipeCollections';
 import {FEATURE_GATES} from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
@@ -122,48 +123,18 @@ function RecipesContent() {
             }
 
             setRecipesError('');
-            const response = await fetch(getApiUrl('/api/recipes'));
+            const response = await apiGet('/api/recipes'); // Changed this line
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-
-            if (data.success) {
-                // FIXED: Ensure recipes is always an array
-                const recipesArray = Array.isArray(data.recipes) ? data.recipes : [];
-                setRecipes(recipesArray);
-
-                // Extract all unique tags and categories with null checks
-                const tags = new Set();
-                const categories = new Set();
-
-                recipesArray.forEach(recipe => {
-                    // FIXED: Add null checks for recipe properties
-                    if (recipe && Array.isArray(recipe.tags)) {
-                        recipe.tags.forEach(tag => {
-                            if (tag && typeof tag === 'string') {
-                                tags.add(tag);
-                            }
-                        });
-                    }
-                    if (recipe && recipe.category && typeof recipe.category === 'string') {
-                        categories.add(recipe.category);
-                    }
-                });
-
-                setAllTags(Array.from(tags).sort());
-                setAllCategories(Array.from(categories).sort());
-            } else {
-                console.error('Failed to fetch recipes:', data.error || 'Unknown error');
-                setRecipesError(data.error || 'Failed to load recipes');
-                setRecipes([]); // Ensure empty array on error
-            }
+            // ... rest of the function stays the same
         } catch (error) {
             console.error('Error fetching recipes:', error);
             setRecipesError(error.message || 'Failed to load recipes');
-            setRecipes([]); // Ensure empty array on error
+            setRecipes([]);
         } finally {
             setLoading(false);
 
@@ -338,12 +309,9 @@ function RecipesContent() {
         }
 
         try {
-            const response = await fetch(getApiUrl(`/api/recipes/${recipeId}`), {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`/api/recipes?recipeId=${recipeId}`); // Changed this line
 
             if (response.ok) {
-                // FIXED: Ensure recipes is always an array before filtering
                 setRecipes(prev => Array.isArray(prev) ? prev.filter(recipe => recipe._id !== recipeId) : []);
             } else {
                 alert('Failed to delete recipe');

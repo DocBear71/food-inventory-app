@@ -8,9 +8,8 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { StarRating } from '@/components/reviews/RecipeRating';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { getApiUrl } from '@/lib/api-config';
-import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 
 export default function CollectionViewPage() {
     const { data: session, status } = useSafeSession();
@@ -36,7 +35,7 @@ export default function CollectionViewPage() {
     const fetchCollection = async () => {
         try {
             setLoading(true);
-            const response = await fetch(getApiUrl(`/api/collections/${params.id}`));
+            const response = await apiGet(`/api/collections/${params.id}`); // Changed this line
             const data = await response.json();
 
             if (data.success) {
@@ -62,13 +61,7 @@ export default function CollectionViewPage() {
         setError('');
 
         try {
-            const response = await fetch(getApiUrl(`/api/collections/${params.id}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(editData)
-            });
+            const response = await apiPut(`/api/collections/${params.id}`, editData); // Changed this line
 
             const data = await response.json();
 
@@ -92,9 +85,7 @@ export default function CollectionViewPage() {
         }
 
         try {
-            const response = await fetch(getApiUrl(`/api/collections/${params.id}/recipes?recipeId=${recipeId}`), {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`/api/collections/${params.id}/recipes?recipeId=${recipeId}`); // Changed this line
 
             const data = await response.json();
 
