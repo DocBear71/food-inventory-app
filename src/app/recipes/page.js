@@ -130,7 +130,36 @@ function RecipesContent() {
             }
 
             const data = await response.json();
-            // ... rest of the function stays the same
+            if (data.success) {
+                // FIXED: Ensure recipes is always an array
+                const recipesArray = Array.isArray(data.recipes) ? data.recipes : [];
+                setRecipes(recipesArray);
+
+                // Extract all unique tags and categories with null checks
+                const tags = new Set();
+                const categories = new Set();
+
+                recipesArray.forEach(recipe => {
+                    // FIXED: Add null checks for recipe properties
+                    if (recipe && Array.isArray(recipe.tags)) {
+                        recipe.tags.forEach(tag => {
+                            if (tag && typeof tag === 'string') {
+                                tags.add(tag);
+                            }
+                        });
+                    }
+                    if (recipe && recipe.category && typeof recipe.category === 'string') {
+                        categories.add(recipe.category);
+                    }
+                });
+
+                setAllTags(Array.from(tags).sort());
+                setAllCategories(Array.from(categories).sort());
+            } else {
+                console.error('Failed to fetch recipes:', data.error || 'Unknown error');
+                setRecipesError(data.error || 'Failed to load recipes');
+                setRecipes([]);
+            }
         } catch (error) {
             console.error('Error fetching recipes:', error);
             setRecipesError(error.message || 'Failed to load recipes');
