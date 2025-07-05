@@ -82,7 +82,10 @@ export default function MobileOptimizedLayout({ children }) {
     const LayoutComponent = isMobile ? MobileDashboardLayout : DashboardLayout;
 
     return (
-        <div className="mobile-safe-layout">
+        <div className="mobile-safe-layout" style={{
+            paddingTop: '50px',  // Force large top padding
+            paddingBottom: '70px'  // Force large bottom padding
+        }}>
             <LayoutComponent>
                 {children}
             </LayoutComponent>
