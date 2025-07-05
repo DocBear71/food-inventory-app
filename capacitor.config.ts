@@ -11,7 +11,6 @@ const config: CapacitorConfig = {
         StatusBar: {
             style: 'default',
             backgroundColor: '#ffffff',
-            overlay: false  // This is important - prevents overlay
         },
         SplashScreen: {
             launchAutoHide: false
