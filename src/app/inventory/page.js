@@ -16,6 +16,8 @@ import {getApiUrl} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
+import { apiGet } from '@/lib/api-config';
+
 
 // Import smart display utilities
 import {
@@ -436,9 +438,10 @@ function InventoryContent() {
         }
     };
 
+
     const fetchInventory = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/inventory'));
+            const response = await apiGet('/api/inventory');
             const data = await response.json();
 
             if (data.success) {
