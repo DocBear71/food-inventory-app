@@ -4,7 +4,18 @@ const config: CapacitorConfig = {
     appId: 'kitchen.docbearscomfort',
     appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
+    server: {
+        androidScheme: 'https'
+    },
     plugins: {
+        StatusBar: {
+            style: 'default',
+            backgroundColor: '#ffffff',
+            overlay: false  // This is important - prevents overlay
+        },
+        SplashScreen: {
+            launchAutoHide: false
+        },
         Camera: {
             // FIXED: Proper camera permissions configuration for Capacitor 7
             permissions: ['camera']

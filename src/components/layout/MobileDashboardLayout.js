@@ -8,6 +8,7 @@ import {useRouter, usePathname} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { getApiUrl } from "@/lib/api-config";
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -212,7 +213,7 @@ export default function MobileDashboardLayout({children}) {
                         >
                             {session?.user?.avatar ? (
                                 <img
-                                    src={`/api/user/avatar/${session.user.avatar}`}
+                                    src={getApiUrl(`/api/user/avatar/${formData.avatar}`)}
                                     alt="Profile"
                                     className="absolute inset-0 w-full h-full object-cover rounded-full"
                                     onError={(e) => {
@@ -323,7 +324,7 @@ export default function MobileDashboardLayout({children}) {
                                         <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                             {session?.user?.avatar ? (
                                                 <img
-                                                    src={`/api/user/avatar/${session.user.avatar}`}
+                                                    src={getApiUrl(`/api/user/avatar/${formData.avatar}`)}
                                                     alt="Profile"
                                                     className="w-10 h-10 object-cover rounded-full"
                                                     onError={(e) => {
