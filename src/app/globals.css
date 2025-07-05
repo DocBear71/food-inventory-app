@@ -2488,15 +2488,11 @@ html, body {
     width: 100%;
 }
 
-/* Safe area handling for mobile apps */
+/* Safe area handling for mobile apps - Clean version without warnings */
 .mobile-safe-layout {
-    /* Default fallback values for Android */
-    padding-top: 32px;
-    padding-bottom: 56px;
-
-    /* Use CSS environment variables when available */
-    padding-top: env(safe-area-inset-top, 32px);
-    padding-bottom: env(safe-area-inset-bottom, 56px);
+    /* Use CSS environment variables with fallbacks */
+    padding-top: max(env(safe-area-inset-top, 56px), 56px);
+    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
 
@@ -2504,18 +2500,18 @@ html, body {
     box-sizing: border-box;
 }
 
-/* Specific Android overrides - force larger padding */
+/* Force even larger values for mobile screens */
 @media screen and (max-width: 768px) {
     .mobile-safe-layout {
-        padding-top: 40px !important; /* Increased for your status bar */
-        padding-bottom: 64px !important; /* Increased for navigation bar */
+        padding-top: max(env(safe-area-inset-top, 64px), 64px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
     }
 }
 
-/* For Capacitor apps specifically */
+/* Capacitor-specific overrides with very large values */
 .capacitor-android .mobile-safe-layout {
-    padding-top: 40px !important;
-    padding-bottom: 64px !important;
+    padding-top: max(env(safe-area-inset-top, 72px), 72px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
 }
 
 /* Additional mobile app optimizations */
