@@ -8,9 +8,10 @@ import AccountDeletionModal from '@/components/profile/AccountDeletionModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import FeatureGate from '@/components/subscription/FeatureGate'; // FIXED: Changed to default import
+import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { useFeatureGate } from '@/hooks/useSubscription';
+import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 
 export default function ProfilePage() {
@@ -758,7 +759,7 @@ export default function ProfilePage() {
                                                     className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center">
                                                     {formData.avatar ? (
                                                         <img
-                                                            src={`/api/user/avatar/${formData.avatar}`}
+                                                            src={getApiUrl(`/api/user/avatar/${formData.avatar}`)}
                                                             alt="Profile Avatar"
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {

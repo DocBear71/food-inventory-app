@@ -7,6 +7,7 @@ import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 // Helper function to ensure JSON response
 function createJsonResponse(data, status = 200) {
@@ -122,7 +123,9 @@ export async function POST(request) {
 
     try {
         // Quick authentication check
-        const session = await getServerSession(authOptions);
+        const sessionResult = await getEnhancedSession(request);
+        const session = sessionResult ? { user: sessionResult.user } : null;
+
         if (!session?.user) {
             return createJsonResponse({ error: 'Unauthorized' }, 401);
         }
