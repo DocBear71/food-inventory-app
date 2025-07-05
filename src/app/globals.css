@@ -2530,3 +2530,23 @@ html, body {
     padding-top: 48px !important; /* Extra padding for safety */
     padding-bottom: 72px !important; /* Extra padding for safety */
 }
+
+/* Add this animation to your globals.css */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Force safe area override for native apps */
+body.capacitor-app,
+html.capacitor-app {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+}
