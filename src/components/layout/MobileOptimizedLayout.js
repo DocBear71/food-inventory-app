@@ -13,6 +13,21 @@ export default function MobileOptimizedLayout({ children }) {
     const [statusBarHeight, setStatusBarHeight] = useState(0);
 
     useEffect(() => {
+        const testStatusBar = async () => {
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    const info = await StatusBar.getInfo();
+                    console.log('✅ StatusBar plugin working:', info);
+                } catch (error) {
+                    console.error('❌ StatusBar plugin failed:', error);
+                    console.log('📱 Available Capacitor plugins:', Object.keys(Capacitor.Plugins || {}));
+                }
+            }
+        };
+        testStatusBar();
+    }, []);
+
+    useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768);
         };
@@ -30,6 +45,34 @@ export default function MobileOptimizedLayout({ children }) {
             clearTimeout(readyTimer);
         };
     }, []);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            console.log('🔍 DEBUGGING SAFE AREA SETUP');
+            console.log('📱 Platform:', Capacitor.getPlatform());
+            console.log('📱 Is Native:', Capacitor.isNativePlatform());
+            console.log('📱 User Agent:', navigator.userAgent);
+            console.log('📱 Window size:', window.innerWidth, 'x', window.innerHeight);
+            console.log('📱 Screen size:', screen.width, 'x', screen.height);
+
+            // Check CSS environment variables
+            const testDiv = document.createElement('div');
+            testDiv.style.paddingTop = 'env(safe-area-inset-top)';
+            document.body.appendChild(testDiv);
+            const computedTop = window.getComputedStyle(testDiv).paddingTop;
+            document.body.removeChild(testDiv);
+            console.log('📱 CSS env(safe-area-inset-top):', computedTop);
+
+            // Check viewport meta tag
+            const viewport = document.querySelector('meta[name="viewport"]');
+            console.log('📱 Viewport meta:', viewport?.getAttribute('content'));
+
+            // Check body styles
+            const bodyStyles = window.getComputedStyle(document.body);
+            console.log('📱 Body margin:', bodyStyles.margin);
+            console.log('📱 Body padding:', bodyStyles.padding);
+        }
+    }, [mounted]);
 
     // More aggressive StatusBar setup
     useEffect(() => {
@@ -136,6 +179,50 @@ export default function MobileOptimizedLayout({ children }) {
                     TopPad: {topPadding}px<br/>
                     BottomPad: {bottomPadding}px
                 </div>
+            )}
+
+            {process.env.NODE_ENV === 'development' && Capacitor.isNativePlatform() && (
+                <>
+                    {/* Top safe area indicator */}
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: `${topPadding}px`,
+                        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                        zIndex: 9998,
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        color: 'white',
+                        fontWeight: 'bold'
+                    }}>
+                        TOP SAFE AREA ({topPadding}px)
+                    </div>
+
+                    {/* Bottom safe area indicator */}
+                    <div style={{
+                        position: 'fixed',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: `${bottomPadding}px`,
+                        backgroundColor: 'rgba(0, 0, 255, 0.3)',
+                        zIndex: 9998,
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        color: 'white',
+                        fontWeight: 'bold'
+                    }}>
+                        BOTTOM SAFE AREA ({bottomPadding}px)
+                    </div>
+                </>
             )}
 
             <div style={containerStyle}>
