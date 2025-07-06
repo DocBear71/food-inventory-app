@@ -36,10 +36,10 @@ export const authOptions = {
                         return null;
                     }
 
-                    // **NEW: Check and expire trial before creating session**
+                    // **IMPORTANT: Check and expire trial FIRST, before determining admin status**
                     const trialExpired = user.checkAndExpireTrial();
 
-                    // **NEW: Check and reset monthly usage**
+                    // Check and reset monthly usage
                     const usageReset = user.checkAndResetMonthlyUsage();
 
                     // Save if either trial expired or usage was reset
@@ -53,43 +53,40 @@ export const authOptions = {
                         }
                     }
 
-
-                    // Get effective tier
+                    // **NOW get effective tier AFTER potential trial expiration**
                     const effectiveTier = user.getEffectiveTier?.() || 'free';
                     const subscriptionTier = user.subscription?.tier || 'free';
 
-                    // **FIXED: Set isAdmin based on subscription tier**
-                    const isAdmin = subscriptionTier === 'admin' || effectiveTier === 'admin' || subscriptionTier === 'platinum' || effectiveTier === 'platinum';
-
-                    // **NEW: Map usage tracking to frontend format**
-                    const usageTracking = user.usageTracking || {};
-                    const usage = {
-                        // Monthly counters (reset each month)
-                        monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
-                        monthlyUPCScans: usageTracking.monthlyUPCScans || 0,
-
-                        // Total counters (cumulative, don't reset)
-                        totalInventoryItems: usageTracking.totalInventoryItems || 0,
-                        totalPersonalRecipes: usageTracking.totalPersonalRecipes || 0,
-                        totalRecipeCollections: usageTracking.totalRecipeCollections || 0,
-                        totalSavedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
-
-                        // For backwards compatibility, map to the old names too
-                        inventoryItems: usageTracking.totalInventoryItems || 0,
-                        recipeCollections: usageTracking.totalRecipeCollections || 0,
-                        savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0
-                    };
+                    // **FIXED: Proper admin determination - only actual admin users or active/admin tiers**
+                    const isAdmin = user.isAdmin === true ||
+                        effectiveTier === 'admin' ||
+                        (effectiveTier === 'platinum' && user.subscription?.status === 'active');
 
                     console.log('🔐 Authorizing user:', {
                         id: user._id.toString(),
                         email: user.email,
                         effectiveTier: effectiveTier,
                         subscriptionTier: subscriptionTier,
+                        subscriptionStatus: user.subscription?.status,
                         isAdmin: isAdmin,
-                        createdAt: user.createdAt,
-                        usageTracking: usageTracking,
-                        usage: usage
+                        trialExpired: trialExpired
                     });
+
+                    // Map usage tracking to frontend format
+                    const usageTracking = user.usageTracking || {};
+
+                    const usage = {
+                        monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
+                        monthlyUPCScans: usageTracking.monthlyUPCScans || 0,
+                        totalInventoryItems: usageTracking.totalInventoryItems || 0,
+                        totalPersonalRecipes: usageTracking.totalPersonalRecipes || 0,
+                        totalRecipeCollections: usageTracking.totalRecipeCollections || 0,
+                        totalSavedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
+                        // Backwards compatibility
+                        inventoryItems: usageTracking.totalInventoryItems || 0,
+                        recipeCollections: usageTracking.totalRecipeCollections || 0,
+                        savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0
+                    };
 
                     return {
                         id: user._id.toString(),
@@ -103,8 +100,8 @@ export const authOptions = {
                         subscription: user.subscription || null,
                         isAdmin: isAdmin,
                         roles: user.roles || [],
-                        createdAt: user.createdAt,  // **NEW: Add createdAt**
-                        usage: usage  // **NEW: Add usage data**
+                        createdAt: user.createdAt,
+                        usage: usage
                     };
                 } catch (error) {
                     console.error('Auth error:', error);

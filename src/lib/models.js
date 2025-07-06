@@ -2159,18 +2159,16 @@ UserSchema.methods.checkAndResetMonthlyUsage = function() {
 // Add this method to your UserSchema.methods
 UserSchema.methods.checkAndExpireTrial = function() {
     try {
-        const now = new Date();
-
-        // Only check if user is currently on trial
+        // Only check if user is currently on trial status in database
         if (this.subscription?.status !== 'trial') {
-            return false; // Not on trial, nothing to expire
+            return false; // Not on trial status, nothing to expire
         }
 
-        // Check if trial has expired
-        if (this.subscription.trialEndDate && new Date(this.subscription.trialEndDate) <= now) {
+        // Use existing hasActiveSubscription logic to check if trial is expired
+        if (!this.hasActiveSubscription()) {
             console.log(`⏰ Trial expired for user ${this.email} - trial ended ${this.subscription.trialEndDate}`);
 
-            // Downgrade to free tier
+            // Update database to reflect expired trial
             this.subscription.tier = 'free';
             this.subscription.status = 'free';
             this.subscription.billingCycle = null;
@@ -2181,7 +2179,7 @@ UserSchema.methods.checkAndExpireTrial = function() {
             // this.subscription.trialStartDate - keep
             // this.subscription.trialEndDate - keep
 
-            return true; // Indicates trial was expired
+            return true; // Indicates trial was expired and database updated
         }
 
         return false; // Trial still active

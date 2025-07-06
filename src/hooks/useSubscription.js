@@ -255,8 +255,10 @@ export function SubscriptionProvider({ children }) {
     }, []);
 
     // FIXED: Clear signout flags for admin user and prevent API calls
+    // In the useSubscription hook, update this section:
     useEffect(() => {
-        if (session?.user?.email === 'e.g.mckeown@gmail.com' || session?.user?.isAdmin) {
+        if (session?.user?.email === 'e.g.mckeown@gmail.com' ||
+            (session?.user?.isAdmin === true && session?.user?.subscriptionStatus === 'active')) {
             console.log('🧹 SubscriptionProvider: Admin user detected - clearing signout flags and preventing API calls');
 
             if (typeof window !== 'undefined') {
@@ -272,7 +274,7 @@ export function SubscriptionProvider({ children }) {
                     isAdmin: true,
                     isActive: true,
                     isTrialActive: false,
-                    usage: {},
+                    usage: session.user.usage || {},
                     timestamp: new Date().toISOString()
                 });
                 setLoading(false);
@@ -281,7 +283,7 @@ export function SubscriptionProvider({ children }) {
                 setIsFetching(false);
             }
         }
-    }, [session?.user?.email, session?.user?.isAdmin, session?.user]);
+    }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user]);
 
     // FIXED: Main effect with better session handling
     useEffect(() => {
