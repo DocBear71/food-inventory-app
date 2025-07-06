@@ -1219,6 +1219,7 @@ input[type="radio"]:focus {
 
     .dashboard-container {
         padding-top: 20px !important;
+        padding-bottom: 96px !important;
         margin-top: 0 !important;
     }
 
