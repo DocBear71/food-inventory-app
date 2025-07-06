@@ -173,10 +173,10 @@ export default function DashboardLayout({children}) {
                 }}
             >
                 {/* Inner container with background and rounded corners */}
-                <div className="h-full bg-white rounded-r-lg overflow-hidden relative">
+                <div className="h-full bg-white rounded-r-lg overflow-hidden">
                     <div className="flex flex-col h-full">
                         {/* Logo/Title */}
-                        <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 rounded-tr-lg">
+                        <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 rounded-tr-lg flex-shrink-0">
                             <h1 className="text-lg font-semibold text-white truncate">
                                 Doc Bear's<br/>
                                 Comfort Kitchen
@@ -260,7 +260,7 @@ export default function DashboardLayout({children}) {
 
                         {/* User info and sign out - Fixed layout */}
                         {session && (
-                            <div className="border-t border-gray-200 p-4">
+                            <div className="border-t border-gray-200 p-4 flex-shrink-0">
                                 <div className="bg-gray-50 rounded-lg p-3 mb-3">
                                     <div className="text-sm font-medium text-gray-900 truncate">
                                         {session.user.name}
