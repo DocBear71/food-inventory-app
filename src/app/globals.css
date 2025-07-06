@@ -2463,3 +2463,26 @@ div[style*="background-color: #f1f5f9"] {
         transform: rotate(360deg);
     }
 }
+
+/* Safe area handling for mobile apps - Clean version without warnings */
+.mobile-safe-layout {
+    /* Use CSS environment variables with fallbacks */
+    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Force even larger values for mobile screens */
+@media screen and (max-width: 768px) {
+    .mobile-safe-layout {
+        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
+    }
+}
+
+/* Capacitor-specific overrides with very large values */
+.capacitor-android .mobile-safe-layout {
+    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
+}

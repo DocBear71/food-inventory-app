@@ -26,13 +26,13 @@ export default function ViewportHandler() {
                 console.log('Safe areas:', { top: safeAreaTop, bottom: safeAreaBottom });
 
                 // Apply additional bottom padding for navigation
-                const navBarHeight = 60; // Approximate height of bottom navigation
-                const bottomPadding = Math.max(
-                    parseInt(safeAreaBottom) || 0,
-                    navBarHeight
-                );
+                // const navBarHeight = 60; // Approximate height of bottom navigation
+                // const bottomPadding = Math.max(
+                //     parseInt(safeAreaBottom) || 0,
+                //     navBarHeight
+                // );
 
-                document.documentElement.style.setProperty('--safe-bottom', `${bottomPadding}px`);
+                // document.documentElement.style.setProperty('--safe-bottom', `${bottomPadding}px`);
 
                 // Add body class for native styling
                 document.body.classList.add('native-app');
