@@ -15,7 +15,7 @@ import Footer from '@/components/legal/Footer';
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import { apiGet, apiPost, apiDelete } from '@/lib/api-config';
+import { apiPut, apiGet, apiPost, apiDelete } from '@/lib/api-config';
 
 
 // Import smart display utilities
@@ -714,24 +714,21 @@ function InventoryContent() {
         }
 
         try {
-            const url = apiPost('/api/inventory');
-            const method = editingItem ? 'PUT' : 'POST';
             const body = editingItem
                 ? {itemId: editingItem._id, ...formData}
                 : {...formData, mergeDuplicates};
 
-            console.log('🔍 CLIENT: Making request to:', url);
             console.log('🔍 CLIENT: Request body:', JSON.stringify(body, null, 2));
 
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'credentials': 'include'
-                },
-                credentials: 'include',
-                body: JSON.stringify(body),
-            });
+            let response;
+
+            if (editingItem) {
+                // For editing, use PUT
+                response = await apiPut('/api/inventory', body);
+            } else {
+                // For adding new items, use POST
+                response = await apiPost('/api/inventory', body);
+            }
 
             console.log('🔍 CLIENT: Response status:', response.status);
             console.log('🔍 CLIENT: Response headers:', Object.fromEntries(response.headers.entries()));
@@ -755,14 +752,13 @@ function InventoryContent() {
 
                 // Show different messages based on whether item was merged or added
                 if (data.merged) {
-                    // FIXED: Use data.item.unit instead of just 'unit'
                     alert(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${data.item.unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}${data.item.secondaryQuantity ? ` (${data.item.secondaryQuantity} ${data.item.secondaryUnit})` : ''}`);
                 } else {
                     // Normal success message for new items
                     alert('✅ Item added successfully!');
                 }
 
-                // Reset form (existing code)
+                // Reset form
                 setFormData({
                     name: '',
                     brand: '',
