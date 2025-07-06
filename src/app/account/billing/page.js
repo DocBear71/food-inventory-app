@@ -9,6 +9,8 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
+import { usePlatform } from '@/hooks/usePlatform';
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
@@ -16,6 +18,7 @@ function BillingContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const subscription = useSubscription();
+    const platform = usePlatform();
 
     // Get URL parameters from pricing page
     const urlTier = searchParams.get('tier');
@@ -84,26 +87,54 @@ function BillingContent() {
         setSuccess('');
 
         try {
-            const response = await apiPost('/api/payments/create-checkout', {
-                tier: newTier,
-                billingCycle: newBilling,
-                currentTier: subscription.tier,
-                source: urlSource || 'billing-page'
-            });
+            if (platform.billingProvider === 'stripe') {
+                // Your existing Stripe flow
+                const response = await apiPost('/api/payments/create-checkout', {
+                    tier: newTier,
+                    billingCycle: newBilling,
+                    currentTier: subscription.tier,
+                    source: urlSource || 'billing-page'
+                });
 
-            const data = await response.json();
+                const data = await response.json();
 
-            if (response.ok && data.url) {
-                // Redirect to Stripe checkout
-                window.location.href = data.url;
+                if (response.ok && data.url) {
+                    // Redirect to Stripe checkout
+                    window.location.href = data.url;
+                } else {
+                    setError(data.error || 'Failed to create checkout session');
+                }
+            } else if (platform.billingProvider === 'googleplay') {
+                // NEW: Google Play Billing flow
+                await handleGooglePlayPurchase(newTier, newBilling);
+            } else if (platform.billingProvider === 'appstore') {
+                // FUTURE: App Store flow
+                setError('App Store billing coming soon!');
             } else {
-                setError(data.error || 'Failed to create checkout session');
+                setError('Unknown billing platform');
             }
         } catch (error) {
             console.error('Error creating checkout:', error);
             setError('Network error. Please try again.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // NEW FUNCTION: Handle Google Play purchases
+    const handleGooglePlayPurchase = async (tier, billingCycle) => {
+        try {
+            // This will be implemented when we add the Google Play Billing plugin
+            // For now, show a placeholder message
+            setError('Google Play billing is being set up. Please use the web version for now.');
+
+            // TODO: Implement actual Google Play Billing
+            // const { InAppPurchases } = await import('@capacitor-community/in-app-purchases');
+            // ... Google Play billing logic will go here
+
+        } catch (error) {
+            console.error('Google Play purchase error:', error);
+            setError('Failed to process Google Play purchase');
         }
     };
 
@@ -448,7 +479,10 @@ function BillingContent() {
                                         >
                                             {loading ? 'Processing...' :
                                                 tierKey === 'free' ? 'Downgrade to Free' :
-                                                    `Upgrade to ${plan.name}`}
+                                                    // NEW: Show different text based on platform
+                                                    platform.isAndroid ? `Get ${plan.name} via Google Play` :
+                                                        platform.isIOS ? `Get ${plan.name} via App Store` :
+                                                            `Upgrade to ${plan.name}`}
                                         </TouchEnhancedButton>
                                     )}
                                 </div>
