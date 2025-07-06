@@ -534,6 +534,7 @@ export function useSubscription() {
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,
+        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial || false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
         // Date fields

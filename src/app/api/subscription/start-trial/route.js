@@ -1,4 +1,4 @@
-// file: /src/app/api/subscription/start-trial/route.js v1 - Start 7-day Platinum trial
+// file: /src/app/api/subscription/start-trial/route.js v2 - Fixed with hasUsedFreeTrial tracking
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -39,10 +39,20 @@ export async function POST(request) {
             );
         }
 
-        // Check if user has already used their trial
-        if (user.subscription?.trialStartDate) {
+        // FIXED: Check if user has already used their FREE TRIAL (permanent check)
+        if (user.subscription?.hasUsedFreeTrial) {
             return NextResponse.json(
-                { error: 'Trial has already been used' },
+                { error: 'You have already used your free trial. Each user is only eligible for one free trial.' },
+                { status: 400 }
+            );
+        }
+
+        // ADDITIONAL: Check if user is currently in an active trial
+        if (user.subscription?.status === 'trial' &&
+            user.subscription?.trialEndDate &&
+            new Date() < new Date(user.subscription.trialEndDate)) {
+            return NextResponse.json(
+                { error: 'You already have an active trial' },
                 { status: 400 }
             );
         }
@@ -60,6 +70,7 @@ export async function POST(request) {
             endDate: null, // Will be set when they subscribe
             trialStartDate: now,
             trialEndDate: trialEnd,
+            hasUsedFreeTrial: true, // FIXED: Mark that they've used their free trial (PERMANENT)
             stripeCustomerId: user.subscription?.stripeCustomerId || null,
             stripeSubscriptionId: null,
             lastPaymentDate: null,
@@ -73,6 +84,7 @@ export async function POST(request) {
             email: user.email,
             trialStart: now.toISOString(),
             trialEnd: trialEnd.toISOString(),
+            hasUsedFreeTrial: true, // Log this important flag
             source: source || 'unknown'
         });
 
@@ -81,7 +93,8 @@ export async function POST(request) {
             message: '7-day Platinum trial started successfully!',
             trialEndDate: trialEnd.toISOString(),
             tier: 'platinum',
-            status: 'trial'
+            status: 'trial',
+            hasUsedFreeTrial: true // Include in response for frontend
         });
 
     } catch (error) {

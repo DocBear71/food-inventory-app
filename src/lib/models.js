@@ -583,6 +583,10 @@ const UserSchema = new mongoose.Schema({
             type: Date,
             default: null
         },
+        hasUsedFreeTrial: {
+            type: Boolean,
+            default: false
+        },
         // For future payment integration
         paymentMethod: {
             type: String,

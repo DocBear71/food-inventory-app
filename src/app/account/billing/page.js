@@ -200,7 +200,9 @@ function BillingContent() {
 
     const currentPlan = plans[subscription.tier] || plans.free;
     const isOnTrial = subscription.isTrialActive;
-    const canStartTrial = subscription.tier === 'free' && !subscription.isTrialActive;
+    const canStartTrial = subscription.tier === 'free' &&
+        !subscription.isTrialActive &&
+        !subscription.subscriptionData?.hasUsedFreeTrial;
 
     return (
         <MobileOptimizedLayout>
