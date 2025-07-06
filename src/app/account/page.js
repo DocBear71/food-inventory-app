@@ -80,26 +80,6 @@ export default function AccountPage() {
         return 'bg-green-500';
     };
 
-    // Then update the test function
-    const testMonthlyReset = async () => {
-        try {
-            const response = await apiPost('/api/auth/check-monthly-reset', {});
-
-            const data = await response.json();
-            console.log('Monthly reset/trial check result:', data);
-
-            if (data.trialExpired) {
-                console.log('🔄 Trial expired! User downgraded to free tier');
-                // Force page reload to show updated subscription status
-                window.location.reload();
-            } else if (data.usageReset) {
-                await subscription.refreshFromDatabase();
-            }
-        } catch (error) {
-            console.error('Error testing monthly reset:', error);
-        }
-    };
-
     // Quick actions
     const quickActions = [
         {
@@ -233,13 +213,6 @@ export default function AccountPage() {
                             </div>
                         </div>
                     </div>
-
-                    <TouchEnhancedButton
-                        onClick={testMonthlyReset}
-                        className="text-sm bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded"
-                    >
-                        Check Monthly Reset
-                    </TouchEnhancedButton>
 
                     {/* Action Buttons */}
                     <div className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -406,7 +379,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Last updated recently</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/auth/change-password')}
+                                onClick={() => router.push('/auth/reset-password')}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Change Password
