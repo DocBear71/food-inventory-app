@@ -168,11 +168,11 @@ export default function DashboardLayout({ children }) {
                 }`}
                 style={{
                     top: '10px',
-                    bottom: '200px',
-                    maxHeight: 'calc(100vh - 210px)'
+                    bottom: '700px',
+                    maxHeight: 'calc(100vh - 710px)'
                 }}
             >
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full rounded-tr-lg">
                     {/* Logo/Title */}
                     <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 rounded-tr-lg">
                         <h1 className="text-lg font-semibold text-white truncate">
