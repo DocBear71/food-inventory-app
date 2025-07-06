@@ -80,6 +80,22 @@ export default function AccountPage() {
         return 'bg-green-500';
     };
 
+    // Then update the test function
+    const testMonthlyReset = async () => {
+        try {
+            const response = await apiPost('/api/auth/check-monthly-reset');
+
+            const data = await response.json();
+            console.log('Monthly reset check result:', data);
+
+            if (data.wasReset) {
+                await subscription.refreshFromDatabase();
+            }
+        } catch (error) {
+            console.error('Error testing monthly reset:', error);
+        }
+    };
+
     // Quick actions
     const quickActions = [
         {
@@ -213,6 +229,13 @@ export default function AccountPage() {
                             </div>
                         </div>
                     </div>
+
+                    <TouchEnhancedButton
+                        onClick={testMonthlyReset}
+                        className="text-sm bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded"
+                    >
+                        Check Monthly Reset
+                    </TouchEnhancedButton>
 
                     {/* Action Buttons */}
                     <div className="mt-6 flex flex-col sm:flex-row gap-3">
