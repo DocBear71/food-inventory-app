@@ -79,6 +79,21 @@ export default function AccountPage() {
         return 'bg-green-500';
     };
 
+    const handleRefreshUsage = async () => {
+        setLoading(true);
+        const success = await subscription.refreshFromDatabase();
+        setLoading(false);
+
+        if (success) {
+            // Maybe show a success message
+            console.log('Usage data refreshed successfully');
+        } else {
+            // Maybe show an error message
+            console.log('Failed to refresh usage data');
+        }
+    };
+
+
     // Quick actions
     const quickActions = [
         {
@@ -180,7 +195,12 @@ export default function AccountPage() {
                                 )}
                             </div>
                         </div>
-
+                        <TouchEnhancedButton
+                            onClick={handleRefreshUsage}
+                            className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
+                        >
+                            Refresh Usage Data
+                        </TouchEnhancedButton>
                         {/* Plan Features */}
                         <div>
                             <h3 className="font-medium text-gray-900 mb-3">Plan Features</h3>

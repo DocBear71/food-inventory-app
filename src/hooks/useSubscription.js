@@ -204,6 +204,42 @@ export function SubscriptionProvider({ children }) {
         }
     }, [session?.user?.id, retryCount, isFetching, clearSubscriptionCache]);
 
+    // Add this after the fetchSubscriptionData function
+    const refreshFromDatabase = useCallback(async () => {
+        try {
+            console.log('🔄 Refreshing subscription data from database...');
+
+            const response = await fetch('/api/auth/refresh-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Update the subscription data with fresh database values
+                setSubscriptionData(prev => ({
+                    ...prev,
+                    usage: data.usage,
+                    subscription: data.subscription,
+                    timestamp: new Date().toISOString()
+                }));
+
+                console.log('✅ Refreshed subscription data from database:', data.usage);
+                return true;
+            } else {
+                console.error('❌ Failed to refresh session data:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Error refreshing from database:', error);
+            return false;
+        }
+    }, []);
+
     // FIXED: Clear signout flags for admin user and prevent API calls
     useEffect(() => {
         if (session?.user?.email === 'e.g.mckeown@gmail.com' || session?.user?.isAdmin) {
@@ -355,7 +391,8 @@ export function SubscriptionProvider({ children }) {
             }
         },
         forceRefresh,
-        clearCache: clearSubscriptionCache
+        clearCache: clearSubscriptionCache,
+        refreshFromDatabase  // **ADD THIS LINE**
     };
 
     return (
@@ -542,7 +579,8 @@ export function useSubscription() {
         // Actions
         refetch,
         forceRefresh,
-        clearCache
+        clearCache,
+        refreshFromDatabase
     };
 }
 
