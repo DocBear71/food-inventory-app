@@ -1212,9 +1212,9 @@ input[type="radio"]:focus {
     }
 
     .mobile-main-content {
-        padding-top: 80px !important;
-        min-height: calc(100vh - 80px) !important;
-        min-height: calc(calc(var(--vh, 1vh) * 100) - 80px) !important;
+        padding-top: 100px !important;
+        min-height: calc(100vh - 100px) !important;
+        min-height: calc(calc(var(--vh, 1vh) * 100) - 100px) !important;
     }
 
     .dashboard-container {

@@ -420,8 +420,7 @@ export default function MobileDashboardLayout({children}) {
             {/* Bottom Navigation */}
             <nav className="fixed left-0 right-0 bg-white border-t shadow-lg z-30"
                  style={{
-                     bottom: 'max(env(safe-area-inset-bottom, 0px), 0px)',
-                     paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+                     bottom: 'max(env(safe-area-inset-bottom, 0px), var(--safe-bottom, 0px))'
                  }}
             >
                 <div className="grid grid-cols-5 h-16">
