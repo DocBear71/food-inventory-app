@@ -163,9 +163,14 @@ export default function DashboardLayout({ children }) {
             {/* Sidebar */}
             <div
                 ref={sidebarRef}
-                className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+                className={`fixed left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out rounded-r-lg ${
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
+                style={{
+                    top: '80px',        // Start below the top bar
+                    bottom: '20px',     // Leave some space at bottom
+                    maxHeight: 'calc(100vh - 100px)'  // Ensure it doesn't overflow
+                }}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo/Title */}
@@ -279,7 +284,7 @@ export default function DashboardLayout({ children }) {
             </div>
 
             {/* Main content */}
-            <div className="lg:pl-64">
+            <div>
                 {/* Top bar */}
                 <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
                     <div className="flex items-center justify-between h-16 px-4">
