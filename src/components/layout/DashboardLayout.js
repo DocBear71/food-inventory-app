@@ -284,79 +284,74 @@ export default function DashboardLayout({children}) {
                             </div>
                         )}
                     </div>
+                    <div className="absolute inset-0 pointer-events-none bg-white rounded-r-lg"></div>
+                </div>
+            </div>
 
+            {/* Main content */}
+            <div>
+                {/* Top bar */}
+                <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
+                    <div className="flex items-center justify-between h-16 px-4">
+                        {/* Menu button - FIXED: Now visible on all screen sizes */}
+                        <TouchEnhancedButton
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="mobile-menu-button text-gray-500 hover:text-gray-700 p-2 rounded-md"
+                        >
+                            <span className="sr-only">Toggle sidebar</span>
+                            {/* Hamburger icon */}
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M4 6h16M4 12h16M4 18h16"/>
+                            </svg>
+                        </TouchEnhancedButton>
 
-                    {/* Main content */}
-                    <div>
-                        {/* Top bar */}
-                        <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
-                            <div className="flex items-center justify-between h-16 px-4">
-                                {/* Menu button - FIXED: Now visible on all screen sizes */}
-                                <TouchEnhancedButton
-                                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                                    className="mobile-menu-button text-gray-500 hover:text-gray-700 p-2 rounded-md"
-                                >
-                                    <span className="sr-only">Toggle sidebar</span>
-                                    {/* Hamburger icon */}
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M4 6h16M4 12h16M4 18h16"/>
-                                    </svg>
-                                </TouchEnhancedButton>
-
-                                {/* Breadcrumb for current page */}
-                                <div className="hidden sm:flex items-center text-sm text-gray-500">
-                                    {pathname === '/inventory/history' && (
-                                        <div className="flex items-center space-x-2">
-                                            <span>📦 Inventory</span>
-                                            <span>›</span>
-                                            <span className="text-gray-900 font-medium">📊 Usage History</span>
-                                        </div>
-                                    )}
-                                    {pathname === '/recipes/suggestions' && (
-                                        <div className="flex items-center space-x-2">
-                                            <span>🍳 Recipes</span>
-                                            <span>›</span>
-                                            <span className="text-gray-900 font-medium">💡 What Can I Make?</span>
-                                        </div>
-                                    )}
-                                    {pathname === '/recipes/add' && (
-                                        <div className="flex items-center space-x-2">
-                                            <span>🍳 Recipes</span>
-                                            <span>›</span>
-                                            <span className="text-gray-900 font-medium">➕ Add New Recipe</span>
-                                        </div>
-                                    )}
+                        {/* Breadcrumb for current page */}
+                        <div className="hidden sm:flex items-center text-sm text-gray-500">
+                            {pathname === '/inventory/history' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>📦 Inventory</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📊 Usage History</span>
                                 </div>
-
-                                {/* Desktop user info */}
-                                <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
-                                    {session && (
-                                        <>
-                                            <div className="text-sm text-gray-700">
-                                                Welcome, <span className="font-medium">{session.user.name}</span>
-                                            </div>
-                                            <TouchEnhancedButton
-                                                onClick={handleSignOut}
-                                                disabled={isSigningOut}
-                                                className={`flex items-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
-                                                    isSigningOut
-                                                        ? 'bg-gray-400 cursor-not-allowed'
-                                                        : 'bg-red-600 hover:bg-red-700'
-                                                }`}
-                                            >
-                                                <span className="mr-1">{isSigningOut ? '⏳' : '🚪'}</span>
-                                                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-                                            </TouchEnhancedButton>
-                                        </>
-                                    )}
+                            )}
+                            {pathname === '/recipes/suggestions' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🍳 Recipes</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">💡 What Can I Make?</span>
                                 </div>
-
-                            </div>
-
+                            )}
+                            {pathname === '/recipes/add' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🍳 Recipes</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">➕ Add New Recipe</span>
+                                </div>
+                            )}
                         </div>
-                        {/* Mask for the rounded corners */}
-                        <div className="absolute inset-0 pointer-events-none bg-white rounded-r-lg">
+
+                        {/* Desktop user info */}
+                        <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
+                            {session && (
+                                <>
+                                    <div className="text-sm text-gray-700">
+                                        Welcome, <span className="font-medium">{session.user.name}</span>
+                                    </div>
+                                    <TouchEnhancedButton
+                                        onClick={handleSignOut}
+                                        disabled={isSigningOut}
+                                        className={`flex items-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                                            isSigningOut
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-red-600 hover:bg-red-700'
+                                        }`}
+                                    >
+                                        <span className="mr-1">{isSigningOut ? '⏳' : '🚪'}</span>
+                                        {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                                    </TouchEnhancedButton>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
