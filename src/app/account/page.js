@@ -10,6 +10,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import ContactSupportModal from '@/components/support/ContactSupportModal';
+import { apiPost } from '@/lib/api-config';
 
 export default function AccountPage() {
     const { data: session, status } = useSafeSession();
@@ -78,21 +79,6 @@ export default function AccountPage() {
         if (percentage >= 50) return 'bg-yellow-500';
         return 'bg-green-500';
     };
-
-    const handleRefreshUsage = async () => {
-        setLoading(true);
-        const success = await subscription.refreshFromDatabase();
-        setLoading(false);
-
-        if (success) {
-            // Maybe show a success message
-            console.log('Usage data refreshed successfully');
-        } else {
-            // Maybe show an error message
-            console.log('Failed to refresh usage data');
-        }
-    };
-
 
     // Quick actions
     const quickActions = [
@@ -195,12 +181,7 @@ export default function AccountPage() {
                                 )}
                             </div>
                         </div>
-                        <TouchEnhancedButton
-                            onClick={handleRefreshUsage}
-                            className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
-                        >
-                            Refresh Usage Data
-                        </TouchEnhancedButton>
+
                         {/* Plan Features */}
                         <div>
                             <h3 className="font-medium text-gray-900 mb-3">Plan Features</h3>

@@ -2105,6 +2105,54 @@ UserSchema.methods.getUsageSummary = function() {
     }
 };
 
+// Add this method to your UserSchema.methods
+UserSchema.methods.checkAndResetMonthlyUsage = function() {
+    try {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        // Initialize usageTracking if it doesn't exist
+        if (!this.usageTracking) {
+            this.usageTracking = {
+                currentMonth,
+                currentYear,
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+            console.log(`📊 Initialized usage tracking for user ${this.email}`);
+            return true; // Indicates tracking was reset/initialized
+        }
+
+        // Check if we need to reset monthly counters
+        if (this.usageTracking.currentMonth !== currentMonth ||
+            this.usageTracking.currentYear !== currentYear) {
+
+            console.log(`📅 Resetting monthly usage for user ${this.email} - was ${this.usageTracking.currentMonth}/${this.usageTracking.currentYear}, now ${currentMonth}/${currentYear}`);
+
+            // Reset monthly counters
+            this.usageTracking.currentMonth = currentMonth;
+            this.usageTracking.currentYear = currentYear;
+            this.usageTracking.monthlyUPCScans = 0;
+            this.usageTracking.monthlyReceiptScans = 0;
+            this.usageTracking.lastUpdated = now;
+
+            return true; // Indicates reset occurred
+        }
+
+        return false; // No reset needed
+    } catch (error) {
+        console.error('❌ Error in checkAndResetMonthlyUsage:', error);
+        return false;
+    }
+};
+
 // Email verification rate limiting (allow 3 requests per hour)
 UserSchema.methods.canRequestEmailVerification = function() {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);

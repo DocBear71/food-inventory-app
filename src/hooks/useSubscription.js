@@ -13,6 +13,7 @@ import {
     getRemainingUsage,
     getRequiredTier
 } from '@/lib/subscription-config';
+import { apiPost } from '@/lib/api-config'
 
 const SubscriptionContext = createContext();
 
@@ -209,29 +210,42 @@ export function SubscriptionProvider({ children }) {
         try {
             console.log('🔄 Refreshing subscription data from database...');
 
-            const response = await fetch('/api/auth/refresh-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
+            // First check for monthly reset
+            const resetResponse = await apiPost('/api/auth/check-monthly-reset');
+
+            if (resetResponse.ok) {
+                const resetData = await resetResponse.json();
+
+                if (resetData.wasReset) {
+                    console.log('📅 Monthly usage was reset!');
                 }
-            });
 
-            if (response.ok) {
-                const data = await response.json();
+                // If you also want to refresh other session data, call the refresh endpoint
+                const refreshResponse = await apiPost('/api/auth/refresh-session');
 
-                // Update the subscription data with fresh database values
-                setSubscriptionData(prev => ({
-                    ...prev,
-                    usage: data.usage,
-                    subscription: data.subscription,
-                    timestamp: new Date().toISOString()
-                }));
+                if (refreshResponse.ok) {
+                    const refreshData = await refreshResponse.json();
 
-                console.log('✅ Refreshed subscription data from database:', data.usage);
+                    // Combine both sets of data
+                    setSubscriptionData(prev => ({
+                        ...prev,
+                        usage: resetData.usage || refreshData.usage,
+                        subscription: refreshData.subscription,
+                        timestamp: new Date().toISOString()
+                    }));
+                } else {
+                    // Just use the reset data if refresh fails
+                    setSubscriptionData(prev => ({
+                        ...prev,
+                        usage: resetData.usage,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+
+                console.log('✅ Refreshed subscription data from database:', resetData.usage);
                 return true;
             } else {
-                console.error('❌ Failed to refresh session data:', response.status);
+                console.error('❌ Failed to refresh session data:', resetResponse.status);
                 return false;
             }
         } catch (error) {

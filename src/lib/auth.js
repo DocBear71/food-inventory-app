@@ -36,6 +36,12 @@ export const authOptions = {
                         return null;
                     }
 
+                    const wasReset = user.checkAndResetMonthlyUsage();
+                    if (wasReset) {
+                        await user.save(); // Save the reset to database
+                        console.log(`🔄 Monthly usage reset applied for ${user.email}`);
+                    }
+
                     // Get effective tier
                     const effectiveTier = user.getEffectiveTier?.() || 'free';
                     const subscriptionTier = user.subscription?.tier || 'free';
