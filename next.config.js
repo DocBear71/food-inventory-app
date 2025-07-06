@@ -6,6 +6,9 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    experimental: {
+        optimizeCss: true,
+    },
 }
 
 console.log('🔥 MOBILE CONFIG LOADED - output: export should create out/ folder');

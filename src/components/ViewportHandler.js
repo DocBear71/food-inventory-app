@@ -1,7 +1,6 @@
-// Add this to your layout.js or create a new component
-// File: /src/components/ViewportHandler.js
-
 'use client';
+
+// components/ViewportHandler.js
 
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
@@ -19,34 +18,40 @@ export default function ViewportHandler() {
             if (Capacitor.isNativePlatform()) {
                 console.log('📱 Updating viewport for native app');
 
-                // Get safe area insets if available
-                const safeAreaTop = getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0px';
-                const safeAreaBottom = getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)') || '0px';
+                // Force immediate safe area calculation
+                setTimeout(() => {
+                    const safeAreaTop = getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0px';
+                    const safeAreaBottom = getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)') || '0px';
 
-                console.log('Safe areas:', { top: safeAreaTop, bottom: safeAreaBottom });
+                    console.log('Safe areas:', { top: safeAreaTop, bottom: safeAreaBottom });
 
-                // Apply additional bottom padding for navigation
-                const navBarHeight = 60; // Approximate height of bottom navigation
-                const bottomPadding = Math.max(
-                    parseInt(safeAreaBottom) || 0,
-                    navBarHeight
-                );
+                    // Apply additional bottom padding for navigation
+                    const navBarHeight = 60;
+                    const bottomPadding = Math.max(
+                        parseInt(safeAreaBottom) || 0,
+                        navBarHeight
+                    );
 
-                document.documentElement.style.setProperty('--safe-bottom', `${bottomPadding}px`);
-
-                // Add body class for native styling
-                document.body.classList.add('native-app');
-                document.body.classList.add('has-bottom-nav');
+                    document.documentElement.style.setProperty('--safe-bottom', `${bottomPadding}px`);
+                    document.body.classList.add('native-app');
+                    document.body.classList.add('has-bottom-nav');
+                }, 0);
             }
         }
 
-        // Initial call
+        // Multiple calls to ensure it takes effect
         updateViewport();
+        setTimeout(updateViewport, 100);
+        setTimeout(updateViewport, 500);
+
+        // Also trigger on document ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateViewport);
+        }
 
         // Update on resize and orientation change
         window.addEventListener('resize', updateViewport);
         window.addEventListener('orientationchange', () => {
-            // Delay to allow orientation to complete
             setTimeout(updateViewport, 500);
         });
 
@@ -62,8 +67,9 @@ export default function ViewportHandler() {
         return () => {
             window.removeEventListener('resize', updateViewport);
             window.removeEventListener('orientationchange', updateViewport);
+            document.removeEventListener('DOMContentLoaded', updateViewport);
         };
     }, []);
 
-    return null; // This component doesn't render anything
+    return null;
 }

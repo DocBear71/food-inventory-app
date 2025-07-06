@@ -2,14 +2,14 @@
 // file: /src/components/layout/MobileDashboardLayout.js v6 - Fixed sign-out functionality with proper session clearing
 
 import {useState, useEffect} from 'react';
-import { handleMobileSignOut } from '@/lib/mobile-signout';
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {handleMobileSignOut} from '@/lib/mobile-signout';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import {useRouter, usePathname} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { getApiUrl } from "@/lib/api-config";
-import { Capacitor } from "@capacitor/core";
+import {getApiUrl} from "@/lib/api-config";
+import {Capacitor} from "@capacitor/core";
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -306,7 +306,8 @@ export default function MobileDashboardLayout({children}) {
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-medium">{item.name}</div>
                                                 {item.description && (
-                                                    <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                                                    <div
+                                                        className="text-xs text-gray-500 mt-0.5">{item.description}</div>
                                                 )}
                                             </div>
                                             {item.current && (
@@ -327,7 +328,8 @@ export default function MobileDashboardLayout({children}) {
                             {session && (
                                 <div className="px-4 py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        <div
+                                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                             {session?.user?.avatar ? (
                                                 <img
                                                     src={getApiUrl(`/api/user/avatar/${session.user.avatar}`)}
@@ -348,7 +350,7 @@ export default function MobileDashboardLayout({children}) {
                                             {session?.user?.avatar && (
                                                 <span
                                                     className="text-indigo-600 text-sm font-medium"
-                                                    style={{ display: 'none' }}
+                                                    style={{display: 'none'}}
                                                     ref={(el) => {
                                                         if (el && session?.user?.avatar) {
                                                             // This will be shown if the image fails to load
@@ -420,30 +422,37 @@ export default function MobileDashboardLayout({children}) {
             {/* Bottom Navigation */}
             <nav className="fixed left-0 right-0 bg-white border-t shadow-lg z-30"
                  style={{
-                     bottom: 'max(env(safe-area-inset-bottom, 0px), var(--safe-bottom, 0px))'
+                     bottom: '0',
+                     paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)'
                  }}
             >
-                <div className="grid grid-cols-5 h-16">
-                    {navigation.map((item) => (
-                        <TouchEnhancedButton
-                            key={item.name}
-                            onClick={() => handleNavigation(item.href)}
-                            className={`flex flex-col items-center justify-center space-y-1 transition-all touch-friendly ${
-                                item.current
-                                    ? 'text-indigo-600 bg-indigo-50'
-                                    : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
-                            }`}
-                        >
-                            <span className="text-lg">{item.icon}</span>
-                            <span className="text-xs font-medium truncate max-w-full px-1">
+                {/* Your navigation content with proper padding */}
+                <div className="flex justify-around items-center" style={{
+                    height: '60px', // Fixed height for the nav items
+                    paddingBottom: 'env(safe-area-inset-bottom, 0px)' // Additional padding for safe area
+                }}>
+                    <div className="grid grid-cols-5 h-16">
+                        {navigation.map((item) => (
+                            <TouchEnhancedButton
+                                key={item.name}
+                                onClick={() => handleNavigation(item.href)}
+                                className={`flex flex-col items-center justify-center space-y-1 transition-all touch-friendly ${
+                                    item.current
+                                        ? 'text-indigo-600 bg-indigo-50'
+                                        : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
+                                }`}
+                            >
+                                <span className="text-lg">{item.icon}</span>
+                                <span className="text-xs font-medium truncate max-w-full px-1">
                 {item.name}
               </span>
-                            {item.current && (
-                                <div
-                                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
-                            )}
-                        </TouchEnhancedButton>
-                    ))}
+                                {item.current && (
+                                    <div
+                                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
+                                )}
+                            </TouchEnhancedButton>
+                        ))}
+                    </div>
                 </div>
             </nav>
             {/* PWA Install Banner - back at bottom */}
