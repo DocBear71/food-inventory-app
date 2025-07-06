@@ -122,3 +122,8 @@ export async function apiDelete(endpoint, options = {}) {
         ...options
     });
 }
+
+export async function getRecipeUrl(recipeId) {
+    const baseUrl = getApiBaseUrl();
+    return `${baseUrl}/recipes/${recipeId}`;
+}

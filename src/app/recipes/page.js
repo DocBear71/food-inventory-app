@@ -16,7 +16,7 @@ import SaveRecipeButton from "@/components/recipes/SaveRecipeButton";
 import RecipeCollections from '@/components/recipes/RecipeCollections';
 import {FEATURE_GATES} from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
-import { apiGet, apiDelete } from '@/lib/api-config';
+import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 
 function RecipesContent() {
     const {data: session, status} = useSafeSession();
@@ -495,11 +495,12 @@ function RecipesContent() {
         }
 
         const tier = session?.user?.subscriptionTier || session?.user?.effectiveTier || 'free';
+        const counts = getTabCounts(); // Get the actual counts
 
         switch (tabType) {
             case 'my-recipes':
                 return {
-                    current: subscription.usage?.personalRecipes || 0,
+                    current: counts.myRecipes || 0, // Use actual count from recipes array
                     limit: tier === 'free' ? 5 :
                         tier === 'gold' ? 100 :
                             tier === 'admin' ? 'Unlimited' : 'Unlimited',
@@ -1175,7 +1176,7 @@ function RecipesContent() {
                                                         {canEditRecipe(recipe) && (
                                                             <div className="flex space-x-2">
                                                                 <TouchEnhancedButton
-                                                                    onClick={() => window.location.href = `/recipes/${recipe._id}/edit`}
+                                                                    onClick={async () => window.location.href = await getRecipeUrl(`${recipe._id}/edit`)}
                                                                     className="flex flex-col items-center justify-center p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors touch-friendly"
                                                                     title="Edit recipe"
                                                                 >

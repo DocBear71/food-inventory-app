@@ -53,9 +53,7 @@ export default function MobileOptimizedLayout({ children }) {
 
     const containerStyle = {
         overscrollBehavior: 'none',
-        position: 'relative',
-        minHeight: '100vh',
-        paddingBottom: isMobile && Capacitor.isNativePlatform() ? '96px' : '0'
+        position: 'relative'
     };
 
     return (

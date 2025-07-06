@@ -1,7 +1,7 @@
 // file: /src/app/api/recipes/[id]/route.js v3 - Updated with User Tracking
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getEnhancedSession } from '@/lib/api-auth'
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe } from '@/lib/models';
@@ -9,7 +9,7 @@ import { Recipe } from '@/lib/models';
 // GET - Fetch a single recipe
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(authOptions);
         const { id: recipeId } = await params;
 
         if (!recipeId) {
