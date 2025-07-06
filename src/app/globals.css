@@ -2399,7 +2399,7 @@ div[style*="background-color: #f1f5f9"] {
     body {
         /* Fallback padding for devices that don't support env() */
         padding-top: 24px; /* Typical Android status bar height */
-        padding-bottom: 0px; /* Navigation gestures area */
+        padding-bottom: 96px; /* Navigation gestures area */
     }
 
     /* Override with env() if supported */
