@@ -429,7 +429,6 @@ export default function MobileDashboardLayout({children}) {
                 {/* Your navigation content with proper padding */}
                 <div className="flex justify-around items-center" style={{
                     height: '60px', // Fixed height for the nav items
-                    paddingBottom: 'env(safe-area-inset-bottom, 0px)' // Additional padding for safe area
                 }}>
                     <div className="grid grid-cols-5 h-16">
                         {navigation.map((item) => (
