@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import MobileDashboardLayout from './MobileDashboardLayout';
 import AdminDebug from "@/components/debug/AdminDebug";
+import {Capacitor} from "@capacitor/core";
 
 export default function MobileOptimizedLayout({ children }) {
     const [isMobile, setIsMobile] = useState(false);
@@ -16,11 +17,8 @@ export default function MobileOptimizedLayout({ children }) {
 
         checkMobile();
         window.addEventListener('resize', checkMobile);
-
-        // Set mounted immediately
         setMounted(true);
 
-        // Add a small delay to ensure everything is ready
         const readyTimer = setTimeout(() => {
             setIsReady(true);
         }, 100);
@@ -43,7 +41,6 @@ export default function MobileOptimizedLayout({ children }) {
         }
     }, [mounted]);
 
-    // Show loading only if not mounted OR not ready
     if (!mounted || !isReady) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -54,11 +51,15 @@ export default function MobileOptimizedLayout({ children }) {
 
     const LayoutComponent = isMobile ? MobileDashboardLayout : DashboardLayout;
 
+    const containerStyle = {
+        overscrollBehavior: 'none',
+        position: 'relative',
+        minHeight: '100vh',
+        paddingBottom: isMobile && Capacitor.isNativePlatform() ? '96px' : '0'
+    };
+
     return (
-        <div className="min-h-screen" style={{
-            overscrollBehavior: 'none',
-            position: 'relative'
-        }}>
+        <div style={containerStyle}>
             <LayoutComponent>
                 {children}
             </LayoutComponent>
