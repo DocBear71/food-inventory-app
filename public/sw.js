@@ -11,6 +11,25 @@ const STATIC_CACHE_URLS = [
     '/icons/icon-512x512.png'
 ];
 
+// Add better error handling for mobile
+self.addEventListener('fetch', (event) => {
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') return;
+
+    // Skip external requests
+    if (!event.request.url.startsWith(self.location.origin)) return;
+
+    event.respondWith(
+        fetch(event.request).catch(() => {
+            // Fallback for failed requests
+            return new Response('Network error', {
+                status: 408,
+                headers: { 'Content-Type': 'text/plain' }
+            });
+        })
+    );
+});
+
 // Install event
 self.addEventListener('install', (event) => {
     event.waitUntil(
