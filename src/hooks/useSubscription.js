@@ -408,7 +408,7 @@ export function useSubscription() {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
 
-    const { subscriptionData, loading, error, refetch, forceRefresh, clearCache } = context;
+    const { subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase } = context;
 
     // Helper functions with better error handling
     const checkFeature = (feature) => {
