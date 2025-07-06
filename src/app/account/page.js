@@ -379,7 +379,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Last updated recently</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/auth/reset-password')}
+                                onClick={() => router.push('/auth/change-password')}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Change Password
