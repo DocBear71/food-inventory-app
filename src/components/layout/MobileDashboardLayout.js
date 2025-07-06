@@ -410,7 +410,7 @@ export default function MobileDashboardLayout({children}) {
             <main className="mobile-main-content"
                   style={{
                       paddingTop: Capacitor.isNativePlatform() ? '88px' : '80px',  // Header height + status bar
-                      paddingBottom: showPWABanner ? '176px' : '128px'  // Bottom nav + system nav + PWA banner
+                      paddingBottom: showPWABanner ? '160px' : '112px'  // Bottom nav + system nav + PWA banner
                   }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
