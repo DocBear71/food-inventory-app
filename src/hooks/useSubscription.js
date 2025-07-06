@@ -591,6 +591,7 @@ export function useSubscription() {
         remainingReceiptScans: getRemainingCount(FEATURE_GATES.RECEIPT_SCAN),
         remainingSavedRecipes: getRemainingCount(FEATURE_GATES.SAVE_RECIPE),
         remainingCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
+        remainingRecipeCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
 
         // Actions
         refetch,
