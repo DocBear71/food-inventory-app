@@ -167,9 +167,9 @@ export default function DashboardLayout({ children }) {
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
                 style={{
-                    top: '0',
-                    bottom: '100px',
-                    maxHeight: 'calc(100vh - 100px)'
+                    top: '10px',
+                    bottom: '200px',
+                    maxHeight: 'calc(100vh - 210px)'
                 }}
             >
                 <div className="flex flex-col h-full">
