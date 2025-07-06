@@ -11,6 +11,7 @@ import ViewportHandler from '@/components/ViewportHandler';
 
 // ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
+import SafeAreaBackground from "@/components/SafeAreaBackground";
 
 const inter = Inter({subsets: ['latin']});
 
@@ -69,6 +70,7 @@ export default async function RootLayout({children}) {
     return (
         <html lang="en">
         <body className={inter.className}>
+        <SafeAreaBackground />
         <ViewportHandler />
         <CapacitorAuthProvider>
             {isNativeMobileApp ? (
