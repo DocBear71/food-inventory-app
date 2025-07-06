@@ -131,14 +131,14 @@ export default function Home() {
                     </div>
                 </header>
 
-                {/* Debug info for native apps */}
+                {/* Debug info for native apps
                 {isNative && (
                     <div className="bg-blue-50 border border-blue-200 mx-4 mt-4 p-3 rounded-lg">
                         <div className="text-sm text-blue-800">
                             <strong>Debug Info:</strong> Native app detected. Status: {status}. Session: {session ? 'Found' : 'None'}
                         </div>
                     </div>
-                )}
+                )}*/}
 
                 <br/>
                 <br/>

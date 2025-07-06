@@ -59,8 +59,6 @@ export default function ReceiptScan() {
         standalone: false
     });
 
-    console.log('🤖 Platform info on load:', platformInfo);
-
     useEffect(() => {
         return () => {
             if (capturedImage) {
@@ -796,8 +794,6 @@ export default function ReceiptScan() {
         }
     }
 
-    console.log('Platform info:', platformInfo);
-    console.log('Is native Android?', platformInfo.isNative && platformInfo.isAndroid);
     // ===============================================
     // CAMERA AND FILE HANDLING
     // ===============================================
