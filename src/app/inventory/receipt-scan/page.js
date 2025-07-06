@@ -59,6 +59,8 @@ export default function ReceiptScan() {
         standalone: false
     });
 
+    console.log('🤖 Platform info on load:', platformInfo);
+
     useEffect(() => {
         return () => {
             if (capturedImage) {
@@ -691,6 +693,10 @@ export default function ReceiptScan() {
     // ===============================================
 
     async function processImage(imageFile) {
+        console.log('🔍 processImage called with:', imageFile);
+        console.log('🔍 Image file size:', imageFile?.size);
+        console.log('🔍 Image file type:', imageFile?.type);
+
         setIsProcessing(true);
         setStep('processing');
         setOcrProgress(0);
@@ -790,6 +796,8 @@ export default function ReceiptScan() {
         }
     }
 
+    console.log('Platform info:', platformInfo);
+    console.log('Is native Android?', platformInfo.isNative && platformInfo.isAndroid);
     // ===============================================
     // CAMERA AND FILE HANDLING
     // ===============================================
@@ -801,26 +809,51 @@ export default function ReceiptScan() {
 
         // Android native app - use native camera + ML Kit
         if (platformInfo.isNative && platformInfo.isAndroid) {
-            try {
-                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+            console.log('🤖 Starting Android native camera...');
 
+            try {
+                console.log('🤖 Importing Capacitor Camera...');
+                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                console.log('🤖 Camera imported successfully');
+
+                console.log('🤖 Calling Camera.getPhoto...');
                 const photo = await Camera.getPhoto({
-                    resultType: CameraResultType.Blob,
+                    resultType: CameraResultType.Uri, // Changed from Blob to Uri
                     source: CameraSource.Camera,
                     quality: 90,
                     allowEditing: false,
                     saveToGallery: false
                 });
 
-                const imageBlob = photo.blob;
-                if (imageBlob) {
-                    setReceiptType('paper');
-                    setCapturedImage(URL.createObjectURL(imageBlob));
-                    processImage(imageBlob);
+                console.log('🤖 Camera.getPhoto returned:', photo);
+                console.log('🤖 Photo webPath:', photo.webPath);
+
+                if (photo.webPath) {
+                    console.log('🤖 Converting photo to blob...');
+                    const response = await fetch(photo.webPath);
+                    const imageBlob = await response.blob();
+                    console.log('🤖 Blob created:', imageBlob.size, 'bytes');
+
+                    if (imageBlob && imageBlob.size > 0) {
+                        console.log('🤖 Setting receipt type and captured image...');
+                        setReceiptType('paper');
+                        setCapturedImage(URL.createObjectURL(imageBlob));
+
+                        console.log('🤖 Calling processImage...');
+                        await processImage(imageBlob);
+                        console.log('🤖 processImage completed');
+                    } else {
+                        console.error('🤖 Invalid or empty image blob');
+                        alert('Failed to capture image: Empty or invalid image');
+                    }
+                } else {
+                    console.error('🤖 No webPath in photo result');
+                    alert('Failed to capture image: No file path returned');
                 }
                 return;
             } catch (error) {
                 console.error('❌ Android camera failed:', error);
+                console.error('❌ Error details:', error.message, error.stack);
                 setCameraError('Android camera access failed. Please try "Upload Image" instead.');
                 return;
             }
