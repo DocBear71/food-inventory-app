@@ -163,18 +163,18 @@ export default function DashboardLayout({ children }) {
             {/* Sidebar */}
             <div
                 ref={sidebarRef}
-                className={`fixed left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out rounded-r-lg ${
+                className={`fixed left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out rounded-r-lg overflow-hidden ${
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
                 style={{
-                    top: '80px',        // Start below the top bar
-                    bottom: '20px',     // Leave some space at bottom
-                    maxHeight: 'calc(100vh - 100px)'  // Ensure it doesn't overflow
+                    top: '0',
+                    bottom: '100px',
+                    maxHeight: 'calc(100vh - 100px)'
                 }}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo/Title */}
-                    <div className="flex items-center justify-between h-16 px-4 bg-indigo-600">
+                    <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 rounded-tr-lg">
                         <h1 className="text-lg font-semibold text-white truncate">
                             Doc Bear's<br/>
                             Comfort Kitchen
