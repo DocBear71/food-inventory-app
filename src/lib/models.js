@@ -2117,8 +2117,10 @@ UserSchema.methods.checkAndResetMonthlyUsage = function() {
             this.usageTracking = {
                 currentMonth,
                 currentYear,
+                // Monthly counters (reset each month)
                 monthlyUPCScans: 0,
                 monthlyReceiptScans: 0,
+                // Total counters (never reset)
                 totalInventoryItems: 0,
                 totalPersonalRecipes: 0,
                 totalSavedRecipes: 0,
@@ -2127,20 +2129,21 @@ UserSchema.methods.checkAndResetMonthlyUsage = function() {
                 lastUpdated: now
             };
             console.log(`📊 Initialized usage tracking for user ${this.email}`);
-            return true; // Indicates tracking was reset/initialized
+            return true;
         }
 
         // Check if we need to reset monthly counters
         if (this.usageTracking.currentMonth !== currentMonth ||
             this.usageTracking.currentYear !== currentYear) {
 
-            console.log(`📅 Resetting monthly usage for user ${this.email} - was ${this.usageTracking.currentMonth}/${this.usageTracking.currentYear}, now ${currentMonth}/${currentYear}`);
+            console.log(`📅 Resetting MONTHLY usage for user ${this.email} - was ${this.usageTracking.currentMonth}/${this.usageTracking.currentYear}, now ${currentMonth}/${currentYear}`);
 
-            // Reset monthly counters
+            // Reset ONLY monthly counters
             this.usageTracking.currentMonth = currentMonth;
             this.usageTracking.currentYear = currentYear;
             this.usageTracking.monthlyUPCScans = 0;
             this.usageTracking.monthlyReceiptScans = 0;
+            // DO NOT reset total counters - they persist across months
             this.usageTracking.lastUpdated = now;
 
             return true; // Indicates reset occurred

@@ -507,19 +507,19 @@ export function useSubscription() {
 
         switch (feature) {
             case FEATURE_GATES.INVENTORY_LIMIT:
-                return subscriptionData.usage.inventoryItems || 0;
+                return subscriptionData.usage.totalInventoryItems || subscriptionData.usage.inventoryItems || 0;
             case FEATURE_GATES.PERSONAL_RECIPES:
-                return subscriptionData.usage.personalRecipes || 0;
+                return subscriptionData.usage.totalPersonalRecipes || subscriptionData.usage.personalRecipes || 0;
             case FEATURE_GATES.UPC_SCANNING:
-                return subscriptionData.usage.monthlyUPCScans || 0;
+                return subscriptionData.usage.monthlyUPCScans || 0;  // Monthly
             case FEATURE_GATES.RECEIPT_SCAN:
-                return subscriptionData.usage.monthlyReceiptScans || 0;
+                return subscriptionData.usage.monthlyReceiptScans || 0;  // Monthly
             case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
-                return subscriptionData.usage.publicRecipes || 0;
+                return subscriptionData.usage.totalPublicRecipes || subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
-                return subscriptionData.usage.recipeCollections || 0;
+                return subscriptionData.usage.totalRecipeCollections || subscriptionData.usage.recipeCollections || 0;
             case FEATURE_GATES.SAVE_RECIPE:
-                return subscriptionData.usage.savedRecipes || 0;
+                return subscriptionData.usage.totalSavedRecipes || subscriptionData.usage.savedRecipes || 0;
             default:
                 return 0;
         }
@@ -528,7 +528,7 @@ export function useSubscription() {
     return {
         // Data
         tier: getEffectiveTier(),
-        status: subscriptionData?.status || 'free',
+        status: subscriptionData?.status || (subscriptionData?.isAdmin ? 'active' : 'free'),
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,

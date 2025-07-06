@@ -52,12 +52,20 @@ export const authOptions = {
                     // **NEW: Map usage tracking to frontend format**
                     const usageTracking = user.usageTracking || {};
                     const usage = {
-                        inventoryItems: usageTracking.totalInventoryItems || 0,
+                        // Monthly counters (reset each month)
                         monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
+                        monthlyUPCScans: usageTracking.monthlyUPCScans || 0,
+
+                        // Total counters (cumulative, don't reset)
+                        totalInventoryItems: usageTracking.totalInventoryItems || 0,
+                        totalPersonalRecipes: usageTracking.totalPersonalRecipes || 0,
+                        totalRecipeCollections: usageTracking.totalRecipeCollections || 0,
+                        totalSavedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
+
+                        // For backwards compatibility, map to the old names too
+                        inventoryItems: usageTracking.totalInventoryItems || 0,
                         recipeCollections: usageTracking.totalRecipeCollections || 0,
-                        savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
-                        personalRecipes: usageTracking.totalPersonalRecipes || 0,
-                        monthlyUPCScans: usageTracking.monthlyUPCScans || 0
+                        savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0
                     };
 
                     console.log('🔐 Authorizing user:', {

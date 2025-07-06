@@ -83,7 +83,7 @@ export default function AccountPage() {
     // Then update the test function
     const testMonthlyReset = async () => {
         try {
-            const response = await apiPost('/api/auth/check-monthly-reset');
+            const response = await apiPost('/api/auth/check-monthly-reset', {});
 
             const data = await response.json();
             console.log('Monthly reset check result:', data);
@@ -268,15 +268,15 @@ export default function AccountPage() {
 
                 {/* Usage Dashboard */}
                 <div className="bg-white shadow rounded-lg p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Usage This Month</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Usage Overview</h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* Inventory Items */}
+                        {/* Total Inventory Items */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-indigo-600 mb-1">
                                 {subscription.usage?.inventoryItems || 0}
                             </div>
-                            <div className="text-sm text-gray-600 mb-2">Inventory Items</div>
+                            <div className="text-sm text-gray-600 mb-2">Total Inventory Items</div>
                             {subscription.remainingInventoryItems !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
@@ -290,12 +290,12 @@ export default function AccountPage() {
                             </div>
                         </div>
 
-                        {/* Receipt Scans */}
+                        {/* Monthly Receipt Scans */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-green-600 mb-1">
                                 {subscription.usage?.monthlyReceiptScans || 0}
                             </div>
-                            <div className="text-sm text-gray-600 mb-2">Receipt Scans</div>
+                            <div className="text-sm text-gray-600 mb-2">Receipt Scans This Month</div>
                             {subscription.remainingReceiptScans !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
@@ -305,16 +305,16 @@ export default function AccountPage() {
                                 </div>
                             )}
                             <div className="text-xs text-gray-500 mt-1">
-                                {subscription.remainingReceiptScans === 'Unlimited' ? 'Unlimited' : `${subscription.remainingReceiptScans} remaining`}
+                                {subscription.remainingReceiptScans === 'Unlimited' ? 'Unlimited' : `${subscription.remainingReceiptScans} remaining this month`}
                             </div>
                         </div>
 
-                        {/* Recipe Collections - UNIFIED */}
+                        {/* Total Recipe Collections */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-blue-600 mb-1">
                                 {subscription.usage?.recipeCollections || 0}
                             </div>
-                            <div className="text-sm text-gray-600 mb-2">Recipe Collections</div>
+                            <div className="text-sm text-gray-600 mb-2">Total Recipe Collections</div>
                             {subscription.remainingRecipeCollections !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
@@ -328,12 +328,12 @@ export default function AccountPage() {
                             </div>
                         </div>
 
-                        {/* Recipes in Collections - UPDATED */}
+                        {/* Total Saved Recipes */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-purple-600 mb-1">
                                 {subscription.usage?.savedRecipes || 0}
                             </div>
-                            <div className="text-sm text-gray-600 mb-2">Recipes in Collections</div>
+                            <div className="text-sm text-gray-600 mb-2">Total Saved Recipes</div>
                             {subscription.remainingSavedRecipes !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
