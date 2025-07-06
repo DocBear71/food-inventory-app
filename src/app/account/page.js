@@ -111,6 +111,10 @@ export default function AccountPage() {
         }
     ];
 
+    console.log('Session user:', session.user);
+    console.log('Subscription object:', subscription);
+    console.log('User usage tracking:', session.user?.usageTracking);
+
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
