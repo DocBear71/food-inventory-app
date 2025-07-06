@@ -363,8 +363,8 @@ export default function ChangePasswordPage() {
                         </div>
                     </form>
                 </div>
-                <Footer />
             </div>
+            <Footer />
         </MobileOptimizedLayout>
     );
 }
