@@ -43,12 +43,27 @@ export const authOptions = {
                     // **FIXED: Set isAdmin based on subscription tier**
                     const isAdmin = subscriptionTier === 'admin' || effectiveTier === 'admin' || subscriptionTier === 'platinum' || effectiveTier === 'platinum';
 
+                    // **ADD THESE LINES** - Include createdAt and usage data
+                    const usageTracking = user.usageTracking || {};
+
+                    // Map usageTracking to the format expected by the frontend
+                    const usage = {
+                        inventoryItems: usageTracking.totalInventoryItems || 0,
+                        monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
+                        recipeCollections: usageTracking.totalRecipeCollections || 0,
+                        savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
+                        personalRecipes: usageTracking.totalPersonalRecipes || 0,
+                        monthlyUPCScans: usageTracking.monthlyUPCScans || 0
+                    };
+
                     console.log('🔐 Authorizing user:', {
                         id: user._id.toString(),
                         email: user.email,
                         effectiveTier: effectiveTier,
                         subscriptionTier: subscriptionTier,
-                        isAdmin: isAdmin  // This should now be true for admin users
+                        isAdmin: isAdmin,
+                        createdAt: user.createdAt,  // **ADD THIS**
+                        usage: usage  // **ADD THIS**
                     });
 
                     return {
@@ -61,8 +76,10 @@ export const authOptions = {
                         subscriptionStatus: user.subscription?.status || 'free',
                         effectiveTier: effectiveTier,
                         subscription: user.subscription || null,
-                        isAdmin: isAdmin,  // **FIXED: This will now be true for admin/platinum users**
+                        isAdmin: isAdmin,
                         roles: user.roles || [],
+                        createdAt: user.createdAt,  // **ADD THIS**
+                        usage: usage  // **ADD THIS**
                     };
                 } catch (error) {
                     console.error('Auth error:', error);
@@ -94,13 +111,17 @@ export const authOptions = {
                 token.subscription = user.subscription;
                 token.isAdmin = user.isAdmin;
                 token.roles = user.roles;
+                token.createdAt = user.createdAt;  // **ADD THIS**
+                token.usage = user.usage;  // **ADD THIS**
 
                 console.log('🎫 JWT token created with data:', {
                     id: token.id,
                     email: token.email,
                     effectiveTier: token.effectiveTier,
                     subscriptionTier: token.subscriptionTier,
-                    isAdmin: token.isAdmin
+                    isAdmin: token.isAdmin,
+                    createdAt: token.createdAt,  // **ADD THIS**
+                    hasUsage: !!token.usage  // **ADD THIS**
                 });
             }
             return token;
@@ -118,6 +139,8 @@ export const authOptions = {
                 session.user.subscription = token.subscription;
                 session.user.isAdmin = token.isAdmin;
                 session.user.roles = token.roles;
+                session.user.createdAt = token.createdAt;  // **ADD THIS**
+                session.user.usage = token.usage;  // **ADD THIS**
 
                 console.log('👤 Session created with data:', {
                     id: session.user.id,
@@ -125,6 +148,8 @@ export const authOptions = {
                     effectiveTier: session.user.effectiveTier,
                     subscriptionTier: session.user.subscriptionTier,
                     isAdmin: session.user.isAdmin,
+                    createdAt: session.user.createdAt,  // **ADD THIS**
+                    hasUsage: !!session.user.usage,  // **ADD THIS**
                     allKeys: Object.keys(session.user)
                 });
 
