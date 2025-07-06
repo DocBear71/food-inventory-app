@@ -43,10 +43,8 @@ export const authOptions = {
                     // **FIXED: Set isAdmin based on subscription tier**
                     const isAdmin = subscriptionTier === 'admin' || effectiveTier === 'admin' || subscriptionTier === 'platinum' || effectiveTier === 'platinum';
 
-                    // **ADD THESE LINES** - Include createdAt and usage data
+                    // **NEW: Map usage tracking to frontend format**
                     const usageTracking = user.usageTracking || {};
-
-                    // Map usageTracking to the format expected by the frontend
                     const usage = {
                         inventoryItems: usageTracking.totalInventoryItems || 0,
                         monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
@@ -62,8 +60,9 @@ export const authOptions = {
                         effectiveTier: effectiveTier,
                         subscriptionTier: subscriptionTier,
                         isAdmin: isAdmin,
-                        createdAt: user.createdAt,  // **ADD THIS**
-                        usage: usage  // **ADD THIS**
+                        createdAt: user.createdAt,
+                        usageTracking: usageTracking,
+                        usage: usage
                     });
 
                     return {
@@ -78,8 +77,8 @@ export const authOptions = {
                         subscription: user.subscription || null,
                         isAdmin: isAdmin,
                         roles: user.roles || [],
-                        createdAt: user.createdAt,  // **ADD THIS**
-                        usage: usage  // **ADD THIS**
+                        createdAt: user.createdAt,  // **NEW: Add createdAt**
+                        usage: usage  // **NEW: Add usage data**
                     };
                 } catch (error) {
                     console.error('Auth error:', error);
