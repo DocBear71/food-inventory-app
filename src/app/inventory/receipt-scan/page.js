@@ -1099,7 +1099,8 @@ export default function ReceiptScan() {
 
         // First, clean up and normalize the text
         preprocessedText = preprocessedText
-            .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
+            .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs only, preserve newlines
+            .replace(/\n+/g, '\n')   // Normalize multiple newlines to single newlines
             .trim();
 
         console.log('🔧 After initial cleanup:', preprocessedText);
