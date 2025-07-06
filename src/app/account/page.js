@@ -86,9 +86,13 @@ export default function AccountPage() {
             const response = await apiPost('/api/auth/check-monthly-reset', {});
 
             const data = await response.json();
-            console.log('Monthly reset check result:', data);
+            console.log('Monthly reset/trial check result:', data);
 
-            if (data.wasReset) {
+            if (data.trialExpired) {
+                console.log('🔄 Trial expired! User downgraded to free tier');
+                // Force page reload to show updated subscription status
+                window.location.reload();
+            } else if (data.usageReset) {
                 await subscription.refreshFromDatabase();
             }
         } catch (error) {

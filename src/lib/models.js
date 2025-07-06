@@ -2156,6 +2156,41 @@ UserSchema.methods.checkAndResetMonthlyUsage = function() {
     }
 };
 
+// Add this method to your UserSchema.methods
+UserSchema.methods.checkAndExpireTrial = function() {
+    try {
+        const now = new Date();
+
+        // Only check if user is currently on trial
+        if (this.subscription?.status !== 'trial') {
+            return false; // Not on trial, nothing to expire
+        }
+
+        // Check if trial has expired
+        if (this.subscription.trialEndDate && new Date(this.subscription.trialEndDate) <= now) {
+            console.log(`⏰ Trial expired for user ${this.email} - trial ended ${this.subscription.trialEndDate}`);
+
+            // Downgrade to free tier
+            this.subscription.tier = 'free';
+            this.subscription.status = 'free';
+            this.subscription.billingCycle = null;
+            this.subscription.endDate = null;
+            this.subscription.nextBillingDate = null;
+
+            // Keep trial dates for record keeping
+            // this.subscription.trialStartDate - keep
+            // this.subscription.trialEndDate - keep
+
+            return true; // Indicates trial was expired
+        }
+
+        return false; // Trial still active
+    } catch (error) {
+        console.error('❌ Error in checkAndExpireTrial:', error);
+        return false;
+    }
+};
+
 // Email verification rate limiting (allow 3 requests per hour)
 UserSchema.methods.canRequestEmailVerification = function() {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);

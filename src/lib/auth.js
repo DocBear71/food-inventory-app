@@ -36,11 +36,23 @@ export const authOptions = {
                         return null;
                     }
 
-                    const wasReset = user.checkAndResetMonthlyUsage();
-                    if (wasReset) {
-                        await user.save(); // Save the reset to database
-                        console.log(`🔄 Monthly usage reset applied for ${user.email}`);
+                    // **NEW: Check and expire trial before creating session**
+                    const trialExpired = user.checkAndExpireTrial();
+
+                    // **NEW: Check and reset monthly usage**
+                    const usageReset = user.checkAndResetMonthlyUsage();
+
+                    // Save if either trial expired or usage was reset
+                    if (trialExpired || usageReset) {
+                        await user.save();
+                        if (trialExpired) {
+                            console.log(`⏰ Trial expired and user downgraded to free: ${user.email}`);
+                        }
+                        if (usageReset) {
+                            console.log(`🔄 Monthly usage reset applied for ${user.email}`);
+                        }
                     }
+
 
                     // Get effective tier
                     const effectiveTier = user.getEffectiveTier?.() || 'free';

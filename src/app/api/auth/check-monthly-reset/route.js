@@ -19,35 +19,54 @@ export async function POST() {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Check and reset monthly usage
-        const wasReset = user.checkAndResetMonthlyUsage();
-        if (wasReset) {
+        // Check and expire trial first
+        const trialExpired = user.checkAndExpireTrial();
+
+        // Then check and reset monthly usage
+        const usageReset = user.checkAndResetMonthlyUsage();
+
+        // Save if anything changed
+        if (trialExpired || usageReset) {
             await user.save();
-            console.log(`🔄 Monthly usage reset applied for ${user.email} via API`);
+
+            if (trialExpired) {
+                console.log(`⏰ Trial expired and user downgraded via API: ${user.email}`);
+            }
+            if (usageReset) {
+                console.log(`🔄 Monthly usage reset applied for ${user.email} via API`);
+            }
         }
 
         // Return fresh usage data
         const usageTracking = user.usageTracking || {};
         const usage = {
-            inventoryItems: usageTracking.totalInventoryItems || 0,
             monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
+            monthlyUPCScans: usageTracking.monthlyUPCScans || 0,
+            totalInventoryItems: usageTracking.totalInventoryItems || 0,
+            totalPersonalRecipes: usageTracking.totalPersonalRecipes || 0,
+            totalRecipeCollections: usageTracking.totalRecipeCollections || 0,
+            totalSavedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
+            // Backwards compatibility
+            inventoryItems: usageTracking.totalInventoryItems || 0,
             recipeCollections: usageTracking.totalRecipeCollections || 0,
-            savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0,
-            personalRecipes: usageTracking.totalPersonalRecipes || 0,
-            monthlyUPCScans: usageTracking.monthlyUPCScans || 0
+            savedRecipes: usageTracking.totalSavedRecipes || user.savedRecipes?.length || 0
         };
 
         return NextResponse.json({
             success: true,
-            wasReset,
+            trialExpired,
+            usageReset,
             usage,
+            subscription: user.subscription,
+            effectiveTier: user.getEffectiveTier?.() || 'free',
             currentMonth: usageTracking.currentMonth,
             currentYear: usageTracking.currentYear,
-            message: wasReset ? 'Monthly usage was reset' : 'No reset needed'
+            message: trialExpired ? 'Trial expired - downgraded to free' :
+                usageReset ? 'Monthly usage was reset' : 'No changes needed'
         });
 
     } catch (error) {
-        console.error('Error checking monthly reset:', error);
+        console.error('Error checking monthly reset/trial expiration:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
