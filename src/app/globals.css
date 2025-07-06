@@ -2478,54 +2478,6 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
-/* Add this to your existing globals.css file */
-
-/* Force safe area support for mobile apps */
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-}
-
-/* Safe area handling for mobile apps - Clean version without warnings */
-.mobile-safe-layout {
-    /* Use CSS environment variables with fallbacks */
-    padding-top: max(env(safe-area-inset-top, 56px), 56px);
-    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-
-    min-height: 100vh;
-    box-sizing: border-box;
-}
-
-/* Force even larger values for mobile screens */
-@media screen and (max-width: 768px) {
-    .mobile-safe-layout {
-        padding-top: max(env(safe-area-inset-top, 64px), 64px) !important;
-        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
-    }
-}
-
-/* Capacitor-specific overrides with very large values */
-.capacitor-android .mobile-safe-layout {
-    padding-top: max(env(safe-area-inset-top, 72px), 72px) !important;
-    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
-}
-
-/* Additional mobile app optimizations */
-.capacitor-app {
-    /* Prevent any unexpected scrolling behaviors */
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-}
-
-/* Ensure content doesn't get cut off */
-.capacitor-app .mobile-safe-layout {
-    padding-top: 48px !important; /* Extra padding for safety */
-    padding-bottom: 72px !important; /* Extra padding for safety */
-}
 
 /* Add this animation to your globals.css */
 @keyframes spin {
@@ -2535,14 +2487,4 @@ html, body {
     to {
         transform: rotate(360deg);
     }
-}
-
-/* Force safe area override for native apps */
-body.capacitor-app,
-html.capacitor-app {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100% !important;
-    width: 100% !important;
-    overflow-x: hidden !important;
 }

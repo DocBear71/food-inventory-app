@@ -9,6 +9,7 @@ import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { getApiUrl } from "@/lib/api-config";
+import { Capacitor } from "@capacitor/core";
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -152,9 +153,14 @@ export default function MobileDashboardLayout({children}) {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Mobile Header - back at top */}
-            <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-200 ${
+            <header className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
                 isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
-            }`}>
+            }`}
+                    style={{
+                        top: Capacitor.isNativePlatform() ? '32px' : '0',  // Push below status bar
+                        paddingTop: Capacitor.isNativePlatform() ? '8px' : '0'  // Extra breathing room
+                    }}
+            >
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <TouchEnhancedButton
@@ -402,14 +408,21 @@ export default function MobileDashboardLayout({children}) {
 
             {/* Main Content - Right amount of padding to clear header */}
             <main className="mobile-main-content"
-                  style={{paddingTop: '20px', paddingBottom: showPWABanner ? '128px' : '80px'}}>
+                  style={{
+                      paddingTop: Capacitor.isNativePlatform() ? '88px' : '80px',  // Header height + status bar
+                      paddingBottom: showPWABanner ? '176px' : '128px'  // Bottom nav + system nav + PWA banner
+                  }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
             </main>
 
             {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
+            <nav className="fixed left-0 right-0 bg-white border-t shadow-lg z-30"
+                 style={{
+                     bottom: Capacitor.isNativePlatform() ? '48px' : '0'  // Push above nav bar
+                 }}
+            >
                 <div className="grid grid-cols-5 h-16">
                     {navigation.map((item) => (
                         <TouchEnhancedButton
