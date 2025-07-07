@@ -134,7 +134,6 @@ function BillingContent() {
 
             console.log('3. Platform:', platform.type);
             console.log('4. API key exists:', !!apiKey);
-            console.log('5. API key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
 
             if (!apiKey) {
                 throw new Error(`RevenueCat API key not configured for platform: ${platform.type}`);
@@ -145,22 +144,56 @@ function BillingContent() {
                 apiKey: apiKey,
                 appUserID: session.user.id
             });
-            console.log('6. RevenueCat configured successfully!');
+            console.log('5. RevenueCat configured successfully!');
 
-            // Test getting customer info
+            // Get and use customer info
             const customerInfo = await Purchases.getCustomerInfo();
-            console.log('7. Customer info retrieved successfully');
+            console.log('6. Customer info retrieved:', {
+                userId: customerInfo.originalAppUserId,
+                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
+                entitlements: Object.keys(customerInfo.entitlements?.all || {}),
+                hasActiveEntitlements: Object.values(customerInfo.entitlements?.active || {}).length > 0
+            });
 
-            // Get offerings
-            const offerings = await Purchases.getOfferings();
-            console.log('8. Available offerings:', offerings);
-            console.log('9. Current offering packages:', offerings.current?.availablePackages?.map(pkg => pkg.identifier));
+            // Try to get offerings with better error handling
+            console.log('7. Attempting to get offerings...');
 
-            if (!offerings.current?.availablePackages?.length) {
-                throw new Error('No packages available in current offering');
+            try {
+                const offerings = await Purchases.getOfferings();
+                console.log('8. Raw offerings response:', JSON.stringify(offerings, null, 2));
+
+                if (offerings && offerings.current) {
+                    console.log('9. Current offering identifier:', offerings.current.identifier);
+                    console.log('10. Available packages:', offerings.current.availablePackages?.length || 0);
+
+                    if (offerings.current.availablePackages?.length > 0) {
+                        offerings.current.availablePackages.forEach((pkg, index) => {
+                            console.log(`11.${index + 1} Package:`, {
+                                identifier: pkg.identifier,
+                                product: pkg.product?.identifier,
+                                price: pkg.product?.priceString
+                            });
+                        });
+                    } else {
+                        console.log('11. No packages found in current offering');
+                    }
+                } else {
+                    console.log('9. No current offering available');
+                    console.log('10. All offerings:', Object.keys(offerings || {}));
+                }
+
+                setSuccess('Offerings retrieved successfully! Check console for details.');
+
+            } catch (offeringsError) {
+                console.error('Detailed offerings error:', {
+                    message: offeringsError.message,
+                    code: offeringsError.code,
+                    details: offeringsError.details || 'No additional details',
+                    stack: offeringsError.stack
+                });
+
+                setError(`Offerings error: ${offeringsError.message}. RevenueCat is configured but offerings may not be set up yet.`);
             }
-
-            setSuccess(`Found ${offerings.current.availablePackages.length} packages for ${platform.type}!`);
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
