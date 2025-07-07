@@ -125,44 +125,49 @@ function BillingContent() {
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
             console.log('2. RevenueCat SDK imported successfully');
 
-            // Check API key
-            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY;
-            console.log('3. API key exists:', !!apiKey);
-            console.log('4. API key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
+            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
 
-            if (!apiKey) {
-                throw new Error('RevenueCat API key not configured');
-            }
-
-            console.log('5. About to configure RevenueCat...');
-
-            // Try to configure RevenueCat
             await Purchases.configure({
                 apiKey: apiKey,
-                appUserID: session.user.id || 'anonymous-user'
+                appUserID: session.user.id
+            });
+            console.log('3. RevenueCat configured successfully!');
+
+            // Get offerings
+            const offerings = await Purchases.getOfferings();
+            console.log('4. Available offerings:', offerings);
+
+            if (!offerings.current) {
+                throw new Error('No current offering available');
+            }
+
+            console.log('5. Available packages:', offerings.current.availablePackages?.map(pkg => pkg.identifier));
+
+            // Look for the package
+            const packageId = `${tier}_${billingCycle}_package`;
+            console.log('6. Looking for package:', packageId);
+
+            const packageToPurchase = offerings.current.availablePackages.find(
+                pkg => pkg.identifier === packageId
+            );
+
+            if (!packageToPurchase) {
+                throw new Error(`Package ${packageId} not found. Available: ${offerings.current.availablePackages?.map(pkg => pkg.identifier).join(', ')}`);
+            }
+
+            console.log('7. Found package, attempting purchase...');
+
+            // Make the purchase
+            const purchaseResult = await Purchases.purchasePackage({
+                aPackage: packageToPurchase
             });
 
-            console.log('6. RevenueCat configured successfully!');
-
-            // Just try to get customer info first
-            const customerInfo = await Purchases.getCustomerInfo();
-            console.log('7. Customer info retrieved:', customerInfo);
-
-            setSuccess('RevenueCat configuration successful!');
+            console.log('8. Purchase successful!', purchaseResult);
+            setSuccess(`Successfully purchased ${tier}!`);
 
         } catch (error) {
-            console.error('RevenueCat configuration error:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                stack: error.stack
-            });
-
-            if (error.message?.includes('configuration')) {
-                setError('RevenueCat configuration failed. Check API key.');
-            } else {
-                setError(`Configuration error: ${error.message || 'Unknown error'}`);
-            }
+            console.error('RevenueCat purchase error:', error);
+            setError(`Purchase error: ${error.message}`);
         }
     };
 
