@@ -126,7 +126,7 @@ function BillingContent() {
             console.log('2. RevenueCat SDK imported successfully');
 
             // Check API key
-            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY;
             console.log('3. API key exists:', !!apiKey);
             console.log('4. API key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
 
