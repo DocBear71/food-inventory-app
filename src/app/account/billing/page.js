@@ -141,7 +141,7 @@ function BillingContent() {
             // Map your tiers to product IDs
             const packageId = `${tier}_${billingCycle}_package`; // e.g., 'platinum_annual_package'
 
-            console.log('Attempting RevenueCat purchase:', productId);
+            console.log('Attempting RevenueCat purchase:', packageId);
 
             // Get available offerings
             const offerings = await Purchases.getOfferings();
@@ -157,7 +157,7 @@ function BillingContent() {
             );
 
             if (!packageToPurchase) {
-                throw new Error(`Product ${productId} not found in offerings`);
+                throw new Error(`Product ${packageId} not found in offerings`);
             }
 
             // Make the purchase

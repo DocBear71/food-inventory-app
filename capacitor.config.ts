@@ -34,6 +34,9 @@ const config: CapacitorConfig = {
         ImageToText: {
             // ML Kit Text Recognition configuration
             language: 'en' // Default language for OCR
+        },
+        Purchases: {
+
         }
     },
 
