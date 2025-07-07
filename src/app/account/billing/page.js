@@ -126,26 +126,47 @@ function BillingContent() {
             console.log('2. RevenueCat SDK imported successfully');
 
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+            console.log('3. API key exists:', !!apiKey);
 
-            await Purchases.configure({
-                apiKey: apiKey,
-                appUserID: session.user.id
-            });
-            console.log('3. RevenueCat configured successfully!');
+            // Check if already configured
+            try {
+                const isConfigured = await Purchases.isConfigured();
+                console.log('4. Already configured:', isConfigured);
+
+                if (!isConfigured) {
+                    console.log('5. Configuring RevenueCat...');
+                    await Purchases.configure({
+                        apiKey: apiKey,
+                        appUserID: session.user.id
+                    });
+                    console.log('6. RevenueCat configured successfully!');
+                }
+            } catch (configError) {
+                console.log('5. Configuration check failed, configuring anyway...');
+                await Purchases.configure({
+                    apiKey: apiKey,
+                    appUserID: session.user.id
+                });
+                console.log('6. RevenueCat configured successfully!');
+            }
+
+            // Wait a moment for configuration to settle
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Get offerings
+            console.log('7. Getting offerings...');
             const offerings = await Purchases.getOfferings();
-            console.log('4. Available offerings:', offerings);
+            console.log('8. Available offerings:', offerings);
 
             if (!offerings.current) {
                 throw new Error('No current offering available');
             }
 
-            console.log('5. Available packages:', offerings.current.availablePackages?.map(pkg => pkg.identifier));
+            console.log('9. Available packages:', offerings.current.availablePackages?.map(pkg => pkg.identifier));
 
             // Look for the package
             const packageId = `${tier}_${billingCycle}_package`;
-            console.log('6. Looking for package:', packageId);
+            console.log('10. Looking for package:', packageId);
 
             const packageToPurchase = offerings.current.availablePackages.find(
                 pkg => pkg.identifier === packageId
@@ -155,15 +176,8 @@ function BillingContent() {
                 throw new Error(`Package ${packageId} not found. Available: ${offerings.current.availablePackages?.map(pkg => pkg.identifier).join(', ')}`);
             }
 
-            console.log('7. Found package, attempting purchase...');
-
-            // Make the purchase
-            const purchaseResult = await Purchases.purchasePackage({
-                aPackage: packageToPurchase
-            });
-
-            console.log('8. Purchase successful!', purchaseResult);
-            setSuccess(`Successfully purchased ${tier}!`);
+            console.log('11. Found package, attempting purchase...');
+            setSuccess(`Found ${tier} package! Ready to purchase.`);
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
