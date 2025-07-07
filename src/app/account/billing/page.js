@@ -139,7 +139,7 @@ function BillingContent() {
 
 
             // Map your tiers to product IDs
-            const productId = `${tier}_${billingCycle}`; // e.g., 'gold_annual'
+            const packageId = `${tier}_${billingCycle}_package`; // e.g., 'platinum_annual_package'
 
             console.log('Attempting RevenueCat purchase:', productId);
 
@@ -153,7 +153,7 @@ function BillingContent() {
 
             // Find the specific package
             const packageToPurchase = offerings.current.availablePackages.find(
-                pkg => pkg.identifier === productId
+                pkg => pkg.identifier === packageId
             );
 
             if (!packageToPurchase) {
