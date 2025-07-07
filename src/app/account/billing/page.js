@@ -125,31 +125,42 @@ function BillingContent() {
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
             console.log('2. RevenueCat SDK imported successfully');
 
-            // Debug environment variables
-            console.log('3. Environment check:');
-            console.log('   - NODE_ENV:', process.env.NODE_ENV);
-            console.log('   - All NEXT_PUBLIC vars:', Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_')));
+            // Platform-specific API key selection
+            const apiKey = platform.isAndroid
+                ? process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY
+                : platform.isIOS
+                    ? process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY
+                    : null;
 
-            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+            console.log('3. Platform:', platform.type);
             console.log('4. API key exists:', !!apiKey);
-            console.log('5. API key value:', apiKey ? apiKey.substring(0, 10) + '...' : 'UNDEFINED');
+            console.log('5. API key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
 
-            // Force hardcode for testing (TEMPORARY)
-            const testApiKey = apiKey || 'goog_UevZXKIKNxNWZUFHacBcgHeNiuH';
-            console.log('6. Using API key:', testApiKey.substring(0, 10) + '...');
+            if (!apiKey) {
+                throw new Error(`RevenueCat API key not configured for platform: ${platform.type}`);
+            }
 
             // Configure RevenueCat
             await Purchases.configure({
-                apiKey: testApiKey,
+                apiKey: apiKey,
                 appUserID: session.user.id
             });
-            console.log('7. RevenueCat configured successfully!');
+            console.log('6. RevenueCat configured successfully!');
 
-            // Test getting customer info first
+            // Test getting customer info
             const customerInfo = await Purchases.getCustomerInfo();
-            console.log('8. Customer info retrieved successfully');
+            console.log('7. Customer info retrieved successfully');
 
-            setSuccess('RevenueCat configuration and customer info successful!');
+            // Get offerings
+            const offerings = await Purchases.getOfferings();
+            console.log('8. Available offerings:', offerings);
+            console.log('9. Current offering packages:', offerings.current?.availablePackages?.map(pkg => pkg.identifier));
+
+            if (!offerings.current?.availablePackages?.length) {
+                throw new Error('No packages available in current offering');
+            }
+
+            setSuccess(`Found ${offerings.current.availablePackages.length} packages for ${platform.type}!`);
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
