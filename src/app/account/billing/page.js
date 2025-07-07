@@ -9,7 +9,6 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
-import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { usePlatform } from '@/hooks/usePlatform';
 
 // Separate component for search params to wrap in Suspense
@@ -87,6 +86,7 @@ function BillingContent() {
         setSuccess('');
 
         try {
+            // Route to appropriate payment system based on platform
             if (platform.billingProvider === 'stripe') {
                 // Your existing Stripe flow
                 const response = await apiPost('/api/payments/create-checkout', {
@@ -99,17 +99,13 @@ function BillingContent() {
                 const data = await response.json();
 
                 if (response.ok && data.url) {
-                    // Redirect to Stripe checkout
                     window.location.href = data.url;
                 } else {
                     setError(data.error || 'Failed to create checkout session');
                 }
-            } else if (platform.billingProvider === 'googleplay') {
-                // NEW: Google Play Billing flow
-                await handleGooglePlayPurchase(newTier, newBilling);
-            } else if (platform.billingProvider === 'appstore') {
-                // FUTURE: App Store flow
-                setError('App Store billing coming soon!');
+            } else if (platform.billingProvider === 'googleplay' || platform.billingProvider === 'appstore') {
+                // RevenueCat flow for mobile platforms
+                await handleRevenueCatPurchase(newTier, newBilling);
             } else {
                 setError('Unknown billing platform');
             }
@@ -121,20 +117,77 @@ function BillingContent() {
         }
     };
 
-    // NEW FUNCTION: Handle Google Play purchases
-    const handleGooglePlayPurchase = async (tier, billingCycle) => {
+    // NEW FUNCTION: Handle RevenueCat purchases
+    const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
-            // This will be implemented when we add the Google Play Billing plugin
-            // For now, show a placeholder message
-            setError('Google Play billing is being set up. Please use the web version for now.');
+            // Configure RevenueCat with your API key
+            const { Purchases } = await import('@revenuecat/purchases-capacitor');
 
-            // TODO: Implement actual Google Play Billing
-            // const { InAppPurchases } = await import('@capacitor-community/in-app-purchases');
-            // ... Google Play billing logic will go here
+            const apiKey = platform.isAndroid
+                ? process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY
+                : process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+
+            if (!apiKey) {
+                throw new Error('RevenueCat API key not configured for this platform');
+            }
+
+            // Configure RevenueCat
+            await Purchases.configure({
+                apiKey: apiKey,
+                appUserID: session.user.id
+            });
+
+
+            // Map your tiers to product IDs
+            const productId = `${tier}_${billingCycle}`; // e.g., 'gold_annual'
+
+            console.log('Attempting RevenueCat purchase:', productId);
+
+            // Get available offerings
+            const offerings = await Purchases.getOfferings();
+            console.log('Available offerings:', offerings);
+
+            if (!offerings.current) {
+                throw new Error('No offerings available');
+            }
+
+            // Find the specific package
+            const packageToPurchase = offerings.current.availablePackages.find(
+                pkg => pkg.identifier === productId
+            );
+
+            if (!packageToPurchase) {
+                throw new Error(`Product ${productId} not found in offerings`);
+            }
+
+            // Make the purchase
+            const purchaseResult = await Purchases.purchasePackage({
+                aPackage: packageToPurchase
+            });
+
+            console.log('Purchase successful:', purchaseResult);
+
+            // Verify with your backend
+            await apiPost('/api/payments/revenuecat/verify', {
+                purchaseResult,
+                tier,
+                billingCycle,
+                userId: session.user.id
+            });
+
+            setSuccess(`Successfully upgraded to ${tier}!`);
+            subscription.refetch();
 
         } catch (error) {
-            console.error('Google Play purchase error:', error);
-            setError('Failed to process Google Play purchase');
+            console.error('RevenueCat purchase error:', error);
+
+            if (error.code === 'PURCHASE_CANCELLED') {
+                setError('Purchase was cancelled');
+            } else if (error.code === 'PAYMENT_PENDING') {
+                setError('Payment is pending. Please check your account later.');
+            } else {
+                setError(`Purchase failed: ${error.message || 'Unknown error'}`);
+            }
         }
     };
 
@@ -266,6 +319,18 @@ function BillingContent() {
                         {success}
                     </div>
                 )}
+
+                {/* TEMPORARY: Platform Debug Info - REMOVE THIS LATER */}
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                    <h4 className="font-medium">Platform Debug Info:</h4>
+                    <div className="text-sm space-y-1">
+                        <div>Platform Type: {platform.type}</div>
+                        <div>Is Web: {platform.isWeb.toString()}</div>
+                        <div>Is Android: {platform.isAndroid.toString()}</div>
+                        <div>Is iOS: {platform.isIOS.toString()}</div>
+                        <div>Billing Provider: {platform.billingProvider}</div>
+                    </div>
+                </div>
 
                 {/* Current Subscription Status */}
                 <div className="bg-white shadow rounded-lg p-6">

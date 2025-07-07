@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/hooks/usePlatform.js v1
+// file: /src/hooks/usePlatform.js v1 - Platform detection for payment routing
 
 import { useState, useEffect } from 'react';
 
@@ -16,10 +16,8 @@ export function usePlatform() {
 
     useEffect(() => {
         const detectPlatform = async () => {
-            // Check if we're in a Capacitor environment
             if (typeof window !== 'undefined') {
                 try {
-                    // Dynamic import to avoid SSR issues
                     const { Capacitor } = await import('@capacitor/core');
 
                     if (Capacitor.isNativePlatform()) {
@@ -35,7 +33,6 @@ export function usePlatform() {
                                 platformType === 'ios' ? 'appstore' : 'stripe'
                         });
                     } else {
-                        // Web environment
                         setPlatform({
                             type: 'web',
                             isWeb: true,
@@ -47,7 +44,6 @@ export function usePlatform() {
                     }
                 } catch (error) {
                     console.log('Capacitor not available, assuming web environment');
-                    // Fallback to web if Capacitor isn't available
                     setPlatform({
                         type: 'web',
                         isWeb: true,
