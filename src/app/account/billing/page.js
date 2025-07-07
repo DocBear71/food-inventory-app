@@ -120,73 +120,48 @@ function BillingContent() {
     // NEW FUNCTION: Handle RevenueCat purchases
     const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
-            // Configure RevenueCat with your API key
-            const { Purchases } = await import('@revenuecat/purchases-capacitor');
+            console.log('1. Starting RevenueCat purchase...');
 
-            const apiKey = platform.isAndroid
-                ? process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY
-                : process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+            const { Purchases } = await import('@revenuecat/purchases-capacitor');
+            console.log('2. RevenueCat SDK imported successfully');
+
+            // Check API key
+            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+            console.log('3. API key exists:', !!apiKey);
+            console.log('4. API key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
 
             if (!apiKey) {
-                throw new Error('RevenueCat API key not configured for this platform');
+                throw new Error('RevenueCat API key not configured');
             }
 
-            // Configure RevenueCat
+            console.log('5. About to configure RevenueCat...');
+
+            // Try to configure RevenueCat
             await Purchases.configure({
                 apiKey: apiKey,
-                appUserID: session.user.id
+                appUserID: session.user.id || 'anonymous-user'
             });
 
+            console.log('6. RevenueCat configured successfully!');
 
-            // Map your tiers to product IDs
-            const packageId = `${tier}_${billingCycle}_package`; // e.g., 'platinum_annual_package'
+            // Just try to get customer info first
+            const customerInfo = await Purchases.getCustomerInfo();
+            console.log('7. Customer info retrieved:', customerInfo);
 
-            console.log('Attempting RevenueCat purchase:', packageId);
-
-            // Get available offerings
-            const offerings = await Purchases.getOfferings();
-            console.log('Available offerings:', offerings);
-
-            if (!offerings.current) {
-                throw new Error('No offerings available');
-            }
-
-            // Find the specific package
-            const packageToPurchase = offerings.current.availablePackages.find(
-                pkg => pkg.identifier === packageId
-            );
-
-            if (!packageToPurchase) {
-                throw new Error(`Product ${packageId} not found in offerings`);
-            }
-
-            // Make the purchase
-            const purchaseResult = await Purchases.purchasePackage({
-                aPackage: packageToPurchase
-            });
-
-            console.log('Purchase successful:', purchaseResult);
-
-            // Verify with your backend
-            await apiPost('/api/payments/revenuecat/verify', {
-                purchaseResult,
-                tier,
-                billingCycle,
-                userId: session.user.id
-            });
-
-            setSuccess(`Successfully upgraded to ${tier}!`);
-            subscription.refetch();
+            setSuccess('RevenueCat configuration successful!');
 
         } catch (error) {
-            console.error('RevenueCat purchase error:', error);
+            console.error('RevenueCat configuration error:', error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                stack: error.stack
+            });
 
-            if (error.code === 'PURCHASE_CANCELLED') {
-                setError('Purchase was cancelled');
-            } else if (error.code === 'PAYMENT_PENDING') {
-                setError('Payment is pending. Please check your account later.');
+            if (error.message?.includes('configuration')) {
+                setError('RevenueCat configuration failed. Check API key.');
             } else {
-                setError(`Purchase failed: ${error.message || 'Unknown error'}`);
+                setError(`Configuration error: ${error.message || 'Unknown error'}`);
             }
         }
     };
