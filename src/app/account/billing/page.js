@@ -125,59 +125,31 @@ function BillingContent() {
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
             console.log('2. RevenueCat SDK imported successfully');
 
+            // Debug environment variables
+            console.log('3. Environment check:');
+            console.log('   - NODE_ENV:', process.env.NODE_ENV);
+            console.log('   - All NEXT_PUBLIC vars:', Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_')));
+
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
-            console.log('3. API key exists:', !!apiKey);
+            console.log('4. API key exists:', !!apiKey);
+            console.log('5. API key value:', apiKey ? apiKey.substring(0, 10) + '...' : 'UNDEFINED');
 
-            // Check if already configured
-            try {
-                const isConfigured = await Purchases.isConfigured();
-                console.log('4. Already configured:', isConfigured);
+            // Force hardcode for testing (TEMPORARY)
+            const testApiKey = apiKey || 'goog_UevZXKIKNxNWZUFHacBcgHeNiuH';
+            console.log('6. Using API key:', testApiKey.substring(0, 10) + '...');
 
-                if (!isConfigured) {
-                    console.log('5. Configuring RevenueCat...');
-                    await Purchases.configure({
-                        apiKey: apiKey,
-                        appUserID: session.user.id
-                    });
-                    console.log('6. RevenueCat configured successfully!');
-                }
-            } catch (configError) {
-                console.log('5. Configuration check failed, configuring anyway...');
-                await Purchases.configure({
-                    apiKey: apiKey,
-                    appUserID: session.user.id
-                });
-                console.log('6. RevenueCat configured successfully!');
-            }
+            // Configure RevenueCat
+            await Purchases.configure({
+                apiKey: testApiKey,
+                appUserID: session.user.id
+            });
+            console.log('7. RevenueCat configured successfully!');
 
-            // Wait a moment for configuration to settle
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Test getting customer info first
+            const customerInfo = await Purchases.getCustomerInfo();
+            console.log('8. Customer info retrieved successfully');
 
-            // Get offerings
-            console.log('7. Getting offerings...');
-            const offerings = await Purchases.getOfferings();
-            console.log('8. Available offerings:', offerings);
-
-            if (!offerings.current) {
-                throw new Error('No current offering available');
-            }
-
-            console.log('9. Available packages:', offerings.current.availablePackages?.map(pkg => pkg.identifier));
-
-            // Look for the package
-            const packageId = `${tier}_${billingCycle}_package`;
-            console.log('10. Looking for package:', packageId);
-
-            const packageToPurchase = offerings.current.availablePackages.find(
-                pkg => pkg.identifier === packageId
-            );
-
-            if (!packageToPurchase) {
-                throw new Error(`Package ${packageId} not found. Available: ${offerings.current.availablePackages?.map(pkg => pkg.identifier).join(', ')}`);
-            }
-
-            console.log('11. Found package, attempting purchase...');
-            setSuccess(`Found ${tier} package! Ready to purchase.`);
+            setSuccess('RevenueCat configuration and customer info successful!');
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
