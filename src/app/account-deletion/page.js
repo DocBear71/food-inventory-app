@@ -1,3 +1,5 @@
+'use client';
+
 // file: app/account-deletion/page.js
 
 import React from 'react';
