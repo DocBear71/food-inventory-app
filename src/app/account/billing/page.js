@@ -302,11 +302,14 @@ function BillingContent() {
         return Math.round(((monthlyTotal - plan.price.annual) / monthlyTotal) * 100);
     };
 
-    const currentPlan = plans[subscription.tier] || plans.free;
+    const currentPlan = subscription.isAdmin
+        ? plans.platinum
+        : plans[subscription.tier] || plans.free;
     const isOnTrial = subscription.isTrialActive;
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
         !subscription.subscriptionData?.hasUsedFreeTrial;
+    const effectiveTier = subscription.isAdmin ? 'platinum' : subscription.tier;
 
     return (
         <MobileOptimizedLayout>
@@ -359,8 +362,8 @@ function BillingContent() {
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center space-x-4">
                             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                subscription.tier === 'free' ? 'bg-gray-100 text-gray-800' :
-                                    subscription.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+                                effectiveTier === 'free' ? 'bg-gray-100 text-gray-800' :
+                                    effectiveTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
                                         'bg-purple-100 text-purple-800'
                             }`}>
                                 {currentPlan.name}
@@ -376,18 +379,21 @@ function BillingContent() {
                         </div>
 
                         <div className="text-right">
-                            {subscription.tier === 'free' ? (
+                            {effectiveTier === 'free' ? (
                                 <span className="text-2xl font-bold text-gray-900">Free</span>
                             ) : (
                                 <div>
-                                    <span className="text-2xl font-bold text-gray-900">
-                                        ${subscription.billingCycle === 'annual'
-                                        ? currentPlan.price.annual
-                                        : currentPlan.price.monthly}
-                                    </span>
+        <span className="text-2xl font-bold text-gray-900">
+            ${subscription.billingCycle === 'annual'
+            ? currentPlan.price.annual
+            : currentPlan.price.monthly}
+        </span>
                                     <span className="text-gray-600 text-sm">
-                                        /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
-                                    </span>
+            /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
+        </span>
+                                    {subscription.isAdmin && (
+                                        <div className="text-xs text-purple-600 font-medium">Admin Access</div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -495,7 +501,7 @@ function BillingContent() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {Object.entries(plans).map(([tierKey, plan]) => {
-                            const isCurrentPlan = subscription.tier === tierKey;
+                            const isCurrentPlan = effectiveTier === tierKey;
                             const savings = getSavings(plan);
 
                             return (
@@ -550,7 +556,7 @@ function BillingContent() {
                                         ))}
                                     </ul>
 
-                                    {!isCurrentPlan && (
+                                    {!isCurrentPlan && !subscription.isAdmin && (
                                         <TouchEnhancedButton
                                             onClick={() => handleSubscriptionChange(tierKey, 'annual')}
                                             disabled={loading}
@@ -564,7 +570,6 @@ function BillingContent() {
                                         >
                                             {loading ? 'Processing...' :
                                                 tierKey === 'free' ? 'Downgrade to Free' :
-                                                    // NEW: Show different text based on platform
                                                     platform.isAndroid ? `Get ${plan.name} via Google Play` :
                                                         platform.isIOS ? `Get ${plan.name} via App Store` :
                                                             `Upgrade to ${plan.name}`}
