@@ -104,8 +104,8 @@ export default function AccountDeletionPage() {
                         justify-content: center;
                         font-weight: bold;
                         position: absolute;
-                        top: -15px;
-                        left: 20px;
+                        top: 25px;
+                        left: 10px;
                         font-size: 14px;
                     }
                     
