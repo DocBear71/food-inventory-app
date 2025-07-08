@@ -155,67 +155,55 @@ function BillingContent() {
                 hasActiveEntitlements: Object.values(customerInfo.entitlements?.active || {}).length > 0
             });
 
-            // Try to get offerings with better error handling
+            // Get offerings and attempt purchase
             console.log('7. Attempting to get offerings...');
 
-            try {
-                const offerings = await Purchases.getOfferings();
-                console.log('8. Raw offerings response:', JSON.stringify(offerings, null, 2));
+            const offerings = await Purchases.getOfferings();
+            console.log('8. Raw offerings response:', JSON.stringify(offerings, null, 2));
 
-                if (offerings && offerings.current) {
-                    console.log('9. Current offering identifier:', offerings.current.identifier);
-                    console.log('10. Available packages:', offerings.current.availablePackages?.length || 0);
+            if (offerings && offerings.current) {
+                console.log('9. Current offering identifier:', offerings.current.identifier);
+                console.log('10. Available packages:', offerings.current.availablePackages?.length || 0);
 
-                    if (offerings.current.availablePackages?.length > 0) {
-                        offerings.current.availablePackages.forEach((pkg, index) => {
-                            console.log(`11.${index + 1} Package:`, {
-                                identifier: pkg.identifier,
-                                product: pkg.product?.identifier,
-                                price: pkg.product?.priceString
-                            });
+                if (offerings.current.availablePackages?.length > 0) {
+                    offerings.current.availablePackages.forEach((pkg, index) => {
+                        console.log(`11.${index + 1} Package:`, {
+                            identifier: pkg.identifier,
+                            product: pkg.product?.identifier,
+                            price: pkg.product?.priceString
                         });
-                    } else {
-                        console.log('11. No packages found in current offering');
+                    });
+
+                    // MOVE PURCHASE LOGIC HERE - INSIDE THE OFFERINGS SUCCESS BLOCK
+                    const packageId = `${tier}_${billingCycle}_package`;
+                    console.log('12. Looking for package:', packageId);
+
+                    const packageToPurchase = offerings.current.availablePackages.find(
+                        pkg => pkg.identifier === packageId
+                    );
+
+                    if (!packageToPurchase) {
+                        throw new Error(`Package ${packageId} not found`);
                     }
+
+                    console.log('13. Found package, attempting purchase...', packageToPurchase.identifier);
+
+                    // Make the purchase
+                    const purchaseResult = await Purchases.purchasePackage({
+                        aPackage: packageToPurchase
+                    });
+
+                    console.log('14. Purchase successful!', purchaseResult);
+                    setSuccess(`Successfully purchased ${tier} ${billingCycle}!`);
+
                 } else {
-                    console.log('9. No current offering available');
-                    console.log('10. All offerings:', Object.keys(offerings || {}));
+                    console.log('11. No packages found in current offering');
+                    setError('No packages available for purchase');
                 }
-
-                setSuccess('Offerings retrieved successfully! Check console for details.');
-
-            } catch (offeringsError) {
-                console.error('Detailed offerings error:', {
-                    message: offeringsError.message,
-                    code: offeringsError.code,
-                    details: offeringsError.details || 'No additional details',
-                    stack: offeringsError.stack
-                });
-
-                setError(`Offerings error: ${offeringsError.message}. RevenueCat is configured but offerings may not be set up yet.`);
+            } else {
+                console.log('9. No current offering available');
+                setError('No offerings available');
             }
-
-            // Add this after the offerings are retrieved successfully
-            const packageId = `${tier}_${billingCycle}_package`;
-            console.log('12. Looking for package:', packageId);
-
-            const packageToPurchase = offerings.current.availablePackages.find(
-                pkg => pkg.identifier === packageId
-            );
-
-            if (!packageToPurchase) {
-                throw new Error(`Package ${packageId} not found`);
-            }
-
-            console.log('13. Found package, attempting purchase...', packageToPurchase.identifier);
-
-            // Make the purchase
-            const purchaseResult = await Purchases.purchasePackage({
-                aPackage: packageToPurchase
-            });
-
-            console.log('14. Purchase successful!', purchaseResult);
-            setSuccess(`Successfully purchased ${tier} ${billingCycle}!`);
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
