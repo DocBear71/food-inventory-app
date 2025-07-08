@@ -1218,10 +1218,10 @@ export default function UnifiedShoppingListModal({
         <>
             <div style={{
                 position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                top: 'max(env(safe-area-inset-top, 0px), 0px)',
+                left: 'env(safe-area-inset-left, 0px)',
+                right: 'env(safe-area-inset-right, 0px)',
+                bottom: 'max(env(safe-area-inset-bottom, 0px), 0px)',
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
                 display: 'flex',
                 alignItems: 'stretch',
