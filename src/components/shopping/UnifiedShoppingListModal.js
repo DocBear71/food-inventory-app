@@ -1238,7 +1238,7 @@ export default function UnifiedShoppingListModal({
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    paddingBottom: 'max(env(safe-area-inset-bottom, 88px), 88px)'
+                    paddingBottom: 'max(env(safe-area-inset-bottom, 48px), 48px)'
                 }}>
                     {/* Compact Header with Close Button */}
                     <div style={{
