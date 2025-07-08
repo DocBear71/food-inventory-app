@@ -1701,7 +1701,7 @@ export default function UnifiedShoppingListModal({
                     {/* Footer with Close Button */}
                     <div style={{
                         padding: '0.75rem 1rem',
-                        paddingBottom: `calc(0.75rem + max(env(safe-area-inset-bottom, 16px), 16px))`,
+                        paddingBottom: `calc(0.75rem + max(env(safe-area-inset-bottom, 8px), 8px))`,
                         borderTop: '1px solid #e5e7eb',
                         backgroundColor: '#f8fafc',
                         display: 'flex',
