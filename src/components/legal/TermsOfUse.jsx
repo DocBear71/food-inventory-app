@@ -162,7 +162,9 @@ const TermsOfUse = () => {
                     </p>
                     <ol style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
                         <li>you have the legal capacity and you agree to comply with these Legal Terms;</li>
-                        <li>you are not a minor in the jurisdiction in which you reside;</li>
+                        <li>if you are between 13 and 17 years of age, you have obtained verifiable parental or guardian consent to use the Services;</li>
+                        <li>if you are under 13 years of age, you may not use the Services;</li>
+                        <li>if you are a parent or guardian providing consent for a minor, you agree to be bound by these Legal Terms on behalf of the minor;</li>
                         <li>you will not access the Services through automated or non-human means, whether through a
                             bot, script or otherwise;
                         </li>
@@ -170,14 +172,27 @@ const TermsOfUse = () => {
                         <li>your use of the Services will not violate any applicable law or regulation;</li>
                         <li>any recipes you submit are original or you have proper rights to share them;</li>
                         <li>you will not input false or misleading food inventory information that could affect the
-                            safety or accuracy of meal planning features.
+                            safety or accuracy of meal planning features;
                         </li>
+                        <li>if you are under 18, you will not share personal information beyond what is necessary for the Services to function;</li>
+                        <li>you understand that all content in the Services is appropriate for users 13 years of age and older.</li>
                     </ol>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         If you provide any information that is untrue, inaccurate, not current, or incomplete, we
                         have the right to suspend or terminate your account and refuse any and all current or future use
-                        of the Services (or any portion thereof).
+                        of the Services (or any portion thereof). For users under 18, we will also notify the parent or guardian who provided consent.
                     </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Parental Responsibilities</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Parents and guardians who provide consent for minors to use the Services agree to:
+                    </p>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Monitor their child's use of the Services;</li>
+                        <li>Ensure their child complies with these Legal Terms;</li>
+                        <li>Take responsibility for any violations of these Terms by their child;</li>
+                        <li>Contact us immediately if they wish to terminate their child's account or have concerns about their child's use of the Services.</li>
+                    </ul>
                 </div>
 
                 <div id="prohibited" style={{marginBottom: '2rem'}}>
@@ -386,6 +401,15 @@ const TermsOfUse = () => {
 
                 <div id="disclaimer" style={{marginBottom: '2rem'}}>
                     <h2 style={{fontSize: '19px', color: '#000000'}}>13. DISCLAIMER</h2>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Family-Friendly Content Assurance</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        ALL CONTENT WITHIN OUR SERVICES, INCLUDING RECIPES, NUTRITIONAL INFORMATION, AND MEAL PLANNING
+                        FEATURES, IS APPROPRIATE FOR USERS 13 YEARS OF AGE AND OLDER. WE MAINTAIN FAMILY-FRIENDLY
+                        STANDARDS AND DO NOT KNOWINGLY INCLUDE CONTENT THAT WOULD BE INAPPROPRIATE FOR OUR TARGET AGE GROUP.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Food Safety and Dietary Disclaimer</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         <strong>IMPORTANT FOOD SAFETY AND DIETARY DISCLAIMER:</strong> THE SERVICES ARE PROVIDED ON
                         AN AS-IS AND AS-AVAILABLE BASIS. THE NUTRITIONAL INFORMATION, RECIPES, EXPIRATION DATE
@@ -393,11 +417,17 @@ const TermsOfUse = () => {
                         ONLY AND SHOULD NOT BE CONSIDERED AS MEDICAL, DIETARY, OR FOOD SAFETY ADVICE.
                     </p>
                     <p style={{color: '#595959', fontSize: '15px'}}>
+                        FOR USERS UNDER 18: WE STRONGLY RECOMMEND THAT MINORS CONSULT WITH PARENTS, GUARDIANS, OR
+                        HEALTHCARE PROFESSIONALS BEFORE MAKING DIETARY DECISIONS OR USING COOKING RECIPES, ESPECIALLY
+                        IF THEY HAVE KNOWN FOOD ALLERGIES OR DIETARY RESTRICTIONS.
+                    </p>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
                         YOU ACKNOWLEDGE THAT: (1) WE ARE NOT RESPONSIBLE FOR THE ACCURACY OF NUTRITIONAL INFORMATION
                         PROVIDED BY THIRD-PARTY DATABASES; (2) RECIPE SUGGESTIONS BASED ON YOUR INVENTORY MAY NOT
                         ACCOUNT FOR ALL FOOD ALLERGIES OR DIETARY RESTRICTIONS; (3) EXPIRATION DATE TRACKING IS
                         BASED ON GENERAL GUIDELINES AND YOUR OWN ASSESSMENT OF FOOD SAFETY IS PARAMOUNT; (4) YOU SHOULD
-                        ALWAYS CONSULT WITH HEALTHCARE PROFESSIONALS REGARDING DIETARY NEEDS AND RESTRICTIONS.
+                        ALWAYS CONSULT WITH HEALTHCARE PROFESSIONALS REGARDING DIETARY NEEDS AND RESTRICTIONS; (5) MINORS
+                        SHOULD HAVE ADULT SUPERVISION WHEN COOKING OR HANDLING KITCHEN EQUIPMENT.
                     </p>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN

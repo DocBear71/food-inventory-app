@@ -60,6 +60,14 @@ const PrivacyPolicy = () => {
                         <p style={{ color: '#595959', fontSize: '15px' }}>
                             <strong>How do we keep your information safe?</strong> We have adequate organizational and technical processes and procedures in place to protect your personal information, including your food inventory data and personal recipes.
                         </p>
+
+                        <p style={{ color: '#595959', fontSize: '15px' }}>
+                            <strong>Do we collect information from minors?</strong> We welcome users 13 years of age and older with appropriate parental consent for users under 18. We comply with COPPA and GDPR requirements and implement special protections for all users under 18.
+                        </p>
+
+                        <p style={{ color: '#595959', fontSize: '15px' }}>
+                            <strong>What are your privacy rights?</strong> Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information. Parents and guardians have additional rights regarding their children's data.
+                        </p>
                     </div>
                 </div>
 
@@ -209,11 +217,57 @@ const PrivacyPolicy = () => {
                 <div id="infominors" style={{ marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '19px', color: '#000000' }}>7. DO WE COLLECT INFORMATION FROM MINORS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
-                        <strong><em>In Short:</em></strong> <em>We do not knowingly collect data from or market to children under 18 years of age.</em>
+                        <strong><em>In Short:</em></strong> <em>We welcome users 13 years of age and older. Users under 18 must have verifiable parental consent. We comply with COPPA and GDPR requirements for all users under 18.</em>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Age Requirements and Parental Consent</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Our Services are intended for users who are 13 years of age or older. Users between 13 and 17 years of age must have verifiable parental or guardian consent before using our Services. By using the Services, users under 18 represent that they have obtained proper parental consent for their use of the Services.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>COPPA Compliance</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        We comply with the Children's Online Privacy Protection Act (COPPA) and similar international regulations. For users under 13, we do not knowingly collect personal information without verifiable parental consent. If we become aware that we have collected personal information from a child under 13 without proper parental consent, we will take immediate steps to delete such information.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Limited Data Collection for Minors</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        When users under 18 use our Services, we limit data collection to what is necessary for the functioning of our food inventory and recipe management features. We do not:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Collect more personal information than is reasonably necessary for the user to participate in our Services</li>
+                        <li>Use behavioral advertising or targeted marketing directed at users under 18</li>
+                        <li>Share personal information of users under 18 with third parties for marketing purposes</li>
+                        <li>Allow public sharing of personal information by users under 18</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Parental Rights and Controls</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Parents and guardians of users under 18 have the right to:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Review the personal information we have collected from their child</li>
+                        <li>Request that we delete their child's personal information</li>
+                        <li>Refuse to permit further collection or use of their child's information</li>
+                        <li>Request information about our data practices regarding their child's account</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        To exercise these rights, parents may contact us at <strong>privacy@docbearscomfort.kitchen</strong> with appropriate verification of their parental status.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Safe and Educational Content</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        All content within our Services, including recipes, nutritional information, and meal planning features, is appropriate for users of all ages in our target demographic. Our content focuses on educational cooking and nutrition topics that promote healthy lifestyle habits.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>International Compliance</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        We also comply with international privacy regulations including the EU General Data Protection Regulation (GDPR) Article 8, which provides additional protections for users under 16 in EU member states. Where applicable local laws provide greater protection for minors, we comply with those standards.
                     </p>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        We do not knowingly collect, solicit data from, or market to children under 18 years of age, nor do we knowingly sell such personal information. By using the Services, you represent that you are at least 18 or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If we learn that personal information from users less than 18 years of age has been collected, we will deactivate the account and take reasonable measures to promptly delete such data from our records. If you become aware of any data we may have collected from children under age 18, please contact us at <strong>privacy@docbearscomfort.kitchen</strong>.
+                        If you become aware of any data we may have collected from children without proper consent, or if you have questions about our practices regarding minor users, please contact us immediately at <strong>privacy@docbearscomfort.kitchen</strong>.
                     </p>
                 </div>
 
