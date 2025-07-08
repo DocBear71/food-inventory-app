@@ -343,7 +343,7 @@ function BillingContent() {
                     </div>
                 )}
 
-                {/* TEMPORARY: Platform Debug Info - REMOVE THIS LATER */}
+                {/* TEMPORARY: Platform Debug Info - REMOVE THIS LATER
                 <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
                     <h4 className="font-medium">Platform Debug Info:</h4>
                     <div className="text-sm space-y-1">
@@ -353,7 +353,7 @@ function BillingContent() {
                         <div>Is iOS: {platform.isIOS.toString()}</div>
                         <div>Billing Provider: {platform.billingProvider}</div>
                     </div>
-                </div>
+                </div>*/}
 
                 {/* Current Subscription Status */}
                 <div className="bg-white shadow rounded-lg p-6">
