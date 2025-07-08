@@ -195,6 +195,28 @@ function BillingContent() {
                 setError(`Offerings error: ${offeringsError.message}. RevenueCat is configured but offerings may not be set up yet.`);
             }
 
+            // Add this after the offerings are retrieved successfully
+            const packageId = `${tier}_${billingCycle}_package`;
+            console.log('12. Looking for package:', packageId);
+
+            const packageToPurchase = offerings.current.availablePackages.find(
+                pkg => pkg.identifier === packageId
+            );
+
+            if (!packageToPurchase) {
+                throw new Error(`Package ${packageId} not found`);
+            }
+
+            console.log('13. Found package, attempting purchase...', packageToPurchase.identifier);
+
+            // Make the purchase
+            const purchaseResult = await Purchases.purchasePackage({
+                aPackage: packageToPurchase
+            });
+
+            console.log('14. Purchase successful!', purchaseResult);
+            setSuccess(`Successfully purchased ${tier} ${billingCycle}!`);
+
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
             setError(`Purchase error: ${error.message}`);
