@@ -153,10 +153,11 @@ html, body {
 
 /* Modal safe area handling */
 .modal-safe-insets {
-    top: max(env(safe-area-inset-top, 0px), 0px);
-    bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+    top: env(safe-area-inset-top, 0px);
     left: env(safe-area-inset-left, 0px);
     right: env(safe-area-inset-right, 0px);
+    bottom: 0;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 
 /* Full viewport with safe areas */
@@ -1356,26 +1357,26 @@ input[type="radio"]:focus {
 
 /* ===== MODAL & OVERLAY STYLES ===== */
 
-/* Modal container */
+/* Modal safe area handling - CORRECTED */
 .modal-container {
     position: fixed !important;
     top: env(safe-area-inset-top, 0px) !important;
-    bottom: env(safe-area-inset-bottom, 0px) !important;
     left: env(safe-area-inset-left, 0px) !important;
     right: env(safe-area-inset-right, 0px) !important;
+    bottom: 0 !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px) !important;
     z-index: 50 !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    outline: 2px solid transparent !important;
-    outline-offset: 2px !important;
 }
 
 .modal-backdrop {
     position: fixed !important;
     top: env(safe-area-inset-top, 0px) !important;
-    bottom: env(safe-area-inset-bottom, 0px) !important;
     left: env(safe-area-inset-left, 0px) !important;
     right: env(safe-area-inset-right, 0px) !important;
+    bottom: 0 !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px) !important;
     background-color: rgba(0, 0, 0, 0.5) !important;
     backdrop-filter: blur(4px) !important;
     -webkit-backdrop-filter: blur(4px) !important;
