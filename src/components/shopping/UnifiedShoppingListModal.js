@@ -1237,7 +1237,8 @@ export default function UnifiedShoppingListModal({
                     height: '100vh',
                     overflow: 'hidden',
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    paddingBottom: 'max(env(safe-area-inset-bottom, 88px), 88px)'
                 }}>
                     {/* Compact Header with Close Button */}
                     <div style={{
@@ -1700,6 +1701,7 @@ export default function UnifiedShoppingListModal({
                     {/* Footer with Close Button */}
                     <div style={{
                         padding: '0.75rem 1rem',
+                        paddingBottom: `calc(0.75rem + max(env(safe-area-inset-bottom, 88px), 88px))`,
                         borderTop: '1px solid #e5e7eb',
                         backgroundColor: '#f8fafc',
                         display: 'flex',
