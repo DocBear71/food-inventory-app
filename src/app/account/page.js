@@ -402,7 +402,7 @@ export default function AccountPage() {
                                             className={`text-xs px-3 py-1 rounded-md font-medium transition-colors ${
                                                 loading
                                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                                    : 'bg-orange-600 text-white hover:bg-orange-700 border border-orange-600'
                                             }`}
                                         >
                                             {loading ? 'Sending...' : 'Resend Verification'}

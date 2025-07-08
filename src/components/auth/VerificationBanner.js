@@ -49,18 +49,18 @@ export default function VerificationBanner({ user }) {
     };
 
     return (
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-3 relative">
+        <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-3 relative border-b border-orange-700">
             <div className="flex items-center justify-between max-w-7xl mx-auto">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="flex-shrink-0">
                         <span className="text-xl">⚠️</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">
+                        <p className="text-sm font-semibold text-white">
                             Please verify your email address to unlock all features
                         </p>
-                        <p className="text-xs opacity-90 mt-1">
-                            Check your inbox at <span className="font-semibold">{user.email}</span>
+                        <p className="text-xs text-orange-100 mt-1">
+                            Check your inbox at <span className="font-semibold text-white">{user.email}</span>
                         </p>
                     </div>
                 </div>
@@ -69,14 +69,18 @@ export default function VerificationBanner({ user }) {
                     <TouchEnhancedButton
                         onClick={handleResendVerification}
                         disabled={loading}
-                        className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 py-1 rounded text-sm font-medium transition-all disabled:opacity-50"
+                        className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                            loading
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-white text-orange-600 hover:bg-orange-50 hover:text-orange-700 shadow-sm'
+                        }`}
                     >
                         {loading ? 'Sending...' : 'Resend Email'}
                     </TouchEnhancedButton>
 
                     <TouchEnhancedButton
                         onClick={handleDismiss}
-                        className="text-white hover:text-gray-200 p-1 rounded transition-colors"
+                        className="text-white hover:text-orange-200 p-2 rounded-md transition-colors hover:bg-white hover:bg-opacity-10"
                         aria-label="Dismiss"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
