@@ -9,6 +9,8 @@ import {usePathname, useRouter} from 'next/navigation';
 import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
+import VerificationBanner from '@/components/auth/VerificationBanner';
+
 
 
 export default function DashboardLayout({children}) {
@@ -160,6 +162,11 @@ export default function DashboardLayout({children}) {
                 />
             )}
 
+            {/* Verification Banner */}
+            {session?.user && !session.user.emailVerified && (
+                <VerificationBanner user={session.user} />
+            )}
+
             {/* Sidebar */}
             <div
                 ref={sidebarRef}
@@ -168,8 +175,8 @@ export default function DashboardLayout({children}) {
                 }`}
                 style={{
                     top: '0',
-                    bottom: '700px',
-                    maxHeight: 'calc(100vh - 700px)'
+                    bottom: '50%',
+                    maxHeight: 'calc(100vh - 50%)'
                 }}
             >
                     <div className="flex flex-col h-full">

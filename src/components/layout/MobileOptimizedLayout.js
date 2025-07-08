@@ -12,7 +12,20 @@ export default function MobileOptimizedLayout({ children }) {
 
     useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
+            const width = window.innerWidth;
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            const isNativePlatform = Capacitor.isNativePlatform();
+
+            // Consider it mobile if:
+            // - Width is less than 1024px AND it's a touch device
+            // - OR it's running as a native app (PWA/Capacitor)
+            // - OR width is less than 768px (phones)
+            const shouldUseMobileLayout =
+                isNativePlatform ||
+                width < 768 ||
+                (width < 1024 && isTouchDevice);
+
+            setIsMobile(shouldUseMobileLayout);
         };
 
         checkMobile();

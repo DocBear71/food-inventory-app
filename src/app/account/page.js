@@ -112,6 +112,32 @@ export default function AccountPage() {
         }
     ];
 
+    // Add this function to your account page
+    const handleResendVerification = async () => {
+        if (loading) return;
+
+        setLoading(true);
+
+        try {
+            const response = await apiPost('/api/auth/resend-verification', {
+                email: session.user.email
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Verification email sent! Please check your inbox and spam folder.');
+            } else {
+                alert(data.error || 'Failed to resend verification email');
+            }
+        } catch (error) {
+            console.error('Resend verification error:', error);
+            alert('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     console.log('Session user:', session.user);
     console.log('Subscription object:', subscription);
     console.log('User usage tracking:', session.user?.usageTracking);
@@ -368,7 +394,20 @@ export default function AccountPage() {
                                 {session.user?.emailVerified ? (
                                     <span className="text-green-600 text-sm">✅ Verified</span>
                                 ) : (
-                                    <span className="text-orange-600 text-sm">⚠️ Unverified</span>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-orange-600 text-sm">⚠️ Unverified</span>
+                                        <TouchEnhancedButton
+                                            onClick={handleResendVerification}
+                                            disabled={loading}
+                                            className={`text-xs px-3 py-1 rounded-md font-medium transition-colors ${
+                                                loading
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                            }`}
+                                        >
+                                            {loading ? 'Sending...' : 'Resend Verification'}
+                                        </TouchEnhancedButton>
+                                    </div>
                                 )}
                             </div>
                         </div>

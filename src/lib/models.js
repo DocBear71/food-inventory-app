@@ -2215,7 +2215,7 @@ UserSchema.methods.generateEmailVerificationToken = function() {
 
     // Set token and expiration (24 hours from now)
     this.emailVerificationToken = token;
-    this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    this.emailVerificationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     this.emailVerificationRequestedAt = new Date();
 
     return token;

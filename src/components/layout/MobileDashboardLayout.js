@@ -10,6 +10,7 @@ import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {getApiUrl} from "@/lib/api-config";
 import {Capacitor} from "@capacitor/core";
+import VerificationBanner from '@/components/auth/VerificationBanner';
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -240,6 +241,11 @@ export default function MobileDashboardLayout({children}) {
                     </div>
                 </div>
             </header>
+
+            {/* Verification Banner */}
+            {session?.user && !session.user.emailVerified && (
+                <VerificationBanner user={session.user} />
+            )}
 
             {/* Mobile Menu Overlay */}
             {mobileMenuOpen && (

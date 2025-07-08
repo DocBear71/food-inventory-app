@@ -1556,7 +1556,7 @@ Thank you for keeping your Doc Bear's Comfort Kitchen account secure!
             
             <a href="${verificationUrl}" class="verify-button">Verify My Email Address</a>
             
-            <p>This verification link will expire in 24 hours.</p>
+            <p>This verification link will expire in 7 days.</p>
             
             <p>Welcome to the family!</p>
         </div>
@@ -1578,7 +1578,7 @@ Thank you for creating your account! To get started, please verify your email ad
 
 ${verificationUrl}
 
-This verification link will expire in 24 hours.
+This verification link will expire in 7 days.
 
 Welcome to the family!
 

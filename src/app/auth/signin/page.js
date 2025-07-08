@@ -24,6 +24,9 @@ function SignInContent() {
     const [message, setMessage] = useState('');
     const [redirecting, setRedirecting] = useState(false);
     const [showResendVerification, setShowResendVerification] = useState(false);
+    const [unverifiedEmail, setUnverifiedEmail] = useState('');
+    const [resendLoading, setResendLoading] = useState(false);
+    const [success, setSuccess] = useState('');
 
     useEffect(() => {
         // Handle URL parameters for messages and errors
@@ -100,9 +103,14 @@ function SignInContent() {
 
             if (result?.error) {
                 console.log('Login failed with error:', result.error);
-                if (result.error === 'email-not-verified') {
-                    setError('Please verify your email address before signing in.');
+
+                // Enhanced email verification error handling
+                if (result.error === 'email-not-verified' ||
+                    result.error === 'EMAIL_NOT_VERIFIED' ||
+                    result.error.includes('verify')) {
+                    setError('Please verify your email before signing in.');
                     setShowResendVerification(true);
+                    setUnverifiedEmail(formData.email);
                 } else if (result.error === 'CredentialsSignin') {
                     setError('Invalid email or password. Please try again.');
                 } else {
@@ -290,6 +298,33 @@ function SignInContent() {
         }
     };
 
+    const handleResendVerificationFromSignIn = async () => {
+        if (resendLoading) return;
+
+        setResendLoading(true);
+
+        try {
+            const response = await apiPost('/api/auth/resend-verification', {
+                email: unverifiedEmail
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setError('');
+                setSuccess('Verification email sent! Please check your inbox and spam folder, then try signing in again.');
+                setShowResendVerification(false);
+            } else {
+                setError(data.error || 'Failed to resend verification email');
+            }
+        } catch (error) {
+            console.error('Resend verification error:', error);
+            setError('Network error. Please try again.');
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     const handleWebSessionRetrieval = async () => {
         // Wait a moment for session to be established
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -362,14 +397,21 @@ function SignInContent() {
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                                 {error}
                                 {showResendVerification && (
-                                    <div className="mt-3">
+                                    <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                        <div className="flex items-center mb-2">
+                                            <span className="text-orange-600 mr-2">⚠️</span>
+                                            <span className="text-sm font-medium text-orange-800">Email Not Verified</span>
+                                        </div>
+                                        <p className="text-sm text-orange-700 mb-3">
+                                            We sent a verification email to <strong>{unverifiedEmail}</strong>.
+                                            Please check your inbox and spam folder.
+                                        </p>
                                         <TouchEnhancedButton
-                                            type="button"
-                                            onClick={handleResendVerification}
-                                            disabled={loading}
-                                            className="text-sm text-red-800 underline hover:text-red-900"
+                                            onClick={handleResendVerificationFromSignIn}
+                                            disabled={resendLoading}
+                                            className="w-full bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 disabled:bg-gray-400 transition-colors"
                                         >
-                                            {loading ? 'Sending...' : 'Resend verification email'}
+                                            {resendLoading ? 'Sending...' : 'Resend Verification Email'}
                                         </TouchEnhancedButton>
                                     </div>
                                 )}
