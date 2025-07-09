@@ -1,7 +1,6 @@
-// Create this file: /src/components/NativeAuthHandler.js
-// Simplified version to work with your existing CapacitorAuthProvider
-
 'use client';
+
+// file: /src/components/NativeAuthHandler.js v2
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';

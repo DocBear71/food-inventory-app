@@ -1,4 +1,4 @@
-// file: /src/app/layout.js v7 - Added NativeAuthHandler
+// file: /src/app/layout.js v8 - Improved platform detection
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -8,6 +8,7 @@ import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider'
 import NativeAuthHandler from '@/components/NativeAuthHandler';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
 import ViewportHandler from '@/components/ViewportHandler';
+import PlatformAwareWrapper from '@/components/PlatformAwareWrapper'; // NEW
 
 // ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
@@ -63,35 +64,20 @@ export function generateViewport() {
 }
 
 export default async function RootLayout({children}) {
-    // Determine if this is a native mobile app (Capacitor) vs web
-    const isNativeMobileApp = process.env.CAPACITOR_PLATFORM === 'ios' ||
-        process.env.CAPACITOR_PLATFORM === 'android';
-
     return (
         <html lang="en">
         <body className={inter.className}>
         <SafeAreaBackground />
         <ViewportHandler />
         <CapacitorAuthProvider>
-            {isNativeMobileApp ? (
-                // FIXED: Native mobile apps with proper auth handling
-                <SessionProvider>
-                    <SubscriptionProvider>
-                        <NativeAuthHandler>
-                            {children}
-                        </NativeAuthHandler>
-                    </SubscriptionProvider>
-                </SessionProvider>
-            ) : (
-                // Web builds (including PWA) - full PWA functionality
-                <SessionProvider>
-                    <SubscriptionProvider>
-                        <PWAWrapper>
-                            {children}
-                        </PWAWrapper>
-                    </SubscriptionProvider>
-                </SessionProvider>
-            )}
+            <SessionProvider>
+                <SubscriptionProvider>
+                    {/* NEW: Single wrapper that handles platform detection at runtime */}
+                    <PlatformAwareWrapper>
+                        {children}
+                    </PlatformAwareWrapper>
+                </SubscriptionProvider>
+            </SessionProvider>
         </CapacitorAuthProvider>
         </body>
         </html>

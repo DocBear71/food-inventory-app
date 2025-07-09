@@ -1,6 +1,6 @@
 'use client';
-// file: /src/components/profile/AccountDeletionModal.js
 
+// file: /src/components/profile/AccountDeletionModal.js v2
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -86,6 +86,12 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Helper function to check if emails match
+    const emailsMatch = () => {
+        if (!userEmail || !formData.confirmEmail) return false;
+        return formData.confirmEmail.toLowerCase() === userEmail.toLowerCase();
     };
 
     if (!isOpen) return null;
@@ -301,7 +307,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                 {/* Email Confirmation */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Type your email address to confirm: <strong>{userEmail}</strong>
+                                        Type your email address to confirm: <strong>{userEmail || 'N/A'}</strong>
                                     </label>
                                     <input
                                         type="email"
@@ -368,7 +374,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                         loading ||
                                         !formData.password ||
                                         !formData.confirmDeletion ||
-                                        formData.confirmEmail.toLowerCase() !== userEmail.toLowerCase()
+                                        !emailsMatch()
                                     }
                                     className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
                                 >
@@ -378,7 +384,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
 
                             {/* Validation Messages */}
                             <div className="text-xs text-gray-500 space-y-1">
-                                {formData.confirmEmail && formData.confirmEmail.toLowerCase() !== userEmail.toLowerCase() && (
+                                {formData.confirmEmail && !emailsMatch() && (
                                     <p className="text-red-600">❌ Email address doesn't match</p>
                                 )}
                                 {!formData.password && (
@@ -387,7 +393,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                 {!formData.confirmDeletion && (
                                     <p className="text-gray-400">⚪ Deletion confirmation required</p>
                                 )}
-                                {formData.confirmEmail.toLowerCase() === userEmail.toLowerCase() &&
+                                {emailsMatch() &&
                                     formData.password &&
                                     formData.confirmDeletion && (
                                         <p className="text-green-600">✅ All requirements met</p>
