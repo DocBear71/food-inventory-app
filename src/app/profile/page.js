@@ -1541,12 +1541,12 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Account Deletion Modal */}
+                {/* Account Deletion Modal - FIXED: Pass userEmail instead of user */}
                 {showDeletionModal && (
                     <AccountDeletionModal
                         isOpen={showDeletionModal}
                         onClose={() => setShowDeletionModal(false)}
-                        user={session.user}
+                        userEmail={session?.user?.email}
                     />
                 )}
 

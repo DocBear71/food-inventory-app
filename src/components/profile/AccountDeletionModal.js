@@ -1,6 +1,5 @@
 'use client';
-
-// file: /src/components/profile/AccountDeletionModal.js v2
+// file: /src/components/profile/AccountDeletionModal.js
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -92,6 +91,18 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const emailsMatch = () => {
         if (!userEmail || !formData.confirmEmail) return false;
         return formData.confirmEmail.toLowerCase() === userEmail.toLowerCase();
+    };
+
+    // Helper function to get display email
+    const getDisplayEmail = () => {
+        if (userEmail) return userEmail;
+        if (sessionData?.user?.email) return sessionData.user.email;
+        return 'your email address';
+    };
+
+    // Helper function to get validation email
+    const getValidationEmail = () => {
+        return userEmail || sessionData?.user?.email;
     };
 
     if (!isOpen) return null;
@@ -307,8 +318,15 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                 {/* Email Confirmation */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Type your email address to confirm: <strong>{userEmail || 'N/A'}</strong>
+                                        Type your email address to confirm: <strong>{getDisplayEmail()}</strong>
                                     </label>
+                                    {!getValidationEmail() && (
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 mb-2">
+                                            <p className="text-yellow-700 text-sm">
+                                                ⚠️ Unable to detect your email address. Please enter the email associated with your account.
+                                            </p>
+                                        </div>
+                                    )}
                                     <input
                                         type="email"
                                         value={formData.confirmEmail}
@@ -374,7 +392,9 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                         loading ||
                                         !formData.password ||
                                         !formData.confirmDeletion ||
-                                        !emailsMatch()
+                                        (!getValidationEmail() ?
+                                            !formData.confirmEmail :
+                                            !emailsMatch())
                                     }
                                     className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
                                 >
@@ -384,8 +404,11 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
 
                             {/* Validation Messages */}
                             <div className="text-xs text-gray-500 space-y-1">
-                                {formData.confirmEmail && !emailsMatch() && (
+                                {getValidationEmail() && formData.confirmEmail && !emailsMatch() && (
                                     <p className="text-red-600">❌ Email address doesn't match</p>
+                                )}
+                                {!getValidationEmail() && !formData.confirmEmail && (
+                                    <p className="text-gray-400">⚪ Email address required</p>
                                 )}
                                 {!formData.password && (
                                     <p className="text-gray-400">⚪ Password required</p>
@@ -393,7 +416,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                 {!formData.confirmDeletion && (
                                     <p className="text-gray-400">⚪ Deletion confirmation required</p>
                                 )}
-                                {emailsMatch() &&
+                                {((getValidationEmail() && emailsMatch()) || (!getValidationEmail() && formData.confirmEmail)) &&
                                     formData.password &&
                                     formData.confirmDeletion && (
                                         <p className="text-green-600">✅ All requirements met</p>
