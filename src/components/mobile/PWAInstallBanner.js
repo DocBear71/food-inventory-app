@@ -5,7 +5,7 @@
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { PlatformDetection, debugPlatformInfo } from '@/utils/platformDetection';
+import { PlatformDetection, debugPlatformInfo } from '@/utils/PlatformDetection';
 import { apiGet, apiPut } from '@/lib/api-config';
 
 export function PWAInstallBanner() {
