@@ -97,7 +97,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
     const getSupportedPlatformsText = () => {
         return (
             <div className="text-xs text-gray-500 mt-1">
-                <strong>Supported:</strong> YouTube (with captions), TikTok & Instagram (coming soon)
+                <strong>Best Platforms:</strong> TikTok cooking videos, Instagram Reels, YouTube (with captions)
             </div>
         );
     };
@@ -106,10 +106,9 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         return (
             <div className="text-xs text-gray-400 mt-2">
                 <strong>Examples:</strong><br/>
-                • https://youtube.com/watch?v=dQw4w9WgXcQ<br/>
-                • https://youtu.be/dQw4w9WgXcQ<br/>
-                • https://tiktok.com/@user/video/123456<br/>
-                • https://instagram.com/reel/ABC123/
+                • https://tiktok.com/@chef/video/123456<br/>
+                • https://instagram.com/reel/ABC123/<br/>
+                • https://youtube.com/watch?v=dQw4w9WgXcQ
             </div>
         );
     };
@@ -126,10 +125,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                        🎥 Extract Recipe from Video (Beta Testing)
+                        🎥 Extract Recipe from Video (Beta - TikTok & Instagram Optimized!)
                     </h3>
                     <p className="text-sm text-gray-600">
-                        Import recipes directly from cooking videos using AI-powered extraction (currently in testing phase)
+                        Import recipes from TikTok, Instagram Reels, and YouTube using AI-powered extraction
                     </p>
                 </div>
             </div>
@@ -263,13 +262,13 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         </summary>
                         <div className="mt-3 text-xs text-gray-500 space-y-2 pl-4 border-l-2 border-gray-200">
                             <p>
-                                <strong>Phase 1 (Current):</strong> We extract the video's transcript/captions and use AI to identify ingredients, instructions, and cooking times.
+                                <strong>Optimized for Social Media:</strong> TikTok and Instagram videos process faster with better results than YouTube.
                             </p>
                             <p>
-                                <strong>Coming Soon:</strong> Advanced frame analysis will identify ingredients visually and provide even more accurate extraction.
+                                <strong>Why Social Media Works Better:</strong> Shorter videos, recipe-focused content, and fewer restrictions.
                             </p>
                             <p>
-                                <strong>Best Results:</strong> Use videos with clear speech, good captions, and structured recipe presentations.
+                                <strong>Best Results:</strong> Use cooking videos from @tasty, @gordonramsayofficial, or other food creators.
                             </p>
                             {getExampleUrls()}
                         </div>
