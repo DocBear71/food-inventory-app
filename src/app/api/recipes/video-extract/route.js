@@ -1,7 +1,8 @@
-// file: /src/app/api/recipes/video-extract/route.js - Phase 1: Transcript-based extraction
+// file: /src/app/api/recipes/video-extract/route.js - ADVANCED HYBRID SYSTEM
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
+import OpenAI from 'openai';
 import {
     parseIngredientLine,
     parseInstructionLine,
@@ -9,16 +10,12 @@ import {
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
 
-let YoutubeTranscript;
-if (typeof window === 'undefined') {
-    // Server-side import
-    YoutubeTranscript = require('youtube-transcript').YoutubeTranscript;
-} else {
-    // This should never happen in API routes, but just in case
-    throw new Error('This API should only run on the server');
-}
+// Initialize OpenAI (make sure to add OPENAI_API_KEY to your environment variables)
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
-// Video platform detection patterns
+// Video platform detection (your existing code)
 const VIDEO_PLATFORMS = {
     youtube: {
         patterns: [
@@ -32,40 +29,438 @@ const VIDEO_PLATFORMS = {
             }
             return null;
         }
-    },
-    tiktok: {
-        patterns: [
-            /tiktok\.com\/@[^/]+\/video\/(\d+)/,
-            /tiktok\.com\/v\/(\d+)/,
-            /vm\.tiktok\.com\/([a-zA-Z0-9]+)/
-        ],
-        extractId: (url) => {
-            for (const pattern of VIDEO_PLATFORMS.tiktok.patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-            }
-            return null;
-        }
-    },
-    instagram: {
-        patterns: [
-            /instagram\.com\/reel\/([a-zA-Z0-9_-]+)/,
-            /instagram\.com\/p\/([a-zA-Z0-9_-]+)/
-        ],
-        extractId: (url) => {
-            for (const pattern of VIDEO_PLATFORMS.instagram.patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-            }
-            return null;
-        }
     }
 };
 
-// Main API route handler
+function detectVideoPlatform(url) {
+    console.log('🎥 [HYBRID] Detecting video platform for URL:', url);
+
+    for (const [platform, config] of Object.entries(VIDEO_PLATFORMS)) {
+        const videoId = config.extractId(url);
+        if (videoId) {
+            console.log(`✅ [HYBRID] Detected ${platform} video: ${videoId}`);
+            return { platform, videoId, originalUrl: url };
+        }
+    }
+
+    throw new Error('Unsupported video platform. Currently supports YouTube.');
+}
+
+// METHOD 1: Try caption extraction first (your existing method, enhanced)
+async function extractYouTubeTranscript(videoId) {
+    console.log('📝 [CAPTIONS] Attempting caption extraction for:', videoId);
+
+    try {
+        const transcriptModule = await import('youtube-transcript');
+        const YoutubeTranscript = transcriptModule.YoutubeTranscript;
+
+        if (!YoutubeTranscript) {
+            throw new Error('Failed to load YoutubeTranscript library');
+        }
+
+        const extractionMethods = [
+            { name: 'Default', attempt: () => YoutubeTranscript.fetchTranscript(videoId) },
+            { name: 'English', attempt: () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' }) },
+            { name: 'English-US', attempt: () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en', country: 'US' }) },
+            { name: 'Auto-generated', attempt: () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en-US' }) }
+        ];
+
+        for (const method of extractionMethods) {
+            try {
+                console.log(`🔍 [CAPTIONS] Trying ${method.name} method...`);
+                const transcript = await method.attempt();
+
+                if (transcript && Array.isArray(transcript) && transcript.length > 0) {
+                    console.log(`✅ [CAPTIONS] SUCCESS with ${method.name}! Found ${transcript.length} segments`);
+
+                    const segments = transcript.map(segment => ({
+                        text: segment.text || '',
+                        start: (segment.offset || 0) / 1000,
+                        duration: (segment.duration || 0) / 1000
+                    }));
+
+                    const fullText = transcript.map(t => t.text || '').join(' ');
+                    const totalDuration = Math.max(...transcript.map(t => ((t.offset || 0) + (t.duration || 0)) / 1000));
+
+                    return {
+                        segments: segments,
+                        fullText: fullText,
+                        totalDuration: totalDuration,
+                        extractionMethod: 'captions',
+                        quality: 'high'
+                    };
+                }
+            } catch (methodError) {
+                console.log(`❌ [CAPTIONS] ${method.name} failed:`, methodError.message);
+                continue;
+            }
+        }
+
+        throw new Error('All caption extraction methods failed');
+
+    } catch (error) {
+        console.log('❌ [CAPTIONS] Caption extraction failed:', error.message);
+        throw error;
+    }
+}
+
+// METHOD 2: AI Audio Transcription with Whisper
+async function extractAudioWithWhisper(videoId) {
+    console.log('🤖 [AI] Starting Whisper audio transcription for:', videoId);
+
+    try {
+        // Get video info and audio stream using yt-dlp
+        const { spawn } = require('child_process');
+        const fs = require('fs');
+        const path = require('path');
+
+        // Create temp directory
+        const tempDir = '/tmp';
+        const audioFile = path.join(tempDir, `${videoId}-audio.mp3`);
+
+        console.log('🎵 [AI] Extracting audio with yt-dlp...');
+
+        // Use yt-dlp to extract audio (first 10 minutes to control costs)
+        const ytDlpProcess = spawn('yt-dlp', [
+            '--extract-audio',
+            '--audio-format', 'mp3',
+            '--audio-quality', '128K',
+            '--postprocessor-args', 'ffmpeg:-ss 0 -t 600', // First 10 minutes
+            '-o', audioFile.replace('.mp3', '.%(ext)s'),
+            `https://www.youtube.com/watch?v=${videoId}`
+        ]);
+
+        await new Promise((resolve, reject) => {
+            ytDlpProcess.on('close', (code) => {
+                if (code === 0) resolve();
+                else reject(new Error(`yt-dlp failed with code ${code}`));
+            });
+            ytDlpProcess.on('error', reject);
+        });
+
+        console.log('✅ [AI] Audio extracted successfully');
+
+        // Check if file exists
+        if (!fs.existsSync(audioFile)) {
+            throw new Error('Audio file was not created');
+        }
+
+        console.log('🤖 [AI] Sending to Whisper API...');
+
+        // Transcribe with OpenAI Whisper
+        const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(audioFile),
+            model: 'whisper-1',
+            response_format: 'verbose_json',
+            language: 'en',
+            prompt: 'This is a cooking video with recipe instructions, ingredients, and cooking techniques.' // Help Whisper understand context
+        });
+
+        // Clean up temp file
+        fs.unlinkSync(audioFile);
+        console.log('🗑️ [AI] Cleaned up temporary audio file');
+
+        console.log('✅ [AI] Whisper transcription complete:', {
+            duration: transcription.duration,
+            segments: transcription.segments?.length,
+            text_length: transcription.text?.length
+        });
+
+        // Transform to our format
+        const segments = transcription.segments?.map(segment => ({
+            text: segment.text,
+            start: segment.start,
+            duration: segment.end - segment.start
+        })) || [];
+
+        return {
+            segments: segments,
+            fullText: transcription.text,
+            totalDuration: transcription.duration,
+            extractionMethod: 'ai-whisper',
+            quality: 'high',
+            cost: calculateWhisperCost(transcription.duration)
+        };
+
+    } catch (error) {
+        console.error('❌ [AI] Whisper transcription failed:', error);
+        throw error;
+    }
+}
+
+// METHOD 3: AI Vision Analysis (fallback)
+async function analyzeVideoWithVision(videoId, videoUrl) {
+    console.log('👁️ [AI] Starting GPT-4 Vision analysis for:', videoId);
+
+    try {
+        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+        // Get video title from YouTube (if possible)
+        let videoTitle = '';
+        try {
+            const videoPageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+            const html = await videoPageResponse.text();
+            const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+            videoTitle = titleMatch ? titleMatch[1].replace(' - YouTube', '') : '';
+        } catch (titleError) {
+            console.log('⚠️ [AI] Could not extract video title');
+        }
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4-vision-preview",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Analyze this cooking video thumbnail and create a recipe extraction. 
+
+Video Title: "${videoTitle}"
+Video URL: ${videoUrl}
+
+Based on the thumbnail and title, provide a structured recipe with:
+1. Recipe title (clean, descriptive)
+2. Brief description
+3. Likely ingredients (be specific with common amounts)
+4. Step-by-step cooking instructions
+5. Estimated prep/cook times
+6. Difficulty level (easy/medium/hard)
+7. Relevant tags
+
+Format this as a natural recipe that someone could actually follow. Be practical and assume standard cooking knowledge.`
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: thumbnailUrl
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens: 1500
+        });
+
+        const analysis = response.choices[0].message.content;
+        console.log('✅ [AI] Vision analysis complete');
+
+        return {
+            segments: [],
+            fullText: analysis,
+            totalDuration: 0,
+            extractionMethod: 'ai-vision',
+            quality: 'medium',
+            cost: calculateVisionCost(),
+            aiAnalysis: analysis,
+            note: 'This recipe was created by AI analysis of the video thumbnail and title. For best accuracy, consider using videos with captions or manual transcription.'
+        };
+
+    } catch (error) {
+        console.error('❌ [AI] Vision analysis failed:', error);
+        throw error;
+    }
+}
+
+// Calculate API costs for transparency
+function calculateWhisperCost(durationSeconds) {
+    const minutes = Math.ceil(durationSeconds / 60);
+    const cost = minutes * 0.006; // $0.006 per minute
+    return {
+        duration_minutes: minutes,
+        estimated_cost_usd: cost.toFixed(4),
+        note: 'Whisper API pricing'
+    };
+}
+
+function calculateVisionCost() {
+    return {
+        estimated_cost_usd: '0.01',
+        note: 'GPT-4 Vision API pricing'
+    };
+}
+
+// MAIN HYBRID EXTRACTION FUNCTION
+async function extractRecipeWithHybridMethod(videoInfo) {
+    console.log('🚀 [HYBRID] Starting advanced recipe extraction for:', videoInfo.videoId);
+
+    const extractionResults = {
+        attempts: [],
+        successful_method: null,
+        total_cost: 0,
+        quality_score: 0
+    };
+
+    // METHOD 1: Try captions first (free, high quality)
+    try {
+        console.log('📝 [HYBRID] Phase 1: Attempting caption extraction...');
+        const captionResult = await extractYouTubeTranscript(videoInfo.videoId);
+
+        extractionResults.attempts.push({
+            method: 'captions',
+            status: 'success',
+            quality: 'high',
+            cost: 0
+        });
+
+        extractionResults.successful_method = 'captions';
+        extractionResults.quality_score = 10;
+
+        console.log('✅ [HYBRID] Caption extraction successful! Skipping AI methods.');
+        return {
+            ...captionResult,
+            extractionResults
+        };
+
+    } catch (captionError) {
+        console.log('❌ [HYBRID] Caption extraction failed:', captionError.message);
+        extractionResults.attempts.push({
+            method: 'captions',
+            status: 'failed',
+            error: captionError.message
+        });
+    }
+
+    // METHOD 2: Try AI audio transcription (paid, high quality)
+    try {
+        console.log('🤖 [HYBRID] Phase 2: Attempting AI audio transcription...');
+        const audioResult = await extractAudioWithWhisper(videoInfo.videoId);
+
+        extractionResults.attempts.push({
+            method: 'ai-whisper',
+            status: 'success',
+            quality: 'high',
+            cost: audioResult.cost.estimated_cost_usd
+        });
+
+        extractionResults.successful_method = 'ai-whisper';
+        extractionResults.total_cost = parseFloat(audioResult.cost.estimated_cost_usd);
+        extractionResults.quality_score = 9;
+
+        console.log('✅ [HYBRID] AI audio transcription successful!');
+        return {
+            ...audioResult,
+            extractionResults
+        };
+
+    } catch (audioError) {
+        console.log('❌ [HYBRID] AI audio transcription failed:', audioError.message);
+        extractionResults.attempts.push({
+            method: 'ai-whisper',
+            status: 'failed',
+            error: audioError.message
+        });
+    }
+
+    // METHOD 3: AI vision analysis (paid, medium quality)
+    try {
+        console.log('👁️ [HYBRID] Phase 3: Attempting AI vision analysis...');
+        const visionResult = await analyzeVideoWithVision(videoInfo.videoId, videoInfo.originalUrl);
+
+        extractionResults.attempts.push({
+            method: 'ai-vision',
+            status: 'success',
+            quality: 'medium',
+            cost: visionResult.cost.estimated_cost_usd
+        });
+
+        extractionResults.successful_method = 'ai-vision';
+        extractionResults.total_cost = parseFloat(visionResult.cost.estimated_cost_usd);
+        extractionResults.quality_score = 6;
+
+        console.log('✅ [HYBRID] AI vision analysis successful!');
+        return {
+            ...visionResult,
+            extractionResults
+        };
+
+    } catch (visionError) {
+        console.log('❌ [HYBRID] AI vision analysis failed:', visionError.message);
+        extractionResults.attempts.push({
+            method: 'ai-vision',
+            status: 'failed',
+            error: visionError.message
+        });
+    }
+
+    // If all methods failed
+    extractionResults.successful_method = 'none';
+    throw new Error(`All extraction methods failed. Attempted: captions, AI audio transcription, and AI vision analysis. Consider using manual transcription.`);
+}
+
+// Enhanced recipe parsing with AI assistance
+async function parseRecipeFromTranscriptWithAI(transcriptData, videoInfo) {
+    console.log('🧠 [AI-PARSE] Starting enhanced recipe parsing...');
+
+    // If we have good transcript data, use AI to enhance the parsing
+    if (transcriptData.extractionMethod === 'captions' || transcriptData.extractionMethod === 'ai-whisper') {
+        try {
+            console.log('🤖 [AI-PARSE] Using AI to enhance recipe structure...');
+
+            const enhancedParsingPrompt = `Analyze this cooking video transcript and extract a structured recipe:
+
+TRANSCRIPT:
+${transcriptData.fullText.substring(0, 4000)}...
+
+Please extract:
+1. Recipe title (clean, descriptive)
+2. Brief description  
+3. Ingredients with amounts and units
+4. Step-by-step instructions
+5. Prep time and cook time (if mentioned)
+6. Number of servings (if mentioned)
+7. Difficulty level
+8. Relevant cooking tags
+
+Format as JSON with this structure:
+{
+  "title": "Recipe Name",
+  "description": "Brief description",
+  "ingredients": [{"name": "ingredient", "amount": "1", "unit": "cup"}],
+  "instructions": ["Step 1", "Step 2"],
+  "prepTime": 15,
+  "cookTime": 30,
+  "servings": 4,
+  "difficulty": "medium",
+  "tags": ["tag1", "tag2"]
+}`;
+
+            const aiResponse = await openai.chat.completions.create({
+                model: "gpt-4-turbo-preview",
+                messages: [
+                    {
+                        role: "user",
+                        content: enhancedParsingPrompt
+                    }
+                ],
+                response_format: { type: "json_object" }
+            });
+
+            const aiParsedRecipe = JSON.parse(aiResponse.choices[0].message.content);
+            console.log('✅ [AI-PARSE] AI-enhanced parsing complete');
+
+            // Add video metadata
+            aiParsedRecipe.videoSource = videoInfo.originalUrl;
+            aiParsedRecipe.videoPlatform = videoInfo.platform;
+            aiParsedRecipe.videoId = videoInfo.videoId;
+            aiParsedRecipe.extractionMethod = transcriptData.extractionMethod;
+            aiParsedRecipe.aiEnhanced = true;
+
+            return aiParsedRecipe;
+
+        } catch (aiParseError) {
+            console.log('⚠️ [AI-PARSE] AI enhancement failed, using fallback parsing:', aiParseError.message);
+        }
+    }
+
+    // Fallback to your existing parsing logic
+    return parseRecipeFromTranscript(transcriptData, videoInfo);
+}
+
+// MAIN API ENDPOINT
 export async function POST(request) {
     try {
-        console.log('=== 🎥 [SERVER] VIDEO RECIPE EXTRACTION API START ===');
+        console.log('=== 🚀 ADVANCED HYBRID VIDEO RECIPE EXTRACTION START ===');
 
         const session = await getEnhancedSession(request);
 
@@ -76,7 +471,7 @@ export async function POST(request) {
             );
         }
 
-        const { url } = await request.json();
+        const { url, method = 'hybrid' } = await request.json();
 
         if (!url) {
             return NextResponse.json(
@@ -85,34 +480,26 @@ export async function POST(request) {
             );
         }
 
-        console.log('🎬 [SERVER] Processing video URL:', url);
+        console.log('🎬 [HYBRID] Processing video URL:', url);
+        console.log('🎯 [HYBRID] Extraction method:', method);
 
-        // Step 1: Detect video platform and extract ID
+        // Detect video platform
         const videoInfo = detectVideoPlatform(url);
-        console.log('📺 [SERVER] Video detection result:', videoInfo);
+        console.log('📺 [HYBRID] Video info:', videoInfo);
 
-        // Step 2: Extract transcript based on platform
-        let transcriptData;
+        // Extract transcript using hybrid method
+        const transcriptData = await extractRecipeWithHybridMethod(videoInfo);
 
-        if (videoInfo.platform === 'youtube') {
-            console.log('📋 [SERVER] Starting YouTube transcript extraction...');
-            transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
-            console.log('📋 [SERVER] Transcript extraction completed successfully');
-        } else {
-            transcriptData = await extractTranscriptFromOtherPlatforms(videoInfo.platform, videoInfo.videoId);
-        }
+        // Parse recipe with AI enhancement
+        const recipe = await parseRecipeFromTranscriptWithAI(transcriptData, videoInfo);
 
-        // Step 3: Parse recipe from transcript
-        console.log('🧠 [SERVER] Starting recipe parsing...');
-        const recipe = await parseRecipeFromTranscript(transcriptData, videoInfo);
-        console.log('🧠 [SERVER] Recipe parsing completed');
-
-        console.log('✅ [SERVER] Video recipe extraction complete:', {
-            platform: videoInfo.platform,
+        console.log('✅ [HYBRID] Advanced extraction complete:', {
+            method: transcriptData.extractionResults.successful_method,
+            quality_score: transcriptData.extractionResults.quality_score,
+            total_cost: transcriptData.extractionResults.total_cost,
             title: recipe.title,
-            ingredients: recipe.ingredients.length,
-            instructions: recipe.instructions.length,
-            hasTimestamps: recipe.ingredients.some(i => i.timestamp)
+            ingredients: recipe.ingredients?.length || 0,
+            instructions: recipe.instructions?.length || 0
         });
 
         return NextResponse.json({
@@ -121,262 +508,46 @@ export async function POST(request) {
             videoInfo: {
                 platform: videoInfo.platform,
                 videoId: videoInfo.videoId,
-                originalUrl: videoInfo.originalUrl,
-                transcriptSegments: transcriptData.segments?.length || 0,
-                totalDuration: transcriptData.totalDuration
+                originalUrl: videoInfo.originalUrl
             },
-            message: `Recipe successfully extracted from ${videoInfo.platform} video using transcript analysis`,
-            extractionMethod: 'transcript-based',
-            phase: 1
+            extractionInfo: {
+                method: transcriptData.extractionResults.successful_method,
+                quality: transcriptData.quality,
+                attempts: transcriptData.extractionResults.attempts,
+                cost: {
+                    total_usd: transcriptData.extractionResults.total_cost,
+                    breakdown: transcriptData.cost || null
+                },
+                aiEnhanced: recipe.aiEnhanced || false
+            },
+            message: `Recipe extracted using ${transcriptData.extractionResults.successful_method} with quality score ${transcriptData.extractionResults.quality_score}/10`
         });
 
     } catch (error) {
-        console.error('=== 🎥 [SERVER] VIDEO RECIPE EXTRACTION ERROR ===');
+        console.error('=== 🚀 ADVANCED HYBRID VIDEO EXTRACTION ERROR ===');
         console.error('Error:', error.message);
         console.error('Stack:', error.stack);
 
-        // Return user-friendly error messages
-        let errorMessage = 'Failed to extract recipe from video';
-
-        if (error.message.includes('Unsupported video platform')) {
-            errorMessage = error.message;
-        } else if (error.message.includes('transcript') || error.message.includes('captions')) {
-            errorMessage = error.message;
-        } else if (error.message.includes('Unauthorized')) {
-            errorMessage = 'Please log in to extract recipes from videos.';
-        }
-
         return NextResponse.json({
-            error: errorMessage,
-            details: error.message,
-            supportedPlatforms: 'YouTube (with captions), TikTok and Instagram (coming in Phase 2)',
-            extractionMethod: 'transcript-based',
-            phase: 1,
-            suggestions: [
-                'Ensure the video has captions or subtitles available',
-                'Try videos from popular cooking channels that typically have good captions',
-                'For best results, use YouTube videos with clear speech and good audio quality'
+            error: error.message,
+            fallbackOptions: [
+                'Try a different video with captions enabled',
+                'Use our "Parse Recipe Text" feature with manual transcript',
+                'Look for the same recipe from channels like Bon Appétit or Tasty'
+            ],
+            supportedPlatforms: 'YouTube',
+            advancedFeatures: [
+                'Automatic caption extraction (free)',
+                'AI audio transcription (paid)',
+                'AI vision analysis (paid)',
+                'Hybrid fallback system'
             ]
         }, { status: 400 });
     }
 }
 
-// Detect video platform and extract video ID
-function detectVideoPlatform(url) {
-    console.log('🎥 [SERVER] Detecting video platform for URL:', url);
-
-    for (const [platform, config] of Object.entries(VIDEO_PLATFORMS)) {
-        const videoId = config.extractId(url);
-        if (videoId) {
-            console.log(`✅ [SERVER] Detected ${platform} video: ${videoId}`);
-            return { platform, videoId, originalUrl: url };
-        }
-    }
-
-    throw new Error('Unsupported video platform. Currently supports YouTube, TikTok, and Instagram.');
-}
-
-// Enhanced transcript extraction with better error handling
-async function extractYouTubeTranscript(videoId) {
-    console.log('📝 [SERVER] Extracting YouTube transcript for video:', videoId);
-
-    try {
-        // FIXED: Use dynamic import that only works on server
-        console.log('📦 [SERVER] Importing youtube-transcript library...');
-        const YoutubeTranscriptModule = await import('youtube-transcript');
-        const YoutubeTranscript = YoutubeTranscriptModule.YoutubeTranscript;
-
-        if (!YoutubeTranscript) {
-            throw new Error('Failed to load YoutubeTranscript from library');
-        }
-
-        console.log('✅ [SERVER] Library imported successfully');
-        console.log('🔍 [SERVER] Attempting transcript extraction for video ID:', videoId);
-
-        // Try multiple extraction methods
-        const extractionMethods = [
-            {
-                name: 'Default',
-                options: {}
-            },
-            {
-                name: 'English',
-                options: { lang: 'en' }
-            },
-            {
-                name: 'English-US',
-                options: { lang: 'en', country: 'US' }
-            },
-            {
-                name: 'Auto-generated',
-                options: { lang: 'en-US' }
-            }
-        ];
-
-        for (const method of extractionMethods) {
-            try {
-                console.log(`🔍 [SERVER] Trying ${method.name} method with options:`, method.options);
-
-                const transcript = await YoutubeTranscript.fetchTranscript(videoId, method.options);
-
-                if (transcript && Array.isArray(transcript) && transcript.length > 0) {
-                    console.log(`✅ [SERVER] SUCCESS with ${method.name} method! Found ${transcript.length} segments`);
-
-                    // Process transcript data
-                    const segments = transcript.map(segment => ({
-                        text: segment.text || '',
-                        start: (segment.offset || 0) / 1000, // Convert to seconds
-                        duration: (segment.duration || 0) / 1000
-                    }));
-
-                    const fullText = transcript.map(t => t.text || '').join(' ');
-                    const totalDuration = Math.max(...transcript.map(t => ((t.offset || 0) + (t.duration || 0)) / 1000));
-
-                    console.log('📊 [SERVER] Transcript processing complete:', {
-                        segments: segments.length,
-                        textLength: fullText.length,
-                        durationMinutes: Math.round(totalDuration / 60),
-                        firstSegment: segments[0]?.text?.substring(0, 50) + '...'
-                    });
-
-                    return {
-                        segments: segments,
-                        fullText: fullText,
-                        totalDuration: totalDuration
-                    };
-                }
-
-                console.log(`❌ [SERVER] ${method.name} method returned empty result`);
-
-            } catch (methodError) {
-                console.log(`❌ [SERVER] ${method.name} method failed:`, methodError.message);
-                continue;
-            }
-        }
-
-        // If we get here, all methods failed
-        throw new Error('All transcript extraction methods failed. The video may not have captions available.');
-
-    } catch (error) {
-        console.error('❌ [SERVER] YouTube transcript extraction failed:', error);
-
-        // Provide detailed error information
-        const errorMessage = error.message.toLowerCase();
-
-        if (errorMessage.includes('video unavailable') || errorMessage.includes('private')) {
-            throw new Error('Video is unavailable, private, or restricted. Please try a different public video.');
-        } else if (errorMessage.includes('transcript is disabled') || errorMessage.includes('no transcript')) {
-            throw new Error('Captions are disabled for this video. Try videos from major cooking channels like Bon Appétit, Tasty, or Joshua Weissman.');
-        } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
-            throw new Error('Video not found. Please verify the URL is correct.');
-        } else if (errorMessage.includes('blocked') || errorMessage.includes('region')) {
-            throw new Error('Video is geo-blocked or region-restricted. Please try a different video.');
-        } else if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-            throw new Error('Rate limit exceeded. Please wait a minute and try again.');
-        } else {
-            // Include original error for debugging
-            throw new Error(`Could not extract transcript from video. Please ensure the video has captions/subtitles available, or try a different video. Debug info: ${error.message}`);
-        }
-    }
-}
-
-// Extract transcript from other platforms (placeholder for now)
-async function extractTranscriptFromOtherPlatforms(platform, videoId) {
-    console.log(`📝 [SERVER] Extracting transcript from ${platform}:`, videoId);
-
-    return {
-        segments: [],
-        fullText: `Video detected from ${platform}. Advanced extraction for ${platform} videos will be available in the next update. For now, please manually enter the recipe or try a YouTube video.`,
-        totalDuration: 0,
-        platform: platform,
-        needsManualEntry: true
-    };
-}
-
-// Parse recipe from transcript using AI-enhanced logic
-async function parseRecipeFromTranscript(transcriptData, videoInfo) {
-    console.log('🧠 [SERVER] Parsing recipe from transcript...');
-    console.log('📝 [SERVER] Transcript preview:', transcriptData.fullText.substring(0, 200) + '...');
-
-    const recipe = {
-        title: '',
-        description: '',
-        ingredients: [],
-        instructions: [],
-        prepTime: null,
-        cookTime: null,
-        servings: null,
-        difficulty: 'medium',
-        tags: ['video-recipe'],
-        source: `Extracted from ${videoInfo.platform} video`,
-        videoSource: videoInfo.originalUrl,
-        videoId: videoInfo.videoId,
-        videoPlatform: videoInfo.platform,
-        category: 'entrees',
-        timestamps: []
-    };
-
-    // If this needs manual entry, return template
-    if (transcriptData.needsManualEntry) {
-        recipe.title = `Recipe from ${videoInfo.platform} Video`;
-        recipe.description = transcriptData.fullText;
-        return recipe;
-    }
-
-    const text = transcriptData.fullText.toLowerCase();
-    const segments = transcriptData.segments;
-
-    // Step 1: Extract title from common patterns
-    recipe.title = extractTitleFromTranscript(transcriptData.fullText, videoInfo);
-
-    // Step 2: Identify recipe sections in transcript
-    const sections = identifyRecipeSections(text, segments);
-
-    // Step 3: Parse ingredients with timestamps
-    if (sections.ingredients.length > 0) {
-        recipe.ingredients = sections.ingredients.map(item => {
-            const parsed = parseIngredientLine(item.text);
-            if (parsed) {
-                parsed.timestamp = item.timestamp;
-                parsed.videoLink = `${videoInfo.originalUrl}&t=${Math.floor(item.timestamp)}s`;
-            }
-            return parsed;
-        }).filter(Boolean);
-    }
-
-    // Step 4: Parse instructions with timestamps
-    if (sections.instructions.length > 0) {
-        recipe.instructions = sections.instructions.map((item, index) => {
-            const parsed = parseInstructionLine(item.text, index);
-            if (parsed) {
-                parsed.timestamp = item.timestamp;
-                parsed.videoLink = `${videoInfo.originalUrl}&t=${Math.floor(item.timestamp)}s`;
-            }
-            return parsed?.instruction || item.text;
-        });
-    }
-
-    // Step 5: Extract metadata (cooking times, servings, etc.)
-    extractVideoMetadata(transcriptData.fullText, recipe);
-
-    // Step 6: Auto-detect category and difficulty
-    const fullText = `${recipe.title} ${transcriptData.fullText}`;
-    extractMetadata(fullText, recipe);
-
-    // Step 7: Add video-specific tags
-    recipe.tags.push(videoInfo.platform, 'video-extracted');
-    if (recipe.title.toLowerCase().includes('quick')) recipe.tags.push('quick');
-    if (recipe.title.toLowerCase().includes('easy')) recipe.tags.push('easy');
-
-    console.log('✅ [SERVER] Recipe parsing complete:', {
-        title: recipe.title,
-        ingredients: recipe.ingredients.length,
-        instructions: recipe.instructions.length,
-        platform: videoInfo.platform
-    });
-
-    return recipe;
-}
+// Add these helper functions to the end of your new video-extract/route.js file
+// (These are from your original implementation that the advanced version references)
 
 // Extract title from transcript
 function extractTitleFromTranscript(fullText, videoInfo) {
@@ -420,14 +591,6 @@ function identifyRecipeSections(text, segments) {
         instructions: [],
         prep: [],
         cooking: []
-    };
-
-    // Keywords that indicate different sections
-    const sectionKeywords = {
-        ingredients: ['ingredients', 'you need', 'you\'ll need', 'shopping list', 'what you need'],
-        instructions: ['instructions', 'method', 'how to', 'first', 'next', 'then', 'now', 'step'],
-        prep: ['prep', 'prepare', 'preparation', 'get ready', 'start by'],
-        cooking: ['cook', 'cooking', 'bake', 'fry', 'heat', 'temperature']
     };
 
     // Ingredient detection patterns
@@ -598,4 +761,88 @@ function extractVideoMetadata(text, recipe) {
     } else if (lowerText.includes('advanced') || lowerText.includes('difficult') || lowerText.includes('complex')) {
         recipe.difficulty = 'hard';
     }
+}
+
+// Original recipe parsing (fallback method)
+function parseRecipeFromTranscript(transcriptData, videoInfo) {
+    console.log('🧠 [FALLBACK] Parsing recipe from transcript...');
+
+    const recipe = {
+        title: '',
+        description: '',
+        ingredients: [],
+        instructions: [],
+        prepTime: null,
+        cookTime: null,
+        servings: null,
+        difficulty: 'medium',
+        tags: ['video-recipe'],
+        source: `Extracted from ${videoInfo.platform} video`,
+        videoSource: videoInfo.originalUrl,
+        videoId: videoInfo.videoId,
+        videoPlatform: videoInfo.platform,
+        category: 'entrees',
+        timestamps: []
+    };
+
+    // If this needs manual entry, return template
+    if (transcriptData.needsManualEntry) {
+        recipe.title = `Recipe from ${videoInfo.platform} Video`;
+        recipe.description = transcriptData.fullText;
+        return recipe;
+    }
+
+    const text = transcriptData.fullText.toLowerCase();
+    const segments = transcriptData.segments;
+
+    // Step 1: Extract title from common patterns
+    recipe.title = extractTitleFromTranscript(transcriptData.fullText, videoInfo);
+
+    // Step 2: Identify recipe sections in transcript
+    const sections = identifyRecipeSections(text, segments);
+
+    // Step 3: Parse ingredients with timestamps
+    if (sections.ingredients.length > 0) {
+        recipe.ingredients = sections.ingredients.map(item => {
+            const parsed = parseIngredientLine(item.text);
+            if (parsed) {
+                parsed.timestamp = item.timestamp;
+                parsed.videoLink = `${videoInfo.originalUrl}&t=${Math.floor(item.timestamp)}s`;
+            }
+            return parsed;
+        }).filter(Boolean);
+    }
+
+    // Step 4: Parse instructions with timestamps
+    if (sections.instructions.length > 0) {
+        recipe.instructions = sections.instructions.map((item, index) => {
+            const parsed = parseInstructionLine(item.text, index);
+            if (parsed) {
+                parsed.timestamp = item.timestamp;
+                parsed.videoLink = `${videoInfo.originalUrl}&t=${Math.floor(item.timestamp)}s`;
+            }
+            return parsed?.instruction || item.text;
+        });
+    }
+
+    // Step 5: Extract metadata (cooking times, servings, etc.)
+    extractVideoMetadata(transcriptData.fullText, recipe);
+
+    // Step 6: Auto-detect category and difficulty
+    const fullText = `${recipe.title} ${transcriptData.fullText}`;
+    extractMetadata(fullText, recipe);
+
+    // Step 7: Add video-specific tags
+    recipe.tags.push(videoInfo.platform, 'video-extracted');
+    if (recipe.title.toLowerCase().includes('quick')) recipe.tags.push('quick');
+    if (recipe.title.toLowerCase().includes('easy')) recipe.tags.push('easy');
+
+    console.log('✅ [FALLBACK] Recipe parsing complete:', {
+        title: recipe.title,
+        ingredients: recipe.ingredients.length,
+        instructions: recipe.instructions.length,
+        platform: videoInfo.platform
+    });
+
+    return recipe;
 }
