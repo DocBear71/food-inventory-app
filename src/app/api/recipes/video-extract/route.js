@@ -69,42 +69,131 @@ function detectVideoPlatform(url) {
 }
 
 // Extract transcript from YouTube video
+// Replace the extractYouTubeTranscript function in your /src/app/api/recipes/video-extract/route.js
+
 async function extractYouTubeTranscript(videoId) {
     console.log('📝 Extracting YouTube transcript for video:', videoId);
 
     try {
-        // Method 1: Try youtube-transcript library
+        // Import the library
         const { YoutubeTranscript } = await import('youtube-transcript');
 
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId, {
-            lang: 'en',
-            country: 'US'
-        });
+        console.log('🔍 Attempting transcript extraction...');
 
-        if (transcript && transcript.length > 0) {
-            console.log(`✅ Found transcript with ${transcript.length} segments`);
+        // Method 1: Try with default settings first
+        try {
+            console.log('📋 Trying default transcript extraction...');
+            const transcript = await YoutubeTranscript.fetchTranscript(videoId);
 
-            // Combine transcript segments with timestamps
-            const fullText = transcript.map(segment => ({
-                text: segment.text,
-                start: segment.offset / 1000, // Convert to seconds
-                duration: segment.duration / 1000
-            }));
+            if (transcript && transcript.length > 0) {
+                console.log(`✅ Success! Found ${transcript.length} transcript segments`);
 
-            return {
-                segments: fullText,
-                fullText: transcript.map(t => t.text).join(' '),
-                totalDuration: Math.max(...transcript.map(t => (t.offset + t.duration) / 1000))
-            };
+                // Transform the transcript data
+                const segments = transcript.map(segment => ({
+                    text: segment.text,
+                    start: segment.offset / 1000, // Convert to seconds
+                    duration: segment.duration / 1000
+                }));
+
+                const fullText = transcript.map(t => t.text).join(' ');
+                const totalDuration = Math.max(...transcript.map(t => (t.offset + t.duration) / 1000));
+
+                console.log('📊 Transcript stats:', {
+                    segments: segments.length,
+                    textLength: fullText.length,
+                    duration: Math.round(totalDuration / 60) + ' minutes'
+                });
+
+                return {
+                    segments: segments,
+                    fullText: fullText,
+                    totalDuration: totalDuration
+                };
+            }
+        } catch (defaultError) {
+            console.log('❌ Default method failed:', defaultError.message);
         }
 
-        throw new Error('No transcript found');
+        // Method 2: Try with explicit language settings
+        const languageOptions = [
+            { lang: 'en' },
+            { lang: 'en', country: 'US' },
+            { lang: 'en-US' },
+            { lang: 'en-GB' },
+            {} // Try with no language specified
+        ];
+
+        for (const options of languageOptions) {
+            try {
+                console.log('🔍 Trying with options:', options);
+                const transcript = await YoutubeTranscript.fetchTranscript(videoId, options);
+
+                if (transcript && transcript.length > 0) {
+                    console.log(`✅ Success with options ${JSON.stringify(options)}! Found ${transcript.length} segments`);
+
+                    const segments = transcript.map(segment => ({
+                        text: segment.text,
+                        start: segment.offset / 1000,
+                        duration: segment.duration / 1000
+                    }));
+
+                    return {
+                        segments: segments,
+                        fullText: transcript.map(t => t.text).join(' '),
+                        totalDuration: Math.max(...transcript.map(t => (t.offset + t.duration) / 1000))
+                    };
+                }
+            } catch (optionError) {
+                console.log(`❌ Failed with options ${JSON.stringify(options)}:`, optionError.message);
+                continue;
+            }
+        }
+
+        // Method 3: Try alternative approach with manual language detection
+        try {
+            console.log('🔍 Trying manual language detection...');
+
+            // Get available languages first
+            const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+
+            if (transcript && transcript.length > 0) {
+                console.log(`✅ Manual detection success! Found ${transcript.length} segments`);
+
+                const segments = transcript.map(segment => ({
+                    text: segment.text,
+                    start: segment.offset / 1000,
+                    duration: segment.duration / 1000
+                }));
+
+                return {
+                    segments: segments,
+                    fullText: transcript.map(t => t.text).join(' '),
+                    totalDuration: Math.max(...transcript.map(t => (t.offset + t.duration) / 1000))
+                };
+            }
+        } catch (manualError) {
+            console.log('❌ Manual detection failed:', manualError.message);
+        }
+
+        // If we get here, nothing worked
+        throw new Error('Unable to extract transcript. This could be due to: 1) Captions are disabled by the creator, 2) Video is private/restricted, 3) Regional restrictions, or 4) The video is too new and captions haven\'t been processed yet.');
 
     } catch (error) {
-        console.log('❌ YouTube transcript extraction failed:', error.message);
+        console.error('❌ YouTube transcript extraction failed:', error);
 
-        // Method 2: Fallback to manual extraction (if transcript library fails)
-        throw new Error(`YouTube transcript extraction failed: ${error.message}. The video may not have captions available.`);
+        // Provide specific error messages based on the error type
+        if (error.message.includes('Video unavailable')) {
+            throw new Error('Video is unavailable or private. Please try a different public video.');
+        } else if (error.message.includes('Transcript is disabled')) {
+            throw new Error('The video creator has disabled captions for this video. Please try a different video.');
+        } else if (error.message.includes('No transcript found')) {
+            throw new Error('No captions found. Try videos from major cooking channels like Bon Appétit, Tasty, or Joshua Weissman that typically have captions.');
+        } else if (error.message.includes('Could not retrieve transcript')) {
+            throw new Error('Unable to access video captions. The video may be region-locked or have restricted access.');
+        } else {
+            // For debugging, include the original error
+            throw new Error(`Transcript extraction failed: ${error.message}. Please try a different video with clear captions.`);
+        }
     }
 }
 
