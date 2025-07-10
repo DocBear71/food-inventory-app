@@ -50,7 +50,7 @@ const PrivacyPolicy = () => {
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>Do we collect any information from third parties?</strong> We may collect limited information from third-party recipe sources and nutritional databases when you use our recipe import features.
+                            <strong>Do we collect any information from third parties?</strong> We may collect limited information from third-party recipe sources, nutritional databases, and process public video content using AI services when you use our recipe import and video extraction features.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -77,12 +77,13 @@ const PrivacyPolicy = () => {
                         <div><a href="#infocollect" style={{ color: '#3030F1', textDecoration: 'none' }}>1. WHAT INFORMATION DO WE COLLECT?</a></div>
                         <div><a href="#infouse" style={{ color: '#3030F1', textDecoration: 'none' }}>2. HOW DO WE PROCESS YOUR INFORMATION?</a></div>
                         <div><a href="#whoshare" style={{ color: '#3030F1', textDecoration: 'none' }}>3. WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?</a></div>
-                        <div><a href="#cookies" style={{ color: '#3030F1', textDecoration: 'none' }}>4. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</a></div>
-                        <div><a href="#inforetain" style={{ color: '#3030F1', textDecoration: 'none' }}>5. HOW LONG DO WE KEEP YOUR INFORMATION?</a></div>
-                        <div><a href="#infosafe" style={{ color: '#3030F1', textDecoration: 'none' }}>6. HOW DO WE KEEP YOUR INFORMATION SAFE?</a></div>
-                        <div><a href="#infominors" style={{ color: '#3030F1', textDecoration: 'none' }}>7. DO WE COLLECT INFORMATION FROM MINORS?</a></div>
-                        <div><a href="#privacyrights" style={{ color: '#3030F1', textDecoration: 'none' }}>8. WHAT ARE YOUR PRIVACY RIGHTS?</a></div>
-                        <div><a href="#contact" style={{ color: '#3030F1', textDecoration: 'none' }}>9. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</a></div>
+                        <div><a href="#ai-processing" style={{ color: '#3030F1', textDecoration: 'none' }}>4. AI PROCESSING OF PUBLIC VIDEO CONTENT</a></div>
+                        <div><a href="#cookies" style={{ color: '#3030F1', textDecoration: 'none' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</a></div>
+                        <div><a href="#inforetain" style={{ color: '#3030F1', textDecoration: 'none' }}>6. HOW LONG DO WE KEEP YOUR INFORMATION?</a></div>
+                        <div><a href="#infosafe" style={{ color: '#3030F1', textDecoration: 'none' }}>7. HOW DO WE KEEP YOUR INFORMATION SAFE?</a></div>
+                        <div><a href="#infominors" style={{ color: '#3030F1', textDecoration: 'none' }}>8. DO WE COLLECT INFORMATION FROM MINORS?</a></div>
+                        <div><a href="#privacyrights" style={{ color: '#3030F1', textDecoration: 'none' }}>9. WHAT ARE YOUR PRIVACY RIGHTS?</a></div>
+                        <div><a href="#contact" style={{ color: '#3030F1', textDecoration: 'none' }}>10. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</a></div>
                     </div>
                 </div>
 
@@ -169,8 +170,42 @@ const PrivacyPolicy = () => {
                     </ul>
                 </div>
 
+                <div id="ai-processing" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>4. AI PROCESSING OF PUBLIC VIDEO CONTENT</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>When you provide public video URLs for recipe extraction, we may process this content using third-party AI services that use the data to improve their models.</em>
+                    </p>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Video Recipe Extraction:</strong> Our Services include a feature that allows you to extract recipes from public cooking videos (such as YouTube videos). When you use this feature:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>You provide us with URLs to publicly available cooking videos</li>
+                        <li>We process the video content (including transcripts and visual elements) using third-party AI services, including OpenAI</li>
+                        <li>The extracted recipe information becomes part of your personal recipe collection</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>AI Service Data Sharing:</strong> To provide enhanced recipe extraction capabilities and reduce service costs, we participate in OpenAI's content sharing program. This means:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Public video content we process may be used by OpenAI to improve their AI models</li>
+                        <li>Only publicly available video content is shared, never your personal recipes or private data</li>
+                        <li>This sharing enables us to offer video extraction as a free feature</li>
+                        <li>We only share content that is already publicly accessible on platforms like YouTube</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>What We Do NOT Share:</strong> We never share your personal information, custom recipes, food inventory data, or any content you create or input privately with AI services for training purposes.
+                    </p>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Your Rights:</strong> By using our video recipe extraction feature, you acknowledge and consent to this processing of public video content. If you prefer not to use this feature, you can always add recipes manually or use our text-based recipe parser.
+                    </p>
+                </div>
+
                 <div id="cookies" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>4. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We may use cookies and other tracking technologies to collect and store your information.</em>
                     </p>
@@ -189,7 +224,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="inforetain" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>5. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>6. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We keep your information for as long as necessary to fulfill the purposes outlined in this Privacy Notice unless otherwise required by law.</em>
                     </p>
@@ -204,7 +239,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infosafe" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>6. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>7. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We aim to protect your personal information through a system of organizational and technical security measures.</em>
                     </p>
@@ -215,7 +250,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infominors" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>7. DO WE COLLECT INFORMATION FROM MINORS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. DO WE COLLECT INFORMATION FROM MINORS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We welcome users 13 years of age and older. Users under 18 must have verifiable parental consent. We comply with COPPA and GDPR requirements for all users under 18.</em>
                     </p>
@@ -272,7 +307,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="privacyrights" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>You may review, change, or terminate your account at any time, depending on your country, province, or state of residence.</em>
                     </p>
@@ -309,7 +344,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="contact" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>10. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
                         If you have questions or comments about this notice, you may email us at <strong>privacy@docbearscomfort.kitchen</strong> or contact us by post at:
                     </p>

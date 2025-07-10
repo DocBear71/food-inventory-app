@@ -46,10 +46,10 @@ export default function VideoRecipeDetailView({ recipe }) {
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    🎥 Video Recipe
+                                    🎥 Video Recipe (Beta Feature)
                                 </h3>
                                 <p className="text-sm text-gray-600">
-                                    Extracted from {recipe.videoPlatform} •
+                                    Extracted from {recipe.videoPlatform} • Beta testing feature •
                                     {hasTimestamps && ` ${timestampedIngredients.length + timestampedInstructions.length} timestamped items`}
                                 </p>
                             </div>
@@ -245,7 +245,7 @@ export default function VideoRecipeDetailView({ recipe }) {
             {hasVideoSource && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                     <h4 className="text-lg font-semibold text-blue-900 mb-3">
-                        🌟 Video Recipe Benefits
+                        🌟 Video Recipe Benefits (Beta testing)
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2">

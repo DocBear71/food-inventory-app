@@ -710,7 +710,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         return (
             <div className="bg-white shadow rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    🎥 Import from Video
+                    🎥 Import from Video (Currently under testing, only)
                 </h2>
                 <p className="text-gray-600 mb-4">
                     Extract recipes directly from YouTube cooking videos using AI-powered transcript analysis.
@@ -865,7 +865,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
                         >
                             <div className="text-2xl mb-2">🎥</div>
-                            <h3 className="font-medium text-gray-900">Extract from Video</h3>
+                            <h3 className="font-medium text-gray-900">Extract from Video (currently testing, only)</h3>
                             <p className="text-sm text-gray-600 mt-1">
                                 Extract recipes from YouTube cooking videos
                             </p>
@@ -913,7 +913,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         onClick={() => setShowVideoImport(true)}
                                         className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
                                     >
-                                        🎥 Video Import
+                                        🎥 Video Import (Currently testing)
                                     </TouchEnhancedButton>
                                 </div>
                             )}

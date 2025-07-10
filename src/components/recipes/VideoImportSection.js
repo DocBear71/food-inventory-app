@@ -126,10 +126,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                        🎥 Extract Recipe from Video
+                        🎥 Extract Recipe from Video (Beta Testing)
                     </h3>
                     <p className="text-sm text-gray-600">
-                        Import recipes directly from cooking videos using AI-powered extraction
+                        Import recipes directly from cooking videos using AI-powered extraction (currently in testing phase)
                     </p>
                 </div>
             </div>

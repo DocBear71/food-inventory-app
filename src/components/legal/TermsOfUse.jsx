@@ -212,6 +212,8 @@ const TermsOfUse = () => {
                         <li>Upload or share recipes that you do not own the rights to or that infringe on others'
                             intellectual property;
                         </li>
+                        <li>Provide video URLs to content you do not have the right to process or that violates the terms of the video platform;
+                        </li>
                         <li>Use the Services to promote or sell food products or services without authorization;</li>
                         <li>Attempt to reverse engineer our recipe recommendation algorithms or nutritional
                             calculation methods;
