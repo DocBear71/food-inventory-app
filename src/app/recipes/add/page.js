@@ -1,6 +1,5 @@
 'use client';
-// file: /src/app/recipes/add/page.js v4
-
+// file: /src/app/recipes/add/page.js v6 - VIDEO IMPORT SUPPORT
 
 import { useRouter } from 'next/navigation';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
@@ -12,7 +11,7 @@ import { apiPost } from '@/lib/api-config';
 export default function AddRecipePage() {
     const router = useRouter();
 
-    // Handle recipe submission
+    // Handle recipe submission with video import support
     const handleRecipeSubmit = async (recipeData) => {
         console.log('Submitting recipe:', recipeData);
 
@@ -21,10 +20,6 @@ export default function AddRecipePage() {
             const apiData = {
                 title: recipeData.title,
                 description: recipeData.description,
-                ingredients: recipeData.ingredients.filter(ing => ing.name.trim()),
-                instructions: recipeData.instructions
-                    .filter(inst => inst.instruction && inst.instruction.trim())
-                    .map(inst => inst.instruction),
                 prepTime: recipeData.prepTime ? parseInt(recipeData.prepTime) : null,
                 cookTime: recipeData.cookTime ? parseInt(recipeData.cookTime) : null,
                 servings: recipeData.servings ? parseInt(recipeData.servings) : null,
@@ -32,7 +27,7 @@ export default function AddRecipePage() {
                 tags: recipeData.tags || [],
                 source: recipeData.source || '',
                 isPublic: recipeData.isPublic || false,
-                category: recipeData.category || 'entrees', // ADD THIS LINE
+                category: recipeData.category || 'entrees',
                 nutrition: recipeData.nutrition && Object.values(recipeData.nutrition).some(val => val) ? {
                     calories: {
                         value: parseFloat(recipeData.nutrition.calories) || 0,
@@ -59,16 +54,76 @@ export default function AddRecipePage() {
                         unit: 'g',
                         name: 'Fiber'
                     }
-                } : undefined
+                } : undefined,
+
+                // ADD VIDEO IMPORT METADATA SUPPORT (only if video data exists)
+                ...(recipeData.videoSource && {
+                    videoMetadata: {
+                        videoSource: recipeData.videoSource,
+                        videoPlatform: recipeData.videoPlatform,
+                        videoId: recipeData.videoId,
+                        videoTitle: recipeData.videoTitle,
+                        videoDuration: recipeData.videoDuration,
+                        extractionMethod: recipeData.extractionMethod,
+                        importedFrom: recipeData.importedFrom || `${recipeData.videoPlatform} video`,
+                        socialMediaOptimized: recipeData.socialMediaOptimized || false,
+                        transcriptLength: recipeData.transcriptLength,
+                        processingTime: recipeData.processingTime
+                    }
+                }),
+
+                // ENHANCED INSTRUCTIONS - SUPPORTS ALL METHODS (manual, parser, URL, video)
+                instructions: recipeData.instructions
+                    .filter(inst => {
+                        // Handle both string and object instructions
+                        const instructionText = typeof inst === 'string' ? inst : inst.instruction;
+                        return instructionText && instructionText.trim();
+                    })
+                    .map((inst, index) => {
+                        // Handle both string and object instructions
+                        if (typeof inst === 'string') {
+                            // Manual entry or text parser - keep as string
+                            return inst;
+                        } else {
+                            // Video import or advanced parsing - preserve metadata
+                            const result = {
+                                text: inst.instruction,
+                                step: index + 1
+                            };
+
+                            // Add video metadata only if it exists (video imports)
+                            if (inst.timestamp) {
+                                result.videoTimestamp = inst.timestamp;
+                                result.videoLink = inst.videoLink;
+                            }
+
+                            return result;
+                        }
+                    }),
+
+                // ENHANCED INGREDIENTS - SUPPORTS ALL METHODS (manual, parser, URL, video)
+                ingredients: recipeData.ingredients
+                    .filter(ing => ing.name.trim())
+                    .map(ing => {
+                        const ingredient = {
+                            name: ing.name,
+                            amount: ing.amount || '',
+                            unit: ing.unit || '',
+                            optional: ing.optional || false
+                        };
+
+                        // Add video metadata only if it exists (video imports)
+                        if (ing.timestamp) {
+                            ingredient.videoTimestamp = ing.timestamp;
+                            ingredient.videoLink = ing.videoLink;
+                        }
+
+                        return ingredient;
+                    })
             };
 
             console.log('Transformed API data:', apiData);
-            console.log('Original recipe data isPublic:', recipeData.isPublic);
-            console.log('API data isPublic:', apiData.isPublic);
-            console.log('Nutrition transformation:', {
-                original: recipeData.nutrition,
-                transformed: apiData.nutrition
-            });
+            console.log('Video metadata:', apiData.videoMetadata);
 
             const response = await apiPost('/api/recipes', apiData);
 
@@ -76,15 +131,30 @@ export default function AddRecipePage() {
 
             if (data.success) {
                 // Success! Navigate to the new recipe
+                console.log('✅ Recipe created successfully:', data.recipe._id);
+
+                // Show success message for video imports
+                if (recipeData.videoSource) {
+                    console.log(`🎥 Video recipe imported from ${recipeData.videoPlatform}!`);
+                }
+
                 router.push(`/recipes/${data.recipe._id}`);
             } else {
                 // Show error
+                console.error('Recipe creation failed:', data.error);
                 alert(data.error || 'Failed to create recipe');
                 throw new Error(data.error || 'Failed to create recipe');
             }
         } catch (error) {
             console.error('Error creating recipe:', error);
-            alert('Error creating recipe: ' + error.message);
+
+            // Enhanced error handling for video imports
+            if (recipeData.videoSource) {
+                alert(`Error saving video recipe: ${error.message}\n\nThe recipe was extracted successfully but couldn't be saved. Please try again.`);
+            } else {
+                alert('Error creating recipe: ' + error.message);
+            }
+
             throw error; // Re-throw so EnhancedRecipeForm can handle loading state
         }
     };
@@ -101,7 +171,7 @@ export default function AddRecipePage() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Add New Recipe</h1>
                         <p className="text-gray-600 mt-2">
-                            Create a new recipe manually, or paste recipe text to auto-extract details
+                            Create a new recipe manually, paste recipe text to auto-extract details, or import from TikTok/Instagram videos
                         </p>
                     </div>
                     <TouchEnhancedButton

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/VideoRecipeDetailView.js - Enhanced recipe detail view with video features
+// file: /src/components/recipes/VideoRecipeDetailView.js - Enhanced for social media
 
 import { useState } from 'react';
 
@@ -31,6 +31,39 @@ export default function VideoRecipeDetailView({ recipe }) {
         }
     };
 
+    const getVideoPlatformColor = (platform) => {
+        switch (platform?.toLowerCase()) {
+            case 'youtube':
+                return 'from-red-50 to-orange-50 border-red-200';
+            case 'tiktok':
+                return 'from-pink-50 to-purple-50 border-pink-200';
+            case 'instagram':
+                return 'from-purple-50 to-pink-50 border-purple-200';
+            default:
+                return 'from-gray-50 to-blue-50 border-gray-200';
+        }
+    };
+
+    const formatVideoDuration = (seconds) => {
+        if (!seconds) return '';
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    const getPlatformDisplayName = (platform) => {
+        switch (platform?.toLowerCase()) {
+            case 'youtube':
+                return 'YouTube';
+            case 'tiktok':
+                return 'TikTok';
+            case 'instagram':
+                return 'Instagram';
+            default:
+                return 'Video';
+        }
+    };
+
     const timestampedIngredients = recipe.ingredients?.filter(i => i.timestamp) || [];
     const timestampedInstructions = recipe.instructions?.filter(i => i.timestamp) || [];
 
@@ -38,28 +71,36 @@ export default function VideoRecipeDetailView({ recipe }) {
         <div className="space-y-6">
             {/* Video Source Header */}
             {hasVideoSource && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
-                    <div className="flex items-start justify-between">
+                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoPlatform)} border rounded-lg p-6`}>
+                    <div className="flex items-start justify-between flex-col sm:flex-row gap-4">
                         <div className="flex items-center">
-                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mr-4 shadow-sm">
                                 <span className="text-2xl">{getVideoPlatformIcon(recipe.videoPlatform)}</span>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    🎥 Video Recipe (Beta Feature)
+                                    🎥 {getPlatformDisplayName(recipe.videoPlatform)} Recipe (Beta)
                                 </h3>
-                                <p className="text-sm text-gray-600">
-                                    Extracted from {recipe.videoPlatform} • Beta testing feature •
-                                    {hasTimestamps && ` ${timestampedIngredients.length + timestampedInstructions.length} timestamped items`}
-                                </p>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <p>Extracted from {getPlatformDisplayName(recipe.videoPlatform)} • Beta testing feature</p>
+                                    {recipe.videoDuration && (
+                                        <p>Video duration: {formatVideoDuration(recipe.videoDuration)}</p>
+                                    )}
+                                    {hasTimestamps && (
+                                        <p>{timestampedIngredients.length + timestampedInstructions.length} timestamped items</p>
+                                    )}
+                                    {recipe.extractionMethod && (
+                                        <p className="text-xs text-gray-500">Method: {recipe.extractionMethod}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="flex space-x-3">
+                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                             <a
                                 href={recipe.videoSource}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center text-sm"
+                                className="bg-white text-purple-600 px-4 py-2 rounded-lg border border-purple-300 hover:bg-purple-50 transition-colors flex items-center justify-center text-sm"
                             >
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M8 5v10l7-5-7-5z"/>
@@ -69,7 +110,7 @@ export default function VideoRecipeDetailView({ recipe }) {
                             {hasTimestamps && (
                                 <button
                                     onClick={() => setShowAllTimestamps(!showAllTimestamps)}
-                                    className="bg-white text-purple-600 px-4 py-2 rounded-lg border border-purple-300 hover:bg-purple-50 transition-colors text-sm"
+                                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
                                 >
                                     {showAllTimestamps ? 'Hide' : 'Show'} All Timestamps
                                 </button>
@@ -92,7 +133,19 @@ export default function VideoRecipeDetailView({ recipe }) {
                                 <div className="text-2xl font-bold text-green-600">
                                     {getVideoPlatformIcon(recipe.videoPlatform)}
                                 </div>
-                                <div className="text-sm text-gray-600">Platform: {recipe.videoPlatform}</div>
+                                <div className="text-sm text-gray-600">Platform: {getPlatformDisplayName(recipe.videoPlatform)}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Social Media Optimization Notice */}
+                    {recipe.socialMediaOptimized && (
+                        <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-purple-500">
+                            <div className="flex items-center">
+                                <span className="text-purple-600 mr-2">⚡</span>
+                                <span className="text-sm text-gray-700">
+                                    This recipe was optimized for {getPlatformDisplayName(recipe.videoPlatform)} format
+                                </span>
                             </div>
                         </div>
                     )}
@@ -160,7 +213,9 @@ export default function VideoRecipeDetailView({ recipe }) {
                 </h3>
                 <div className="space-y-3">
                     {recipe.ingredients?.map((ingredient, index) => (
-                        <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                        <div key={index} className={`flex items-center justify-between py-2 px-3 rounded-lg ${
+                            ingredient.timestamp ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'
+                        }`}>
                             <div className="flex items-center">
                                 <span className="text-gray-900">
                                     {ingredient.amount && `${ingredient.amount} `}
@@ -176,7 +231,7 @@ export default function VideoRecipeDetailView({ recipe }) {
                                     href={ingredient.videoLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center text-purple-600 hover:text-purple-800 text-sm"
+                                    className="flex items-center text-purple-600 hover:text-purple-800 text-sm bg-white px-2 py-1 rounded border border-purple-300 hover:bg-purple-50 transition-colors"
                                     title={`Jump to ${formatTime(ingredient.timestamp)} in video`}
                                 >
                                     <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -203,8 +258,8 @@ export default function VideoRecipeDetailView({ recipe }) {
                 <div className="space-y-4">
                     {recipe.instructions?.map((instruction, index) => {
                         const instructionText = typeof instruction === 'string' ? instruction : instruction.instruction;
-                        const timestamp = instruction.timestamp;
-                        const videoLink = instruction.videoLink;
+                        const timestamp = typeof instruction === 'object' ? instruction.timestamp : null;
+                        const videoLink = typeof instruction === 'object' ? instruction.videoLink : null;
 
                         return (
                             <div key={index} className={`flex gap-4 p-4 rounded-lg ${
@@ -243,25 +298,25 @@ export default function VideoRecipeDetailView({ recipe }) {
 
             {/* Video Recipe Benefits */}
             {hasVideoSource && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-blue-900 mb-3">
-                        🌟 Video Recipe Benefits (Beta testing)
+                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoPlatform)} border rounded-lg p-6`}>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                        🌟 {getPlatformDisplayName(recipe.videoPlatform)} Recipe Benefits
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2">
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 Visual cooking techniques
                             </div>
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 Jump to specific steps
                             </div>
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
@@ -269,26 +324,45 @@ export default function VideoRecipeDetailView({ recipe }) {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 Learn proper timing
                             </div>
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
-                                Watch cooking progress
+                                {recipe.videoPlatform === 'tiktok' && 'Quick, trendy recipes'}
+                                {recipe.videoPlatform === 'instagram' && 'Beautiful, shareable content'}
+                                {recipe.videoPlatform === 'youtube' && 'Detailed cooking tutorials'}
+                                {!['tiktok', 'instagram', 'youtube'].includes(recipe.videoPlatform) && 'Interactive cooking experience'}
                             </div>
-                            <div className="flex items-center text-blue-800">
+                            <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
-                                Interactive cooking experience
+                                Follow along with creator
                             </div>
                         </div>
                     </div>
+
+                    {/* Platform-specific tips */}
+                    {recipe.videoPlatform === 'tiktok' && (
+                        <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-pink-500">
+                            <p className="text-sm text-gray-700">
+                                <span className="font-medium">TikTok Recipe Tip:</span> This recipe is optimized for quick cooking - perfect for busy weeknights!
+                            </p>
+                        </div>
+                    )}
+                    {recipe.videoPlatform === 'instagram' && (
+                        <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-purple-500">
+                            <p className="text-sm text-gray-700">
+                                <span className="font-medium">Instagram Recipe Tip:</span> This recipe focuses on beautiful presentation - great for sharing!
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

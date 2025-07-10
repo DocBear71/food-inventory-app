@@ -1619,7 +1619,12 @@ const RecipeSchema = new mongoose.Schema({
     title: {type: String, required: true},
     description: {type: String, default: ''}, // Updated with default
     ingredients: [RecipeIngredientSchema],
-    instructions: [String],
+    instructions: [{
+        text: String,
+        step: Number,
+        videoTimestamp: Number,
+        videoLink: String
+    }],
     cookTime: Number, // in minutes
     prepTime: Number, // in minutes
     servings: Number,
@@ -1687,6 +1692,20 @@ const RecipeSchema = new mongoose.Schema({
         saveCount: {type: Number, default: 0}, // Future: users can save recipes
         shareCount: {type: Number, default: 0},
         lastViewed: Date
+    },
+
+    // Add to your recipe schema
+    videoMetadata: {
+        videoSource: String,
+        videoPlatform: String,
+        videoId: String,
+        videoTitle: String,
+        videoDuration: Number,
+        extractionMethod: String,
+        importedFrom: String,
+        socialMediaOptimized: Boolean,
+        transcriptLength: Number,
+        processingTime: String
     },
 
     createdAt: {type: Date, default: Date.now},
