@@ -7,10 +7,17 @@ import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 
+
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
     const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
     const [showParser, setShowParser] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
+    const [showVideoImport, setShowVideoImport] = useState(false);
+    const [videoUrl, setVideoUrl] = useState('');
+    const [isVideoImporting, setIsVideoImporting] = useState(false);
+    const [videoImportError, setVideoImportError] = useState('');
+    const [videoInfo, setVideoInfo] = useState(null);
+    const [importSource, setImportSource] = useState(null);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -211,6 +218,101 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             setImportError('Network error. Please check your connection and try again.');
         } finally {
             setIsImporting(false);
+        }
+    };
+
+    // Video import handler
+    const handleVideoImport = async (url) => {
+        if (!url || !url.trim()) {
+            setVideoImportError('Please enter a valid video URL');
+            return;
+        }
+
+        // Basic video URL validation
+        const videoPatterns = [
+            /youtube\.com\/watch\?v=/,
+            /youtu\.be\//,
+            /tiktok\.com\/@[^/]+\/video\//,
+            /instagram\.com\/reel\//,
+            /instagram\.com\/p\//
+        ];
+
+        const isVideoUrl = videoPatterns.some(pattern => pattern.test(url));
+        if (!isVideoUrl) {
+            setVideoImportError('Please enter a valid YouTube, TikTok, or Instagram video URL');
+            return;
+        }
+
+        setIsVideoImporting(true);
+        setVideoImportError('');
+
+        try {
+            console.log('Importing recipe from video:', url);
+
+            const response = await apiPost('/api/recipes/video-extract', { url: url.trim() });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('Successfully imported video recipe:', data.recipe);
+
+                // Transform video recipe data to match your form structure
+                const videoRecipe = {
+                    title: data.recipe.title || '',
+                    description: data.recipe.description || '',
+                    ingredients: data.recipe.ingredients.map(ing => ({
+                        name: ing.name || '',
+                        amount: ing.amount || '',
+                        unit: ing.unit || '',
+                        optional: ing.optional || false,
+                        // Video-specific fields
+                        timestamp: ing.timestamp || null,
+                        videoLink: ing.videoLink || null
+                    })),
+                    instructions: data.recipe.instructions.map((inst, index) => ({
+                        step: index + 1,
+                        instruction: typeof inst === 'string' ? inst : inst.instruction || inst,
+                        // Video-specific fields
+                        timestamp: inst.timestamp || null,
+                        videoLink: inst.videoLink || null
+                    })),
+                    prepTime: data.recipe.prepTime || '',
+                    cookTime: data.recipe.cookTime || '',
+                    servings: data.recipe.servings || '',
+                    difficulty: data.recipe.difficulty || 'medium',
+                    tags: data.recipe.tags || [],
+                    source: data.recipe.source || url,
+                    isPublic: false, // Default to private
+                    category: data.recipe.category || 'entrees',
+                    nutrition: {
+                        calories: data.recipe.nutrition?.calories?.value || '',
+                        protein: data.recipe.nutrition?.protein?.value || '',
+                        carbs: data.recipe.nutrition?.carbs?.value || '',
+                        fat: data.recipe.nutrition?.fat?.value || '',
+                        fiber: data.recipe.nutrition?.fiber?.value || ''
+                    },
+                    // Video metadata
+                    videoSource: data.recipe.videoSource || null,
+                    videoPlatform: data.recipe.videoPlatform || null,
+                    videoId: data.recipe.videoId || null
+                };
+
+                setRecipe(videoRecipe);
+                setTagsString(videoRecipe.tags.join(', '));
+                setVideoInfo(data.videoInfo);
+                setImportSource('video');
+                setShowVideoImport(false);
+                setInputMethod('manual'); // Switch to manual editing
+                setVideoUrl(''); // Clear the URL input
+            } else {
+                console.error('Video import failed:', data.error);
+                setVideoImportError(data.error || 'Failed to extract recipe from video');
+            }
+        } catch (error) {
+            console.error('Video import error:', error);
+            setVideoImportError('Network error. Please check your connection and try again.');
+        } finally {
+            setIsVideoImporting(false);
         }
     };
 
@@ -460,7 +562,15 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
             const finalRecipe = {
                 ...recipe,
-                tags: finalTags
+                tags: finalTags,
+                // ADD VIDEO METADATA IF THIS WAS IMPORTED FROM VIDEO
+                ...(importSource === 'video' && videoInfo && {
+                    importedFrom: `${videoInfo.platform} video`,
+                    videoSource: videoInfo.originalUrl,
+                    videoPlatform: videoInfo.platform,
+                    videoId: videoInfo.videoId,
+                    extractionMethod: 'video-transcript'
+                })
             };
 
             await onSubmit(finalRecipe);
@@ -595,6 +705,113 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         );
     }
 
+    {/* Show video import component */}
+    if (showVideoImport) {
+        return (
+            <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    🎥 Import from Video
+                </h2>
+                <p className="text-gray-600 mb-4">
+                    Extract recipes directly from YouTube cooking videos using AI-powered transcript analysis.
+                </p>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Video URL
+                        </label>
+                        <input
+                            type="url"
+                            value={videoUrl}
+                            onChange={(e) => {
+                                setVideoUrl(e.target.value);
+                                setVideoImportError(''); // Clear error when user types
+                            }}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            style={{ minHeight: '48px' }}
+                            disabled={isVideoImporting}
+                        />
+                    </div>
+
+                    {videoImportError && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="text-sm text-red-800">
+                                <strong>Video Import Failed:</strong> {videoImportError}
+                                {videoImportError.includes('captions') && (
+                                    <div className="mt-2">
+                                        <p className="font-medium">Troubleshooting tips:</p>
+                                        <ul className="list-disc list-inside mt-1 text-xs">
+                                            <li>Try videos from popular cooking channels (they usually have good captions)</li>
+                                            <li>Look for videos with the "CC" (closed captions) button</li>
+                                            <li>YouTube auto-generates captions for most videos after upload</li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div className="text-sm text-purple-800">
+                            <strong>🎬 Supported Platforms:</strong> YouTube (with captions/subtitles).
+                            TikTok and Instagram support coming in Phase 2!
+                            <div className="mt-2 text-xs">
+                                <strong>Best Results:</strong> Use videos with clear speech and good captions from channels like
+                                Bon Appétit, Tasty, Joshua Weissman, or other professional cooking channels.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-between gap-3 pt-2">
+                        <TouchEnhancedButton
+                            onClick={() => {
+                                setShowVideoImport(false);
+                                setVideoUrl('');
+                                setVideoImportError('');
+                            }}
+                            className="px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] text-center"
+                            disabled={isVideoImporting}
+                        >
+                            Cancel
+                        </TouchEnhancedButton>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    setShowVideoImport(false);
+                                    setShowUrlImport(true);
+                                    setVideoUrl('');
+                                    setVideoImportError('');
+                                }}
+                                className="px-4 py-3 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 min-h-[48px] text-center"
+                                disabled={isVideoImporting}
+                            >
+                                🌐 Use URL Import Instead
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => handleVideoImport(videoUrl)}
+                                disabled={!videoUrl.trim() || isVideoImporting}
+                                className="px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 flex items-center justify-center gap-2 min-h-[48px]"
+                            >
+                                {isVideoImporting ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Extracting...
+                                    </>
+                                ) : (
+                                    <>
+                                        🎥 Extract Recipe
+                                    </>
+                                )}
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Input Method Selection */}
@@ -604,7 +821,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         How would you like to add this recipe?
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Changed from md:grid-cols-3 to md:grid-cols-4 */}
                         <TouchEnhancedButton
                             onClick={() => setInputMethod('manual')}
                             className={`p-4 border-2 rounded-lg text-left transition-colors min-h-[120px] ${
@@ -639,6 +856,18 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <h3 className="font-medium text-gray-900">Import from URL</h3>
                             <p className="text-sm text-gray-600 mt-1">
                                 Import from recipe websites automatically
+                            </p>
+                        </TouchEnhancedButton>
+
+                        {/* ADD THIS NEW VIDEO IMPORT OPTION */}
+                        <TouchEnhancedButton
+                            onClick={() => setShowVideoImport(true)}
+                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
+                        >
+                            <div className="text-2xl mb-2">🎥</div>
+                            <h3 className="font-medium text-gray-900">Extract from Video</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Extract recipes from YouTube cooking videos
                             </p>
                         </TouchEnhancedButton>
                     </div>
@@ -676,6 +905,15 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
                                     >
                                         🌐 URL Import
+                                    </TouchEnhancedButton>
+                                    <span className="text-gray-300 hidden sm:inline">|</span>
+                                    {/* ADD THIS VIDEO IMPORT BUTTON */}
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowVideoImport(true)}
+                                        className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
+                                    >
+                                        🎥 Video Import
                                     </TouchEnhancedButton>
                                 </div>
                             )}
@@ -1107,6 +1345,51 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </div>
                         </div>
                     </div>
+
+                    {/* Video Import Success Message - ADD THIS SECTION */}
+                    {importSource === 'video' && videoInfo && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-purple-900 mb-4">
+                                🎥 Video Recipe Successfully Imported!
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold text-purple-600">
+                                        {recipe.ingredients.filter(i => i.timestamp).length}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Ingredients with video timestamps</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                        {recipe.instructions.filter(i => i.timestamp).length}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Instructions with video links</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-lg font-bold text-green-600">
+                                        {videoInfo.platform?.toUpperCase()}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Platform</div>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center justify-between">
+                                <p className="text-sm text-purple-700">
+                                    Recipe extracted from video transcript. Review and edit as needed before saving.
+                                </p>
+                                <a
+                                    href={videoInfo.originalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                                >
+                                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M8 5v10l7-5-7-5z"/>
+                                    </svg>
+                                    Watch Original Video
+                                </a>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Submit Buttons - MOBILE RESPONSIVE */}
                     <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
