@@ -53,6 +53,111 @@ const VIDEO_PLATFORMS = {
     }
 };
 
+// Main API route handler
+export async function POST(request) {
+    try {
+        console.log('=== 🎥 VIDEO RECIPE EXTRACTION API START ===');
+
+        const session = await getEnhancedSession(request);
+
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { error: 'Unauthorized. Please log in to extract recipes from videos.' },
+                { status: 401 }
+            );
+        }
+
+        const { url } = await request.json();
+
+        if (!url) {
+            return NextResponse.json(
+                { error: 'Video URL is required' },
+                { status: 400 }
+            );
+        }
+
+        console.log('🎬 Processing video URL:', url);
+
+        // Step 1: Detect video platform and extract ID
+        const videoInfo = detectVideoPlatform(url);
+        console.log('📺 Video info:', {
+            platform: videoInfo.platform,
+            videoId: videoInfo.videoId,
+            originalUrl: videoInfo.originalUrl
+        });
+
+        console.log('🔍 About to extract transcript for video ID:', videoInfo.videoId);
+
+
+        // Step 2: Extract transcript based on platform
+        let transcriptData;
+
+        if (videoInfo.platform === 'youtube') {
+            transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
+            console.log('📋 Calling extractYouTubeTranscript...');
+            transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
+            console.log('📋 Transcript extraction result:', transcriptData ? 'SUCCESS' : 'FAILED');
+        } else {
+            transcriptData = await extractTranscriptFromOtherPlatforms(videoInfo.platform, videoInfo.videoId);
+        }
+
+        // Step 3: Parse recipe from transcript
+        const recipe = await parseRecipeFromTranscript(transcriptData, videoInfo);
+
+        console.log('✅ Video recipe extraction complete:', {
+            platform: videoInfo.platform,
+            title: recipe.title,
+            ingredients: recipe.ingredients.length,
+            instructions: recipe.instructions.length,
+            hasTimestamps: recipe.ingredients.some(i => i.timestamp)
+        });
+
+        return NextResponse.json({
+            success: true,
+            recipe,
+            videoInfo: {
+                platform: videoInfo.platform,
+                videoId: videoInfo.videoId,
+                originalUrl: videoInfo.originalUrl,
+                transcriptSegments: transcriptData.segments?.length || 0,
+                totalDuration: transcriptData.totalDuration
+            },
+            message: `Recipe successfully extracted from ${videoInfo.platform} video using transcript analysis`,
+            extractionMethod: 'transcript-based',
+            phase: 1
+        });
+
+    } catch (error) {
+        console.error('=== 🎥 VIDEO RECIPE EXTRACTION ERROR ===');
+        console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
+
+        // Return user-friendly error messages
+        let errorMessage = 'Failed to extract recipe from video';
+
+        if (error.message.includes('Unsupported video platform')) {
+            errorMessage = error.message;
+        } else if (error.message.includes('transcript')) {
+            errorMessage = 'Could not extract transcript from video. Please ensure the video has captions/subtitles available, or try a different video.';
+        } else if (error.message.includes('Unauthorized')) {
+            errorMessage = 'Please log in to extract recipes from videos.';
+        }
+
+        return NextResponse.json({
+            error: errorMessage,
+            details: error.message,
+            supportedPlatforms: 'YouTube (with captions), TikTok and Instagram (coming in Phase 2)',
+            extractionMethod: 'transcript-based',
+            phase: 1,
+            suggestions: [
+                'Ensure the video has captions or subtitles available',
+                'Try videos from popular cooking channels that typically have good captions',
+                'For best results, use YouTube videos with clear speech and good audio quality'
+            ]
+        }, { status: 400 });
+    }
+}
+
 // Detect video platform and extract video ID
 function detectVideoPlatform(url) {
     console.log('🎥 Detecting video platform for URL:', url);
@@ -516,99 +621,5 @@ function extractVideoMetadata(text, recipe) {
         recipe.difficulty = 'easy';
     } else if (lowerText.includes('advanced') || lowerText.includes('difficult') || lowerText.includes('complex')) {
         recipe.difficulty = 'hard';
-    }
-}
-
-// Main API route handler
-export async function POST(request) {
-    try {
-        console.log('=== 🎥 VIDEO RECIPE EXTRACTION API START ===');
-
-        const session = await getEnhancedSession(request);
-
-        if (!session?.user?.id) {
-            return NextResponse.json(
-                { error: 'Unauthorized. Please log in to extract recipes from videos.' },
-                { status: 401 }
-            );
-        }
-
-        const { url } = await request.json();
-
-        if (!url) {
-            return NextResponse.json(
-                { error: 'Video URL is required' },
-                { status: 400 }
-            );
-        }
-
-        console.log('🎬 Processing video URL:', url);
-
-        // Step 1: Detect video platform and extract ID
-        const videoInfo = detectVideoPlatform(url);
-
-        // Step 2: Extract transcript based on platform
-        let transcriptData;
-
-        if (videoInfo.platform === 'youtube') {
-            transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
-        } else {
-            transcriptData = await extractTranscriptFromOtherPlatforms(videoInfo.platform, videoInfo.videoId);
-        }
-
-        // Step 3: Parse recipe from transcript
-        const recipe = await parseRecipeFromTranscript(transcriptData, videoInfo);
-
-        console.log('✅ Video recipe extraction complete:', {
-            platform: videoInfo.platform,
-            title: recipe.title,
-            ingredients: recipe.ingredients.length,
-            instructions: recipe.instructions.length,
-            hasTimestamps: recipe.ingredients.some(i => i.timestamp)
-        });
-
-        return NextResponse.json({
-            success: true,
-            recipe,
-            videoInfo: {
-                platform: videoInfo.platform,
-                videoId: videoInfo.videoId,
-                originalUrl: videoInfo.originalUrl,
-                transcriptSegments: transcriptData.segments?.length || 0,
-                totalDuration: transcriptData.totalDuration
-            },
-            message: `Recipe successfully extracted from ${videoInfo.platform} video using transcript analysis`,
-            extractionMethod: 'transcript-based',
-            phase: 1
-        });
-
-    } catch (error) {
-        console.error('=== 🎥 VIDEO RECIPE EXTRACTION ERROR ===');
-        console.error('Error:', error.message);
-        console.error('Stack:', error.stack);
-
-        // Return user-friendly error messages
-        let errorMessage = 'Failed to extract recipe from video';
-
-        if (error.message.includes('Unsupported video platform')) {
-            errorMessage = error.message;
-        } else if (error.message.includes('transcript')) {
-            errorMessage = 'Could not extract transcript from video. Please ensure the video has captions/subtitles available, or try a different video.';
-        } else if (error.message.includes('Unauthorized')) {
-            errorMessage = 'Please log in to extract recipes from videos.';
-        }
-
-        return NextResponse.json({
-            error: errorMessage,
-            details: error.message,
-            supportedPlatforms: 'YouTube (with captions), TikTok and Instagram (coming in Phase 2)',
-            extractionMethod: 'transcript-based',
-            phase: 1,
-            suggestions: [
-                'Ensure the video has captions or subtitles available',
-                'Try videos from popular cooking channels that typically have good captions',
-                'For best results, use YouTube videos with clear speech and good audio quality'
-            ]
-        }, { status: 400 });
     }
 }
