@@ -9,6 +9,15 @@ import {
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
 
+let YoutubeTranscript;
+if (typeof window === 'undefined') {
+    // Server-side import
+    YoutubeTranscript = require('youtube-transcript').YoutubeTranscript;
+} else {
+    // This should never happen in API routes, but just in case
+    throw new Error('This API should only run on the server');
+}
+
 // Video platform detection patterns
 const VIDEO_PLATFORMS = {
     youtube: {
@@ -56,7 +65,7 @@ const VIDEO_PLATFORMS = {
 // Main API route handler
 export async function POST(request) {
     try {
-        console.log('=== 🎥 VIDEO RECIPE EXTRACTION API START ===');
+        console.log('=== 🎥 [SERVER] VIDEO RECIPE EXTRACTION API START ===');
 
         const session = await getEnhancedSession(request);
 
@@ -76,35 +85,29 @@ export async function POST(request) {
             );
         }
 
-        console.log('🎬 Processing video URL:', url);
+        console.log('🎬 [SERVER] Processing video URL:', url);
 
         // Step 1: Detect video platform and extract ID
         const videoInfo = detectVideoPlatform(url);
-        console.log('📺 Video info:', {
-            platform: videoInfo.platform,
-            videoId: videoInfo.videoId,
-            originalUrl: videoInfo.originalUrl
-        });
-
-        console.log('🔍 About to extract transcript for video ID:', videoInfo.videoId);
-
+        console.log('📺 [SERVER] Video detection result:', videoInfo);
 
         // Step 2: Extract transcript based on platform
         let transcriptData;
 
         if (videoInfo.platform === 'youtube') {
+            console.log('📋 [SERVER] Starting YouTube transcript extraction...');
             transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
-            console.log('📋 Calling extractYouTubeTranscript...');
-            transcriptData = await extractYouTubeTranscript(videoInfo.videoId);
-            console.log('📋 Transcript extraction result:', transcriptData ? 'SUCCESS' : 'FAILED');
+            console.log('📋 [SERVER] Transcript extraction completed successfully');
         } else {
             transcriptData = await extractTranscriptFromOtherPlatforms(videoInfo.platform, videoInfo.videoId);
         }
 
         // Step 3: Parse recipe from transcript
+        console.log('🧠 [SERVER] Starting recipe parsing...');
         const recipe = await parseRecipeFromTranscript(transcriptData, videoInfo);
+        console.log('🧠 [SERVER] Recipe parsing completed');
 
-        console.log('✅ Video recipe extraction complete:', {
+        console.log('✅ [SERVER] Video recipe extraction complete:', {
             platform: videoInfo.platform,
             title: recipe.title,
             ingredients: recipe.ingredients.length,
@@ -128,7 +131,7 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('=== 🎥 VIDEO RECIPE EXTRACTION ERROR ===');
+        console.error('=== 🎥 [SERVER] VIDEO RECIPE EXTRACTION ERROR ===');
         console.error('Error:', error.message);
         console.error('Stack:', error.stack);
 
@@ -137,8 +140,8 @@ export async function POST(request) {
 
         if (error.message.includes('Unsupported video platform')) {
             errorMessage = error.message;
-        } else if (error.message.includes('transcript')) {
-            errorMessage = 'Could not extract transcript from video. Please ensure the video has captions/subtitles available, or try a different video.';
+        } else if (error.message.includes('transcript') || error.message.includes('captions')) {
+            errorMessage = error.message;
         } else if (error.message.includes('Unauthorized')) {
             errorMessage = 'Please log in to extract recipes from videos.';
         }
@@ -160,12 +163,12 @@ export async function POST(request) {
 
 // Detect video platform and extract video ID
 function detectVideoPlatform(url) {
-    console.log('🎥 Detecting video platform for URL:', url);
+    console.log('🎥 [SERVER] Detecting video platform for URL:', url);
 
     for (const [platform, config] of Object.entries(VIDEO_PLATFORMS)) {
         const videoId = config.extractId(url);
         if (videoId) {
-            console.log(`✅ Detected ${platform} video: ${videoId}`);
+            console.log(`✅ [SERVER] Detected ${platform} video: ${videoId}`);
             return { platform, videoId, originalUrl: url };
         }
     }
@@ -173,141 +176,114 @@ function detectVideoPlatform(url) {
     throw new Error('Unsupported video platform. Currently supports YouTube, TikTok, and Instagram.');
 }
 
-// Extract transcript from YouTube video
-// Replace the extractYouTubeTranscript function in your /src/app/api/recipes/video-extract/route.js
-
+// Enhanced transcript extraction with better error handling
 async function extractYouTubeTranscript(videoId) {
-    console.log('📝 Extracting YouTube transcript for video:', videoId);
+    console.log('📝 [SERVER] Extracting YouTube transcript for video:', videoId);
 
     try {
-        // Import the library
-        const { YoutubeTranscript } = await import('youtube-transcript');
+        // FIXED: Use dynamic import that only works on server
+        console.log('📦 [SERVER] Importing youtube-transcript library...');
+        const YoutubeTranscriptModule = await import('youtube-transcript');
+        const YoutubeTranscript = YoutubeTranscriptModule.YoutubeTranscript;
 
-        console.log('🔍 Attempting transcript extraction...');
-
-        // Method 1: Try with default settings first
-        try {
-            console.log('📋 Trying default transcript extraction...');
-            const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-
-            if (transcript && transcript.length > 0) {
-                console.log(`✅ Success! Found ${transcript.length} transcript segments`);
-
-                // Transform the transcript data
-                const segments = transcript.map(segment => ({
-                    text: segment.text,
-                    start: segment.offset / 1000, // Convert to seconds
-                    duration: segment.duration / 1000
-                }));
-
-                const fullText = transcript.map(t => t.text).join(' ');
-                const totalDuration = Math.max(...transcript.map(t => (t.offset + t.duration) / 1000));
-
-                console.log('📊 Transcript stats:', {
-                    segments: segments.length,
-                    textLength: fullText.length,
-                    duration: Math.round(totalDuration / 60) + ' minutes'
-                });
-
-                return {
-                    segments: segments,
-                    fullText: fullText,
-                    totalDuration: totalDuration
-                };
-            }
-        } catch (defaultError) {
-            console.log('❌ Default method failed:', defaultError.message);
+        if (!YoutubeTranscript) {
+            throw new Error('Failed to load YoutubeTranscript from library');
         }
 
-        // Method 2: Try with explicit language settings
-        const languageOptions = [
-            { lang: 'en' },
-            { lang: 'en', country: 'US' },
-            { lang: 'en-US' },
-            { lang: 'en-GB' },
-            {} // Try with no language specified
+        console.log('✅ [SERVER] Library imported successfully');
+        console.log('🔍 [SERVER] Attempting transcript extraction for video ID:', videoId);
+
+        // Try multiple extraction methods
+        const extractionMethods = [
+            {
+                name: 'Default',
+                options: {}
+            },
+            {
+                name: 'English',
+                options: { lang: 'en' }
+            },
+            {
+                name: 'English-US',
+                options: { lang: 'en', country: 'US' }
+            },
+            {
+                name: 'Auto-generated',
+                options: { lang: 'en-US' }
+            }
         ];
 
-        for (const options of languageOptions) {
+        for (const method of extractionMethods) {
             try {
-                console.log('🔍 Trying with options:', options);
-                const transcript = await YoutubeTranscript.fetchTranscript(videoId, options);
+                console.log(`🔍 [SERVER] Trying ${method.name} method with options:`, method.options);
 
-                if (transcript && transcript.length > 0) {
-                    console.log(`✅ Success with options ${JSON.stringify(options)}! Found ${transcript.length} segments`);
+                const transcript = await YoutubeTranscript.fetchTranscript(videoId, method.options);
 
+                if (transcript && Array.isArray(transcript) && transcript.length > 0) {
+                    console.log(`✅ [SERVER] SUCCESS with ${method.name} method! Found ${transcript.length} segments`);
+
+                    // Process transcript data
                     const segments = transcript.map(segment => ({
-                        text: segment.text,
-                        start: segment.offset / 1000,
-                        duration: segment.duration / 1000
+                        text: segment.text || '',
+                        start: (segment.offset || 0) / 1000, // Convert to seconds
+                        duration: (segment.duration || 0) / 1000
                     }));
+
+                    const fullText = transcript.map(t => t.text || '').join(' ');
+                    const totalDuration = Math.max(...transcript.map(t => ((t.offset || 0) + (t.duration || 0)) / 1000));
+
+                    console.log('📊 [SERVER] Transcript processing complete:', {
+                        segments: segments.length,
+                        textLength: fullText.length,
+                        durationMinutes: Math.round(totalDuration / 60),
+                        firstSegment: segments[0]?.text?.substring(0, 50) + '...'
+                    });
 
                     return {
                         segments: segments,
-                        fullText: transcript.map(t => t.text).join(' '),
-                        totalDuration: Math.max(...transcript.map(t => (t.offset + t.duration) / 1000))
+                        fullText: fullText,
+                        totalDuration: totalDuration
                     };
                 }
-            } catch (optionError) {
-                console.log(`❌ Failed with options ${JSON.stringify(options)}:`, optionError.message);
+
+                console.log(`❌ [SERVER] ${method.name} method returned empty result`);
+
+            } catch (methodError) {
+                console.log(`❌ [SERVER] ${method.name} method failed:`, methodError.message);
                 continue;
             }
         }
 
-        // Method 3: Try alternative approach with manual language detection
-        try {
-            console.log('🔍 Trying manual language detection...');
-
-            // Get available languages first
-            const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
-
-            if (transcript && transcript.length > 0) {
-                console.log(`✅ Manual detection success! Found ${transcript.length} segments`);
-
-                const segments = transcript.map(segment => ({
-                    text: segment.text,
-                    start: segment.offset / 1000,
-                    duration: segment.duration / 1000
-                }));
-
-                return {
-                    segments: segments,
-                    fullText: transcript.map(t => t.text).join(' '),
-                    totalDuration: Math.max(...transcript.map(t => (t.offset + t.duration) / 1000))
-                };
-            }
-        } catch (manualError) {
-            console.log('❌ Manual detection failed:', manualError.message);
-        }
-
-        // If we get here, nothing worked
-        throw new Error('Unable to extract transcript. This could be due to: 1) Captions are disabled by the creator, 2) Video is private/restricted, 3) Regional restrictions, or 4) The video is too new and captions haven\'t been processed yet.');
+        // If we get here, all methods failed
+        throw new Error('All transcript extraction methods failed. The video may not have captions available.');
 
     } catch (error) {
-        console.error('❌ YouTube transcript extraction failed:', error);
+        console.error('❌ [SERVER] YouTube transcript extraction failed:', error);
 
-        // Provide specific error messages based on the error type
-        if (error.message.includes('Video unavailable')) {
-            throw new Error('Video is unavailable or private. Please try a different public video.');
-        } else if (error.message.includes('Transcript is disabled')) {
-            throw new Error('The video creator has disabled captions for this video. Please try a different video.');
-        } else if (error.message.includes('No transcript found')) {
-            throw new Error('No captions found. Try videos from major cooking channels like Bon Appétit, Tasty, or Joshua Weissman that typically have captions.');
-        } else if (error.message.includes('Could not retrieve transcript')) {
-            throw new Error('Unable to access video captions. The video may be region-locked or have restricted access.');
+        // Provide detailed error information
+        const errorMessage = error.message.toLowerCase();
+
+        if (errorMessage.includes('video unavailable') || errorMessage.includes('private')) {
+            throw new Error('Video is unavailable, private, or restricted. Please try a different public video.');
+        } else if (errorMessage.includes('transcript is disabled') || errorMessage.includes('no transcript')) {
+            throw new Error('Captions are disabled for this video. Try videos from major cooking channels like Bon Appétit, Tasty, or Joshua Weissman.');
+        } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+            throw new Error('Video not found. Please verify the URL is correct.');
+        } else if (errorMessage.includes('blocked') || errorMessage.includes('region')) {
+            throw new Error('Video is geo-blocked or region-restricted. Please try a different video.');
+        } else if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
+            throw new Error('Rate limit exceeded. Please wait a minute and try again.');
         } else {
-            // For debugging, include the original error
-            throw new Error(`Transcript extraction failed: ${error.message}. Please try a different video with clear captions.`);
+            // Include original error for debugging
+            throw new Error(`Could not extract transcript from video. Please ensure the video has captions/subtitles available, or try a different video. Debug info: ${error.message}`);
         }
     }
 }
 
 // Extract transcript from other platforms (placeholder for now)
 async function extractTranscriptFromOtherPlatforms(platform, videoId) {
-    console.log(`📝 Extracting transcript from ${platform}:`, videoId);
+    console.log(`📝 [SERVER] Extracting transcript from ${platform}:`, videoId);
 
-    // For now, return a helpful message
-    // In Phase 2, we'll implement actual extraction
     return {
         segments: [],
         fullText: `Video detected from ${platform}. Advanced extraction for ${platform} videos will be available in the next update. For now, please manually enter the recipe or try a YouTube video.`,
@@ -319,8 +295,8 @@ async function extractTranscriptFromOtherPlatforms(platform, videoId) {
 
 // Parse recipe from transcript using AI-enhanced logic
 async function parseRecipeFromTranscript(transcriptData, videoInfo) {
-    console.log('🧠 Parsing recipe from transcript...');
-    console.log('Transcript preview:', transcriptData.fullText.substring(0, 200) + '...');
+    console.log('🧠 [SERVER] Parsing recipe from transcript...');
+    console.log('📝 [SERVER] Transcript preview:', transcriptData.fullText.substring(0, 200) + '...');
 
     const recipe = {
         title: '',
@@ -392,7 +368,7 @@ async function parseRecipeFromTranscript(transcriptData, videoInfo) {
     if (recipe.title.toLowerCase().includes('quick')) recipe.tags.push('quick');
     if (recipe.title.toLowerCase().includes('easy')) recipe.tags.push('easy');
 
-    console.log('✅ Recipe parsing complete:', {
+    console.log('✅ [SERVER] Recipe parsing complete:', {
         title: recipe.title,
         ingredients: recipe.ingredients.length,
         instructions: recipe.instructions.length,
