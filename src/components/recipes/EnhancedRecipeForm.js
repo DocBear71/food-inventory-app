@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
-import VideoImportLoadingModal from "@/components/recipes/VideoImportLoadingModal";
+import VideoImportLoadingModal from "./VideoImportLoadingModal";
 
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
@@ -224,12 +224,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     // Video import handler
     const handleVideoImport = async (url) => {
+        console.log('🎥 handleVideoImport called with URL:', url);
+
         if (!url || !url.trim()) {
             setVideoImportError('Please enter a valid video URL');
             return;
         }
 
-        // Basic video URL validation
         const videoPatterns = [
             /youtube\.com\/watch\?v=/,
             /youtu\.be\//,
@@ -246,64 +247,91 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             return;
         }
 
-        // Detect platform for loading modal
-        let detectedPlatform = 'youtube';
-        if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
-            detectedPlatform = 'tiktok';
-        } else if (url.includes('instagram.com')) {
-            detectedPlatform = 'instagram';
-        }
-
+        // DEBUG: Log state changes
+        console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
         setVideoImportError('');
 
+        // DEBUG: Check if modal should be visible
+        console.log('🎭 Modal should be visible now. isVideoImporting:', true);
+
         try {
-            console.log('Importing recipe from video:', url);
+            console.log('📡 Starting API call to video-extract...');
 
             const response = await apiPost('/api/recipes/video-extract', { url: url.trim() });
-
             const data = await response.json();
 
-            if (data.success) {
-                console.log('Successfully imported video recipe:', data.recipe);
+            console.log('📥 Received response from video-extract:', data);
 
-                // The route.js now returns schema-compatible data, so we can use it directly
+            if (data.success) {
+                console.log('✅ Video extraction successful');
+                console.log('🔍 Raw recipe data from API:', data.recipe);
+
+                // DEBUG: Check for timestamps in raw data
+                console.log('🕒 Checking for timestamps in ingredients:');
+                data.recipe.ingredients?.forEach((ing, i) => {
+                    if (ing.videoTimestamp) {
+                        console.log(`  Ingredient ${i}: ${ing.name} has timestamp ${ing.videoTimestamp}`);
+                    }
+                });
+
+                console.log('🕒 Checking for timestamps in instructions:');
+                data.recipe.instructions?.forEach((inst, i) => {
+                    if (inst.videoTimestamp) {
+                        console.log(`  Instruction ${i}: has timestamp ${inst.videoTimestamp}`);
+                    }
+                });
+
                 const videoRecipe = {
                     title: data.recipe.title || '',
                     description: data.recipe.description || '',
 
-                    // FIXED: Properly handle ingredients with video timestamps
-                    ingredients: (data.recipe.ingredients || []).map(ing => ({
-                        name: ing.name || '',
-                        amount: ing.amount || '',
-                        unit: ing.unit || '',
-                        optional: ing.optional || false,
-                        // FIXED: Check for videoTimestamp from route.js transformation
-                        ...(ing.videoTimestamp && {
-                            videoTimestamp: ing.videoTimestamp,
-                            videoLink: ing.videoLink
-                        })
-                    })),
+                    ingredients: (data.recipe.ingredients || []).map((ing, index) => {
+                        const ingredient = {
+                            name: ing.name || '',
+                            amount: ing.amount || '',
+                            unit: ing.unit || '',
+                            optional: ing.optional || false
+                        };
 
-                    // FIXED: Properly handle instructions from route.js
-                    instructions: (data.recipe.instructions || []).map((inst, index) => {
-                        // Data from route.js should already be in correct format: {text, step, videoTimestamp, videoLink}
-                        if (typeof inst === 'object' && inst.text) {
-                            return {
-                                step: inst.step || index + 1,
-                                instruction: inst.text, // Keep as 'instruction' for form compatibility
-                                text: inst.text, // Also keep 'text' for schema compatibility
-                                ...(inst.videoTimestamp && {
-                                    videoTimestamp: inst.videoTimestamp,
-                                    videoLink: inst.videoLink
-                                })
-                            };
+                        // DEBUG: Check for video timestamps
+                        if (ing.videoTimestamp) {
+                            console.log(`✅ Adding timestamp to ingredient ${index}: ${ing.name} at ${ing.videoTimestamp}s`);
+                            ingredient.videoTimestamp = ing.videoTimestamp;
+                            ingredient.videoLink = ing.videoLink;
                         } else {
-                            return {
+                            console.log(`❌ No timestamp for ingredient ${index}: ${ing.name}`);
+                        }
+
+                        return ingredient;
+                    }),
+
+                    instructions: (data.recipe.instructions || []).map((inst, index) => {
+                        let instruction;
+
+                        if (typeof inst === 'object' && inst.text) {
+                            instruction = {
+                                step: inst.step || index + 1,
+                                instruction: inst.text,
+                                text: inst.text
+                            };
+
+                            // DEBUG: Check for video timestamps in instructions
+                            if (inst.videoTimestamp) {
+                                console.log(`✅ Adding timestamp to instruction ${index}: at ${inst.videoTimestamp}s`);
+                                instruction.videoTimestamp = inst.videoTimestamp;
+                                instruction.videoLink = inst.videoLink;
+                            } else {
+                                console.log(`❌ No timestamp for instruction ${index}`);
+                            }
+                        } else {
+                            instruction = {
                                 step: index + 1,
                                 instruction: typeof inst === 'string' ? inst : inst.instruction || inst
                             };
                         }
+
+                        return instruction;
                     }),
 
                     prepTime: data.recipe.prepTime || '',
@@ -312,10 +340,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     difficulty: data.recipe.difficulty || 'medium',
                     tags: data.recipe.tags || [],
                     source: data.recipe.source || url,
-                    isPublic: false, // Default to private
+                    isPublic: false,
                     category: data.recipe.category || 'entrees',
 
-                    // Nutrition data
                     nutrition: data.recipe.nutrition || {
                         calories: '',
                         protein: '',
@@ -324,7 +351,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         fiber: ''
                     },
 
-                    // Video metadata is already properly nested by route.js
                     videoMetadata: data.recipe.videoMetadata || {
                         videoSource: data.videoInfo?.originalUrl || null,
                         videoPlatform: data.videoInfo?.platform || null,
@@ -333,13 +359,16 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         socialMediaOptimized: data.extractionInfo?.socialMediaOptimized || false
                     },
 
-                    // Form-specific metadata (not saved to DB)
                     _formMetadata: {
                         importedFrom: `${data.videoInfo?.platform || 'video'} video`,
                         extractionInfo: data.extractionInfo,
                         hasTimestamps: data.extractionInfo?.hasTimestamps || false
                     }
                 };
+
+                console.log('🎯 Final videoRecipe object:', videoRecipe);
+                console.log('🕒 Ingredients with timestamps:', videoRecipe.ingredients.filter(i => i.videoTimestamp));
+                console.log('🕒 Instructions with timestamps:', videoRecipe.instructions.filter(i => i.videoTimestamp));
 
                 setRecipe(videoRecipe);
                 setTagsString(videoRecipe.tags.join(', '));
@@ -350,16 +379,17 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 });
                 setImportSource('video');
                 setShowVideoImport(false);
-                setInputMethod('manual'); // Switch to manual editing
-                setVideoUrl(''); // Clear the URL input
+                setInputMethod('manual');
+                setVideoUrl('');
             } else {
-                console.error('Video import failed:', data.error);
+                console.error('❌ Video import failed:', data.error);
                 setVideoImportError(data.error || 'Failed to extract recipe from video');
             }
         } catch (error) {
-            console.error('Video import error:', error);
+            console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
+            console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
         }
     };

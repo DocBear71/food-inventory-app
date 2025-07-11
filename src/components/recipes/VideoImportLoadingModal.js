@@ -8,6 +8,12 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
     const [loadingStep, setLoadingStep] = useState(0);
     const [dots, setDots] = useState('');
 
+    // DEBUG: Add console logs
+    useEffect(() => {
+        console.log('🎭 VideoImportLoadingModal - isVisible changed to:', isVisible);
+        console.log('🎭 VideoImportLoadingModal - platform:', platform);
+    }, [isVisible, platform]);
+
     const steps = [
         { text: 'Analyzing video...', duration: 3000 },
         { text: 'Extracting audio...', duration: 4000 },
@@ -75,7 +81,13 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
         };
     }, [isVisible]);
 
-    if (!isVisible) return null;
+    // DEBUG: Early return with logging
+    if (!isVisible) {
+        console.log('🎭 VideoImportLoadingModal - not visible, returning null');
+        return null;
+    }
+
+    console.log('🎭 VideoImportLoadingModal - rendering modal');
 
     const currentStep = steps[loadingStep] || steps[0];
     const progress = ((loadingStep + 1) / steps.length) * 100;
@@ -85,7 +97,10 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
             <div className={`${info.bgColor} rounded-2xl shadow-2xl max-w-md w-full p-8 relative`}>
                 {/* Cancel button */}
                 <button
-                    onClick={onCancel}
+                    onClick={() => {
+                        console.log('🚫 Modal cancel button clicked');
+                        onCancel();
+                    }}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,6 +185,15 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
                         <strong>💡 Tip:</strong> Better results with clear audio and step-by-step cooking instructions.
                     </p>
                 </div>
+
+                {/* DEBUG INFO */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="mt-4 bg-red-100 p-2 rounded text-xs">
+                        <strong>Debug:</strong> Modal is rendering!<br/>
+                        Platform: {platform}<br/>
+                        Step: {loadingStep}/{steps.length}
+                    </div>
+                )}
             </div>
         </div>
     );
