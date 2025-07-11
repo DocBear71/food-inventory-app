@@ -1,93 +1,176 @@
 // file: /src/app/api/recipes/[id]/analyze-nutrition/route.js
-// Automatic nutrition analysis for recipes
+// Dedicated endpoint for AI nutrition analysis
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
-import { Recipe } from '@/lib/models';
+import { Recipe, User } from '@/lib/models';
 import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
 
+// POST - Analyze nutrition for a specific recipe
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
+
         if (!session?.user?.id) {
+            console.log('POST /api/recipes/[id]/analyze-nutrition - No session found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log('POST /api/recipes/[id]/analyze-nutrition - Session found:', session.user.email);
+
         const { id: recipeId } = params;
+        const body = await request.json();
+        const { forceAnalysis = false, includeDetails = false } = body;
+
+        if (!recipeId) {
+            return NextResponse.json(
+                { error: 'Recipe ID is required' },
+                { status: 400 }
+            );
+        }
 
         await connectDB();
 
-        // Get the recipe
-        const recipe = await Recipe.findById(recipeId);
+        // Find recipe and verify ownership
+        const recipe = await Recipe.findOne({
+            _id: recipeId,
+            createdBy: session.user.id
+        });
+
         if (!recipe) {
-            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+            return NextResponse.json(
+                { error: 'Recipe not found or you do not have permission to analyze it' },
+                { status: 404 }
+            );
         }
 
-        // Check if user owns the recipe or is admin
-        if (recipe.createdBy.toString() !== session.user.id && !session.user.isAdmin) {
-            return NextResponse.json({ error: 'Not authorized to analyze this recipe' }, { status: 403 });
+        // Check if user has subscription for AI nutrition
+        const user = await User.findById(session.user.id);
+        const userTier = user?.getEffectiveTier() || 'free';
+
+        if (userTier === 'free') {
+            return NextResponse.json({
+                error: 'AI nutrition analysis requires Gold+ subscription',
+                code: 'FEATURE_NOT_AVAILABLE',
+                feature: 'ai_nutrition',
+                currentTier: userTier,
+                requiredTier: 'gold',
+                upgradeUrl: '/pricing?source=ai-nutrition&feature=ai_nutrition&required=gold'
+            }, { status: 403 });
         }
 
-        // Check if recipe has ingredients
+        // Check if AI nutrition analysis is enabled
+        if (!process.env.OPENAI_API_KEY || process.env.ENABLE_AI_NUTRITION !== 'true') {
+            return NextResponse.json({
+                error: 'AI nutrition analysis is currently unavailable',
+                code: 'SERVICE_UNAVAILABLE'
+            }, { status: 503 });
+        }
+
+        // Validate recipe has ingredients
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
             return NextResponse.json({
-                error: 'Recipe must have ingredients to analyze nutrition'
+                error: 'Recipe must have ingredients to analyze nutrition',
+                code: 'MISSING_INGREDIENTS'
             }, { status: 400 });
         }
 
-        console.log(`🤖 Starting AI nutrition analysis for recipe: ${recipe.title}`);
+        console.log(`🤖 Starting forced AI nutrition analysis for recipe: ${recipe.title}`);
+        console.log(`📊 Recipe has ${recipe.ingredients.length} ingredients`);
 
-        // Perform AI nutrition analysis
-        const aiService = new AIRecipeNutritionService();
-        const analysisResult = await aiService.analyzeRecipeNutrition(recipe);
+        const startTime = Date.now();
 
-        if (!analysisResult.success) {
+        try {
+            const aiService = new AIRecipeNutritionService();
+            const analysisResult = await aiService.analyzeRecipeNutrition(recipe);
+
+            const processingTime = Date.now() - startTime;
+
+            if (analysisResult.success) {
+                // Update recipe with new nutrition data
+                const updateData = {
+                    nutrition: analysisResult.nutrition,
+                    nutritionCalculatedAt: new Date(),
+                    nutritionCoverage: analysisResult.metadata.coverage,
+                    nutritionManuallySet: false, // Mark as AI-generated
+                    'aiAnalysis.nutritionGenerated': true,
+                    'aiAnalysis.nutritionMetadata': {
+                        ...analysisResult.metadata,
+                        processingTime,
+                        forcedAnalysis: true,
+                        analyzedAt: new Date()
+                    },
+                    updatedAt: new Date()
+                };
+
+                await Recipe.findByIdAndUpdate(recipeId, updateData);
+
+                console.log(`✅ AI nutrition analysis completed in ${processingTime}ms`);
+                console.log(`📊 Coverage: ${Math.round(analysisResult.metadata.coverage * 100)}%`);
+                console.log(`💰 Cost: $${analysisResult.metadata.aiAnalysis?.cost?.toFixed(4) || '0.0000'}`);
+
+                return NextResponse.json({
+                    success: true,
+                    message: 'Nutrition analysis completed successfully',
+                    nutrition: analysisResult.nutrition,
+                    analysisResult: {
+                        ...analysisResult.metadata,
+                        processingTime,
+                        forcedAnalysis: true
+                    },
+                    // Include detailed breakdown if requested
+                    ...(includeDetails && {
+                        details: {
+                            ingredientBreakdown: analysisResult.ingredientBreakdown,
+                            dataSourcesUsed: analysisResult.dataSourcesUsed,
+                            cookingAdjustments: analysisResult.cookingAdjustments
+                        }
+                    })
+                });
+
+            } else {
+                console.log(`❌ AI nutrition analysis failed: ${analysisResult.error}`);
+
+                return NextResponse.json({
+                    success: false,
+                    error: analysisResult.error || 'AI analysis failed',
+                    code: 'ANALYSIS_FAILED',
+                    processingTime
+                }, { status: 500 });
+            }
+
+        } catch (analysisError) {
+            const processingTime = Date.now() - startTime;
+            console.error('❌ AI nutrition analysis error:', analysisError);
+
             return NextResponse.json({
-                error: 'Nutrition analysis failed',
-                details: analysisResult.error
+                success: false,
+                error: 'AI analysis encountered an error',
+                code: 'ANALYSIS_ERROR',
+                details: analysisError.message,
+                processingTime
             }, { status: 500 });
         }
 
-        // Update the recipe with nutrition data
-        const updatedRecipe = await Recipe.findByIdAndUpdate(
-            recipeId,
-            {
-                nutrition: analysisResult.nutrition,
-                nutritionCalculatedAt: new Date(),
-                nutritionCoverage: analysisResult.metadata.coverage,
-                nutritionManuallySet: false,
-                'aiAnalysis.nutritionGenerated': true,
-                'aiAnalysis.nutritionMetadata': analysisResult.metadata
-            },
-            { new: true }
-        );
-
-        console.log(`✅ Nutrition analysis completed for recipe: ${recipe.title}`);
-        console.log(`📊 Coverage: ${Math.round(analysisResult.metadata.coverage * 100)}%`);
-        console.log(`💰 Cost: $${analysisResult.metadata.aiAnalysis.cost.toFixed(4)}`);
-
-        return NextResponse.json({
-            success: true,
-            nutrition: analysisResult.nutrition,
-            metadata: analysisResult.metadata,
-            message: 'Nutrition analysis completed successfully'
-        });
-
     } catch (error) {
-        console.error('Error in nutrition analysis API:', error);
-        return NextResponse.json({
-            error: 'Internal server error',
-            details: error.message
-        }, { status: 500 });
+        console.error('POST /api/recipes/[id]/analyze-nutrition error:', error);
+        return NextResponse.json(
+            {
+                error: 'Failed to analyze nutrition',
+                code: 'SERVER_ERROR',
+                details: error.message
+            },
+            { status: 500 }
+        );
     }
 }
 
-// GET route to check if nutrition analysis is needed
+// GET - Get current nutrition analysis status/metadata
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getEnhancedSession(request);
+
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -96,27 +179,39 @@ export async function GET(request, { params }) {
 
         await connectDB();
 
-        const recipe = await Recipe.findById(recipeId).select('nutrition nutritionCalculatedAt ingredients');
-        if (!recipe) {
-            return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
-        }
+        const recipe = await Recipe.findOne({
+            _id: recipeId,
+            createdBy: session.user.id
+        }, {
+            nutrition: 1,
+            nutritionCalculatedAt: 1,
+            nutritionCoverage: 1,
+            nutritionManuallySet: 1,
+            'aiAnalysis.nutritionMetadata': 1
+        });
 
-        const needsAnalysis = !recipe.nutrition ||
-            !recipe.nutritionCalculatedAt ||
-            recipe.ingredients.length === 0;
+        if (!recipe) {
+            return NextResponse.json(
+                { error: 'Recipe not found' },
+                { status: 404 }
+            );
+        }
 
         return NextResponse.json({
             success: true,
-            needsAnalysis,
-            hasNutrition: !!recipe.nutrition,
-            lastCalculated: recipe.nutritionCalculatedAt,
-            ingredientCount: recipe.ingredients.length
+            hasNutrition: !!(recipe.nutrition && Object.keys(recipe.nutrition).length > 0),
+            nutritionCalculatedAt: recipe.nutritionCalculatedAt,
+            nutritionCoverage: recipe.nutritionCoverage,
+            isManuallySet: recipe.nutritionManuallySet,
+            aiMetadata: recipe.aiAnalysis?.nutritionMetadata,
+            canAnalyze: !!(recipe.ingredients && recipe.ingredients.length > 0)
         });
 
     } catch (error) {
-        console.error('Error checking nutrition status:', error);
-        return NextResponse.json({
-            error: 'Internal server error'
-        }, { status: 500 });
+        console.error('GET /api/recipes/[id]/analyze-nutrition error:', error);
+        return NextResponse.json(
+            { error: 'Failed to get nutrition status' },
+            { status: 500 }
+        );
     }
 }

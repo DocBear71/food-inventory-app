@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/edit/page.js v5 - MOBILE RESPONSIVE LAYOUT
+// file: /src/app/recipes/[id]/edit/page.js v6 - Added UpdateNutritionButton and moved buttons
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect, useRef } from 'react';
@@ -7,7 +7,8 @@ import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
+import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
+import { apiGet, apiPut } from '@/lib/api-config';
 
 export default function EditRecipePage() {
     let session = null;
@@ -26,6 +27,7 @@ export default function EditRecipePage() {
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [recipe, setRecipe] = useState(null); // Store full recipe for nutrition button
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -46,7 +48,7 @@ export default function EditRecipePage() {
         { value: 'breakfast', label: 'Breakfast' }
     ];
 
-    // Update formData state to include category:
+    // Update formData state to include category and nutrition:
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -59,7 +61,8 @@ export default function EditRecipePage() {
         tags: '',
         source: '',
         isPublic: false,
-        category: 'entrees'
+        category: 'entrees',
+        nutrition: {}
     });
 
     // Auto-expanding textarea hook
@@ -114,11 +117,12 @@ export default function EditRecipePage() {
             const data = await response.json();
 
             if (data.success) {
-                const recipe = data.recipe;
+                const recipeData = data.recipe;
+                setRecipe(recipeData); // Store full recipe for nutrition button
 
                 // FIXED: Handle both string and object instruction formats
-                const processedInstructions = recipe.instructions && recipe.instructions.length > 0
-                    ? recipe.instructions.map(instruction => {
+                const processedInstructions = recipeData.instructions && recipeData.instructions.length > 0
+                    ? recipeData.instructions.map(instruction => {
                         // If it's a string, return as-is
                         if (typeof instruction === 'string') {
                             return instruction;
@@ -133,10 +137,10 @@ export default function EditRecipePage() {
                     : [''];
 
                 setFormData({
-                    title: recipe.title || '',
-                    description: recipe.description || '',
-                    ingredients: recipe.ingredients && recipe.ingredients.length > 0
-                        ? recipe.ingredients.map(ing => ({
+                    title: recipeData.title || '',
+                    description: recipeData.description || '',
+                    ingredients: recipeData.ingredients && recipeData.ingredients.length > 0
+                        ? recipeData.ingredients.map(ing => ({
                             name: ing.name || '',
                             amount: ing.amount || '',
                             unit: ing.unit || '',
@@ -145,14 +149,15 @@ export default function EditRecipePage() {
                         }))
                         : [{ name: '', amount: '', unit: '', optional: false }],
                     instructions: processedInstructions,
-                    prepTime: recipe.prepTime ? recipe.prepTime.toString() : '',
-                    cookTime: recipe.cookTime ? recipe.cookTime.toString() : '',
-                    servings: recipe.servings ? recipe.servings.toString() : '',
-                    difficulty: recipe.difficulty || 'medium',
-                    tags: recipe.tags ? recipe.tags.join(', ') : '',
-                    source: recipe.source || '',
-                    isPublic: recipe.isPublic || false,
-                    category: recipe.category || 'entrees'
+                    prepTime: recipeData.prepTime ? recipeData.prepTime.toString() : '',
+                    cookTime: recipeData.cookTime ? recipeData.cookTime.toString() : '',
+                    servings: recipeData.servings ? recipeData.servings.toString() : '',
+                    difficulty: recipeData.difficulty || 'medium',
+                    tags: recipeData.tags ? recipeData.tags.join(', ') : '',
+                    source: recipeData.source || '',
+                    isPublic: recipeData.isPublic || false,
+                    category: recipeData.category || 'entrees',
+                    nutrition: recipeData.nutrition || {}
                 });
             } else {
                 setError(data.error || 'Failed to load recipe');
@@ -213,6 +218,25 @@ export default function EditRecipePage() {
                 i === index ? value : instruction
             )
         }));
+    };
+
+    // Handle nutrition update from AI analysis
+    const handleNutritionUpdate = (nutrition, analysisResult) => {
+        setFormData(prev => ({
+            ...prev,
+            nutrition: nutrition || {}
+        }));
+
+        // Update the recipe object for the nutrition button
+        setRecipe(prev => ({
+            ...prev,
+            nutrition: nutrition,
+            nutritionCalculatedAt: new Date(),
+            nutritionCoverage: analysisResult.coverage
+        }));
+
+        // Show success message
+        alert(`Nutrition updated successfully! Coverage: ${Math.round((analysisResult.coverage || 0) * 100)}%`);
     };
 
     const handleSubmit = async (e) => {
@@ -472,16 +496,7 @@ export default function EditRecipePage() {
 
                     {/* Ingredients - MOBILE RESPONSIVE */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                            <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={addIngredient}
-                                className="bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
-                            >
-                                Add Ingredient
-                            </TouchEnhancedButton>
-                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Ingredients</h2>
 
                         <div className="space-y-4">
                             {formData.ingredients.map((ingredient, index) => (
@@ -560,20 +575,22 @@ export default function EditRecipePage() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Add Ingredient Button - Moved to bottom */}
+                        <div className="mt-6">
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={addIngredient}
+                                className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
+                            >
+                                Add Ingredient
+                            </TouchEnhancedButton>
+                        </div>
                     </div>
 
                     {/* Instructions - MOBILE RESPONSIVE */}
                     <div className="bg-white rounded-lg border p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                            <h2 className="text-xl font-semibold text-gray-900">Instructions</h2>
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={addInstruction}
-                                className="bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
-                            >
-                                Add Step
-                            </TouchEnhancedButton>
-                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Instructions</h2>
 
                         <div className="space-y-4">
                             {formData.instructions.map((instruction, index) => (
@@ -606,6 +623,62 @@ export default function EditRecipePage() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Add Step Button - Moved to bottom */}
+                        <div className="mt-6">
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={addInstruction}
+                                className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
+                            >
+                                Add Step
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+
+                    {/* AI Nutrition Analysis */}
+                    <div className="bg-white rounded-lg border p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Nutrition Information</h2>
+
+                        {/* Current nutrition display if available */}
+                        {formData.nutrition && Object.keys(formData.nutrition).length > 0 && (
+                            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <h3 className="text-sm font-medium text-gray-700 mb-3">Current Nutrition (per serving):</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                                    {formData.nutrition.calories && (
+                                        <div>
+                                            <span className="font-medium">Calories:</span> {Math.round(formData.nutrition.calories.value)}
+                                        </div>
+                                    )}
+                                    {formData.nutrition.protein && (
+                                        <div>
+                                            <span className="font-medium">Protein:</span> {Math.round(formData.nutrition.protein.value)}g
+                                        </div>
+                                    )}
+                                    {formData.nutrition.carbs && (
+                                        <div>
+                                            <span className="font-medium">Carbs:</span> {Math.round(formData.nutrition.carbs.value)}g
+                                        </div>
+                                    )}
+                                    {formData.nutrition.fat && (
+                                        <div>
+                                            <span className="font-medium">Fat:</span> {Math.round(formData.nutrition.fat.value)}g
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Update Nutrition Button */}
+                        <UpdateNutritionButton
+                            recipe={{
+                                ...recipe,
+                                ingredients: formData.ingredients, // Use current form ingredients
+                                servings: parseInt(formData.servings) || recipe?.servings || 4
+                            }}
+                            onNutritionUpdate={handleNutritionUpdate}
+                            disabled={!formData.ingredients.some(ing => ing.name && ing.name.trim())}
+                        />
                     </div>
 
                     {/* Submit Buttons - MOBILE RESPONSIVE */}
