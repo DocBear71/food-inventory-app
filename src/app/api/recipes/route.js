@@ -312,8 +312,18 @@ export async function POST(request) {
 
         // NEW: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
         let nutritionAnalysis = null;
-        if (skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+        console.log('🔍 AI Analysis Check:', {
+            skipAIAnalysis,
+            hasNutrition: !!nutrition,
+            ingredientCount: processedIngredients.length,
+            shouldRun: !skipAIAnalysis && !nutrition && processedIngredients.length > 0
+        });
+
+        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+            console.log('🤖 About to start AI nutrition analysis...');
             nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
+            console.log('🤖 AI analysis result:', nutritionAnalysis);
+        }
 
             // If AI analysis succeeded, update the recipe with nutrition data
             if (nutritionAnalysis?.success) {
@@ -332,7 +342,7 @@ export async function POST(request) {
                 recipe.nutritionCalculatedAt = new Date();
                 recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
             }
-        }
+
 
         // Update user's usage tracking
         if (!user.usageTracking) {

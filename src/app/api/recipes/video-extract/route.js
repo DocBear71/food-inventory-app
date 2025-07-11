@@ -143,6 +143,47 @@ function transformModalDataToSchema(modalData, videoInfo) {
     return transformedRecipe;
 }
 
+const handleFacebookVideo = async (videoUrl) => {
+    try {
+        console.log('📱 Processing Facebook video with text extraction...');
+
+        const response = await fetch(modalEndpoint, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${modalToken}` },
+            body: JSON.stringify({
+                video_url: videoUrl,
+                platform: 'facebook',
+                extraction_method: 'text_only'  // Signal to use text extraction
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            return {
+                success: true,
+                recipe: data.recipe,
+                extractionInfo: {
+                    method: 'facebook_text_extraction',
+                    note: 'Extracted from Facebook video text content - no video download required'
+                }
+            };
+        } else {
+            return {
+                success: false,
+                error: data.error || 'Facebook text extraction failed',
+                suggestion: 'Copy any recipe text from the video and use Text Paste instead'
+            };
+        }
+
+    } catch (error) {
+        return {
+            success: false,
+            error: 'Facebook processing failed - video may be private or contain no recipe text',
+            fallback: 'text_paste'
+        };
+    }
+};
 
 // Call Modal for video processing (ALL PLATFORMS) - NO AUTH REQUIRED
 async function callModalForVideoExtraction(videoInfo) {

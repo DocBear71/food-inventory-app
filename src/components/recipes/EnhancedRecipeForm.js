@@ -859,7 +859,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     )}
 
                     {/* UPDATED: Info box */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                         <div className="flex items-start">
                             <div className="text-blue-600 mr-3 mt-0.5">
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -868,13 +868,16 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </div>
                             <div>
                                 <div className="text-sm text-blue-800 mb-2">
-                                    <strong>🤖 AI-Powered Extraction:</strong> Works with TikTok, Instagram, and Facebook videos.
+                                    <strong>🤖 Smart Extraction Methods:</strong>
                                 </div>
                                 <div className="text-xs text-blue-700 space-y-1">
-                                    <div>• <strong>TikTok:</strong> Quick cooking videos and viral recipes</div>
-                                    <div>• <strong>Instagram:</strong> Recipe reels and cooking posts</div>
-                                    <div>• <strong>Facebook:</strong> Community recipes and cooking videos</div>
-                                    <div>• <strong>📺 YouTube:</strong> Use Text Paste with video transcripts for best results</div>
+                                    <div>• <strong>🎵 TikTok:</strong> Full audio + video analysis</div>
+                                    <div>• <strong>📸 Instagram:</strong> Audio analysis + text extraction</div>
+                                    <div>• <strong>👥 Facebook:</strong> Text extraction from captions/descriptions</div>
+                                    <div>• <strong>📺 YouTube:</strong> Use Text Paste with transcripts</div>
+                                </div>
+                                <div className="mt-2 text-xs text-blue-600">
+                                    <strong>Note:</strong> Facebook videos use text extraction rather than video download for better reliability.
                                 </div>
                             </div>
                         </div>
