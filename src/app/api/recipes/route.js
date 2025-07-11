@@ -312,7 +312,7 @@ export async function POST(request) {
 
         // NEW: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
         let nutritionAnalysis = null;
-        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+        if (skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
             nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
 
             // If AI analysis succeeded, update the recipe with nutrition data
