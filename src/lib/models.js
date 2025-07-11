@@ -2,10 +2,7 @@
 
 import mongoose from 'mongoose';
 import { checkFeatureAccess, checkUsageLimit } from './subscription-config';
-const crypto = require('crypto');
-
-// Enhanced Nutrition Schema - Add this to your models.js file
-// Replace your existing NutritionSchema with this comprehensive version
+import crypto from 'crypto';
 
 const NutritionSchema = new mongoose.Schema({
     // === MACRONUTRIENTS ===
@@ -2411,8 +2408,6 @@ UserSchema.methods.canRequestEmailVerification = function() {
 
 // Generate email verification token and set expiration
 UserSchema.methods.generateEmailVerificationToken = function() {
-    const crypto = require('crypto');
-
     // Generate a secure random token
     const token = crypto.randomBytes(32).toString('hex');
 
