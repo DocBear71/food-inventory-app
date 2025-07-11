@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/video-extract/route.js v6 - CALLS MODAL
+// file: /src/app/api/recipes/video-extract/route.js v9 - MODAL FOR ALL PLATFORMS
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -63,9 +63,83 @@ function detectVideoPlatform(url) {
     throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, and YouTube.');
 }
 
-// Call Modal for video processing
+// Transform Modal response to match MongoDB schema
+function transformModalDataToSchema(modalData, videoInfo) {
+    console.log('🔄 [VERCEL] Transforming Modal data to schema format...');
+
+    const recipe = modalData.recipe;
+    const metadata = modalData.metadata;
+
+    // Transform instructions: Modal format -> Schema format
+    const transformedInstructions = (recipe.instructions || []).map(instruction => ({
+        text: instruction.instruction || instruction.text || instruction, // Handle string fallback
+        step: instruction.step || 1,
+        videoTimestamp: instruction.timestamp || null, // Modal uses 'timestamp', schema uses 'videoTimestamp'
+        videoLink: instruction.videoLink || null
+    }));
+
+    // Transform ingredients: Add videoTimestamp if present
+    const transformedIngredients = (recipe.ingredients || []).map(ingredient => ({
+        name: ingredient.name || '',
+        amount: ingredient.amount || '',
+        unit: ingredient.unit || '',
+        optional: ingredient.optional || false,
+        // Add video fields if present
+        ...(ingredient.timestamp && {
+            videoTimestamp: ingredient.timestamp,
+            videoLink: ingredient.videoLink
+        })
+    }));
+
+    // Create properly structured recipe for MongoDB
+    const transformedRecipe = {
+        title: recipe.title || '',
+        description: recipe.description || '',
+        ingredients: transformedIngredients,
+        instructions: transformedInstructions,
+        prepTime: recipe.prepTime || null,
+        cookTime: recipe.cookTime || null,
+        servings: recipe.servings || null,
+        difficulty: recipe.difficulty || 'medium',
+        tags: recipe.tags || [],
+        source: recipe.videoSource || videoInfo.originalUrl,
+        category: recipe.category || 'entrees',
+
+        // Nutrition data (if present)
+        nutrition: recipe.nutrition || {
+            calories: null,
+            protein: null,
+            carbs: null,
+            fat: null,
+            fiber: null
+        },
+
+        // Video metadata - properly nested according to schema
+        videoMetadata: {
+            videoSource: recipe.videoSource || videoInfo.originalUrl,
+            videoPlatform: recipe.videoPlatform || videoInfo.platform,
+            videoId: videoInfo.videoId || null,
+            videoTitle: recipe.videoTitle || metadata?.originalTitle || null,
+            videoDuration: recipe.videoDuration || metadata?.videoDuration || null,
+            extractionMethod: recipe.extractionMethod || metadata?.processingMethod || 'modal-ai',
+            importedFrom: `${videoInfo.platform} video via Modal AI`,
+            socialMediaOptimized: recipe.socialMediaOptimized || false,
+            transcriptLength: recipe.transcriptLength || metadata?.transcriptLength || null,
+            processingTime: recipe.processingTime || metadata?.processingMethod || null
+        },
+
+        // Default values for required schema fields
+        isPublic: false,
+        importedFrom: `${videoInfo.platform} video`
+    };
+
+    console.log('✅ [VERCEL] Schema transformation complete');
+    return transformedRecipe;
+}
+
+// Call Modal for video processing (ALL PLATFORMS)
 async function callModalForVideoExtraction(videoInfo) {
-    console.log('🚀 [VERCEL] Calling Modal for video extraction:', videoInfo.platform);
+    console.log(`🚀 [VERCEL] Calling Modal for ${videoInfo.platform} video extraction...`);
 
     try {
         const modalResponse = await fetch(process.env.MODAL_ENDPOINT_URL, {
@@ -79,8 +153,8 @@ async function callModalForVideoExtraction(videoInfo) {
             },
             body: JSON.stringify({
                 video_url: videoInfo.originalUrl,
-                openai_api_key: process.env.OPENAI_API_KEY,
                 platform: videoInfo.platform
+                // OpenAI API key now handled by Modal secrets for ALL platforms
             })
         });
 
@@ -95,62 +169,29 @@ async function callModalForVideoExtraction(videoInfo) {
             throw new Error(result.error || 'Modal processing failed');
         }
 
-        console.log('✅ [VERCEL] Modal processing successful');
+        console.log(`✅ [VERCEL] Modal ${videoInfo.platform} processing successful`);
+
+        // Transform Modal data to match our MongoDB schema
+        const transformedRecipe = transformModalDataToSchema(result, videoInfo);
 
         return {
-            recipe: result.recipe,
+            recipe: transformedRecipe,
             metadata: result.metadata,
             extractionMethod: `${videoInfo.platform}-modal-ai`,
-            cost: 0.05 // Estimate
+            cost: result.metadata?.cost || 0.05,
+            originalModalData: result // Keep for debugging
         };
 
     } catch (error) {
-        console.error('❌ [VERCEL] Modal processing failed:', error);
+        console.error(`❌ [VERCEL] Modal ${videoInfo.platform} processing failed:`, error);
         throw error;
     }
 }
 
-// Fallback: YouTube caption extraction (if Modal fails)
-async function fallbackYouTubeCaption(videoInfo) {
-    console.log('📝 [VERCEL] Trying YouTube caption fallback:', videoInfo.videoId);
-
-    try {
-        const transcriptModule = await import('youtube-transcript');
-        const YoutubeTranscript = transcriptModule.YoutubeTranscript;
-
-        const transcript = await YoutubeTranscript.fetchTranscript(videoInfo.videoId);
-
-        if (transcript && transcript.length > 0) {
-            const fullText = transcript.map(t => t.text || '').join(' ');
-
-            // Basic recipe parsing (you could enhance this)
-            return {
-                recipe: {
-                    title: `Recipe from YouTube Video`,
-                    description: `Extracted from video captions`,
-                    ingredients: [{ name: 'See video for ingredients', amount: '', unit: '', optional: false }],
-                    instructions: ['Follow along with the video for detailed instructions.'],
-                    videoSource: videoInfo.originalUrl,
-                    videoPlatform: videoInfo.platform,
-                    extractionMethod: 'youtube-captions-basic'
-                },
-                extractionMethod: 'youtube-captions-fallback',
-                cost: 0
-            };
-        }
-
-        throw new Error('No captions available');
-
-    } catch (error) {
-        console.log('❌ [VERCEL] YouTube caption fallback failed:', error.message);
-        throw error;
-    }
-}
-
-// MAIN API ENDPOINT
+// MAIN API ENDPOINT - SIMPLIFIED (Modal only)
 export async function POST(request) {
     try {
-        console.log('=== 🎬 [VERCEL] SOCIAL MEDIA VIDEO RECIPE EXTRACTION START ===');
+        console.log('=== 🎬 [VERCEL] UNIFIED VIDEO RECIPE EXTRACTION START ===');
 
         const session = await getEnhancedSession(request);
 
@@ -174,37 +215,23 @@ export async function POST(request) {
 
         // Detect video platform
         const videoInfo = detectVideoPlatform(url);
-        console.log('📺 [VERCEL] Video info:', videoInfo);
+        console.log(`📺 [VERCEL] Video info: ${videoInfo.platform} - ${videoInfo.videoId}`);
 
-        let result;
-
-        try {
-            // Try Modal first (works for TikTok, Instagram, YouTube)
-            result = await callModalForVideoExtraction(videoInfo);
-        } catch (modalError) {
-            console.log('⚠️ [VERCEL] Modal failed, trying fallback:', modalError.message);
-
-            // Fallback for YouTube only
-            if (videoInfo.platform === 'youtube') {
-                try {
-                    result = await fallbackYouTubeCaption(videoInfo);
-                } catch (fallbackError) {
-                    throw new Error(`Both Modal and caption fallback failed. Modal: ${modalError.message}. Fallback: ${fallbackError.message}`);
-                }
-            } else {
-                throw modalError; // No fallback for TikTok/Instagram
-            }
-        }
+        // Use Modal for ALL platforms (TikTok, Instagram, YouTube)
+        const result = await callModalForVideoExtraction(videoInfo);
 
         console.log('✅ [VERCEL] Extraction complete:', {
             platform: videoInfo.platform,
             method: result.extractionMethod,
-            cost: result.cost
+            cost: result.cost,
+            hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp),
+            title: result.recipe.title
         });
 
+        // Return schema-compatible data
         return NextResponse.json({
             success: true,
-            recipe: result.recipe,
+            recipe: result.recipe, // Already transformed to match schema
             videoInfo: {
                 platform: videoInfo.platform,
                 videoId: videoInfo.videoId,
@@ -214,21 +241,40 @@ export async function POST(request) {
                 method: result.extractionMethod,
                 platform: videoInfo.platform,
                 cost: { total_usd: result.cost },
-                betaTesting: true,
-                socialMediaOptimized: true
+                socialMediaOptimized: result.recipe.videoMetadata?.socialMediaOptimized || false,
+                metadata: result.metadata || null,
+                hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp) ||
+                    result.recipe.ingredients.some(i => i.videoTimestamp),
+                instructionCount: result.recipe.instructions.length,
+                ingredientCount: result.recipe.ingredients.length,
+                videoDuration: result.recipe.videoMetadata?.videoDuration,
+                transcriptLength: result.recipe.videoMetadata?.transcriptLength
             },
-            message: `Recipe extracted from ${videoInfo.platform} using AI processing`
+            message: `Recipe extracted from ${videoInfo.platform} using Modal AI processing`
         });
 
     } catch (error) {
         console.error('=== 🎬 [VERCEL] VIDEO EXTRACTION ERROR ===');
         console.error('Error:', error.message);
 
+        // Enhanced error messages per platform
+        let enhancedErrorMessage = error.message;
+
+        if (error.message.includes('Unsupported video platform')) {
+            enhancedErrorMessage = 'Please enter a valid TikTok, Instagram, or YouTube video URL.';
+        } else if (error.message.includes('Modal API error')) {
+            enhancedErrorMessage = 'Video processing service is temporarily unavailable. Please try again in a few minutes.';
+        }
+
         return NextResponse.json({
-            error: error.message,
-            betaTesting: true,
+            error: enhancedErrorMessage,
             supportedPlatforms: ['TikTok', 'Instagram', 'YouTube'],
-            note: 'Beta testing - social media video extraction'
+            note: 'All video processing now powered by Modal AI - no more caption dependency for YouTube!',
+            troubleshooting: {
+                tiktok: 'Use share links directly from TikTok app',
+                instagram: 'Make sure Reels are public',
+                youtube: 'Any YouTube video works - no captions required!'
+            }
         }, { status: 400 });
     }
 }

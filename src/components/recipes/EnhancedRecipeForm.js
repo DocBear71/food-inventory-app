@@ -233,6 +233,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             /youtube\.com\/watch\?v=/,
             /youtu\.be\//,
             /tiktok\.com\/@[^/]+\/video\//,
+            /tiktok\.com\/t\//,
+            /vm\.tiktok\.com\//,
             /instagram\.com\/reel\//,
             /instagram\.com\/p\//
         ];
@@ -256,26 +258,38 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             if (data.success) {
                 console.log('Successfully imported video recipe:', data.recipe);
 
-                // Transform video recipe data to match your form structure
+                // The route.js now returns schema-compatible data, so we can use it directly
                 const videoRecipe = {
                     title: data.recipe.title || '',
                     description: data.recipe.description || '',
-                    ingredients: data.recipe.ingredients.map(ing => ({
+
+                    // Ingredients are already properly formatted by route.js
+                    ingredients: (data.recipe.ingredients || []).map(ing => ({
                         name: ing.name || '',
                         amount: ing.amount || '',
                         unit: ing.unit || '',
                         optional: ing.optional || false,
-                        // Video-specific fields
-                        timestamp: ing.timestamp || null,
-                        videoLink: ing.videoLink || null
+                        // Video timestamp fields (if present)
+                        ...(ing.videoTimestamp && {
+                            videoTimestamp: ing.videoTimestamp,
+                            videoLink: ing.videoLink
+                        })
                     })),
-                    instructions: data.recipe.instructions.map((inst, index) => ({
-                        step: index + 1,
-                        instruction: typeof inst === 'string' ? inst : inst.instruction || inst,
-                        // Video-specific fields
-                        timestamp: inst.timestamp || null,
-                        videoLink: inst.videoLink || null
-                    })),
+
+                    // Instructions are already properly formatted by route.js
+                    instructions: (data.recipe.instructions || []).map((inst, index) => {
+                        // Data from route.js should already be in correct format: {text, step, videoTimestamp, videoLink}
+                        return {
+                            step: inst.step || index + 1,
+                            instruction: inst.text || inst.instruction || inst, // Handle any remaining format variations
+                            // Keep video metadata for display (not saved to DB in instructions)
+                            ...(inst.videoTimestamp && {
+                                videoTimestamp: inst.videoTimestamp,
+                                videoLink: inst.videoLink
+                            })
+                        };
+                    }),
+
                     prepTime: data.recipe.prepTime || '',
                     cookTime: data.recipe.cookTime || '',
                     servings: data.recipe.servings || '',
@@ -284,22 +298,40 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     source: data.recipe.source || url,
                     isPublic: false, // Default to private
                     category: data.recipe.category || 'entrees',
-                    nutrition: {
-                        calories: data.recipe.nutrition?.calories?.value || '',
-                        protein: data.recipe.nutrition?.protein?.value || '',
-                        carbs: data.recipe.nutrition?.carbs?.value || '',
-                        fat: data.recipe.nutrition?.fat?.value || '',
-                        fiber: data.recipe.nutrition?.fiber?.value || ''
+
+                    // Nutrition data
+                    nutrition: data.recipe.nutrition || {
+                        calories: '',
+                        protein: '',
+                        carbs: '',
+                        fat: '',
+                        fiber: ''
                     },
-                    // Video metadata
-                    videoSource: data.recipe.videoSource || null,
-                    videoPlatform: data.recipe.videoPlatform || null,
-                    videoId: data.recipe.videoId || null
+
+                    // Video metadata is already properly nested by route.js
+                    videoMetadata: data.recipe.videoMetadata || {
+                        videoSource: data.videoInfo?.originalUrl || null,
+                        videoPlatform: data.videoInfo?.platform || null,
+                        videoId: data.videoInfo?.videoId || null,
+                        extractionMethod: data.extractionInfo?.method || null,
+                        socialMediaOptimized: data.extractionInfo?.socialMediaOptimized || false
+                    },
+
+                    // Form-specific metadata (not saved to DB)
+                    _formMetadata: {
+                        importedFrom: `${data.videoInfo?.platform || 'video'} video`,
+                        extractionInfo: data.extractionInfo,
+                        hasTimestamps: data.extractionInfo?.hasTimestamps || false
+                    }
                 };
 
                 setRecipe(videoRecipe);
                 setTagsString(videoRecipe.tags.join(', '));
-                setVideoInfo(data.videoInfo);
+                setVideoInfo({
+                    ...data.videoInfo,
+                    extractionInfo: data.extractionInfo,
+                    metadata: data.extractionInfo?.metadata
+                });
                 setImportSource('video');
                 setShowVideoImport(false);
                 setInputMethod('manual'); // Switch to manual editing
@@ -560,18 +592,31 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
+            // Create final recipe object that matches MongoDB schema
             const finalRecipe = {
                 ...recipe,
                 tags: finalTags,
-                // ADD VIDEO METADATA IF THIS WAS IMPORTED FROM VIDEO
-                ...(importSource === 'video' && videoInfo && {
-                    importedFrom: `${videoInfo.platform} video`,
-                    videoSource: videoInfo.originalUrl,
-                    videoPlatform: videoInfo.platform,
-                    videoId: videoInfo.videoId,
-                    extractionMethod: 'video-transcript'
-                })
+
+                // Handle video metadata properly
+                ...(recipe.videoMetadata && {
+                    videoMetadata: recipe.videoMetadata
+                }),
+
+                // Add import source info
+                ...(importSource === 'video' && {
+                    importedFrom: recipe._formMetadata?.importedFrom || 'video import'
+                }),
+
+                // Remove form-specific metadata before saving
+                _formMetadata: undefined
             };
+
+            // Clean up any undefined values
+            Object.keys(finalRecipe).forEach(key => {
+                if (finalRecipe[key] === undefined) {
+                    delete finalRecipe[key];
+                }
+            });
 
             await onSubmit(finalRecipe);
         } catch (error) {
@@ -710,10 +755,10 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         return (
             <div className="bg-white shadow rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    🎥 Import from Video (Currently under testing, only)
+                    🎥 Extract Recipe from Video (AI-Powered)
                 </h2>
                 <p className="text-gray-600 mb-4">
-                    Extract recipes directly from YouTube cooking videos using AI-powered transcript analysis.
+                    Extract recipes from TikTok, Instagram, and YouTube using advanced AI audio analysis. No captions required!
                 </p>
 
                 <div className="space-y-4">
@@ -728,7 +773,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 setVideoUrl(e.target.value);
                                 setVideoImportError(''); // Clear error when user types
                             }}
-                            placeholder="https://youtube.com/watch?v=..."
+                            placeholder="https://youtube.com/watch?v=... or TikTok/Instagram URL"
                             className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                             style={{ minHeight: '48px' }}
                             disabled={isVideoImporting}
@@ -739,27 +784,15 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                             <div className="text-sm text-red-800">
                                 <strong>Video Import Failed:</strong> {videoImportError}
-                                {videoImportError.includes('captions') && (
-                                    <div className="mt-2">
-                                        <p className="font-medium">Troubleshooting tips:</p>
-                                        <ul className="list-disc list-inside mt-1 text-xs">
-                                            <li>Try videos from popular cooking channels (they usually have good captions)</li>
-                                            <li>Look for videos with the "CC" (closed captions) button</li>
-                                            <li>YouTube auto-generates captions for most videos after upload</li>
-                                        </ul>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}
 
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                         <div className="text-sm text-purple-800">
-                            <strong>🎬 Supported Platforms:</strong> YouTube (with captions/subtitles).
-                            TikTok and Instagram support coming in Phase 2!
+                            <strong>🤖 AI-Powered Extraction:</strong> Works with TikTok, Instagram Reels, and ANY YouTube video.
                             <div className="mt-2 text-xs">
-                                <strong>Best Results:</strong> Use videos with clear speech and good captions from channels like
-                                Bon Appétit, Tasty, Joshua Weissman, or other professional cooking channels.
+                                <strong>✨ New:</strong> YouTube videos no longer need captions - our AI analyzes audio directly for better results!
                             </div>
                         </div>
                     </div>
@@ -797,11 +830,11 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 {isVideoImporting ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                        Extracting...
+                                        AI Extracting...
                                     </>
                                 ) : (
                                     <>
-                                        🎥 Extract Recipe
+                                        🤖 Extract Recipe
                                     </>
                                 )}
                             </TouchEnhancedButton>
@@ -865,9 +898,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
                         >
                             <div className="text-2xl mb-2">🎥</div>
-                            <h3 className="font-medium text-gray-900">Extract from Video (currently testing, only)</h3>
+                            <h3 className="font-medium text-gray-900">AI Video Extract</h3>
                             <p className="text-sm text-gray-600 mt-1">
-                                Extract recipes from YouTube cooking videos
+                                Extract from TikTok, Instagram, YouTube using AI
                             </p>
                         </TouchEnhancedButton>
                     </div>
@@ -913,7 +946,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         onClick={() => setShowVideoImport(true)}
                                         className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
                                     >
-                                        🎥 Video Import (Currently testing)
+                                        🤖 AI Video Extract
                                     </TouchEnhancedButton>
                                 </div>
                             )}

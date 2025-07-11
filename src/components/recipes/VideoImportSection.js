@@ -156,10 +156,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                        🎥 Extract Recipe from Video (Beta - Social Media Optimized!)
+                        🎥 Extract Recipe from Video (AI-Powered)
                     </h3>
                     <p className="text-sm text-gray-600">
-                        Import recipes from TikTok, Instagram Reels, and YouTube using AI-powered extraction
+                        Extract recipes from TikTok, Instagram, and YouTube using advanced AI audio analysis
                     </p>
                 </div>
             </div>
@@ -184,7 +184,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                             placeholder="Paste TikTok, Instagram, or YouTube video URL here..."
                             className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-sm"
                             disabled={disabled || extracting}
-                            style={{ fontSize: '16px' }} // Prevent zoom on mobile
+                            style={{fontSize: '16px'}} // Prevent zoom on mobile
                         />
                         <TouchEnhancedButton
                             onClick={handleVideoExtraction}
@@ -197,7 +197,8 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         >
                             {extracting ? (
                                 <div className="flex items-center">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    <div
+                                        className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                     Extracting...
                                 </div>
                             ) : (
@@ -206,29 +207,55 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         </TouchEnhancedButton>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                        <strong>Best Platforms:</strong> TikTok cooking videos, Instagram recipe Reels, YouTube videos with captions
+                        <strong>✨ AI-Powered:</strong> Works with any video - no captions required for YouTube!
                     </div>
                 </div>
 
-                {/* Error Display */}
+                {/* Error Display - Updated for Modal-only */}
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-md p-3">
                         <div className="flex items-start">
                             <div className="text-red-500 mr-2 mt-0.5">
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    <path fillRule="evenodd"
+                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                          clipRule="evenodd"/>
                                 </svg>
                             </div>
                             <div className="text-sm">
                                 <p className="text-red-800 font-medium">Video Extraction Failed</p>
                                 <p className="text-red-700 mt-1">{error}</p>
                                 <div className="mt-2 text-red-600">
-                                    <p className="font-medium">Try these solutions:</p>
+                                    <p className="font-medium">Platform-specific tips:</p>
                                     <ul className="list-disc list-inside mt-1 text-xs">
-                                        <li>Use TikTok cooking videos (work best)</li>
-                                        <li>Try Instagram Reels from @tasty or @buzzfeedtasty</li>
-                                        <li>For YouTube, look for videos with captions (CC button)</li>
-                                        <li>Make sure the video is public and not region-locked</li>
+                                        {detectedPlatform === 'tiktok' && (
+                                            <>
+                                                <li>Copy the share link directly from TikTok app</li>
+                                                <li>Make sure the video is public and not age-restricted</li>
+                                                <li>Try cooking videos from popular creators</li>
+                                            </>
+                                        )}
+                                        {detectedPlatform === 'instagram' && (
+                                            <>
+                                                <li>Use public Instagram Reels (not private accounts)</li>
+                                                <li>Copy the direct share link from Instagram</li>
+                                                <li>Try content from popular cooking accounts</li>
+                                            </>
+                                        )}
+                                        {detectedPlatform === 'youtube' && (
+                                            <>
+                                                <li>Any YouTube video works - captions not required!</li>
+                                                <li>Try popular cooking channels with clear audio</li>
+                                                <li>Make sure the video is not region-locked</li>
+                                            </>
+                                        )}
+                                        {detectedPlatform === 'unknown' && (
+                                            <>
+                                                <li>Use TikTok, Instagram, or YouTube video URLs</li>
+                                                <li>Make sure the video is public and accessible</li>
+                                                <li>AI processing works best with clear audio</li>
+                                            </>
+                                        )}
                                     </ul>
                                 </div>
                             </div>
@@ -236,63 +263,18 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                     </div>
                 )}
 
-                {/* Success/Extraction Info Display */}
-                {extractionInfo && (
-                    <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                        <div className="flex items-start">
-                            <div className="text-green-500 mr-3 mt-0.5">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-green-800 font-medium text-sm">
-                                    ✅ Recipe Successfully Extracted!
-                                </h4>
-                                <div className="text-green-700 text-sm mt-2 space-y-1">
-                                    <p><strong>Title:</strong> {extractionInfo.title}</p>
-                                    <p><strong>Platform:</strong> {getPlatformIcon(extractionInfo.platform)} {extractionInfo.platform.charAt(0).toUpperCase() + extractionInfo.platform.slice(1)}</p>
-                                    <p><strong>Found:</strong> {extractionInfo.ingredients} ingredients, {extractionInfo.instructions} instructions</p>
-                                    <p><strong>Method:</strong> {extractionInfo.extractionMethod}</p>
-                                    {extractionInfo.videoDuration && (
-                                        <p><strong>Duration:</strong> {Math.floor(extractionInfo.videoDuration / 60)}:{(extractionInfo.videoDuration % 60).toString().padStart(2, '0')}</p>
-                                    )}
-                                    {extractionInfo.hasTimestamps && (
-                                        <p className="text-green-600">
-                                            <span className="inline-flex items-center">
-                                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                                </svg>
-                                                Includes video timestamps!
-                                            </span>
-                                        </p>
-                                    )}
-                                    {extractionInfo.cost > 0 && (
-                                        <p className="text-green-600 text-xs">
-                                            Processing cost: ${extractionInfo.cost.toFixed(4)}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="mt-3 text-xs text-green-600">
-                                    The extracted recipe has been loaded into the form below. Review and edit as needed before saving.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Loading State */}
+                {/* Loading State - Updated */}
                 {extracting && (
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                         <div className="flex items-center">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
                             <div className="text-blue-800">
-                                <p className="font-medium text-sm">Extracting recipe from {detectedPlatform} video...</p>
+                                <p className="font-medium text-sm">🤖 AI analyzing {detectedPlatform} video audio...</p>
                                 <p className="text-xs text-blue-600 mt-1">
-                                    {detectedPlatform === 'tiktok' && 'TikTok videos usually process in 10-30 seconds'}
-                                    {detectedPlatform === 'instagram' && 'Instagram Reels typically take 15-45 seconds to process'}
-                                    {detectedPlatform === 'youtube' && 'YouTube videos may take 30-60 seconds depending on length'}
-                                    {detectedPlatform === 'unknown' && 'This may take 10-60 seconds depending on video length and platform'}
+                                    {detectedPlatform === 'tiktok' && 'TikTok videos typically process in 15-45 seconds using AI audio analysis'}
+                                    {detectedPlatform === 'instagram' && 'Instagram Reels usually take 20-60 seconds to process with AI'}
+                                    {detectedPlatform === 'youtube' && 'YouTube videos may take 1-3 minutes depending on length (no captions needed!)'}
+                                    {detectedPlatform === 'unknown' && 'Processing time varies by platform and video length - all powered by AI'}
                                 </p>
                             </div>
                         </div>
@@ -302,27 +284,38 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                     </div>
                 )}
 
-                {/* Help Section */}
+                {/* Help Section - Updated for Modal-only */}
                 {!extracting && !extractionInfo && !error && (
                     <details className="mt-4">
                         <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
-                            📖 How does video extraction work?
+                            📖 How does AI video extraction work?
                         </summary>
                         <div className="mt-3 text-xs text-gray-500 space-y-2 pl-4 border-l-2 border-gray-200">
                             <p>
-                                <strong>TikTok & Instagram:</strong> We extract audio from short videos and use AI to identify ingredients, instructions, and cooking times.
+                                <strong>🤖 AI-Powered Processing:</strong> We extract audio from videos and use advanced
+                                AI to identify ingredients, instructions, and cooking techniques.
                             </p>
                             <p>
-                                <strong>YouTube:</strong> We try captions first (free), then fall back to audio extraction if needed.
+                                <strong>🎵 TikTok & 📸 Instagram:</strong> Perfect for quick recipes with clear ingredient
+                                callouts and step-by-step cooking.
                             </p>
                             <p>
-                                <strong>Best Results:</strong> Use videos with clear speech, step-by-step cooking, and ingredient mentions.
+                                <strong>📺 YouTube:</strong> Now works with ANY YouTube video - no captions required! AI
+                                analyzes the audio directly.
+                            </p>
+                            <p>
+                                <strong>✨ Best Results:</strong> Videos with clear speech, ingredient mentions, and
+                                step-by-step cooking instructions.
                             </p>
                             <div className="mt-2">
-                                <strong>Try these creators:</strong><br/>
+                                <strong>🌟 Recommended creators:</strong><br/>
                                 • TikTok: @gordonramsayofficial, @cookingwithlynja<br/>
                                 • Instagram: @tasty, @buzzfeedtasty<br/>
-                                • YouTube: Any video with captions enabled
+                                • YouTube: Any cooking channel - captions not needed!
+                            </div>
+                            <div className="mt-2 bg-green-50 border border-green-200 rounded p-2">
+                                <strong>🚀 Powered by Modal AI:</strong> All platforms now use the same advanced AI
+                                processing for consistent, high-quality recipe extraction.
                             </div>
                         </div>
                     </details>

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/VideoRecipeDetailView.js - Enhanced for social media
+// file: /src/components/recipes/VideoRecipeDetailView.js - Schema Compatible
 
 import { useState } from 'react';
 
@@ -8,11 +8,15 @@ export default function VideoRecipeDetailView({ recipe }) {
     const [activeTab, setActiveTab] = useState('ingredients');
     const [showAllTimestamps, setShowAllTimestamps] = useState(false);
 
-    const hasVideoSource = recipe.videoSource && recipe.videoPlatform;
-    const hasTimestamps = recipe.ingredients?.some(i => i.timestamp) ||
-        recipe.instructions?.some(i => i.timestamp);
+    // Check for video source using schema structure
+    const hasVideoSource = recipe.videoMetadata?.videoSource && recipe.videoMetadata?.videoPlatform;
+
+    // Check for timestamps in schema format (videoTimestamp in instructions, ingredients can have them too)
+    const hasTimestamps = recipe.ingredients?.some(i => i.videoTimestamp) ||
+        recipe.instructions?.some(i => i.videoTimestamp);
 
     const formatTime = (seconds) => {
+        if (!seconds) return '';
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -64,40 +68,52 @@ export default function VideoRecipeDetailView({ recipe }) {
         }
     };
 
-    const timestampedIngredients = recipe.ingredients?.filter(i => i.timestamp) || [];
-    const timestampedInstructions = recipe.instructions?.filter(i => i.timestamp) || [];
+    // Get timestamped items using schema structure
+    const timestampedIngredients = recipe.ingredients?.filter(i => i.videoTimestamp) || [];
+    const timestampedInstructions = recipe.instructions?.filter(i => i.videoTimestamp) || [];
 
     return (
         <div className="space-y-6">
-            {/* Video Source Header */}
+            {/* Video Source Header - Using schema structure */}
             {hasVideoSource && (
-                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoPlatform)} border rounded-lg p-6`}>
+                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoMetadata.videoPlatform)} border rounded-lg p-6`}>
                     <div className="flex items-start justify-between flex-col sm:flex-row gap-4">
                         <div className="flex items-center">
                             <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mr-4 shadow-sm">
-                                <span className="text-2xl">{getVideoPlatformIcon(recipe.videoPlatform)}</span>
+                                <span className="text-2xl">{getVideoPlatformIcon(recipe.videoMetadata.videoPlatform)}</span>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    🎥 {getPlatformDisplayName(recipe.videoPlatform)} Recipe (Beta)
+                                    🎥 {getPlatformDisplayName(recipe.videoMetadata.videoPlatform)} Recipe
+                                    {recipe.videoMetadata.socialMediaOptimized && (
+                                        <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                                            Social Media Optimized
+                                        </span>
+                                    )}
                                 </h3>
                                 <div className="text-sm text-gray-600 space-y-1">
-                                    <p>Extracted from {getPlatformDisplayName(recipe.videoPlatform)} • Beta testing feature</p>
-                                    {recipe.videoDuration && (
-                                        <p>Video duration: {formatVideoDuration(recipe.videoDuration)}</p>
+                                    <p>Extracted from {getPlatformDisplayName(recipe.videoMetadata.videoPlatform)}
+                                        {recipe.videoMetadata.extractionMethod && (
+                                            <span className="ml-1">• {recipe.videoMetadata.extractionMethod}</span>
+                                        )}
+                                    </p>
+                                    {recipe.videoMetadata.videoDuration && (
+                                        <p>Video duration: {formatVideoDuration(recipe.videoMetadata.videoDuration)}</p>
                                     )}
                                     {hasTimestamps && (
                                         <p>{timestampedIngredients.length + timestampedInstructions.length} timestamped items</p>
                                     )}
-                                    {recipe.extractionMethod && (
-                                        <p className="text-xs text-gray-500">Method: {recipe.extractionMethod}</p>
+                                    {recipe.videoMetadata.transcriptLength && (
+                                        <p className="text-xs text-gray-500">
+                                            Processed {recipe.videoMetadata.transcriptLength} characters of transcript
+                                        </p>
                                     )}
                                 </div>
                             </div>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                             <a
-                                href={recipe.videoSource}
+                                href={recipe.videoMetadata.videoSource}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="bg-white text-purple-600 px-4 py-2 rounded-lg border border-purple-300 hover:bg-purple-50 transition-colors flex items-center justify-center text-sm"
@@ -131,20 +147,32 @@ export default function VideoRecipeDetailView({ recipe }) {
                             </div>
                             <div className="bg-white rounded-lg p-3 text-center">
                                 <div className="text-2xl font-bold text-green-600">
-                                    {getVideoPlatformIcon(recipe.videoPlatform)}
+                                    {getVideoPlatformIcon(recipe.videoMetadata.videoPlatform)}
                                 </div>
-                                <div className="text-sm text-gray-600">Platform: {getPlatformDisplayName(recipe.videoPlatform)}</div>
+                                <div className="text-sm text-gray-600">Platform: {getPlatformDisplayName(recipe.videoMetadata.videoPlatform)}</div>
                             </div>
                         </div>
                     )}
 
                     {/* Social Media Optimization Notice */}
-                    {recipe.socialMediaOptimized && (
+                    {recipe.videoMetadata.socialMediaOptimized && (
                         <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-purple-500">
                             <div className="flex items-center">
                                 <span className="text-purple-600 mr-2">⚡</span>
                                 <span className="text-sm text-gray-700">
-                                    This recipe was optimized for {getPlatformDisplayName(recipe.videoPlatform)} format
+                                    This recipe was optimized for {getPlatformDisplayName(recipe.videoMetadata.videoPlatform)} format using AI extraction
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal Processing Info */}
+                    {recipe.videoMetadata.extractionMethod && recipe.videoMetadata.extractionMethod.includes('modal') && (
+                        <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-blue-500">
+                            <div className="flex items-center">
+                                <span className="text-blue-600 mr-2">🤖</span>
+                                <span className="text-sm text-gray-700">
+                                    Processed using advanced AI video analysis • Modal serverless computing
                                 </span>
                             </div>
                         </div>
@@ -161,13 +189,13 @@ export default function VideoRecipeDetailView({ recipe }) {
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {[...timestampedIngredients.map(i => ({
                             type: 'ingredient',
-                            timestamp: i.timestamp,
+                            timestamp: i.videoTimestamp,
                             text: `${i.amount} ${i.unit} ${i.name}`.trim(),
                             link: i.videoLink
                         })), ...timestampedInstructions.map(i => ({
                             type: 'instruction',
-                            timestamp: i.timestamp,
-                            text: typeof i === 'string' ? i : i.instruction,
+                            timestamp: i.videoTimestamp,
+                            text: i.text || i.instruction,
                             link: i.videoLink
                         }))].sort((a, b) => a.timestamp - b.timestamp).map((item, index) => (
                             <div key={index} className="flex items-center justify-between py-2 px-3 bg-white rounded border">
@@ -184,17 +212,19 @@ export default function VideoRecipeDetailView({ recipe }) {
                                     </span>
                                     <span className="text-sm text-gray-700">{item.text}</span>
                                 </div>
-                                <a
-                                    href={item.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-purple-600 hover:text-purple-800 text-xs flex items-center"
-                                >
-                                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M8 5v10l7-5-7-5z"/>
-                                    </svg>
-                                    Watch
-                                </a>
+                                {item.link && (
+                                    <a
+                                        href={item.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-purple-600 hover:text-purple-800 text-xs flex items-center"
+                                    >
+                                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M8 5v10l7-5-7-5z"/>
+                                        </svg>
+                                        Watch
+                                    </a>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -214,7 +244,7 @@ export default function VideoRecipeDetailView({ recipe }) {
                 <div className="space-y-3">
                     {recipe.ingredients?.map((ingredient, index) => (
                         <div key={index} className={`flex items-center justify-between py-2 px-3 rounded-lg ${
-                            ingredient.timestamp ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'
+                            ingredient.videoTimestamp ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'
                         }`}>
                             <div className="flex items-center">
                                 <span className="text-gray-900">
@@ -226,18 +256,18 @@ export default function VideoRecipeDetailView({ recipe }) {
                                     <span className="ml-2 text-xs text-gray-500 italic">(optional)</span>
                                 )}
                             </div>
-                            {ingredient.timestamp && (
+                            {ingredient.videoTimestamp && ingredient.videoLink && (
                                 <a
                                     href={ingredient.videoLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center text-purple-600 hover:text-purple-800 text-sm bg-white px-2 py-1 rounded border border-purple-300 hover:bg-purple-50 transition-colors"
-                                    title={`Jump to ${formatTime(ingredient.timestamp)} in video`}
+                                    title={`Jump to ${formatTime(ingredient.videoTimestamp)} in video`}
                                 >
                                     <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M8 5v10l7-5-7-5z"/>
                                     </svg>
-                                    {formatTime(ingredient.timestamp)}
+                                    {formatTime(ingredient.videoTimestamp)}
                                 </a>
                             )}
                         </div>
@@ -257,9 +287,10 @@ export default function VideoRecipeDetailView({ recipe }) {
                 </h3>
                 <div className="space-y-4">
                     {recipe.instructions?.map((instruction, index) => {
-                        const instructionText = typeof instruction === 'string' ? instruction : instruction.instruction;
-                        const timestamp = typeof instruction === 'object' ? instruction.timestamp : null;
-                        const videoLink = typeof instruction === 'object' ? instruction.videoLink : null;
+                        // Handle schema format: {text, step, videoTimestamp, videoLink}
+                        const instructionText = instruction.text || instruction.instruction;
+                        const timestamp = instruction.videoTimestamp;
+                        const videoLink = instruction.videoLink;
 
                         return (
                             <div key={index} className={`flex gap-4 p-4 rounded-lg ${
@@ -269,12 +300,12 @@ export default function VideoRecipeDetailView({ recipe }) {
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                                         timestamp ? 'bg-purple-600 text-white' : 'bg-gray-300 text-gray-700'
                                     }`}>
-                                        {index + 1}
+                                        {instruction.step || index + 1}
                                     </div>
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-gray-900 leading-relaxed">{instructionText}</p>
-                                    {timestamp && (
+                                    {timestamp && videoLink && (
                                         <div className="mt-2">
                                             <a
                                                 href={videoLink}
@@ -298,9 +329,9 @@ export default function VideoRecipeDetailView({ recipe }) {
 
             {/* Video Recipe Benefits */}
             {hasVideoSource && (
-                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoPlatform)} border rounded-lg p-6`}>
+                <div className={`bg-gradient-to-r ${getVideoPlatformColor(recipe.videoMetadata.videoPlatform)} border rounded-lg p-6`}>
                     <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                        🌟 {getPlatformDisplayName(recipe.videoPlatform)} Recipe Benefits
+                        🌟 {getPlatformDisplayName(recipe.videoMetadata.videoPlatform)} Recipe Benefits
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2">
@@ -314,7 +345,7 @@ export default function VideoRecipeDetailView({ recipe }) {
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
-                                Jump to specific steps
+                                {hasTimestamps ? 'Jump to specific steps' : 'Follow along with video'}
                             </div>
                             <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -334,32 +365,43 @@ export default function VideoRecipeDetailView({ recipe }) {
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
-                                {recipe.videoPlatform === 'tiktok' && 'Quick, trendy recipes'}
-                                {recipe.videoPlatform === 'instagram' && 'Beautiful, shareable content'}
-                                {recipe.videoPlatform === 'youtube' && 'Detailed cooking tutorials'}
-                                {!['tiktok', 'instagram', 'youtube'].includes(recipe.videoPlatform) && 'Interactive cooking experience'}
+                                {recipe.videoMetadata.videoPlatform === 'tiktok' && 'Quick, trendy recipes'}
+                                {recipe.videoMetadata.videoPlatform === 'instagram' && 'Beautiful, shareable content'}
+                                {recipe.videoMetadata.videoPlatform === 'youtube' && 'Detailed cooking tutorials'}
+                                {!['tiktok', 'instagram', 'youtube'].includes(recipe.videoMetadata.videoPlatform) && 'Interactive cooking experience'}
                             </div>
                             <div className="flex items-center text-gray-800">
                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
-                                Follow along with creator
+                                AI-powered extraction
                             </div>
                         </div>
                     </div>
 
                     {/* Platform-specific tips */}
-                    {recipe.videoPlatform === 'tiktok' && (
+                    {recipe.videoMetadata.videoPlatform === 'tiktok' && (
                         <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-pink-500">
                             <p className="text-sm text-gray-700">
-                                <span className="font-medium">TikTok Recipe Tip:</span> This recipe is optimized for quick cooking - perfect for busy weeknights!
+                                <span className="font-medium">🎵 TikTok Recipe:</span> This recipe is optimized for quick cooking - perfect for busy weeknights!
+                                {recipe.videoMetadata.socialMediaOptimized && ' Extracted using AI analysis of TikTok audio.'}
                             </p>
                         </div>
                     )}
-                    {recipe.videoPlatform === 'instagram' && (
+                    {recipe.videoMetadata.videoPlatform === 'instagram' && (
                         <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-purple-500">
                             <p className="text-sm text-gray-700">
-                                <span className="font-medium">Instagram Recipe Tip:</span> This recipe focuses on beautiful presentation - great for sharing!
+                                <span className="font-medium">📸 Instagram Recipe:</span> This recipe focuses on beautiful presentation - great for sharing!
+                                {recipe.videoMetadata.socialMediaOptimized && ' Extracted using AI analysis of Instagram content.'}
+                            </p>
+                        </div>
+                    )}
+                    {recipe.videoMetadata.videoPlatform === 'youtube' && (
+                        <div className="mt-4 bg-white rounded-lg p-3 border-l-4 border-red-500">
+                            <p className="text-sm text-gray-700">
+                                <span className="font-medium">📺 YouTube Recipe:</span> Detailed tutorial with comprehensive instructions.
+                                {recipe.videoMetadata.extractionMethod && recipe.videoMetadata.extractionMethod.includes('captions') && ' Extracted from video captions.'}
+                                {recipe.videoMetadata.extractionMethod && recipe.videoMetadata.extractionMethod.includes('modal') && ' Extracted using AI audio analysis.'}
                             </p>
                         </div>
                     )}
