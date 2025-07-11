@@ -231,19 +231,29 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             return;
         }
 
+        // UPDATED: Remove YouTube patterns, add Facebook patterns
         const videoPatterns = [
-            /youtube\.com\/watch\?v=/,
-            /youtu\.be\//,
+            // TikTok patterns
             /tiktok\.com\/@[^/]+\/video\//,
             /tiktok\.com\/t\//,
             /vm\.tiktok\.com\//,
+            // Instagram patterns
             /instagram\.com\/reel\//,
-            /instagram\.com\/p\//
+            /instagram\.com\/p\//,
+            /instagram\.com\/tv\//,
+            // Facebook patterns - ADD THESE
+            /facebook\.com\/watch\?v=/,
+            /facebook\.com\/[^\/]+\/videos\//,
+            /fb\.watch\//,
+            /facebook\.com\/share\/r\//,
+            /facebook\.com\/reel\//
+            // REMOVED: All YouTube patterns
         ];
 
         const isVideoUrl = videoPatterns.some(pattern => pattern.test(url));
         if (!isVideoUrl) {
-            setVideoImportError('Please enter a valid YouTube, TikTok, or Instagram video URL');
+            // UPDATED: Remove YouTube from error message
+            setVideoImportError('Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube videos, use the Text Paste option with transcripts.');
             return;
         }
 
@@ -805,10 +815,10 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         return (
             <div className="bg-white shadow rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    🎥 Extract Recipe from Video (AI-Powered)
+                    🎥 Extract Recipe from Social Video (AI-Powered)
                 </h2>
                 <p className="text-gray-600 mb-4">
-                    Extract recipes from TikTok, Instagram, and YouTube using advanced AI audio analysis. No captions required!
+                    Extract recipes from TikTok, Instagram, and Facebook using advanced AI audio analysis.
                 </p>
 
                 <div className="space-y-4">
@@ -823,7 +833,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 setVideoUrl(e.target.value);
                                 setVideoImportError(''); // Clear error when user types
                             }}
-                            placeholder="https://youtube.com/watch?v=... or TikTok/Instagram URL"
+                            placeholder="https://tiktok.com/@user/video/... or Instagram/Facebook URL"
                             className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                             style={{ minHeight: '48px' }}
                             disabled={isVideoImporting}
@@ -838,11 +848,24 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         </div>
                     )}
 
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <div className="text-sm text-purple-800">
-                            <strong>🤖 AI-Powered Extraction:</strong> Works with TikTok, Instagram Reels, and ANY YouTube video.
-                            <div className="mt-2 text-xs">
-                                <strong>✨ New:</strong> YouTube videos no longer need captions - our AI analyzes audio directly for better results!
+                    {/* UPDATED: Info box */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start">
+                            <div className="text-blue-600 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="text-sm text-blue-800 mb-2">
+                                    <strong>🤖 AI-Powered Extraction:</strong> Works with TikTok, Instagram, and Facebook videos.
+                                </div>
+                                <div className="text-xs text-blue-700 space-y-1">
+                                    <div>• <strong>TikTok:</strong> Quick cooking videos and viral recipes</div>
+                                    <div>• <strong>Instagram:</strong> Recipe reels and cooking posts</div>
+                                    <div>• <strong>Facebook:</strong> Community recipes and cooking videos</div>
+                                    <div>• <strong>📺 YouTube:</strong> Use Text Paste with video transcripts for best results</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -863,14 +886,14 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <TouchEnhancedButton
                                 onClick={() => {
                                     setShowVideoImport(false);
-                                    setShowUrlImport(true);
+                                    setShowParser(true); // CHANGED: Point to text parser for YouTube
                                     setVideoUrl('');
                                     setVideoImportError('');
                                 }}
                                 className="px-4 py-3 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 min-h-[48px] text-center"
                                 disabled={isVideoImporting}
                             >
-                                🌐 Use URL Import Instead
+                                📝 Use Text Paste (for YouTube)
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={() => handleVideoImport(videoUrl)}
@@ -901,8 +924,10 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 isVisible={isVideoImporting}
                 platform={videoUrl ? (
                     videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
-                        videoUrl.includes('instagram.com') ? 'instagram' : 'youtube'
-                ) : 'youtube'}
+                        videoUrl.includes('instagram.com') ? 'instagram' :
+                            videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch') ? 'facebook' : // ADD THIS
+                                'unknown' // CHANGED from 'youtube' to 'unknown'
+                ) : 'unknown'}
                 onCancel={() => {
                     console.log('🚫 Modal cancelled by user');
                     setIsVideoImporting(false);
@@ -969,9 +994,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
                         >
                             <div className="text-2xl mb-2">🎥</div>
-                            <h3 className="font-medium text-gray-900">AI Video Extract</h3>
+                            <h3 className="font-medium text-gray-900">Social Video Extract</h3>
                             <p className="text-sm text-gray-600 mt-1">
-                                Extract from TikTok, Instagram, YouTube using AI
+                                Extract from TikTok, Instagram, and Facebook using AI
                             </p>
                         </TouchEnhancedButton>
                     </div>
@@ -1017,7 +1042,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                         onClick={() => setShowVideoImport(true)}
                                         className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
                                     >
-                                        🤖 AI Video Extract
+                                        🤖 Social Video Extract
                                     </TouchEnhancedButton>
                                 </div>
                             )}

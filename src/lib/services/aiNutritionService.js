@@ -100,56 +100,26 @@ export class AIRecipeNutritionService {
                         content: prompt
                     }
                 ],
-                temperature: 0.1,
+                temperature: 0.1, // Low temperature for consistency
                 max_tokens: 2000,
                 response_format: { type: "json_object" }
             });
-
-            const usage = response.usage;
-            const cost = this.calculateOpenAICost(
-                usage.prompt_tokens,
-                usage.completion_tokens,
-                this.model
-            );
 
             const parsed = JSON.parse(response.choices[0].message.content);
 
             return {
                 ingredients: parsed.ingredients || [],
-                tokensUsed: {
-                    input: usage.prompt_tokens,
-                    output: usage.completion_tokens,
-                    total: usage.total_tokens
-                },
-                cost,
-                model: this.model
+                tokensUsed: response.usage?.total_tokens || 0,
+                cost: this.calculateOpenAICost(response.usage?.total_tokens || 0)
             };
 
         } catch (error) {
             console.error('❌ AI ingredient parsing failed:', error);
-
-            // Try backup model if main model fails
-            if (this.model !== this.backupModel) {
-                console.log(`🔄 Retrying with backup model: ${this.backupModel}`);
-                const originalModel = this.model;
-                this.model = this.backupModel;
-
-                try {
-                    const result = await this.parseIngredientsWithAI(ingredients);
-                    this.model = originalModel; // Reset
-                    return result;
-                } catch (backupError) {
-                    this.model = originalModel; // Reset
-                    console.error('❌ Backup model also failed:', backupError);
-                }
-            }
-
             // Fallback to basic parsing
             return {
                 ingredients: this.fallbackIngredientParsing(ingredients),
-                tokensUsed: { input: 0, output: 0, total: 0 },
+                tokensUsed: 0,
                 cost: 0,
-                model: 'fallback',
                 warnings: ['AI parsing failed, used fallback method']
             };
         }
@@ -267,6 +237,7 @@ Important guidelines:
      * Apply cooking method adjustments using AI
      */
     async applyCookingAdjustments(nutritionData, instructions, cookTime, prepTime) {
+        // Skip AI adjustment for simple recipes
         if (!instructions || instructions.length === 0 || !cookTime) {
             return nutritionData;
         }
@@ -279,11 +250,8 @@ Important guidelines:
                 prepTime
             );
 
-            // Use cheaper model for adjustments
-            const adjustmentModel = this.model === 'gpt-4o' ? 'gpt-4o-mini' : this.model;
-
             const response = await openai.chat.completions.create({
-                model: adjustmentModel,
+                model: 'gpt-3.5-turbo', // Use cheaper model for adjustments
                 messages: [
                     {
                         role: "system",
@@ -299,15 +267,9 @@ Important guidelines:
                 response_format: { type: "json_object" }
             });
 
-            const usage = response.usage;
-            const adjustmentCost = this.calculateOpenAICost(
-                usage.prompt_tokens,
-                usage.completion_tokens,
-                adjustmentModel
-            );
-
             const adjustments = JSON.parse(response.choices[0].message.content);
 
+            // Apply the adjustments
             const adjustedNutrition = this.applyNutritionAdjustments(
                 nutritionData.totalNutrition,
                 adjustments
@@ -316,17 +278,9 @@ Important guidelines:
             return {
                 ...nutritionData,
                 totalNutrition: adjustedNutrition,
-                tokensUsed: {
-                    input: nutritionData.tokensUsed.input + usage.prompt_tokens,
-                    output: nutritionData.tokensUsed.output + usage.completion_tokens,
-                    total: nutritionData.tokensUsed.total + usage.total_tokens
-                },
-                cost: nutritionData.cost + adjustmentCost,
-                cookingAdjustments: adjustments,
-                models: {
-                    parsing: nutritionData.model || this.model,
-                    adjustments: adjustmentModel
-                }
+                tokensUsed: nutritionData.tokensUsed + (response.usage?.total_tokens || 0),
+                cost: nutritionData.cost + this.calculateOpenAICost(response.usage?.total_tokens || 0),
+                cookingAdjustments: adjustments
             };
 
         } catch (error) {
@@ -388,6 +342,7 @@ Guidelines:
     calculatePerServingNutrition(nutritionData, servings) {
         const perServingNutrition = this.getEmptyNutritionProfile();
 
+        // Divide all nutrients by servings
         Object.keys(perServingNutrition).forEach(nutrient => {
             if (nutritionData.totalNutrition[nutrient]) {
                 perServingNutrition[nutrient] = {
@@ -396,8 +351,6 @@ Guidelines:
                 };
             }
         });
-
-        const totalCost = nutritionData.cost || 0;
 
         return {
             nutrition: perServingNutrition,
@@ -409,16 +362,10 @@ Guidelines:
                 calculatedAt: new Date()
             },
             aiAnalysis: {
-                modelUsed: nutritionData.models?.parsing || this.model,
-                adjustmentModel: nutritionData.models?.adjustments,
+                modelUsed: this.model,
                 promptVersion: this.promptVersion,
-                tokensUsed: nutritionData.tokensUsed || { input: 0, output: 0, total: 0 },
-                cost: totalCost,
-                costBreakdown: {
-                    parsing: nutritionData.cost - (nutritionData.adjustmentCost || 0),
-                    adjustments: nutritionData.adjustmentCost || 0,
-                    total: totalCost
-                },
+                tokensUsed: nutritionData.tokensUsed || 0,
+                cost: nutritionData.cost || 0,
                 processingTime: 0, // Set by caller
                 warnings: nutritionData.warnings || []
             }
@@ -638,13 +585,13 @@ Base estimates on similar common foods. Be conservative.`;
         return Math.min(avgConfidence * nutritionData.coverage, 1.0);
     }
 
-    calculateOpenAICost(inputTokens, outputTokens, model = this.model) {
-        const rates = this.pricing[model] || this.pricing['gpt-4o-mini'];
+    calculateOpenAICost(tokens) {
+        // GPT-4 pricing (as of 2024)
+        const inputCost = 0.03 / 1000; // $0.03 per 1K tokens
+        const outputCost = 0.06 / 1000; // $0.06 per 1K tokens
 
-        const inputCost = (inputTokens / 1000000) * rates.input;
-        const outputCost = (outputTokens / 1000000) * rates.output;
-
-        return inputCost + outputCost;
+        // Approximate 70% input, 30% output
+        return (tokens * 0.7 * inputCost) + (tokens * 0.3 * outputCost);
     }
 
     fallbackIngredientParsing(ingredients) {

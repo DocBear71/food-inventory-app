@@ -26,22 +26,40 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
 
     const platformInfo = {
         tiktok: {
+            name: 'TikTok',
             icon: '🎵',
             color: 'from-pink-500 to-purple-600',
-            bgColor: 'bg-gradient-to-br from-pink-50 to-purple-50',
-            expected: '15-45 seconds'
+            bgColor: 'from-pink-50 to-purple-50',
+            borderColor: 'border-pink-200',
+            estimatedTime: '15-45 seconds',
+            description: 'Quick viral recipes and cooking trends'
         },
         instagram: {
+            name: 'Instagram',
             icon: '📸',
             color: 'from-purple-500 to-pink-600',
-            bgColor: 'bg-gradient-to-br from-purple-50 to-pink-50',
-            expected: '20-60 seconds'
+            bgColor: 'from-purple-50 to-pink-50',
+            borderColor: 'border-purple-200',
+            estimatedTime: '20-60 seconds',
+            description: 'Recipe reels and cooking posts'
         },
-        youtube: {
-            icon: '📺',
-            color: 'from-red-500 to-orange-600',
-            bgColor: 'bg-gradient-to-br from-red-50 to-orange-50',
-            expected: '30-90 seconds'
+        facebook: {  // ADD THIS
+            name: 'Facebook',
+            icon: '👥',
+            color: 'from-blue-500 to-indigo-600',
+            bgColor: 'from-blue-50 to-indigo-50',
+            borderColor: 'border-blue-200',
+            estimatedTime: '30-90 seconds',
+            description: 'Community recipes and cooking videos'
+        },
+        unknown: {
+            name: 'Video',
+            icon: '🎥',
+            color: 'from-gray-500 to-gray-600',
+            bgColor: 'from-gray-50 to-gray-50',
+            borderColor: 'border-gray-200',
+            estimatedTime: '30-120 seconds',
+            description: 'Processing video content'
         }
     };
 
