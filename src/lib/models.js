@@ -1619,12 +1619,27 @@ const RecipeSchema = new mongoose.Schema({
     title: {type: String, required: true},
     description: {type: String, default: ''}, // Updated with default
     ingredients: [RecipeIngredientSchema],
-    instructions: [{
-        text: String,
-        step: Number,
-        videoTimestamp: Number,
-        videoLink: String
-    }],
+    instructions: {
+        type: [mongoose.Schema.Types.Mixed], // Allow both strings and objects
+        validate: {
+            validator: function(instructions) {
+                if (!Array.isArray(instructions) || instructions.length === 0) {
+                    return false;
+                }
+
+                // Check that each instruction is either a string or a valid object
+                return instructions.every(inst => {
+                    if (typeof inst === 'string') {
+                        return inst.trim().length > 0;
+                    } else if (typeof inst === 'object' && inst !== null) {
+                        return inst.text && typeof inst.text === 'string' && inst.text.trim().length > 0;
+                    }
+                    return false;
+                });
+            },
+            message: 'Instructions must be an array of non-empty strings or objects with text property'
+        }
+    },
     cookTime: Number, // in minutes
     prepTime: Number, // in minutes
     servings: Number,

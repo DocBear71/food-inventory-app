@@ -96,14 +96,28 @@ export async function PUT(request, { params }) {
 
         // FIXED: Handle both string and object instructions (preserve video format if editing video recipe)
         if (updates.instructions) {
-            const processedInstructions = updates.instructions.filter(inst => {
-                if (typeof inst === 'string') {
-                    return inst.trim() !== '';
-                } else if (typeof inst === 'object' && inst !== null && inst.text) {
-                    return inst.text.trim() !== '';
-                }
-                return false;
-            });
+            const processedInstructions = updates.instructions
+                .filter(inst => {
+                    if (typeof inst === 'string') {
+                        return inst.trim() !== '';
+                    } else if (typeof inst === 'object' && inst !== null && inst.text) {
+                        return inst.text.trim() !== '';
+                    }
+                    return false;
+                })
+                .map((inst, index) => {
+                    if (typeof inst === 'string') {
+                        // Convert string to object format for consistency
+                        return {
+                            text: inst,
+                            step: index + 1,
+                            videoTimestamp: null,
+                            videoLink: null
+                        };
+                    }
+                    return inst; // Already an object
+                });
+
             updates.instructions = processedInstructions;
         }
 

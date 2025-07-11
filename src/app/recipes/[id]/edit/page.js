@@ -225,7 +225,14 @@ export default function EditRecipePage() {
 
             // Filter out empty ingredients and instructions
             const ingredients = formData.ingredients.filter(ing => ing.name.trim());
-            const instructions = formData.instructions.filter(inst => inst.trim());
+            const instructions = formData.instructions
+                .filter(inst => inst.trim())
+                .map((inst, index) => ({
+                    text: inst,
+                    step: index + 1,
+                    videoTimestamp: null,
+                    videoLink: null
+                }));
 
             const recipeData = {
                 ...formData,
