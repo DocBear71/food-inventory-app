@@ -4,52 +4,86 @@ import mongoose from 'mongoose';
 import { checkFeatureAccess, checkUsageLimit } from './subscription-config';
 const crypto = require('crypto');
 
-// Nutrition Schema
+// Enhanced Nutrition Schema - Add this to your models.js file
+// Replace your existing NutritionSchema with this comprehensive version
+
 const NutritionSchema = new mongoose.Schema({
+    // === MACRONUTRIENTS ===
     calories: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'kcal'},
-        name: {type: String, default: 'Calories'}
+        name: {type: String, default: 'Energy'}
     },
     protein: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'g'},
         name: {type: String, default: 'Protein'}
     },
+
+    // === FATS ===
     fat: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Fat'}
+        name: {type: String, default: 'Total Fat'}
     },
+    saturatedFat: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'g'},
+        name: {type: String, default: 'Saturated Fat'}
+    },
+    monounsaturatedFat: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'g'},
+        name: {type: String, default: 'Monounsaturated Fat'}
+    },
+    polyunsaturatedFat: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'g'},
+        name: {type: String, default: 'Polyunsaturated Fat'}
+    },
+    transFat: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'g'},
+        name: {type: String, default: 'Trans Fat'}
+    },
+    cholesterol: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Cholesterol'}
+    },
+
+    // === CARBOHYDRATES ===
     carbs: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Carbohydrates'}
+        name: {type: String, default: 'Total Carbohydrate'}
     },
     fiber: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Fiber'}
+        name: {type: String, default: 'Dietary Fiber'}
     },
     sugars: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Sugars'}
+        name: {type: String, default: 'Total Sugars'}
     },
+    addedSugars: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'g'},
+        name: {type: String, default: 'Added Sugars'}
+    },
+
+    // === MINERALS ===
     sodium: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'mg'},
         name: {type: String, default: 'Sodium'}
     },
-    vitaminC: {
+    potassium: {
         value: {type: Number, default: 0},
         unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Vitamin C'}
-    },
-    vitaminA: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'IU'},
-        name: {type: String, default: 'Vitamin A'}
+        name: {type: String, default: 'Potassium'}
     },
     calcium: {
         value: {type: Number, default: 0},
@@ -60,8 +94,143 @@ const NutritionSchema = new mongoose.Schema({
         value: {type: Number, default: 0},
         unit: {type: String, default: 'mg'},
         name: {type: String, default: 'Iron'}
+    },
+    magnesium: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Magnesium'}
+    },
+    phosphorus: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Phosphorus'}
+    },
+    zinc: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Zinc'}
+    },
+
+    // === VITAMINS ===
+    // Fat-soluble vitamins
+    vitaminA: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'}, // Changed from IU to µg (RAE)
+        name: {type: String, default: 'Vitamin A (RAE)'}
+    },
+    vitaminD: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'},
+        name: {type: String, default: 'Vitamin D'}
+    },
+    vitaminE: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Vitamin E'}
+    },
+    vitaminK: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'},
+        name: {type: String, default: 'Vitamin K'}
+    },
+
+    // Water-soluble vitamins
+    vitaminC: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Vitamin C'}
+    },
+
+    // B-Complex Vitamins
+    thiamin: { // B1
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Thiamin (B1)'}
+    },
+    riboflavin: { // B2
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Riboflavin (B2)'}
+    },
+    niacin: { // B3
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Niacin (B3)'}
+    },
+    vitaminB6: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Vitamin B6'}
+    },
+    folate: { // B9
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'},
+        name: {type: String, default: 'Folate (B9)'}
+    },
+    vitaminB12: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'},
+        name: {type: String, default: 'Vitamin B12'}
+    },
+    biotin: { // B7
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'µg'},
+        name: {type: String, default: 'Biotin (B7)'}
+    },
+    pantothenicAcid: { // B5
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Pantothenic Acid (B5)'}
+    },
+
+    // === ADDITIONAL NUTRIENTS ===
+    choline: {
+        value: {type: Number, default: 0},
+        unit: {type: String, default: 'mg'},
+        name: {type: String, default: 'Choline'}
+    },
+
+    // === METADATA ===
+    // Calculation metadata
+    calculationMethod: {
+        type: String,
+        enum: ['ai_calculated', 'usda_lookup', 'manual_entry', 'openfoodfacts', 'estimated'],
+        default: 'estimated'
+    },
+    dataSource: {
+        type: String,
+        default: 'mixed' // 'usda', 'openfoodfacts', 'ai_analysis', 'manual', 'mixed'
+    },
+    calculatedAt: {
+        type: Date,
+        default: Date.now
+    },
+    confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0.5 // 0 = very uncertain, 1 = very confident
+    },
+    coverage: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0 // Percentage of ingredients with nutrition data
+    },
+
+    // AI-specific metadata
+    aiAnalysis: {
+        modelUsed: String, // 'gpt-4', 'gpt-3.5-turbo', etc.
+        promptVersion: String,
+        processingTime: Number, // milliseconds
+        tokensUsed: Number,
+        cost: Number, // USD cost of the analysis
+        warnings: [String] // Any warnings from the AI analysis
     }
 }, {_id: false});
+
+// Export for use in your models
+module.exports = { NutritionSchema };
 
 // NEW: Recipe Collection Schema - MISSING MODEL ADDED
 const RecipeCollectionSchema = new mongoose.Schema({

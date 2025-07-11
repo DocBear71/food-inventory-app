@@ -1,10 +1,11 @@
-// file: /src/app/api/recipes/route.js v6 - Added mobile session support
+// file: /src/app/api/recipes/route.js v7 - Added AI nutrition analysis integration
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe, User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
+import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
 
 async function checkPublicRecipePermission(userId, requestedIsPublic) {
     // If user doesn't want to make it public, allow it
@@ -43,6 +44,70 @@ async function checkPublicRecipePermission(userId, requestedIsPublic) {
 
     // Platinum users or within limits
     return true;
+}
+
+// ENHANCED: AI nutrition analysis function
+async function analyzeRecipeNutritionAI(recipe, userId) {
+    try {
+        // Check if AI nutrition analysis is enabled
+        if (!process.env.OPENAI_API_KEY || process.env.ENABLE_AI_NUTRITION !== 'true') {
+            console.log('🤖 AI nutrition analysis disabled - missing API key or flag');
+            return null;
+        }
+
+        // Only analyze recipes with ingredients
+        if (!recipe.ingredients || recipe.ingredients.length === 0) {
+            console.log('🤖 Skipping AI nutrition - no ingredients');
+            return null;
+        }
+
+        // Check if user has subscription for AI nutrition
+        const user = await User.findById(userId);
+        const userTier = user?.getEffectiveTier() || 'free';
+
+        // AI nutrition requires Gold+ subscription
+        if (userTier === 'free') {
+            console.log('🤖 Skipping AI nutrition - requires Gold+ subscription');
+            return null;
+        }
+
+        console.log(`🤖 Starting AI nutrition analysis for recipe: ${recipe.title}`);
+        const startTime = Date.now();
+
+        const aiService = new AIRecipeNutritionService();
+        const analysisResult = await aiService.analyzeRecipeNutrition(recipe);
+
+        const processingTime = Date.now() - startTime;
+
+        if (analysisResult.success) {
+            console.log(`✅ AI nutrition analysis completed in ${processingTime}ms`);
+            console.log(`📊 Coverage: ${Math.round(analysisResult.metadata.coverage * 100)}%`);
+            console.log(`💰 Cost: $${analysisResult.metadata.aiAnalysis.cost.toFixed(4)}`);
+
+            return {
+                success: true,
+                nutrition: analysisResult.nutrition,
+                metadata: {
+                    ...analysisResult.metadata,
+                    processingTime,
+                    calculationMethod: 'ai_calculated'
+                }
+            };
+        } else {
+            console.log(`❌ AI nutrition analysis failed: ${analysisResult.error}`);
+            return {
+                success: false,
+                error: analysisResult.error
+            };
+        }
+
+    } catch (error) {
+        console.error('❌ AI nutrition analysis error:', error);
+        return {
+            success: false,
+            error: 'AI analysis failed but recipe was saved'
+        };
+    }
 }
 
 // GET - Fetch user's recipes or a single recipe
@@ -114,7 +179,7 @@ export async function GET(request) {
     }
 }
 
-// POST - Add new recipe (with subscription limits)
+// ENHANCED POST - Add new recipe with automatic AI nutrition analysis
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -142,7 +207,8 @@ export async function POST(request) {
             category,
             nutrition,
             importedFrom,
-            videoMetadata  // Add video metadata support
+            videoMetadata,
+            skipAIAnalysis = false  // NEW: Allow skipping AI analysis
         } = body;
 
         if (!title || !ingredients || ingredients.length === 0) {
@@ -223,6 +289,7 @@ export async function POST(request) {
                 videoMetadata: videoMetadata
             }),
 
+            // Handle manual nutrition data
             ...(nutrition && Object.keys(nutrition).length > 0 && {
                 nutrition: nutrition,
                 nutritionManuallySet: true,
@@ -235,11 +302,37 @@ export async function POST(request) {
             instructionCount: recipeData.instructions.length,
             ingredientCount: recipeData.ingredients.length,
             hasVideoMetadata: !!recipeData.videoMetadata,
-            instructionTypes: recipeData.instructions.map(inst => typeof inst)
+            instructionTypes: recipeData.instructions.map(inst => typeof inst),
+            skipAIAnalysis
         });
 
+        // Create the recipe first
         const recipe = new Recipe(recipeData);
         await recipe.save();
+
+        // NEW: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
+        let nutritionAnalysis = null;
+        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+            nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
+
+            // If AI analysis succeeded, update the recipe with nutrition data
+            if (nutritionAnalysis?.success) {
+                await Recipe.findByIdAndUpdate(recipe._id, {
+                    nutrition: nutritionAnalysis.nutrition,
+                    nutritionCalculatedAt: new Date(),
+                    nutritionCoverage: nutritionAnalysis.metadata.coverage,
+                    nutritionManuallySet: false,
+                    // Store AI analysis metadata
+                    'aiAnalysis.nutritionGenerated': true,
+                    'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
+                });
+
+                // Update the local recipe object for response
+                recipe.nutrition = nutritionAnalysis.nutrition;
+                recipe.nutritionCalculatedAt = new Date();
+                recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
+            }
+        }
 
         // Update user's usage tracking
         if (!user.usageTracking) {
@@ -255,13 +348,16 @@ export async function POST(request) {
 
         console.log('POST /api/recipes - Recipe created successfully:', {
             id: recipe._id,
-            hasVideoMetadata: !!recipe.videoMetadata
+            hasVideoMetadata: !!recipe.videoMetadata,
+            hasAINutrition: !!(nutritionAnalysis?.success)
         });
 
         return NextResponse.json({
             success: true,
             recipe,
-            message: 'Recipe added successfully',
+            nutritionAnalysis, // NEW: Include AI analysis results
+            message: 'Recipe added successfully' +
+                (nutritionAnalysis?.success ? ' with AI nutrition analysis' : ''),
             remainingRecipes: userSubscription.tier === 'free' ?
                 Math.max(0, 5 - (currentRecipeCount + 1)) :
                 userSubscription.tier === 'gold' ?
@@ -282,7 +378,7 @@ export async function POST(request) {
     }
 }
 
-// PUT - Update recipe
+// ENHANCED PUT - Update recipe with AI nutrition re-analysis if ingredients changed
 export async function PUT(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -295,7 +391,7 @@ export async function PUT(request) {
         console.log('PUT /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
         const body = await request.json();
-        const { recipeId, ...updateData } = body;
+        const { recipeId, skipAIAnalysis = false, ...updateData } = body;
 
         if (!recipeId) {
             return NextResponse.json(
@@ -307,17 +403,23 @@ export async function PUT(request) {
         await connectDB();
 
         // Find recipe and verify ownership
-        const recipe = await Recipe.findOne({
+        const existingRecipe = await Recipe.findOne({
             _id: recipeId,
             createdBy: session.user.id
         });
 
-        if (!recipe) {
+        if (!existingRecipe) {
             return NextResponse.json(
                 { error: 'Recipe not found or you do not have permission to edit it' },
                 { status: 404 }
             );
         }
+
+        // NEW: Check if ingredients changed (for AI re-analysis)
+        const ingredientsChanged = updateData.ingredients &&
+            JSON.stringify(existingRecipe.ingredients) !== JSON.stringify(updateData.ingredients);
+
+        console.log('PUT /api/recipes - Ingredients changed:', ingredientsChanged);
 
         // Prepare update data
         const updateFields = {
@@ -325,7 +427,14 @@ export async function PUT(request) {
             ingredients: updateData.ingredients?.filter(ing => ing.name && ing.name.trim() !== ''),
             instructions: updateData.instructions?.filter(inst => inst && inst.trim() !== ''),
             lastEditedBy: session.user.id,
-            updatedAt: new Date()
+            updatedAt: new Date(),
+
+            // NEW: Clear AI nutrition data if ingredients changed (unless manual nutrition)
+            ...(ingredientsChanged && !existingRecipe.nutritionManuallySet && {
+                nutritionCalculatedAt: null,
+                nutritionCoverage: null,
+                'aiAnalysis.nutritionGenerated': false
+            })
         };
 
         // PUBLIC RECIPE SUBSCRIPTION CHECK for updates
@@ -367,7 +476,7 @@ export async function PUT(request) {
             updateFields.isPublic = canMakePublic;
         }
 
-        // Handle nutrition data if provided
+        // Handle manual nutrition data if provided
         if (updateData.nutrition && Object.keys(updateData.nutrition).length > 0) {
             updateFields.nutrition = updateData.nutrition;
             updateFields.nutritionManuallySet = true;
@@ -383,12 +492,43 @@ export async function PUT(request) {
             .populate('createdBy', 'name email')
             .populate('lastEditedBy', 'name email');
 
-        console.log('PUT /api/recipes - Recipe updated successfully');
+        // NEW: AI nutrition re-analysis if ingredients changed
+        let nutritionAnalysis = null;
+        if (!skipAIAnalysis && ingredientsChanged && !updateData.nutrition &&
+            updateData.ingredients?.length > 0) {
+
+            console.log('🤖 Re-analyzing nutrition due to ingredient changes');
+            nutritionAnalysis = await analyzeRecipeNutritionAI(updatedRecipe, session.user.id);
+
+            if (nutritionAnalysis?.success) {
+                // Update with new nutrition data
+                await Recipe.findByIdAndUpdate(recipeId, {
+                    nutrition: nutritionAnalysis.nutrition,
+                    nutritionCalculatedAt: new Date(),
+                    nutritionCoverage: nutritionAnalysis.metadata.coverage,
+                    nutritionManuallySet: false,
+                    'aiAnalysis.nutritionGenerated': true,
+                    'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
+                });
+
+                // Update local object for response
+                updatedRecipe.nutrition = nutritionAnalysis.nutrition;
+                updatedRecipe.nutritionCalculatedAt = new Date();
+                updatedRecipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
+            }
+        }
+
+        console.log('PUT /api/recipes - Recipe updated successfully:', {
+            ingredientsChanged,
+            hasAINutritionUpdate: !!(nutritionAnalysis?.success)
+        });
 
         return NextResponse.json({
             success: true,
             recipe: updatedRecipe,
-            message: 'Recipe updated successfully'
+            nutritionAnalysis, // NEW: Include AI analysis results
+            message: 'Recipe updated successfully' +
+                (nutritionAnalysis?.success ? ' with updated AI nutrition analysis' : '')
         });
 
     } catch (error) {

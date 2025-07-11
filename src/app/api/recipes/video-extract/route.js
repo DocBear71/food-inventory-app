@@ -34,15 +34,22 @@ const VIDEO_PLATFORMS = {
             return null;
         }
     },
-    youtube: {
+    facebook: {
         patterns: [
-            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-            /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/
+            /facebook\.com\/watch\/?\?v=(\d+)/i,
+            /facebook\.com\/([^\/]+)\/videos\/(\d+)/i,
+            /fb\.watch\/([a-zA-Z0-9_-]+)/i,
+            /facebook\.com\/share\/r\/([a-zA-Z0-9_-]+)/i,
+            /facebook\.com\/story\.php\?story_fbid=(\d+)/i,
+            /facebook\.com\/events\/(\d+)\/permalink\/(\d+)/i,
+            /facebook\.com\/reel\/(\d+)/i
         ],
         extractId: (url) => {
-            for (const pattern of VIDEO_PLATFORMS.youtube.patterns) {
+            for (const pattern of VIDEO_PLATFORMS.facebook.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) {
+                    return match[match.length - 1];
+                }
             }
             return null;
         }
@@ -59,8 +66,7 @@ function detectVideoPlatform(url) {
             return { platform, videoId, originalUrl: url };
         }
     }
-
-    throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, and YouTube.');
+    throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, and Facebook. For YouTube videos, please copy the transcript and use the Text Paste option instead.');
 }
 
 // Transform Modal response to match MongoDB schema
@@ -259,20 +265,22 @@ export async function POST(request) {
         let enhancedErrorMessage = error.message;
 
         if (error.message.includes('Unsupported video platform')) {
-            enhancedErrorMessage = 'Please enter a valid TikTok, Instagram, or YouTube video URL.';
+            enhancedErrorMessage = 'Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube videos, copy the transcript and use the Text Paste option.';
         } else if (error.message.includes('Modal API error')) {
             enhancedErrorMessage = 'Video processing service is temporarily unavailable. Please try again in a few minutes.';
         }
 
         return NextResponse.json({
             error: enhancedErrorMessage,
-            supportedPlatforms: ['TikTok', 'Instagram', 'YouTube'],
-            note: 'All video processing now powered by Modal AI - no more caption dependency for YouTube!',
+            supportedPlatforms: ['TikTok', 'Instagram', 'Facebook'], // REMOVED YouTube
+            note: 'All video processing powered by Modal AI. For YouTube, use Text Paste with transcripts.',
             troubleshooting: {
                 tiktok: 'Use share links directly from TikTok app',
                 instagram: 'Make sure Reels are public',
-                youtube: 'Any YouTube video works - no captions required!'
+                facebook: 'Use public Facebook videos - share links work best',
+                youtube: 'YouTube not supported - copy transcript and use Text Paste option instead' // NEW
             }
         }, { status: 400 });
+
     }
 }

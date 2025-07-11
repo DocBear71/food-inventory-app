@@ -17,7 +17,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         const platforms = {
             tiktok: /tiktok\.com/i,
             instagram: /instagram\.com/i,
-            youtube: /youtube\.com|youtu\.be/i
+            facebook: /facebook\.com|fb\.watch/i
         };
 
         for (const [platform, pattern] of Object.entries(platforms)) {
@@ -41,9 +41,12 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
             /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
 
-            // YouTube patterns
-            /youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
-            /youtu\.be\/[a-zA-Z0-9_-]{11}/
+            // Facebook patterns - ADD these
+            /facebook\.com\/watch\/?\?v=\d+/,
+            /facebook\.com\/[^\/]+\/videos\/\d+/,
+            /fb\.watch\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/reel\/\d+/
         ];
 
         return videoPatterns.some(pattern => pattern.test(url));
@@ -56,9 +59,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         }
 
         if (!isValidVideoUrl(videoUrl)) {
-            setError('Please enter a valid TikTok, Instagram, or YouTube video URL');
+            setError('Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube, use the Text Paste option.');
             return;
         }
+
 
         const platform = detectVideoPlatform(videoUrl);
 
@@ -128,7 +132,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         const icons = {
             tiktok: '🎵',
             instagram: '📸',
-            youtube: '📺',
+            facebook: '👥',
             unknown: '🎥'
         };
         return icons[platform] || icons.unknown;
@@ -138,7 +142,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         const colors = {
             tiktok: 'from-pink-50 to-purple-50 border-pink-200',
             instagram: 'from-purple-50 to-pink-50 border-purple-200',
-            youtube: 'from-red-50 to-orange-50 border-red-200',
+            facebook: 'from-blue-50 to-indigo-50 border-blue-200',
             unknown: 'from-gray-50 to-blue-50 border-gray-200'
         };
         return colors[platform] || colors.unknown;
@@ -159,7 +163,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         🎥 Extract Recipe from Video (AI-Powered)
                     </h3>
                     <p className="text-sm text-gray-600">
-                        Extract recipes from TikTok, Instagram, and YouTube using advanced AI audio analysis
+                        Extract recipes from TikTok, Instagram, and Facebook using advanced AI audio analysis  {/* ADD Facebook */}
                     </p>
                 </div>
             </div>
@@ -181,7 +185,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                             id="video-url"
                             value={videoUrl}
                             onChange={handleUrlChange}
-                            placeholder="Paste TikTok, Instagram, or YouTube video URL here..."
+                            placeholder="Paste TikTok, Instagram, or Facebook video URL here..."
                             className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-sm"
                             disabled={disabled || extracting}
                             style={{fontSize: '16px'}} // Prevent zoom on mobile
@@ -242,16 +246,18 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                                                 <li>Try content from popular cooking accounts</li>
                                             </>
                                         )}
-                                        {detectedPlatform === 'youtube' && (
+                                        {detectedPlatform === 'facebook' && (
                                             <>
-                                                <li>Any YouTube video works - captions not required!</li>
-                                                <li>Try popular cooking channels with clear audio</li>
-                                                <li>Make sure the video is not region-locked</li>
+                                                <li>Use public Facebook videos (not private posts)</li>
+                                                <li>Copy the share link directly from Facebook</li>
+                                                <li>Try cooking videos from popular Facebook pages</li>
+                                                <li>Share URLs (facebook.com/share/r/) work best</li>
                                             </>
                                         )}
                                         {detectedPlatform === 'unknown' && (
                                             <>
-                                                <li>Use TikTok, Instagram, or YouTube video URLs</li>
+                                                <li>Use TikTok, Instagram, or Facebook video URLs</li>
+                                                <li>For YouTube videos, copy the transcript and use Text Paste instead</li>
                                                 <li>Make sure the video is public and accessible</li>
                                                 <li>AI processing works best with clear audio</li>
                                             </>
@@ -273,7 +279,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                                 <p className="text-xs text-blue-600 mt-1">
                                     {detectedPlatform === 'tiktok' && 'TikTok videos typically process in 15-45 seconds using AI audio analysis'}
                                     {detectedPlatform === 'instagram' && 'Instagram Reels usually take 20-60 seconds to process with AI'}
-                                    {detectedPlatform === 'youtube' && 'YouTube videos may take 1-3 minutes depending on length (no captions needed!)'}
+                                    {detectedPlatform === 'facebook' && 'Facebook videos typically process in 30-90 seconds using AI audio analysis'}
                                     {detectedPlatform === 'unknown' && 'Processing time varies by platform and video length - all powered by AI'}
                                 </p>
                             </div>
@@ -292,30 +298,33 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         </summary>
                         <div className="mt-3 text-xs text-gray-500 space-y-2 pl-4 border-l-2 border-gray-200">
                             <p>
-                                <strong>🤖 AI-Powered Processing:</strong> We extract audio from videos and use advanced
+                                <strong>🤖 AI-Powered Processing:</strong> We extract audio from social media videos and use advanced
                                 AI to identify ingredients, instructions, and cooking techniques.
                             </p>
                             <p>
-                                <strong>🎵 TikTok & 📸 Instagram:</strong> Perfect for quick recipes with clear ingredient
-                                callouts and step-by-step cooking.
+                                <strong>🎵 TikTok & 📸 Instagram & 👥 Facebook:</strong> Perfect for quick recipes with clear ingredient
+                                callouts and step-by-step cooking instructions.
                             </p>
                             <p>
-                                <strong>📺 YouTube:</strong> Now works with ANY YouTube video - no captions required! AI
-                                analyzes the audio directly.
+                                <strong>📺 YouTube Videos:</strong> Not supported for direct video extraction. Instead, copy the
+                                video transcript/captions and use the <strong>📋 Text Paste</strong> option - it works even better
+                                than video processing!
                             </p>
                             <p>
                                 <strong>✨ Best Results:</strong> Videos with clear speech, ingredient mentions, and
-                                step-by-step cooking instructions.
+                                step-by-step cooking instructions work great across all supported platforms.
                             </p>
                             <div className="mt-2">
-                                <strong>🌟 Recommended creators:</strong><br/>
+                                <strong>🌟 Recommended sources:</strong><br/>
                                 • TikTok: @gordonramsayofficial, @cookingwithlynja<br/>
                                 • Instagram: @tasty, @buzzfeedtasty<br/>
-                                • YouTube: Any cooking channel - captions not needed!
+                                • Facebook: Public cooking pages and viral recipe videos<br/>
+                                • YouTube: Any cooking channel → copy transcript → use Text Paste ✨
                             </div>
                             <div className="mt-2 bg-green-50 border border-green-200 rounded p-2">
-                                <strong>🚀 Powered by Modal AI:</strong> All platforms now use the same advanced AI
-                                processing for consistent, high-quality recipe extraction.
+                                <strong>🚀 Best of Both Worlds:</strong> Social media videos get direct AI processing,
+                                while YouTube transcripts through Text Paste often give even better results since the
+                                text is cleaner and more accurate!
                             </div>
                         </div>
                     </details>

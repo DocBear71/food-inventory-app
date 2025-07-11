@@ -186,9 +186,15 @@ export default function AddRecipePage() {
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Add New Recipe</h1>
-                        <p className="text-gray-600 mt-2">
-                            Create a new recipe manually, paste recipe text to auto-extract details, import from URLs, or extract from TikTok/YouTube videos
-                        </p>
+                        <div className="text-gray-600 mt-2 space-y-1">
+                            <p>Choose your preferred method to add recipes:</p>
+                            <div className="text-sm space-y-1 mt-2">
+                                <div>• <strong>Manual Entry:</strong> Build recipes step-by-step with full control</div>
+                                <div>• <strong>Text Paste:</strong> Paste recipe text or YouTube transcripts for AI extraction</div>
+                                <div>• <strong>Website Import:</strong> Import directly from recipe websites and blogs</div>
+                                <div>• <strong>Social Video:</strong> Extract from TikTok, Instagram, and Facebook videos</div>
+                            </div>
+                        </div>
                     </div>
                     <TouchEnhancedButton
                         onClick={() => router.back()}

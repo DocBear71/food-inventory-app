@@ -367,7 +367,8 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
                         📝 Smart Recipe Text Parser
                     </h2>
                     <p className="text-gray-600 mb-4">
-                        Paste a recipe from anywhere! The smart parser can handle:
+                        Paste a recipe from anywhere! The smart parser can handle structured recipes, YouTube transcripts,
+                        unformatted text, and more:
                     </p>
 
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -376,10 +377,46 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
                             <li>• <strong>Structured recipes</strong> with "Ingredients:" and "Instructions:" headers</li>
                             <li>• <strong>Delimited format</strong> with --Ingredients-- and --Instructions-- sections</li>
                             <li>• <strong>Unstructured text</strong> from websites, messages, or documents</li>
+                            <li>• <strong>YouTube transcripts</strong> - copy/paste video captions for recipe extraction</li>
                             <li>• <strong>Pricing removal</strong> - automatically removes cost info like ($0.37)</li>
                             <li>• <strong>Smart detection</strong> - separates ingredients from instructions automatically</li>
                         </ul>
                     </div>
+
+                    {/* NEW: YouTube Transcript Guidance Section */}
+                    <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="flex items-start">
+                            <div className="text-purple-600 mr-3 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-medium text-purple-900 mb-2">📺 YouTube Recipe Extraction</h3>
+                                <p className="text-purple-800 text-sm mb-3">
+                                    Want to extract recipes from YouTube cooking videos? Follow these steps:
+                                </p>
+                                <div className="bg-purple-100 rounded-lg p-3 mb-3">
+                                    <h4 className="font-medium text-purple-900 text-sm mb-2">How to get YouTube transcripts:</h4>
+                                    <ol className="list-decimal list-inside text-purple-800 text-sm space-y-1">
+                                        <li>Open the YouTube video on desktop or mobile</li>
+                                        <li>Click the "..." (more) menu below the video</li>
+                                        <li>Select <strong>"Show transcript"</strong> or <strong>"Open transcript"</strong></li>
+                                        <li>Copy all the transcript text</li>
+                                        <li>Paste it in the text box below</li>
+                                        <li>Let our AI extract the recipe automatically! 🤖</li>
+                                    </ol>
+                                </div>
+                                <div className="flex items-center text-sm text-purple-700">
+                                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <span><strong>Pro tip:</strong> Works best with cooking channels that clearly mention ingredients and steps!</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
 
                     <div className="space-y-4">
                         <div>
@@ -392,12 +429,14 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
                                 placeholder="Paste your recipe here...
 
 Examples that work great:
+• YouTube video transcripts (copy from transcript feature)
 • Bullet-pointed ingredients with pricing
 • Clear section headers like 'Ingredients' and 'Instructions'
 • Mixed format text from websites
 • Copy-pasted recipes from anywhere!
 
 The parser will automatically:
+- Extract recipes from YouTube transcripts
 - Remove pricing info like ($0.37)
 - Detect ingredients vs instructions
 - Extract serving size and cooking times
@@ -405,7 +444,6 @@ The parser will automatically:
                                 className="w-full h-64 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                 style={{ minHeight: '256px' }}
                             />
-                        </div>
 
                         <div className="flex flex-col sm:flex-row justify-between gap-3">
                             <TouchEnhancedButton
@@ -432,6 +470,7 @@ The parser will automatically:
                             </TouchEnhancedButton>
                         </div>
                     </div>
+                </div>
                 </div>
             ) : (
                 // Preview Phase - keeping the existing preview UI
@@ -766,7 +805,7 @@ The parser will automatically:
                         </div>
                     )}
                 </div>
-            )}
+            )};
         </div>
     );
 }
