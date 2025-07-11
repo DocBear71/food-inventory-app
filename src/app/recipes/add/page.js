@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/add/page.js v6 - VIDEO IMPORT SUPPORT
+// file: /src/app/recipes/add/page.js v7 - FIXED INSTRUCTION FORMAT
 
 import { useRouter } from 'next/navigation';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
@@ -56,51 +56,6 @@ export default function AddRecipePage() {
                     }
                 } : undefined,
 
-                // ADD VIDEO IMPORT METADATA SUPPORT (only if video data exists)
-                ...(recipeData.videoSource && {
-                    videoMetadata: {
-                        videoSource: recipeData.videoSource,
-                        videoPlatform: recipeData.videoPlatform,
-                        videoId: recipeData.videoId,
-                        videoTitle: recipeData.videoTitle,
-                        videoDuration: recipeData.videoDuration,
-                        extractionMethod: recipeData.extractionMethod,
-                        importedFrom: recipeData.importedFrom || `${recipeData.videoPlatform} video`,
-                        socialMediaOptimized: recipeData.socialMediaOptimized || false,
-                        transcriptLength: recipeData.transcriptLength,
-                        processingTime: recipeData.processingTime
-                    }
-                }),
-
-                // ENHANCED INSTRUCTIONS - SUPPORTS ALL METHODS (manual, parser, URL, video)
-                instructions: recipeData.instructions
-                    .filter(inst => {
-                        // Handle both string and object instructions
-                        const instructionText = typeof inst === 'string' ? inst : inst.instruction;
-                        return instructionText && instructionText.trim();
-                    })
-                    .map((inst, index) => {
-                        // Handle both string and object instructions
-                        if (typeof inst === 'string') {
-                            // Manual entry or text parser - keep as string
-                            return inst;
-                        } else {
-                            // Video import or advanced parsing - preserve metadata
-                            const result = {
-                                text: inst.instruction,
-                                step: index + 1
-                            };
-
-                            // Add video metadata only if it exists (video imports)
-                            if (inst.timestamp) {
-                                result.videoTimestamp = inst.timestamp;
-                                result.videoLink = inst.videoLink;
-                            }
-
-                            return result;
-                        }
-                    }),
-
                 // ENHANCED INGREDIENTS - SUPPORTS ALL METHODS (manual, parser, URL, video)
                 ingredients: recipeData.ingredients
                     .filter(ing => ing.name.trim())
@@ -113,19 +68,80 @@ export default function AddRecipePage() {
                         };
 
                         // Add video metadata only if it exists (video imports)
-                        if (ing.timestamp) {
-                            ingredient.videoTimestamp = ing.timestamp;
+                        if (ing.videoTimestamp) {
+                            ingredient.videoTimestamp = ing.videoTimestamp;
                             ingredient.videoLink = ing.videoLink;
                         }
 
                         return ingredient;
+                    }),
+
+                // FIXED INSTRUCTIONS - Handle all import methods properly
+                instructions: recipeData.instructions
+                    .filter(inst => {
+                        // Handle both string and object instructions
+                        const instructionText = typeof inst === 'string' ? inst : (inst.text || inst.instruction);
+                        return instructionText && instructionText.trim();
                     })
+                    .map((inst, index) => {
+                        // Handle different instruction formats from different import methods
+                        if (typeof inst === 'string') {
+                            // Manual entry or text parser - return as string (your API expects this)
+                            return inst;
+                        } else if (inst.text) {
+                            // Video import format: {text: "...", step: 1, videoTimestamp: 123}
+                            // Your MongoDB schema supports this object format
+                            return {
+                                text: inst.text,
+                                step: inst.step || index + 1,
+                                ...(inst.videoTimestamp && {
+                                    videoTimestamp: inst.videoTimestamp,
+                                    videoLink: inst.videoLink
+                                })
+                            };
+                        } else if (inst.instruction) {
+                            // Alternative object format: {instruction: "...", step: 1}
+                            // Convert to the schema format
+                            return {
+                                text: inst.instruction,
+                                step: inst.step || index + 1,
+                                ...(inst.videoTimestamp && {
+                                    videoTimestamp: inst.videoTimestamp,
+                                    videoLink: inst.videoLink
+                                })
+                            };
+                        } else {
+                            // Fallback - treat as string
+                            return String(inst);
+                        }
+                    }),
+
+                // ADD VIDEO METADATA SUPPORT (only if video data exists)
+                ...(recipeData.videoMetadata && {
+                    videoMetadata: recipeData.videoMetadata
+                }),
+
+                // Add importedFrom for video imports
+                ...(recipeData.importedFrom && {
+                    importedFrom: recipeData.importedFrom
+                })
             };
 
             console.log('Transformed API data:', apiData);
-            console.log('Video metadata:', apiData.videoMetadata);
+            console.log('Instructions format:', apiData.instructions.map((inst, i) => ({
+                index: i,
+                type: typeof inst,
+                hasText: inst.text ? 'yes' : 'no',
+                hasVideoData: inst.videoTimestamp ? 'yes' : 'no'
+            })));
 
             const response = await apiPost('/api/recipes', apiData);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`Server error: ${response.status} - ${errorText}`);
+            }
 
             const data = await response.json();
 
@@ -134,8 +150,8 @@ export default function AddRecipePage() {
                 console.log('✅ Recipe created successfully:', data.recipe._id);
 
                 // Show success message for video imports
-                if (recipeData.videoSource) {
-                    console.log(`🎥 Video recipe imported from ${recipeData.videoPlatform}!`);
+                if (recipeData.videoMetadata) {
+                    console.log(`🎥 Video recipe imported from ${recipeData.videoMetadata.videoPlatform}!`);
                 }
 
                 router.push(`/recipes/${data.recipe._id}`);
@@ -149,7 +165,7 @@ export default function AddRecipePage() {
             console.error('Error creating recipe:', error);
 
             // Enhanced error handling for video imports
-            if (recipeData.videoSource) {
+            if (recipeData.videoMetadata) {
                 alert(`Error saving video recipe: ${error.message}\n\nThe recipe was extracted successfully but couldn't be saved. Please try again.`);
             } else {
                 alert('Error creating recipe: ' + error.message);
@@ -171,7 +187,7 @@ export default function AddRecipePage() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Add New Recipe</h1>
                         <p className="text-gray-600 mt-2">
-                            Create a new recipe manually, paste recipe text to auto-extract details, or import from TikTok/Instagram videos
+                            Create a new recipe manually, paste recipe text to auto-extract details, import from URLs, or extract from TikTok/YouTube videos
                         </p>
                     </div>
                     <TouchEnhancedButton
