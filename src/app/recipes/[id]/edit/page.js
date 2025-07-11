@@ -115,15 +115,36 @@ export default function EditRecipePage() {
 
             if (data.success) {
                 const recipe = data.recipe;
+
+                // FIXED: Handle both string and object instruction formats
+                const processedInstructions = recipe.instructions && recipe.instructions.length > 0
+                    ? recipe.instructions.map(instruction => {
+                        // If it's a string, return as-is
+                        if (typeof instruction === 'string') {
+                            return instruction;
+                        }
+                        // If it's an object (video format), extract the text
+                        if (typeof instruction === 'object' && instruction.text) {
+                            return instruction.text;
+                        }
+                        // Fallback for any other format
+                        return String(instruction);
+                    })
+                    : [''];
+
                 setFormData({
                     title: recipe.title || '',
                     description: recipe.description || '',
                     ingredients: recipe.ingredients && recipe.ingredients.length > 0
-                        ? recipe.ingredients
+                        ? recipe.ingredients.map(ing => ({
+                            name: ing.name || '',
+                            amount: ing.amount || '',
+                            unit: ing.unit || '',
+                            optional: ing.optional || false
+                            // Note: We don't preserve video timestamps in edit mode
+                        }))
                         : [{ name: '', amount: '', unit: '', optional: false }],
-                    instructions: recipe.instructions && recipe.instructions.length > 0
-                        ? recipe.instructions
-                        : [''],
+                    instructions: processedInstructions,
                     prepTime: recipe.prepTime ? recipe.prepTime.toString() : '',
                     cookTime: recipe.cookTime ? recipe.cookTime.toString() : '',
                     servings: recipe.servings ? recipe.servings.toString() : '',

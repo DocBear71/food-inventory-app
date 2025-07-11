@@ -538,15 +538,69 @@ export default function RecipeDetailPage() {
                         <div className="bg-white rounded-lg border p-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Instructions</h2>
                             <ol className="space-y-4">
-                                {recipe.instructions?.map((instruction, index) => (
-                                    <li key={index} className="flex items-start space-x-4">
-                                        <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                                            {index + 1}
-                                        </span>
-                                        <p className="text-gray-700 leading-relaxed">{instruction}</p>
-                                    </li>
-                                ))}
+                                {recipe.instructions?.map((instruction, index) => {
+                                    // Handle both string instructions and video instruction objects
+                                    const instructionText = typeof instruction === 'string' ? instruction : instruction.text;
+                                    const hasVideoTimestamp = typeof instruction === 'object' && instruction.videoTimestamp;
+
+                                    return (
+                                        <li key={index} className="flex items-start space-x-4">
+                    <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                        hasVideoTimestamp
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-indigo-600 text-white'
+                    }`}>
+                        {typeof instruction === 'object' ? instruction.step || (index + 1) : (index + 1)}
+                    </span>
+                                            <div className="flex-1">
+                                                <p className="text-gray-700 leading-relaxed">{instructionText}</p>
+                                                {/* Show video timestamp link if available */}
+                                                {hasVideoTimestamp && instruction.videoLink && (
+                                                    <div className="mt-2">
+                                                        <a
+                                                            href={instruction.videoLink}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center text-purple-600 hover:text-purple-800 text-sm bg-purple-50 px-3 py-1 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors"
+                                                            title={`Jump to ${Math.floor(instruction.videoTimestamp / 60)}:${Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')} in video`}
+                                                        >
+                                                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M8 5v10l7-5-7-5z"/>
+                                                            </svg>
+                                                            Watch step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </li>
+                                    );
+                                })}
                             </ol>
+
+                            {/* Show video source info if this recipe has video timestamps */}
+                            {recipe.videoMetadata?.videoSource && (
+                                <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center">
+                                            <span className="text-purple-600 mr-2">🎥</span>
+                                            <span className="text-sm text-purple-800 font-medium">
+                        Extracted from {recipe.videoMetadata.videoPlatform} video
+                    </span>
+                                        </div>
+                                        <a
+                                            href={recipe.videoMetadata.videoSource}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                                        >
+                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M8 5v10l7-5-7-5z"/>
+                                            </svg>
+                                            Watch Original
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Reviews Section */}
