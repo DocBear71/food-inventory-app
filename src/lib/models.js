@@ -226,8 +226,6 @@ const NutritionSchema = new mongoose.Schema({
     }
 }, {_id: false});
 
-// Export for use in your models
-module.exports = { NutritionSchema };
 
 // NEW: Recipe Collection Schema - MISSING MODEL ADDED
 const RecipeCollectionSchema = new mongoose.Schema({
@@ -2808,6 +2806,7 @@ export {
     UserInventory,
     Recipe,
     DailyNutritionLog,
+    NutritionSchema,
     MealPlan,
     MealPlanTemplate,
     Contact,
