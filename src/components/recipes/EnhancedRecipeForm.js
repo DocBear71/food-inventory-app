@@ -294,7 +294,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             optional: ing.optional || false
                         };
 
-                        // DEBUG: Check for video timestamps
                         if (ing.videoTimestamp) {
                             console.log(`✅ Adding timestamp to ingredient ${index}: ${ing.name} at ${ing.videoTimestamp}s`);
                             ingredient.videoTimestamp = ing.videoTimestamp;
@@ -316,7 +315,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 text: inst.text
                             };
 
-                            // DEBUG: Check for video timestamps in instructions
                             if (inst.videoTimestamp) {
                                 console.log(`✅ Adding timestamp to instruction ${index}: at ${inst.videoTimestamp}s`);
                                 instruction.videoTimestamp = inst.videoTimestamp;
@@ -333,6 +331,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
                         return instruction;
                     }),
+
 
                     prepTime: data.recipe.prepTime || '',
                     cookTime: data.recipe.cookTime || '',
@@ -369,6 +368,11 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 console.log('🎯 Final videoRecipe object:', videoRecipe);
                 console.log('🕒 Ingredients with timestamps:', videoRecipe.ingredients.filter(i => i.videoTimestamp));
                 console.log('🕒 Instructions with timestamps:', videoRecipe.instructions.filter(i => i.videoTimestamp));
+
+                setTimeout(() => {
+                    console.log('🎭 Hiding modal after delay');
+                    setIsVideoImporting(false);
+                }, 1500); // Show success for 1.5 seconds
 
                 setRecipe(videoRecipe);
                 setTagsString(videoRecipe.tags.join(', '));
@@ -893,6 +897,27 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     return (
         <div className="space-y-6">
+            <VideoImportLoadingModal
+                isVisible={isVideoImporting}
+                platform={videoUrl ? (
+                    videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
+                        videoUrl.includes('instagram.com') ? 'instagram' : 'youtube'
+                ) : 'youtube'}
+                onCancel={() => {
+                    console.log('🚫 Modal cancelled by user');
+                    setIsVideoImporting(false);
+                    setVideoImportError('Import cancelled by user');
+                }}
+            />
+
+            {/* DEBUG: Add visible state indicator */}
+            {process.env.NODE_ENV === 'development' && (
+                <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-40">
+                    isVideoImporting: {isVideoImporting.toString()}<br/>
+                    Modal should be: {isVideoImporting ? 'VISIBLE' : 'HIDDEN'}
+                </div>
+            )}
+
             {/* Input Method Selection */}
             {!isEditing && (
                 <div className="bg-white shadow rounded-lg p-6">
@@ -1434,13 +1459,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="bg-white rounded-lg p-3 text-center">
                                     <div className="text-2xl font-bold text-purple-600">
-                                        {recipe.ingredients.filter(i => i.timestamp).length}
+                                        {recipe.ingredients.filter(i => i.videoTimestamp).length}
                                     </div>
                                     <div className="text-sm text-gray-600">Ingredients with video timestamps</div>
                                 </div>
                                 <div className="bg-white rounded-lg p-3 text-center">
                                     <div className="text-2xl font-bold text-blue-600">
-                                        {recipe.instructions.filter(i => i.timestamp).length}
+                                        {recipe.instructions.filter(i => i.videoTimestamp).length}
                                     </div>
                                     <div className="text-sm text-gray-600">Instructions with video links</div>
                                 </div>
@@ -1451,6 +1476,22 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                     <div className="text-sm text-gray-600">Platform</div>
                                 </div>
                             </div>
+
+                            {/* DEBUG: Show actual timestamp data */}
+                            {process.env.NODE_ENV === 'development' && (
+                                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
+                                    <strong>Debug Info:</strong><br/>
+                                    <pre className="text-xs">{JSON.stringify({
+                                        totalIngredients: recipe.ingredients.length,
+                                        ingredientsWithTimestamps: recipe.ingredients.filter(i => i.videoTimestamp).length,
+                                        totalInstructions: recipe.instructions.length,
+                                        instructionsWithTimestamps: recipe.instructions.filter(i => i.videoTimestamp).length,
+                                        sampleIngredient: recipe.ingredients[0],
+                                        sampleInstruction: recipe.instructions[0]
+                                    }, null, 2)}</pre>
+                                </div>
+                            )}
+
                             <div className="mt-4 flex items-center justify-between">
                                 <p className="text-sm text-purple-700">
                                     Recipe extracted from video transcript. Review and edit as needed before saving.
@@ -1498,17 +1539,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </div>
                 </form>
             )}
-            <VideoImportLoadingModal
-                isVisible={isVideoImporting}
-                platform={videoUrl ? (
-                    videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
-                        videoUrl.includes('instagram.com') ? 'instagram' : 'youtube'
-                ) : 'youtube'}
-                onCancel={() => {
-                    setIsVideoImporting(false);
-                    setVideoImportError('Import cancelled by user');
-                }}
-            />
+
         </div>
     );
 }
