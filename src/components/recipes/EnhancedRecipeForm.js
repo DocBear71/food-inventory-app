@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
+import VideoImportLoadingModal from "@/components/recipes/VideoImportLoadingModal";
 
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
@@ -245,6 +246,14 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             return;
         }
 
+        // Detect platform for loading modal
+        let detectedPlatform = 'youtube';
+        if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
+            detectedPlatform = 'tiktok';
+        } else if (url.includes('instagram.com')) {
+            detectedPlatform = 'instagram';
+        }
+
         setIsVideoImporting(true);
         setVideoImportError('');
 
@@ -263,31 +272,38 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     title: data.recipe.title || '',
                     description: data.recipe.description || '',
 
-                    // Ingredients are already properly formatted by route.js
+                    // FIXED: Properly handle ingredients with video timestamps
                     ingredients: (data.recipe.ingredients || []).map(ing => ({
                         name: ing.name || '',
                         amount: ing.amount || '',
                         unit: ing.unit || '',
                         optional: ing.optional || false,
-                        // Video timestamp fields (if present)
+                        // FIXED: Check for videoTimestamp from route.js transformation
                         ...(ing.videoTimestamp && {
                             videoTimestamp: ing.videoTimestamp,
                             videoLink: ing.videoLink
                         })
                     })),
 
-                    // Instructions are already properly formatted by route.js
+                    // FIXED: Properly handle instructions from route.js
                     instructions: (data.recipe.instructions || []).map((inst, index) => {
                         // Data from route.js should already be in correct format: {text, step, videoTimestamp, videoLink}
-                        return {
-                            step: inst.step || index + 1,
-                            instruction: inst.text || inst.instruction || inst, // Handle any remaining format variations
-                            // Keep video metadata for display (not saved to DB in instructions)
-                            ...(inst.videoTimestamp && {
-                                videoTimestamp: inst.videoTimestamp,
-                                videoLink: inst.videoLink
-                            })
-                        };
+                        if (typeof inst === 'object' && inst.text) {
+                            return {
+                                step: inst.step || index + 1,
+                                instruction: inst.text, // Keep as 'instruction' for form compatibility
+                                text: inst.text, // Also keep 'text' for schema compatibility
+                                ...(inst.videoTimestamp && {
+                                    videoTimestamp: inst.videoTimestamp,
+                                    videoLink: inst.videoLink
+                                })
+                            };
+                        } else {
+                            return {
+                                step: index + 1,
+                                instruction: typeof inst === 'string' ? inst : inst.instruction || inst
+                            };
+                        }
                     }),
 
                     prepTime: data.recipe.prepTime || '',
@@ -1452,6 +1468,17 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </div>
                 </form>
             )}
+            <VideoImportLoadingModal
+                isVisible={isVideoImporting}
+                platform={videoUrl ? (
+                    videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
+                        videoUrl.includes('instagram.com') ? 'instagram' : 'youtube'
+                ) : 'youtube'}
+                onCancel={() => {
+                    setIsVideoImporting(false);
+                    setVideoImportError('Import cancelled by user');
+                }}
+            />
         </div>
     );
 }

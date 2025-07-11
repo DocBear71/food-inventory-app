@@ -141,7 +141,8 @@ export async function POST(request) {
             isPublic,
             category,
             nutrition,
-            importedFrom
+            importedFrom,
+            videoMetadata  // Add video metadata support
         } = body;
 
         if (!title || !ingredients || ingredients.length === 0) {
@@ -183,11 +184,26 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
+        // FIXED: Handle both string and object instructions (for video imports)
+        const processedInstructions = instructions.filter(inst => {
+            // Handle both string and object instructions
+            if (typeof inst === 'string') {
+                return inst.trim() !== '';
+            } else if (typeof inst === 'object' && inst !== null) {
+                // Video import format: {text: "...", step: 1, videoTimestamp: 123}
+                return inst.text && inst.text.trim() !== '';
+            }
+            return false;
+        });
+
+        // FIXED: Handle ingredients with video metadata
+        const processedIngredients = ingredients.filter(ing => ing.name && ing.name.trim() !== '');
+
         const recipeData = {
             title,
             description: description || '',
-            ingredients: ingredients.filter(ing => ing.name && ing.name.trim() !== ''),
-            instructions: instructions.filter(inst => inst && inst.trim() !== ''),
+            ingredients: processedIngredients,
+            instructions: processedInstructions,
             cookTime: cookTime || null,
             prepTime: prepTime || null,
             servings: servings || null,
@@ -201,12 +217,26 @@ export async function POST(request) {
             createdAt: new Date(),
             updatedAt: new Date(),
             isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
+
+            // Add video metadata if present
+            ...(videoMetadata && {
+                videoMetadata: videoMetadata
+            }),
+
             ...(nutrition && Object.keys(nutrition).length > 0 && {
                 nutrition: nutrition,
                 nutritionManuallySet: true,
                 nutritionCalculatedAt: new Date()
             })
         };
+
+        console.log('Creating recipe with data:', {
+            title: recipeData.title,
+            instructionCount: recipeData.instructions.length,
+            ingredientCount: recipeData.ingredients.length,
+            hasVideoMetadata: !!recipeData.videoMetadata,
+            instructionTypes: recipeData.instructions.map(inst => typeof inst)
+        });
 
         const recipe = new Recipe(recipeData);
         await recipe.save();
@@ -223,7 +253,10 @@ export async function POST(request) {
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
 
-        console.log('POST /api/recipes - Recipe created successfully');
+        console.log('POST /api/recipes - Recipe created successfully:', {
+            id: recipe._id,
+            hasVideoMetadata: !!recipe.videoMetadata
+        });
 
         return NextResponse.json({
             success: true,
@@ -237,6 +270,7 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('POST recipes error:', error);
+        console.error('Error stack:', error.stack);
         return NextResponse.json(
             {
                 error: 'Failed to add recipe',
