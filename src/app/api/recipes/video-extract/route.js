@@ -137,7 +137,8 @@ function transformModalDataToSchema(modalData, videoInfo) {
     return transformedRecipe;
 }
 
-// Call Modal for video processing (ALL PLATFORMS)
+
+// Call Modal for video processing (ALL PLATFORMS) - NO AUTH REQUIRED
 async function callModalForVideoExtraction(videoInfo) {
     console.log(`🚀 [VERCEL] Calling Modal for ${videoInfo.platform} video extraction...`);
 
@@ -145,16 +146,13 @@ async function callModalForVideoExtraction(videoInfo) {
         const modalResponse = await fetch(process.env.MODAL_ENDPOINT_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                // Add auth if Modal requires it
-                ...(process.env.MODAL_API_KEY && {
-                    'Authorization': `Bearer ${process.env.MODAL_API_KEY}`
-                })
+                'Content-Type': 'application/json'
+                // No authorization needed - Modal web endpoints are public
             },
             body: JSON.stringify({
                 video_url: videoInfo.originalUrl,
                 platform: videoInfo.platform
-                // OpenAI API key now handled by Modal secrets for ALL platforms
+                // OpenAI API key handled by Modal secrets
             })
         });
 
