@@ -844,6 +844,16 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                             <div className="text-sm text-red-800">
                                 <strong>Video Import Failed:</strong> {videoImportError}
+                                {videoImportError.includes('Facebook') && (
+                                    <div className="mt-2 text-xs text-red-700">
+                                        <strong>Facebook Tips:</strong>
+                                        <ul className="list-disc list-inside mt-1 space-y-1">
+                                            <li>Make sure the video is public (not private)</li>
+                                            <li>Try using the share link from Facebook mobile app</li>
+                                            <li>For private videos, copy any recipe text and use Text Paste</li>
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -925,9 +935,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 platform={videoUrl ? (
                     videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
                         videoUrl.includes('instagram.com') ? 'instagram' :
-                            videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch') ? 'facebook' : // ADD THIS
-                                'unknown' // CHANGED from 'youtube' to 'unknown'
-                ) : 'unknown'}
+                            videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch') ? 'facebook' :
+                                'unknown' // CHANGED: from 'youtube' to 'unknown'
+                ) : 'unknown'} // CHANGED: default from 'youtube' to 'unknown'
                 onCancel={() => {
                     console.log('🚫 Modal cancelled by user');
                     setIsVideoImporting(false);

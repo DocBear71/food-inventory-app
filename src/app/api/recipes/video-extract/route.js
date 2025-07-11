@@ -266,19 +266,21 @@ export async function POST(request) {
 
         if (error.message.includes('Unsupported video platform')) {
             enhancedErrorMessage = 'Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube videos, copy the transcript and use the Text Paste option.';
+        } else if (error.message.includes('Facebook video could not be processed')) {
+            enhancedErrorMessage = 'Facebook video processing failed. Try ensuring the video is public, or copy any recipe text from the video and use Text Paste instead.';
         } else if (error.message.includes('Modal API error')) {
             enhancedErrorMessage = 'Video processing service is temporarily unavailable. Please try again in a few minutes.';
         }
 
         return NextResponse.json({
             error: enhancedErrorMessage,
-            supportedPlatforms: ['TikTok', 'Instagram', 'Facebook'], // REMOVED YouTube
+            supportedPlatforms: ['TikTok', 'Instagram', 'Facebook'],
             note: 'All video processing powered by Modal AI. For YouTube, use Text Paste with transcripts.',
             troubleshooting: {
                 tiktok: 'Use share links directly from TikTok app',
                 instagram: 'Make sure Reels are public',
-                facebook: 'Use public Facebook videos - share links work best',
-                youtube: 'YouTube not supported - copy transcript and use Text Paste option instead' // NEW
+                facebook: 'Use public Facebook videos - if private, try Text Paste with any recipe text instead',
+                youtube: 'YouTube not supported - copy transcript and use Text Paste option instead'
             }
         }, { status: 400 });
 
