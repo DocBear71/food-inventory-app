@@ -11,20 +11,8 @@ const openai = new OpenAI({
 export class AIRecipeNutritionService {
     constructor() {
         this.promptVersion = 'v2.0';
-        // Updated models with 2025 pricing
-        this.model = process.env.AI_NUTRITION_MODEL || 'gpt-4o-mini'; // Much cheaper now!
-        this.backupModel = process.env.AI_NUTRITION_BACKUP_MODEL || 'gpt-4o';
+        this.model = 'gpt-4'; // Use GPT-4 for better accuracy
         this.maxRetries = 2;
-
-        // 2025 pricing (per 1M tokens)
-        this.pricing = {
-            'gpt-4o-mini': { input: 0.15, output: 0.60 },
-            'gpt-4o': { input: 2.50, output: 10.00 },
-            'gpt-4.1': { input: 2.00, output: 8.00 },
-            'gpt-4.1-mini': { input: 0.40, output: 1.60 },
-            'gpt-4.1-nano': { input: 0.10, output: 0.40 },
-            'o3-mini': { input: 1.10, output: 4.40 }
-        };
     }
 
     /**
@@ -118,8 +106,9 @@ export class AIRecipeNutritionService {
             // Fallback to basic parsing
             return {
                 ingredients: this.fallbackIngredientParsing(ingredients),
-                tokensUsed: 0,
+                tokensUsed: { input: 0, output: 0, total: 0 },
                 cost: 0,
+                model: 'fallback',
                 warnings: ['AI parsing failed, used fallback method']
             };
         }
@@ -372,7 +361,6 @@ Guidelines:
         };
     }
 
-
     /**
      * Lookup nutrition data in USDA database
      */
@@ -565,9 +553,13 @@ Base estimates on similar common foods. Be conservative.`;
 
         // Weight by coverage and data source quality
         const sourceWeights = {
-            'usda': 1.0,
-            'openfoodfacts': 0.8,
-            'ai_estimated': 0.6
+            'usda': 1.0,                    // Highest quality
+            'usda+openfoodfacts': 0.95,     // Merged data is very reliable
+            'openfoodfacts': 0.8,           // Good quality, crowd-sourced
+            'openfoodfacts_direct': 0.8,    // Same as above
+            'openfoodfacts_alt': 0.7,       // Alternative search terms
+            'common_ingredients': 0.6,       // Generic estimates
+            'ai_estimated': 0.5             // AI estimates
         };
 
         let weightedConfidence = 0;

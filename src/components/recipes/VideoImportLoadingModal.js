@@ -43,7 +43,7 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
             estimatedTime: '20-60 seconds',
             description: 'Recipe reels and cooking posts'
         },
-        facebook: {  // ADD THIS
+        facebook: {  // Already correct in your file ✅
             name: 'Facebook',
             icon: '👥',
             color: 'from-blue-500 to-indigo-600',
@@ -63,7 +63,8 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
         }
     };
 
-    const info = platformInfo[platform] || platformInfo.youtube;
+
+    const info = platformInfo[platform] || platformInfo.unknown;
 
     // Animate dots
     useEffect(() => {
