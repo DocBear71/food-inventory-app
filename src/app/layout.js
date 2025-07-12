@@ -52,12 +52,6 @@ function DirectShareHandler() {
             window.removeEventListener('shareReceived', handleShare);
         };
     }, [router]);
-
-    return (
-        <div className="fixed top-0 left-0 right-0 bg-green-100 border border-green-400 text-green-700 px-4 py-3 text-sm z-50">
-            <strong>Debug:</strong> DirectShareHandler active - ready for shares
-        </div>
-    );
 }
 
 export default function RootLayout({children}) {
