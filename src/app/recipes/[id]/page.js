@@ -477,7 +477,7 @@ export default function RecipeDetailPage() {
                     )}
                 </div>
 
-                {/* Nutrition Panel */}
+                {/* Nutrition Panel - UPDATED LOGIC */}
                 {showNutrition && hasNutritionData && (
                     <div className="mb-8">
                         <NutritionFacts
@@ -711,8 +711,8 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* Compact Nutrition Display */}
-                        {hasNutritionData && !showNutrition && (
+                        {/* Compact Nutrition Display - ONLY show when nutrition panel is hidden */}
+                        {!showNutrition && hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-semibold text-gray-900">Nutrition Summary</h3>
@@ -868,6 +868,7 @@ export default function RecipeDetailPage() {
                 isOpen={showNutritionModal}
                 onClose={() => setShowNutritionModal(false)}
                 servings={recipe?.servings || 1}
+                recipeTitle={recipe?.title || "Recipe"} // ADD THIS
             />
 
 

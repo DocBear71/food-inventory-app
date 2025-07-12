@@ -4,25 +4,22 @@
 
 import { useEffect, useState } from 'react';
 
-export default function VideoImportLoadingModal({ isVisible, platform, onCancel }) {
-    const [loadingStep, setLoadingStep] = useState(0);
+export default function VideoImportLoadingModal({
+                                                    isVisible,
+                                                    platform = 'facebook',
+                                                    stage = 'processing',
+                                                    message = 'Processing video...',
+                                                    onCancel
+                                                }) {
     const [dots, setDots] = useState('');
 
     // DEBUG: Add console logs
     useEffect(() => {
         console.log('🎭 VideoImportLoadingModal - isVisible changed to:', isVisible);
         console.log('🎭 VideoImportLoadingModal - platform:', platform);
-    }, [isVisible, platform]);
-
-    const steps = [
-        { text: 'Analyzing video...', duration: 3000 },
-        { text: 'Extracting audio...', duration: 4000 },
-        { text: 'AI transcribing speech...', duration: 8000 },
-        { text: 'Parsing recipe ingredients...', duration: 5000 },
-        { text: 'Generating instructions...', duration: 4000 },
-        { text: 'Adding video timestamps...', duration: 3000 },
-        { text: 'Finalizing recipe...', duration: 2000 }
-    ];
+        console.log('🎭 VideoImportLoadingModal - stage:', stage);
+        console.log('🎭 VideoImportLoadingModal - message:', message);
+    }, [isVisible, platform, stage, message]);
 
     const platformInfo = {
         tiktok: {
@@ -43,14 +40,14 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
             estimatedTime: '20-60 seconds',
             description: 'Recipe reels and cooking posts'
         },
-        facebook: {  // Already correct in your file ✅
+        facebook: {
             name: 'Facebook',
             icon: '👥',
             color: 'from-blue-500 to-indigo-600',
             bgColor: 'from-blue-50 to-indigo-50',
             borderColor: 'border-blue-200',
-            estimatedTime: '30-90 seconds',
-            description: 'Community recipes and cooking videos'
+            estimatedTime: '15-30 seconds',
+            description: 'AI-powered recipe extraction'
         },
         unknown: {
             name: 'Video',
@@ -63,8 +60,36 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
         }
     };
 
+    const stageInfo = {
+        starting: {
+            icon: '🎬',
+            title: 'Starting Analysis',
+            progress: 10
+        },
+        downloading: {
+            icon: '📥',
+            title: 'Downloading Video',
+            progress: 25
+        },
+        processing: {
+            icon: '🤖',
+            title: 'AI Frame Analysis',
+            progress: 60
+        },
+        generating: {
+            icon: '📝',
+            title: 'Creating Recipe',
+            progress: 85
+        },
+        complete: {
+            icon: '✅',
+            title: 'Complete',
+            progress: 100
+        }
+    };
 
     const info = platformInfo[platform] || platformInfo.unknown;
+    const currentStage = stageInfo[stage] || stageInfo.processing;
 
     // Animate dots
     useEffect(() => {
@@ -77,29 +102,6 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
         return () => clearInterval(interval);
     }, [isVisible]);
 
-    // Auto-advance loading steps
-    useEffect(() => {
-        if (!isVisible) {
-            setLoadingStep(0);
-            return;
-        }
-
-        let timeouts = [];
-        let currentTime = 0;
-
-        steps.forEach((step, index) => {
-            const timeout = setTimeout(() => {
-                setLoadingStep(index);
-            }, currentTime);
-            timeouts.push(timeout);
-            currentTime += step.duration;
-        });
-
-        return () => {
-            timeouts.forEach(timeout => clearTimeout(timeout));
-        };
-    }, [isVisible]);
-
     // DEBUG: Early return with logging
     if (!isVisible) {
         console.log('🎭 VideoImportLoadingModal - not visible, returning null');
@@ -108,88 +110,93 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
 
     console.log('🎭 VideoImportLoadingModal - rendering modal');
 
-    const currentStep = steps[loadingStep] || steps[0];
-    const progress = ((loadingStep + 1) / steps.length) * 100;
+    const steps = [
+        { key: 'starting', label: 'Initialize analysis', completed: ['downloading', 'processing', 'generating', 'complete'].includes(stage) },
+        { key: 'downloading', label: 'Download video', completed: ['processing', 'generating', 'complete'].includes(stage) },
+        { key: 'processing', label: 'AI frame analysis', completed: ['generating', 'complete'].includes(stage) },
+        { key: 'generating', label: 'Generate recipe', completed: ['complete'].includes(stage) }
+    ];
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className={`${info.bgColor} rounded-2xl shadow-2xl max-w-md w-full p-8 relative`}>
+            <div className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative`}>
                 {/* Cancel button */}
-                <button
-                    onClick={() => {
-                        console.log('🚫 Modal cancel button clicked');
-                        onCancel();
-                    }}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+                {onCancel && stage !== 'complete' && (
+                    <button
+                        onClick={() => {
+                            console.log('🚫 Modal cancel button clicked');
+                            onCancel();
+                        }}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                )}
 
-                {/* Platform icon and title */}
+                {/* Header */}
                 <div className="text-center mb-6">
-                    <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${info.color} rounded-full text-white text-2xl mb-4 shadow-lg`}>
-                        {info.icon}
+                    <div className="text-4xl mb-3">
+                        {currentStage.icon}
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Extracting Recipe from {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                    </h2>
-                    <p className="text-gray-600 text-sm">
-                        Using AI to analyze video and extract recipe details
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {currentStage.title}
+                    </h3>
+                    <p className="text-gray-600 capitalize">
+                        Importing from {platform}
                     </p>
                 </div>
 
-                {/* Loading animation */}
+                {/* Progress Animation */}
                 <div className="mb-6">
-                    <div className="flex items-center justify-center mb-4">
-                        <div className="relative">
-                            {/* Spinning ring */}
-                            <div className={`w-16 h-16 border-4 border-gray-200 border-t-transparent rounded-full animate-spin bg-gradient-to-r ${info.color}`}></div>
-                            {/* Inner pulsing circle */}
-                            <div className={`absolute inset-2 bg-gradient-to-r ${info.color} rounded-full animate-pulse opacity-20`}></div>
-                        </div>
+                    <div className="flex justify-center mb-4">
+                        {stage === 'complete' ? (
+                            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        ) : (
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        )}
                     </div>
-
-                    {/* Current step */}
-                    <div className="text-center">
-                        <p className="text-lg font-medium text-gray-800 mb-2">
-                            {currentStep.text}{dots}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                            Expected time: {info.expected}
-                        </p>
-                    </div>
+                    <p className="text-center text-gray-700 font-medium">
+                        {message}{stage !== 'complete' ? dots : ''}
+                    </p>
                 </div>
 
-                {/* Progress bar */}
+                {/* Progress Bar */}
                 <div className="mb-6">
                     <div className="flex justify-between text-xs text-gray-500 mb-2">
                         <span>Progress</span>
-                        <span>{Math.round(progress)}%</span>
+                        <span>{currentStage.progress}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                            className={`h-2 bg-gradient-to-r ${info.color} rounded-full transition-all duration-1000 ease-out`}
-                            style={{ width: `${progress}%` }}
+                            className={`h-2 ${stage === 'complete' ? 'bg-green-500' : 'bg-indigo-600'} rounded-full transition-all duration-1000 ease-out`}
+                            style={{ width: `${currentStage.progress}%` }}
                         ></div>
                     </div>
                 </div>
 
-                {/* Steps list */}
-                <div className="space-y-2">
+                {/* Progress Steps */}
+                <div className="space-y-2 mb-6">
                     {steps.map((step, index) => (
-                        <div key={index} className="flex items-center text-sm">
-                            <div className={`w-3 h-3 rounded-full mr-3 ${
-                                index < loadingStep ? 'bg-green-500' :
-                                    index === loadingStep ? `bg-gradient-to-r ${info.color}` : 'bg-gray-300'
+                        <div key={step.key} className="flex items-center">
+                            <div className={`w-4 h-4 rounded-full mr-3 ${
+                                step.completed ? 'bg-green-500' :
+                                    stage === step.key ? 'bg-indigo-600 animate-pulse' :
+                                        'bg-gray-300'
                             }`}></div>
-                            <span className={`${
-                                index <= loadingStep ? 'text-gray-800 font-medium' : 'text-gray-500'
+                            <span className={`text-sm ${
+                                step.completed ? 'text-green-600 font-medium' :
+                                    stage === step.key ? 'text-indigo-600 font-medium' :
+                                        'text-gray-500'
                             }`}>
-                                {step.text.replace('...', '')}
+                                {step.label}
                             </span>
-                            {index < loadingStep && (
+                            {step.completed && (
                                 <svg className="w-4 h-4 ml-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                 </svg>
@@ -199,18 +206,28 @@ export default function VideoImportLoadingModal({ isVisible, platform, onCancel 
                 </div>
 
                 {/* Tips */}
-                <div className="mt-6 p-4 bg-white bg-opacity-50 rounded-lg">
-                    <p className="text-xs text-gray-600">
-                        <strong>💡 Tip:</strong> Better results with clear audio and step-by-step cooking instructions.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-blue-800 text-sm">
+                        💡 {stage === 'complete' ? 'Recipe extracted successfully! The form will be populated automatically.' :
+                        'This usually takes 15-30 seconds. The AI is watching your video and extracting the complete recipe!'}
                     </p>
                 </div>
+
+                {/* Expected time (only show if not complete) */}
+                {stage !== 'complete' && (
+                    <div className="text-center text-sm text-gray-500">
+                        Expected time: {info.estimatedTime}
+                    </div>
+                )}
 
                 {/* DEBUG INFO */}
                 {process.env.NODE_ENV === 'development' && (
                     <div className="mt-4 bg-red-100 p-2 rounded text-xs">
                         <strong>Debug:</strong> Modal is rendering!<br/>
                         Platform: {platform}<br/>
-                        Step: {loadingStep}/{steps.length}
+                        Stage: {stage}<br/>
+                        Message: {message}<br/>
+                        Progress: {currentStage.progress}%
                     </div>
                 )}
             </div>

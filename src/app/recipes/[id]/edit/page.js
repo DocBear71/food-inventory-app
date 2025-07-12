@@ -733,6 +733,7 @@ export default function EditRecipePage() {
                     isOpen={showNutritionModal}
                     onClose={() => setShowNutritionModal(false)}
                     servings={parseInt(formData.servings) || 4}
+                    recipeTitle={formData.title || "Recipe"} // ADD THIS
                 />
 
                 <Footer />

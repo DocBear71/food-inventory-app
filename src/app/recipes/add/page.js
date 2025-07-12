@@ -105,14 +105,6 @@ export default function AddRecipePage() {
                 })
             };
 
-            console.log('Transformed API data:', apiData);
-            console.log('Instructions format:', apiData.instructions.map((inst, i) => ({
-                index: i,
-                type: typeof inst,
-                hasText: inst.text ? 'yes' : 'no',
-                hasVideoData: inst.videoTimestamp ? 'yes' : 'no'
-            })));
-
             const response = await apiPost('/api/recipes', apiData);
 
             if (!response.ok) {
@@ -124,12 +116,9 @@ export default function AddRecipePage() {
             const data = await response.json();
 
             if (data.success) {
-                // Success! Navigate to the new recipe
-                console.log('✅ Recipe created successfully:', data.recipe._id);
 
                 // Show success message for video imports
                 if (recipeData.videoMetadata) {
-                    console.log(`🎥 Video recipe imported from ${recipeData.videoMetadata.videoPlatform}!`);
                 }
 
                 router.push(`/recipes/${data.recipe._id}`);
@@ -188,12 +177,6 @@ export default function AddRecipePage() {
                     isEditing={false}
                 />
 
-                <NutritionModal
-                    nutrition={null} // Will be handled by EnhancedRecipeForm
-                    isOpen={false}    // Will be controlled by EnhancedRecipeForm
-                    onClose={() => {}}
-                    servings={4}
-                />
 
                 <Footer />
             </div>

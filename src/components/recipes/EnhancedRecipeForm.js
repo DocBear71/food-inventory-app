@@ -18,6 +18,11 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [showVideoImport, setShowVideoImport] = useState(false);
     const [videoUrl, setVideoUrl] = useState('');
     const [isVideoImporting, setIsVideoImporting] = useState(false);
+    const [videoImportProgress, setVideoImportProgress] = useState({
+        stage: '',
+        platform: '',
+        message: ''
+    });
     const [videoImportError, setVideoImportError] = useState('');
     const [videoInfo, setVideoInfo] = useState(null);
     const [importSource, setImportSource] = useState(null);
@@ -106,9 +111,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             setVideoUrl(decodeURIComponent(sharedVideoUrl));
             setShowVideoImport(true);
 
-            // Show success message
-            alert(`🎯 ${platform || 'Video'} shared successfully!\nReady to extract recipe from: ${decodeURIComponent(sharedVideoUrl)}`);
-
             // Clean up URL parameters
             const url = new URL(window.location);
             url.searchParams.delete('videoUrl');
@@ -117,6 +119,23 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             window.history.replaceState({}, '', url);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        // Check URL params for shared video
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoUrl = urlParams.get('videoUrl');
+        const source = urlParams.get('source');
+        const platform = urlParams.get('platform');
+
+        if (videoUrl && source === 'share' && platform === 'facebook') {
+            console.log('🎯 Auto-starting Facebook video import:', videoUrl);
+
+            // Auto-trigger the video import
+            setTimeout(() => {
+                handleVideoImport(videoUrl);
+            }, 500); // Small delay to ensure UI is ready
+        }
+    }, []);
 
     // Auto-expanding textarea hook
     const useAutoExpandingTextarea = () => {
@@ -342,11 +361,25 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         setIsVideoImporting(true);
         setVideoImportError('');
 
+        // ADD: Set initial progress stage
+        setVideoImportProgress({
+            stage: 'starting',
+            platform: 'facebook',
+            message: 'Initializing video analysis...'
+        });
+
         // DEBUG: Check if modal should be visible
         console.log('🎭 Modal should be visible now. isVideoImporting:', true);
 
         try {
             console.log('📡 Starting API call to video-extract...');
+
+            // UPDATE: Set downloading stage
+            setVideoImportProgress({
+                stage: 'downloading',
+                platform: 'facebook',
+                message: 'Downloading video from Facebook...'
+            });
 
             const requestPayload = {
                 url: url.trim(),
@@ -354,6 +387,14 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             };
 
             console.log('📡 Starting API call with AI analysis:', requestPayload);
+
+            // UPDATE: Set processing stage
+            setVideoImportProgress({
+                stage: 'processing',
+                platform: 'facebook',
+                message: 'AI analyzing video frames...'
+            });
+
             const response = await apiPost('/api/recipes/video-extract', requestPayload);
             const data = await response.json();
 
@@ -362,6 +403,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             if (data.success) {
                 console.log('✅ Video extraction successful');
                 console.log('🔍 Raw recipe data from API:', data.recipe);
+
+                // UPDATE: Set generating stage
+                setVideoImportProgress({
+                    stage: 'generating',
+                    platform: 'facebook',
+                    message: 'Generating recipe from analysis...'
+                });
 
                 // DEBUG: Check for timestamps in raw data
                 console.log('🕒 Checking for timestamps in ingredients:');
@@ -428,7 +476,6 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         return instruction;
                     }),
 
-
                     prepTime: data.recipe.prepTime || '',
                     cookTime: data.recipe.cookTime || '',
                     servings: data.recipe.servings || '',
@@ -465,9 +512,17 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                 console.log('🕒 Ingredients with timestamps:', videoRecipe.ingredients.filter(i => i.videoTimestamp));
                 console.log('🕒 Instructions with timestamps:', videoRecipe.instructions.filter(i => i.videoTimestamp));
 
+                // UPDATE: Show completion message
+                setVideoImportProgress({
+                    stage: 'complete',
+                    platform: 'facebook',
+                    message: 'Recipe generated successfully!'
+                });
+
                 setTimeout(() => {
                     console.log('🎭 Hiding modal after delay');
                     setIsVideoImporting(false);
+                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                 }, 1500); // Show success for 1.5 seconds
 
                 setRecipe(videoRecipe);
@@ -491,6 +546,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         } finally {
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
+            setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
     };
 
@@ -1019,16 +1075,12 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         <div className="space-y-6">
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoUrl ? (
-                    videoUrl.includes('tiktok.com') || videoUrl.includes('vm.tiktok.com') ? 'tiktok' :
-                        videoUrl.includes('instagram.com') ? 'instagram' :
-                            videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch') ? 'facebook' :
-                                'unknown' // CHANGED: from 'youtube' to 'unknown'
-                ) : 'unknown'} // CHANGED: default from 'youtube' to 'unknown'
+                platform={videoImportProgress.platform || 'facebook'}
+                stage={videoImportProgress.stage || 'processing'}
+                message={videoImportProgress.message || 'Processing video...'}
                 onCancel={() => {
-                    console.log('🚫 Modal cancelled by user');
                     setIsVideoImporting(false);
-                    setVideoImportError('Import cancelled by user');
+                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                 }}
             />
 

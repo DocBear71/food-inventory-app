@@ -33,9 +33,6 @@ function DirectShareHandler() {
 
             // Check if it's a Facebook URL
             if (url && (url.includes('facebook.com') || url.includes('fb.watch'))) {
-                console.log('✅ Facebook URL detected, navigating...');
-
-                alert(`🚀 Facebook share detected!\nNavigating to recipe import...\nURL: ${url}`);
 
                 // Navigate to recipe import
                 const encodedUrl = encodeURIComponent(url);

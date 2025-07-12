@@ -689,6 +689,19 @@ input[type="radio"]:focus {
 .bg-pink-100 { background-color: #fce7f3 !important; }
 .bg-pink-600 { background-color: #db2777 !important; }
 
+/* Nutrition Grade Colors */
+.bg-lime-500 { background-color: #84cc16 !important; }
+.bg-yellow-500 { background-color: #eab308 !important; }
+.bg-orange-500 { background-color: #f97316 !important; }
+.bg-red-500 { background-color: #ef4444 !important; }
+.bg-green-500 { background-color: #22c55e !important; }
+/* Text colors for consistency */
+.text-lime-500 { color: #84cc16 !important; }
+.text-yellow-500 {color: #eab308 !important; }
+.text-orange-500 { color: #f97316 !important; }
+.text-red-500 { color: #ef4444 !important; }
+.text-green-500 { color: #22c55e !important; }
+
 /* Background Opacity */
 .bg-opacity-60 { background-color: rgba(0, 0, 0, 0.6) !important; }
 .bg-opacity-75 { background-color: rgba(0, 0, 0, 0.75) !important; }

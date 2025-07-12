@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Info } from 'lucide-react';
 
-const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1 }) => {
+const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle = "Recipe" }) => {
     if (!isOpen || !nutrition) return null;
 
     // Calculate nutritional score and grade
@@ -107,25 +107,26 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1 }) => {
     const servingSize = nutrition.servingSize?.value || 350;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+            <div className="bg-white rounded-lg max-w-md w-full max-h-[95vh] overflow-hidden mx-auto">
                 {/* Header */}
                 <div className="bg-green-50 p-4 border-b">
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
                                 <span className="text-white font-bold text-sm">N</span>
                             </div>
-                            <div>
-                                <h3 className="font-bold text-gray-900">Nutrition</h3>
-                                <button className="text-green-600 text-sm flex items-center gap-1">
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-gray-900 text-lg truncate">Nutrition</h3>
+                                <p className="text-sm text-gray-600 truncate">{recipeTitle}</p>
+                                <button className="text-green-600 text-sm flex items-center gap-1 mt-1">
                                     more info <Info size={12} />
                                 </button>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-1 hover:bg-gray-200 rounded"
+                            className="p-1 hover:bg-gray-200 rounded flex-shrink-0 ml-2"
                         >
                             <X size={20} className="text-gray-600" />
                         </button>
@@ -133,15 +134,15 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1 }) => {
 
                     {/* Nutritional Grade */}
                     <div className="mt-4">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-1 mb-2">
                             <div className="flex">
                                 {['A', 'B', 'C', 'D', 'E'].map((grade) => (
                                     <div
                                         key={grade}
-                                        className={`w-8 h-8 flex items-center justify-center text-white font-bold text-sm ${
+                                        className={`w-7 h-7 flex items-center justify-center text-white font-bold text-xs ${
                                             grade === gradeInfo.grade
                                                 ? gradeInfo.color
-                                                : grade < gradeInfo.grade
+                                                : grade <= gradeInfo.grade
                                                     ? 'bg-gray-300'
                                                     : 'bg-gray-200'
                                         }`}
@@ -158,7 +159,7 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1 }) => {
                 </div>
 
                 {/* Nutrition Content */}
-                <div className="overflow-y-auto max-h-[60vh]">
+                <div className="overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px)' }}>
                     <div className="p-4">
                         {/* Serving Size */}
                         <div className="mb-4 pb-2 border-b-2 border-gray-200">
@@ -322,88 +323,4 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1 }) => {
     );
 };
 
-// Example usage component
-const NutritionDemo = () => {
-    const [modalOpen, setModalOpen] = useState(false);
-
-    // Sample nutrition data from your AI system
-    const sampleNutrition = {
-        calories: { value: 250, unit: 'kcal', name: 'Energy' },
-        protein: { value: 18, unit: 'g', name: 'Protein' },
-        fat: { value: 18, unit: 'g', name: 'Total Fat' },
-        saturatedFat: { value: 10, unit: 'g', name: 'Saturated Fat' },
-        monounsaturatedFat: { value: 5, unit: 'g', name: 'Monounsaturated Fat' },
-        polyunsaturatedFat: { value: 1, unit: 'g', name: 'Polyunsaturated Fat' },
-        transFat: { value: 0, unit: 'g', name: 'Trans Fat' },
-        cholesterol: { value: 65, unit: 'mg', name: 'Cholesterol' },
-        carbs: { value: 3, unit: 'g', name: 'Total Carbohydrate' },
-        fiber: { value: 0, unit: 'g', name: 'Dietary Fiber' },
-        sugars: { value: 1, unit: 'g', name: 'Total Sugars' },
-        sodium: { value: 450, unit: 'mg', name: 'Sodium' },
-        potassium: { value: 150, unit: 'mg', name: 'Potassium' },
-        calcium: { value: 200, unit: 'mg', name: 'Calcium' },
-        iron: { value: 0.5, unit: 'mg', name: 'Iron' },
-        magnesium: { value: 15, unit: 'mg', name: 'Magnesium' },
-        zinc: { value: 1.5, unit: 'mg', name: 'Zinc' },
-        vitaminA: { value: 100, unit: 'µg', name: 'Vitamin A (RAE)' },
-        thiamin: { value: 0.05, unit: 'mg', name: 'Thiamin (B1)' },
-        riboflavin: { value: 0.2, unit: 'mg', name: 'Riboflavin (B2)' },
-        niacin: { value: 5, unit: 'mg', name: 'Niacin (B3)' },
-        vitaminB6: { value: 0.3, unit: 'mg', name: 'Vitamin B6' },
-        folate: { value: 10, unit: 'µg', name: 'Folate (B9)' },
-        vitaminB12: { value: 0.5, unit: 'µg', name: 'Vitamin B12' },
-        servingSize: { value: 350, unit: 'g' }
-    };
-
-    return (
-        <div className="p-8">
-            <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-bold mb-4">Buffalo Chicken Cheese Roll-Ups</h2>
-
-                {/* Nutrition Summary */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-semibold text-gray-900">Nutrition Summary</h3>
-                        <button
-                            onClick={() => setModalOpen(true)}
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                            View Details
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <span className="text-gray-600">Calories:</span>
-                            <span className="font-semibold ml-2">{sampleNutrition.calories.value}</span>
-                        </div>
-                        <div>
-                            <span className="text-gray-600">Protein:</span>
-                            <span className="font-semibold ml-2">{sampleNutrition.protein.value}g</span>
-                        </div>
-                        <div>
-                            <span className="text-gray-600">Carbs:</span>
-                            <span className="font-semibold ml-2">{sampleNutrition.carbs.value}g</span>
-                        </div>
-                        <div>
-                            <span className="text-gray-600">Fat:</span>
-                            <span className="font-semibold ml-2">{sampleNutrition.fat.value}g</span>
-                        </div>
-                    </div>
-                </div>
-
-                <p className="text-gray-600 text-sm">
-                    Click "View Details" to see comprehensive nutrition information including vitamins, minerals, and nutritional grade.
-                </p>
-            </div>
-
-            <NutritionModal
-                nutrition={sampleNutrition}
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                servings={6}
-            />
-        </div>
-    );
-};
-
-export default NutritionDemo;
+export default NutritionModal;
