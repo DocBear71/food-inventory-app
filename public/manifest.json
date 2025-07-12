@@ -2,7 +2,7 @@
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
   "description": "Manage your food inventory, meal planning, and recipes",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
