@@ -35,25 +35,38 @@ public class MainActivity extends BridgeActivity {
 
     // ADD: Share intent handling method
     private void handleShareIntent(Intent intent) {
-        if (intent == null) return;
+        if (intent == null) {
+            System.out.println("🔍 handleShareIntent: Intent is null");
+            return;
+        }
 
         String action = intent.getAction();
         String type = intent.getType();
 
+        System.out.println("🔍 Intent received:");
+        System.out.println("  Action: " + action);
+        System.out.println("  Type: " + type);
+
         // Handle text share (like Facebook URLs)
         if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
             String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
-            if (sharedText != null && !sharedText.isEmpty()) {
-                System.out.println("📱 Android received share: " + sharedText);
+            System.out.println("📱 Android received share: " + sharedText);
 
-                // Send to Capacitor webview (wait for webview to be ready)
+            if (sharedText != null && !sharedText.isEmpty()) {
+                // ADD: More debug output
+                System.out.println("🚀 Sending to webview: " + sharedText);
+
                 getBridge().getWebView().post(() -> {
                     String jsCode = String.format(
-                        "window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_share' } }));",
+                        "console.log('📱 Android share received in webview: %s'); window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_share' } }));",
+                        sharedText.replace("'", "\\'").replace("\"", "\\\""),
                         sharedText.replace("'", "\\'").replace("\"", "\\\"")
                     );
+                    System.out.println("🔧 Executing JS: " + jsCode);
                     getBridge().getWebView().evaluateJavascript(jsCode, null);
                 });
+            } else {
+                System.out.println("❌ Shared text is null or empty");
             }
         }
 
