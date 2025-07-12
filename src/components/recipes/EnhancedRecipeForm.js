@@ -954,11 +954,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 <div className="text-xs text-blue-700 space-y-1">
                                     <div>• <strong>🎵 TikTok:</strong> Full audio + video analysis</div>
                                     <div>• <strong>📸 Instagram:</strong> Audio analysis + text extraction</div>
-                                    <div>• <strong>👥 Facebook:</strong> Text extraction from captions/descriptions</div>
+                                    <div>• <strong>👥 Facebook:</strong> Use the share button inside Facebook mobile</div>
                                     <div>• <strong>📺 YouTube:</strong> Use Text Paste with transcripts</div>
-                                </div>
-                                <div className="mt-2 text-xs text-blue-600">
-                                    <strong>Note:</strong> Facebook videos use text extraction rather than video download for better reliability.
                                 </div>
                             </div>
                         </div>
