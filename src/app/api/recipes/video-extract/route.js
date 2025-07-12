@@ -186,10 +186,15 @@ const handleFacebookVideo = async (videoUrl) => {
 };
 
 // Call Modal for video processing (ALL PLATFORMS) - NO AUTH REQUIRED
-async function callModalForVideoExtraction(videoInfo) {
+async function callModalForVideoExtraction(videoInfo, analysisType = 'standard') {
     console.log(`🚀 [VERCEL] Calling Modal for ${videoInfo.platform} video extraction...`);
 
     try {
+        const payload = {
+            video_url: videoInfo.originalUrl,
+            platform: videoInfo.platform,
+            analysis_type: analysisType  // ADD this line
+        };
         const modalResponse = await fetch(process.env.MODAL_ENDPOINT_URL, {
             method: 'POST',
             headers: {
@@ -247,7 +252,8 @@ export async function POST(request) {
             );
         }
 
-        const { url } = await request.json();
+        const { url, analysisType } = await request.json();
+        console.log('🎬 [VERCEL] Analysis type requested:', analysisType);
 
         if (!url) {
             return NextResponse.json(
@@ -263,7 +269,7 @@ export async function POST(request) {
         console.log(`📺 [VERCEL] Video info: ${videoInfo.platform} - ${videoInfo.videoId}`);
 
         // Use Modal for ALL platforms (TikTok, Instagram, YouTube)
-        const result = await callModalForVideoExtraction(videoInfo);
+        const result = await callModalForVideoExtraction(videoInfo, analysisType);
 
         console.log('✅ [VERCEL] Extraction complete:', {
             platform: videoInfo.platform,

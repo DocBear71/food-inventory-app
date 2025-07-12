@@ -348,7 +348,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         try {
             console.log('📡 Starting API call to video-extract...');
 
-            const response = await apiPost('/api/recipes/video-extract', { url: url.trim() });
+            const requestPayload = {
+                url: url.trim(),
+                analysisType: 'ai_vision_enhanced' // Signal to use AI frame analysis
+            };
+
+            console.log('📡 Starting API call with AI analysis:', requestPayload);
+            const response = await apiPost('/api/recipes/video-extract', requestPayload);
             const data = await response.json();
 
             console.log('📥 Received response from video-extract:', data);
