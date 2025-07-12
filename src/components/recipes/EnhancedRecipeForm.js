@@ -8,6 +8,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from "./VideoImportLoadingModal";
 import { useShareHandler} from "@/hooks/useShareHandler";
+import { useSearchParams } from 'next/navigation';
 
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
@@ -21,6 +22,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [videoInfo, setVideoInfo] = useState(null);
     const [importSource, setImportSource] = useState(null);
     const [sharedContent, setSharedContent] = useState(null);
+
+    const searchParams = useSearchParams();
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -90,6 +93,30 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             console.log('🎯 Facebook video shared:', shareData.url);
         }
     });
+
+    useEffect(() => {
+        const sharedVideoUrl = searchParams.get('videoUrl');
+        const shareSource = searchParams.get('source');
+        const platform = searchParams.get('platform');
+
+        if (sharedVideoUrl && shareSource === 'share') {
+            console.log('📥 Video URL from share params:', sharedVideoUrl);
+
+            // Auto-fill the video URL and show video import
+            setVideoUrl(decodeURIComponent(sharedVideoUrl));
+            setShowVideoImport(true);
+
+            // Show success message
+            alert(`🎯 ${platform || 'Video'} shared successfully!\nReady to extract recipe from: ${decodeURIComponent(sharedVideoUrl)}`);
+
+            // Clean up URL parameters
+            const url = new URL(window.location);
+            url.searchParams.delete('videoUrl');
+            url.searchParams.delete('source');
+            url.searchParams.delete('platform');
+            window.history.replaceState({}, '', url);
+        }
+    }, [searchParams]);
 
     // Auto-expanding textarea hook
     const useAutoExpandingTextarea = () => {

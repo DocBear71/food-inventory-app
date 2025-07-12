@@ -1,4 +1,4 @@
-// file: /src/app/layout.js v8 - Improved platform detection
+// file: /src/app/layout.js v9 - Added global share handler
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -8,7 +8,8 @@ import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider'
 import NativeAuthHandler from '@/components/NativeAuthHandler';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
 import ViewportHandler from '@/components/ViewportHandler';
-import PlatformAwareWrapper from '@/components/PlatformAwareWrapper'; // NEW
+import PlatformAwareWrapper from '@/components/PlatformAwareWrapper';
+import GlobalShareHandler from '@/components/GlobalShareHandler'; // NEW
 
 // ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
@@ -72,8 +73,9 @@ export default async function RootLayout({children}) {
         <CapacitorAuthProvider>
             <SessionProvider>
                 <SubscriptionProvider>
-                    {/* NEW: Single wrapper that handles platform detection at runtime */}
                     <PlatformAwareWrapper>
+                        {/* ADD: Global share handler that works from any page */}
+                        <GlobalShareHandler />
                         {children}
                     </PlatformAwareWrapper>
                 </SubscriptionProvider>
