@@ -49,86 +49,59 @@ public class MainActivity extends BridgeActivity {
 
         Bundle extras = intent.getExtras();
             if (extras != null) {
-                System.out.println("📦 ALL SHARE EXTRAS:");
+                // BUILD DEBUG INFO FOR ALERT
+                StringBuilder debugInfo = new StringBuilder("🔍 FACEBOOK SHARE METADATA:\n\n");
+
                 for (String key : extras.keySet()) {
                     Object value = extras.get(key);
-                    System.out.println("  " + key + ": " + value);
+                    debugInfo.append("📦 ").append(key).append(":\n   ").append(value).append("\n\n");
                 }
 
-                // Standard Android extras
+                // Look for specific extras
                 String title = extras.getString(Intent.EXTRA_TITLE);
                 String subject = extras.getString(Intent.EXTRA_SUBJECT);
                 String htmlText = extras.getString(Intent.EXTRA_HTML_TEXT);
-                String stream = extras.getString(Intent.EXTRA_STREAM);
 
-                System.out.println("📋 PARSED EXTRAS:");
-                System.out.println("  Title: " + title);
-                System.out.println("  Subject: " + subject);
-                System.out.println("  HTML: " + htmlText);
-                System.out.println("  Stream: " + stream);
+                if (title != null || subject != null || htmlText != null) {
+                    debugInfo.append("🎯 KEY METADATA:\n");
+                    if (title != null) debugInfo.append("Title: ").append(title).append("\n");
+                    if (subject != null) debugInfo.append("Subject: ").append(subject).append("\n");
+                    if (htmlText != null) debugInfo.append("HTML: ").append(htmlText.substring(0, Math.min(200, htmlText.length()))).append("...\n");
+                }
 
-                // BUILD RICH SHARE DATA
-                JSONObject shareMetadata = new JSONObject();
+                // SHOW ALERT WITH ALL METADATA
                 try {
-                    shareMetadata.put("url", intent.getStringExtra(Intent.EXTRA_TEXT));
-                    shareMetadata.put("title", title);
-                    shareMetadata.put("subject", subject);
-                    shareMetadata.put("htmlText", htmlText);
-                    shareMetadata.put("stream", stream);
-
-                    // Add all extras as metadata
-                    JSONObject extrasJson = new JSONObject();
-                    for (String key : extras.keySet()) {
-                        Object value = extras.get(key);
-                        if (value != null) {
-                            extrasJson.put(key, value.toString());
-                        }
-                    }
-                    shareMetadata.put("extras", extrasJson);
-
-                } catch (Exception e) {
-                    System.out.println("❌ Error building share metadata: " + e.getMessage());
-                }
-
-                System.out.println("🎯 FINAL SHARE METADATA: " + shareMetadata.toString());
-            }
-
-            // Handle text share (like Facebook URLs)
-            if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
-                String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
-                System.out.println("📱 Android received share: " + sharedText);
-
-                if (sharedText != null && !sharedText.isEmpty()) {
-                    System.out.println("🚀 Sending to webview: " + sharedText);
-
-                    getBridge().getWebView().post(() -> {
-                        // SEND ALL THE METADATA TO JAVASCRIPT
-                        String allMetadata = "";
-                        if (extras != null) {
-                            try {
-                                JSONObject jsMetadata = new JSONObject();
-                                jsMetadata.put("url", sharedText);
-                                jsMetadata.put("title", extras.getString(Intent.EXTRA_TITLE));
-                                jsMetadata.put("subject", extras.getString(Intent.EXTRA_SUBJECT));
-                                jsMetadata.put("htmlText", extras.getString(Intent.EXTRA_HTML_TEXT));
-                                allMetadata = jsMetadata.toString().replace("'", "\\'").replace("\"", "\\\"");
-                            } catch (Exception e) {
-                                allMetadata = "{}";
-                            }
-                        }
-
-                        String jsCode = String.format(
-                            "console.log('📱 Android share with metadata:', %s); window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_share', metadata: %s } }));",
-                            allMetadata,
-                            sharedText.replace("'", "\\'").replace("\"", "\\\""),
-                            allMetadata
-                        );
-                        System.out.println("🔧 Executing JS: " + jsCode);
-                        getBridge().getWebView().evaluateJavascript(jsCode, null);
+                    this.runOnUiThread(() -> {
+                        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+                        builder.setTitle("🔍 Facebook Share Debug");
+                        builder.setMessage(debugInfo.toString());
+                        builder.setPositiveButton("OK", null);
+                        builder.setNegativeButton("Copy", (dialog, which) -> {
+                            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                            android.content.ClipData clip = android.content.ClipData.newPlainText("Debug", debugInfo.toString());
+                            clipboard.setPrimaryClip(clip);
+                        });
+                        builder.show();
                     });
+                } catch (Exception e) {
+                    System.out.println("❌ Error showing alert: " + e.getMessage());
                 }
+
+                // CONSOLE LOGS (backup)
+                for (String key : extras.keySet()) {
+                    Object value = extras.get(key);
+                    System.out.println("📦 Share extra - " + key + ": " + value);
+                }
+            } else {
+                // Show alert even if no extras
+                this.runOnUiThread(() -> {
+                    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+                    builder.setTitle("🔍 Facebook Share Debug");
+                    builder.setMessage("❌ No extras found in share intent!\n\nThis means Facebook is only sending the URL, not recipe metadata.");
+                    builder.setPositiveButton("OK", null);
+                    builder.show();
+                });
             }
-        }
 
         // Handle text share (like Facebook URLs)
         if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
