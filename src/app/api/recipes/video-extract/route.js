@@ -188,24 +188,23 @@ const handleFacebookVideo = async (videoUrl) => {
 // Call Modal for video processing (ALL PLATFORMS) - NO AUTH REQUIRED
 async function callModalForVideoExtraction(videoInfo, analysisType = 'standard') {
     console.log(`🚀 [VERCEL] Calling Modal for ${videoInfo.platform} video extraction...`);
+    console.log('🔧 [VERCEL] Analysis type:', analysisType); // ADD debug log
 
     try {
         const payload = {
             video_url: videoInfo.originalUrl,
             platform: videoInfo.platform,
-            analysis_type: analysisType  // ADD this line
+            analysis_type: analysisType
         };
+
+        console.log('📦 [VERCEL] Modal payload:', payload); // ADD debug log
+
         const modalResponse = await fetch(process.env.MODAL_ENDPOINT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-                // No authorization needed - Modal web endpoints are public
             },
-            body: JSON.stringify({
-                video_url: videoInfo.originalUrl,
-                platform: videoInfo.platform
-                // OpenAI API key handled by Modal secrets
-            })
+            body: JSON.stringify(payload) // CHANGED: Use the payload object
         });
 
         if (!modalResponse.ok) {
@@ -229,7 +228,7 @@ async function callModalForVideoExtraction(videoInfo, analysisType = 'standard')
             metadata: result.metadata,
             extractionMethod: `${videoInfo.platform}-modal-ai`,
             cost: result.metadata?.cost || 0.05,
-            originalModalData: result // Keep for debugging
+            originalModalData: result
         };
 
     } catch (error) {
