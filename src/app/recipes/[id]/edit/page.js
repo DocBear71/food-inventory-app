@@ -9,6 +9,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { apiGet, apiPut } from '@/lib/api-config';
+import NutritionModal from "@/components/nutrition/NutritionModal";
 
 export default function EditRecipePage() {
     let session = null;
@@ -28,6 +29,7 @@ export default function EditRecipePage() {
     const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState(null);
     const [recipe, setRecipe] = useState(null); // Store full recipe for nutrition button
+    const [showNutritionModal, setShowNutritionModal] = useState(false);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -638,7 +640,18 @@ export default function EditRecipePage() {
 
                     {/* AI Nutrition Analysis */}
                     <div className="bg-white rounded-lg border p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Nutrition Information</h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-semibold text-gray-900">Nutrition Information</h2>
+                            {/* View Details Button */}
+                            {formData.nutrition && Object.keys(formData.nutrition).length > 0 && (
+                                <TouchEnhancedButton
+                                    onClick={() => setShowNutritionModal(true)}
+                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                                >
+                                    View Details
+                                </TouchEnhancedButton>
+                            )}
+                        </div>
 
                         {/* Current nutrition display if available */}
                         {formData.nutrition && Object.keys(formData.nutrition).length > 0 && (
@@ -666,10 +679,25 @@ export default function EditRecipePage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* AI Analysis Info */}
+                                {formData.nutrition.calculationMethod === 'ai_calculated' && (
+                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex items-center text-blue-800 text-sm">
+                                            <span className="mr-2">🤖</span>
+                                            <span>Nutrition calculated by AI analysis</span>
+                                            {formData.nutrition.confidence && (
+                                                <span className="ml-2 text-blue-600">
+                                Confidence: {Math.round(formData.nutrition.confidence * 100)}%
+                            </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {/* Update Nutrition Button */}
+                        {/* KEEP THIS: Update Nutrition Button - This is what you need for your 650 recipes! */}
                         <UpdateNutritionButton
                             recipe={{
                                 ...recipe,
@@ -699,6 +727,13 @@ export default function EditRecipePage() {
                         </TouchEnhancedButton>
                     </div>
                 </form>
+
+                <NutritionModal
+                    nutrition={formData.nutrition}
+                    isOpen={showNutritionModal}
+                    onClose={() => setShowNutritionModal(false)}
+                    servings={parseInt(formData.servings) || 4}
+                />
 
                 <Footer />
             </div>

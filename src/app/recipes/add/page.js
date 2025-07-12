@@ -7,6 +7,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
+import NutritionModal from "@/components/nutrition/NutritionModal";
 
 export default function AddRecipePage() {
     const router = useRouter();
@@ -186,6 +187,14 @@ export default function AddRecipePage() {
                     onCancel={handleCancel}
                     isEditing={false}
                 />
+
+                <NutritionModal
+                    nutrition={null} // Will be handled by EnhancedRecipeForm
+                    isOpen={false}    // Will be controlled by EnhancedRecipeForm
+                    onClose={() => {}}
+                    servings={4}
+                />
+
                 <Footer />
             </div>
         </MobileOptimizedLayout>

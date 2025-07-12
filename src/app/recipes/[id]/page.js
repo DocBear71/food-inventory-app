@@ -15,6 +15,7 @@ import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import NutritionModal from '@/components/nutrition/NutritionModal';
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -41,6 +42,7 @@ export default function RecipeDetailPage() {
     const [showMealPlanModal, setShowMealPlanModal] = useState(false);
     const [mealPlans, setMealPlans] = useState([]);
     const [loadingMealPlans, setLoadingMealPlans] = useState(false);
+    const [showNutritionModal, setShowNutritionModal] = useState(false);
 
     useEffect(() => {
         if (recipeId) {
@@ -409,11 +411,11 @@ export default function RecipeDetailPage() {
 
                         {hasNutritionData && (
                             <TouchEnhancedButton
-                                onClick={() => setShowNutrition(!showNutrition)}
+                                onClick={() => setShowNutritionModal(true)}
                                 className="bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
                             >
-                                <span className="hidden sm:inline">{showNutrition ? 'Hide' : 'Show'} Nutrition</span>
-                                <span className="sm:hidden">Nutrition</span>
+                                <span className="hidden sm:inline">🥗 Nutrition Details</span>
+                                <span className="sm:hidden">🥗 Nutrition</span>
                             </TouchEnhancedButton>
                         )}
 
@@ -712,7 +714,15 @@ export default function RecipeDetailPage() {
                         {/* Compact Nutrition Display */}
                         {hasNutritionData && !showNutrition && (
                             <div className="bg-white rounded-lg border p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutrition Summary</h3>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Summary</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowNutritionModal(true)}
+                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                                    >
+                                        View Details
+                                    </TouchEnhancedButton>
+                                </div>
                                 <NutritionFacts
                                     nutrition={getNormalizedNutrition()}
                                     servings={recipe.servings || 1}
@@ -852,6 +862,14 @@ export default function RecipeDetailPage() {
                     </div>
                 </div>
             )}
+            {/* Nutrition Details Modal */}
+            <NutritionModal
+                nutrition={getNormalizedNutrition()}
+                isOpen={showNutritionModal}
+                onClose={() => setShowNutritionModal(false)}
+                servings={recipe?.servings || 1}
+            />
+
 
             <Footer />
         </MobileOptimizedLayout>
