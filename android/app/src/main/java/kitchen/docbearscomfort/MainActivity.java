@@ -47,6 +47,89 @@ public class MainActivity extends BridgeActivity {
         System.out.println("  Action: " + action);
         System.out.println("  Type: " + type);
 
+        Bundle extras = intent.getExtras();
+            if (extras != null) {
+                System.out.println("📦 ALL SHARE EXTRAS:");
+                for (String key : extras.keySet()) {
+                    Object value = extras.get(key);
+                    System.out.println("  " + key + ": " + value);
+                }
+
+                // Standard Android extras
+                String title = extras.getString(Intent.EXTRA_TITLE);
+                String subject = extras.getString(Intent.EXTRA_SUBJECT);
+                String htmlText = extras.getString(Intent.EXTRA_HTML_TEXT);
+                String stream = extras.getString(Intent.EXTRA_STREAM);
+
+                System.out.println("📋 PARSED EXTRAS:");
+                System.out.println("  Title: " + title);
+                System.out.println("  Subject: " + subject);
+                System.out.println("  HTML: " + htmlText);
+                System.out.println("  Stream: " + stream);
+
+                // BUILD RICH SHARE DATA
+                JSONObject shareMetadata = new JSONObject();
+                try {
+                    shareMetadata.put("url", intent.getStringExtra(Intent.EXTRA_TEXT));
+                    shareMetadata.put("title", title);
+                    shareMetadata.put("subject", subject);
+                    shareMetadata.put("htmlText", htmlText);
+                    shareMetadata.put("stream", stream);
+
+                    // Add all extras as metadata
+                    JSONObject extrasJson = new JSONObject();
+                    for (String key : extras.keySet()) {
+                        Object value = extras.get(key);
+                        if (value != null) {
+                            extrasJson.put(key, value.toString());
+                        }
+                    }
+                    shareMetadata.put("extras", extrasJson);
+
+                } catch (Exception e) {
+                    System.out.println("❌ Error building share metadata: " + e.getMessage());
+                }
+
+                System.out.println("🎯 FINAL SHARE METADATA: " + shareMetadata.toString());
+            }
+
+            // Handle text share (like Facebook URLs)
+            if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
+                String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+                System.out.println("📱 Android received share: " + sharedText);
+
+                if (sharedText != null && !sharedText.isEmpty()) {
+                    System.out.println("🚀 Sending to webview: " + sharedText);
+
+                    getBridge().getWebView().post(() -> {
+                        // SEND ALL THE METADATA TO JAVASCRIPT
+                        String allMetadata = "";
+                        if (extras != null) {
+                            try {
+                                JSONObject jsMetadata = new JSONObject();
+                                jsMetadata.put("url", sharedText);
+                                jsMetadata.put("title", extras.getString(Intent.EXTRA_TITLE));
+                                jsMetadata.put("subject", extras.getString(Intent.EXTRA_SUBJECT));
+                                jsMetadata.put("htmlText", extras.getString(Intent.EXTRA_HTML_TEXT));
+                                allMetadata = jsMetadata.toString().replace("'", "\\'").replace("\"", "\\\"");
+                            } catch (Exception e) {
+                                allMetadata = "{}";
+                            }
+                        }
+
+                        String jsCode = String.format(
+                            "console.log('📱 Android share with metadata:', %s); window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_share', metadata: %s } }));",
+                            allMetadata,
+                            sharedText.replace("'", "\\'").replace("\"", "\\\""),
+                            allMetadata
+                        );
+                        System.out.println("🔧 Executing JS: " + jsCode);
+                        getBridge().getWebView().evaluateJavascript(jsCode, null);
+                    });
+                }
+            }
+        }
+
         // Handle text share (like Facebook URLs)
         if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
             String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
