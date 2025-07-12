@@ -39,9 +39,9 @@ export const useShareHandler = (onRecipeShare) => {
         };
 
         const handleSharedContent = (content) => {
-            console.log('📥 Processing shared content:', content);
+            console.log('📥 handleSharedContent called with:', content);
 
-            // Extract URL from content (handle both direct URLs and shared text)
+            // Extract URL from content
             let url = content;
             if (typeof content === 'string' && content.includes('http')) {
                 const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
@@ -50,7 +50,9 @@ export const useShareHandler = (onRecipeShare) => {
                 }
             }
 
-            // Check if it's a Facebook URL
+            console.log('📋 Extracted URL:', url);
+
+            // Check Facebook patterns with debug
             const facebookPatterns = [
                 /facebook\.com\/reel\/\d+/,
                 /facebook\.com\/watch\?v=\d+/,
@@ -58,10 +60,17 @@ export const useShareHandler = (onRecipeShare) => {
                 /fb\.watch\/[^\/\s]+/
             ];
 
+            console.log('🔍 Testing patterns against:', url);
+            facebookPatterns.forEach((pattern, index) => {
+                const matches = pattern.test(url);
+                console.log(`  Pattern ${index} (${pattern}): ${matches}`);
+            });
+
             const isFacebookURL = facebookPatterns.some(pattern => pattern.test(url));
+            console.log('🎯 Final result - Is Facebook URL?', isFacebookURL);
 
             if (isFacebookURL) {
-                console.log('🎯 Facebook video detected!');
+                console.log('✅ Facebook video detected, calling onRecipeShare!');
                 onRecipeShare({
                     type: 'facebook_video',
                     url: url.trim(),
@@ -69,7 +78,7 @@ export const useShareHandler = (onRecipeShare) => {
                     timestamp: Date.now()
                 });
             } else {
-                console.log('ℹ️ Non-Facebook URL shared:', url);
+                console.log('❌ Not recognized as Facebook URL');
             }
         };
 

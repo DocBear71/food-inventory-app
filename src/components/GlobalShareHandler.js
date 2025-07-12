@@ -9,6 +9,13 @@ export default function GlobalShareHandler() {
     const router = useRouter();
     const [debugInfo, setDebugInfo] = useState('');
 
+    useEffect(() => {
+        console.log('🌍 GlobalShareHandler mounted!');
+        return () => {
+            console.log('🌍 GlobalShareHandler unmounted');
+        };
+    }, []);
+
     // ADD: Listen for ANY custom events
     useEffect(() => {
         const handleAnyShare = (event) => {
@@ -25,15 +32,12 @@ export default function GlobalShareHandler() {
 
     // Global share handler that works from any page
     useShareHandler((shareData) => {
-        console.log('🌍 Global share received:', shareData);
-
-        // ADD: Debug alert to see if it's working
-        alert(`🎯 Share received!\nURL: ${shareData.url}\nSource: ${shareData.source}\nType: ${shareData.type}`);
+        console.log('🌍 useShareHandler callback called with:', shareData);
+        alert(`🚀 Share handler triggered!\nURL: ${shareData.url}\nType: ${shareData.type}`);
 
         setDebugInfo(`Last share: ${shareData.url} from ${shareData.source}`);
 
         if (shareData.type === 'facebook_video') {
-            // Navigate to recipe import page with the shared URL
             const encodedUrl = encodeURIComponent(shareData.url);
             const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=facebook`;
 
@@ -42,15 +46,12 @@ export default function GlobalShareHandler() {
         }
     });
 
-    // This component doesn't render anything visible
-    // But you can add debug info during development
     return (
         <>
-            {/* DEBUG: Show share info during development */}
-            {process.env.NODE_ENV === 'development' && debugInfo && (
-                <div
-                    className="fixed top-0 left-0 right-0 bg-green-100 border border-green-400 text-green-700 px-4 py-3 text-sm z-50">
-                    <strong>Debug:</strong> {debugInfo}
+            {/* Show debug info always during development */}
+            {process.env.NODE_ENV === 'development' && (
+                <div className="fixed top-0 left-0 right-0 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 text-sm z-50">
+                    <strong>Debug:</strong> GlobalShareHandler active. {debugInfo || 'No shares yet.'}
                 </div>
             )}
         </>
