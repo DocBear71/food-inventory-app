@@ -28,32 +28,9 @@ export default function AddRecipePage() {
                 source: recipeData.source || '',
                 isPublic: recipeData.isPublic || false,
                 category: recipeData.category || 'entrees',
-                nutrition: recipeData.nutrition && Object.values(recipeData.nutrition).some(val => val) ? {
-                    calories: {
-                        value: parseFloat(recipeData.nutrition.calories) || 0,
-                        unit: 'kcal',
-                        name: 'Calories'
-                    },
-                    protein: {
-                        value: parseFloat(recipeData.nutrition.protein) || 0,
-                        unit: 'g',
-                        name: 'Protein'
-                    },
-                    fat: {
-                        value: parseFloat(recipeData.nutrition.fat) || 0,
-                        unit: 'g',
-                        name: 'Fat'
-                    },
-                    carbs: {
-                        value: parseFloat(recipeData.nutrition.carbs) || 0,
-                        unit: 'g',
-                        name: 'Carbohydrates'
-                    },
-                    fiber: {
-                        value: parseFloat(recipeData.nutrition.fiber) || 0,
-                        unit: 'g',
-                        name: 'Fiber'
-                    }
+                nutrition: recipeData.nutrition && Object.keys(recipeData.nutrition).length > 0 ? {
+                    ...recipeData.nutrition,
+                    calculatedAt: new Date()
                 } : undefined,
 
                 // ENHANCED INGREDIENTS - SUPPORTS ALL METHODS (manual, parser, URL, video)
