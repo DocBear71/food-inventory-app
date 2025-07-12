@@ -1,5 +1,6 @@
 package kitchen.docbearscomfort;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowInsets;
@@ -19,8 +20,62 @@ public class MainActivity extends BridgeActivity {
 
         // FIXED: Comprehensive system bar setup for all Android versions
         setupEdgeToEdge();
+
+        // ADD: Handle share intent on app launch
+        handleShareIntent(getIntent());
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        // ADD: Handle share intent when app is already running
+        handleShareIntent(intent);
+    }
+
+    // ADD: Share intent handling method
+    private void handleShareIntent(Intent intent) {
+        if (intent == null) return;
+
+        String action = intent.getAction();
+        String type = intent.getType();
+
+        // Handle text share (like Facebook URLs)
+        if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
+            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (sharedText != null && !sharedText.isEmpty()) {
+                System.out.println("📱 Android received share: " + sharedText);
+
+                // Send to Capacitor webview (wait for webview to be ready)
+                getBridge().getWebView().post(() -> {
+                    String jsCode = String.format(
+                        "window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_share' } }));",
+                        sharedText.replace("'", "\\'").replace("\"", "\\\"")
+                    );
+                    getBridge().getWebView().evaluateJavascript(jsCode, null);
+                });
+            }
+        }
+
+        // Handle URL intents (direct Facebook links)
+        else if (Intent.ACTION_VIEW.equals(action)) {
+            android.net.Uri data = intent.getData();
+            if (data != null) {
+                String url = data.toString();
+                System.out.println("📱 Android received URL: " + url);
+
+                getBridge().getWebView().post(() -> {
+                    String jsCode = String.format(
+                        "window.dispatchEvent(new CustomEvent('shareReceived', { detail: { url: '%s', source: 'android_url' } }));",
+                        url.replace("'", "\\'").replace("\"", "\\\"")
+                    );
+                    getBridge().getWebView().evaluateJavascript(jsCode, null);
+                });
+            }
+        }
+    }
+
+    // EXISTING: Your edge-to-edge setup (unchanged)
     private void setupEdgeToEdge() {
         Window window = getWindow();
 

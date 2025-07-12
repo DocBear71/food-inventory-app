@@ -7,6 +7,7 @@ import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from "./VideoImportLoadingModal";
+import { useShareHandler} from "@/hooks/useShareHandler";
 
 
 export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
@@ -19,6 +20,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [videoImportError, setVideoImportError] = useState('');
     const [videoInfo, setVideoInfo] = useState(null);
     const [importSource, setImportSource] = useState(null);
+    const [sharedContent, setSharedContent] = useState(null);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -75,6 +77,20 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
 
+    useShareHandler((shareData) => {
+        console.log('📥 Share received in EnhancedRecipeForm:', shareData);
+        setSharedContent(shareData);
+
+        if (shareData.type === 'facebook_video') {
+            // Auto-fill the video URL input
+            setVideoUrl(shareData.url);
+            // Show video import section
+            setShowVideoImport(true);
+            // Show success message
+            console.log('🎯 Facebook video shared:', shareData.url);
+        }
+    });
+
     // Auto-expanding textarea hook
     const useAutoExpandingTextarea = () => {
         const textareaRef = useRef(null);
@@ -102,6 +118,32 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         const strValue = String(value);
         const match = strValue.match(/^(\d+(?:\.\d+)?)/);
         return match ? match[1] : '';
+    };
+
+    const ShareSuccessIndicator = ({ shareData }) => {
+        console.log('ShareSuccessIndicator rendered with:', shareData);
+        if (!shareData) return null;
+
+        return (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center">
+                    <div className="text-green-600 mr-3">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-medium text-green-800">
+                            🎯 Video Shared Successfully!
+                        </h3>
+                        <p className="text-sm text-green-700 mt-1">
+                            Received Facebook video from {shareData.source === 'android_share' ? 'Android share' : 'web share'}.
+                            Ready to extract recipe!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     // Handle parsed recipe data
@@ -224,6 +266,17 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     // Video import handler
     const handleVideoImport = async (url) => {
+        // Check if this came from a share
+        if (sharedContent && sharedContent.url === url) {
+            console.log(`🎯 Processing shared ${sharedContent.type} from ${sharedContent.source}`);
+
+            // Show special UI for shared content
+            setVideoInfo({
+                ...videoInfo,
+                sharedFromApp: true,
+                shareSource: sharedContent.source
+            });
+        }
         console.log('🎥 handleVideoImport called with URL:', url);
 
         if (!url || !url.trim()) {
@@ -812,6 +865,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     {/* Show video import component */}
     if (showVideoImport) {
+
         return (
             <div className="bg-white shadow rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">

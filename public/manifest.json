@@ -101,6 +101,12 @@
       "type": "image/png"
     }
   ],
+  "share_target": {
+    "action": "/recipes/add?source=share",
+    "method": "GET",
+    "params": {
+      "text": "url"
+    },
   "shortcuts": [
     {
       "name": "Add Item",

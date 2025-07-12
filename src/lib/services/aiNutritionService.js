@@ -76,7 +76,10 @@ export class AIRecipeNutritionService {
         const prompt = this.buildIngredientParsingPrompt(ingredients);
 
         try {
-            const response = await openai.chat.completions.create({
+            // Check if model supports JSON mode
+            const supportsJsonMode = this.model.includes('gpt-4o') || this.model.includes('gpt-3.5-turbo');
+
+            const requestConfig = {
                 model: this.model,
                 messages: [
                     {
@@ -88,21 +91,62 @@ export class AIRecipeNutritionService {
                         content: prompt
                     }
                 ],
-                temperature: 0.1, // Low temperature for consistency
-                max_tokens: 2000,
-                response_format: { type: "json_object" }
-            });
+                temperature: 0.1,
+                max_tokens: 2000
+            };
 
-            const parsed = JSON.parse(response.choices[0].message.content);
+            // Only add response_format if the model supports it
+            if (supportsJsonMode) {
+                requestConfig.response_format = { type: "json_object" };
+            }
+
+            const response = await openai.chat.completions.create(requestConfig);
+
+            const usage = response.usage;
+            const cost = this.calculateOpenAICost(
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                this.model
+            );
+
+            let parsed;
+            try {
+                parsed = JSON.parse(response.choices[0].message.content);
+            } catch (parseError) {
+                console.error('❌ Failed to parse AI response as JSON:', parseError);
+                throw new Error('AI response was not valid JSON');
+            }
 
             return {
                 ingredients: parsed.ingredients || [],
-                tokensUsed: response.usage?.total_tokens || 0,
-                cost: this.calculateOpenAICost(response.usage?.total_tokens || 0)
+                tokensUsed: {
+                    input: usage.prompt_tokens,
+                    output: usage.completion_tokens,
+                    total: usage.total_tokens
+                },
+                cost,
+                model: this.model
             };
 
         } catch (error) {
             console.error('❌ AI ingredient parsing failed:', error);
+
+            // Try backup model if main model fails
+            if (this.model !== this.backupModel) {
+                console.log(`🔄 Retrying with backup model: ${this.backupModel}`);
+                const originalModel = this.model;
+                this.model = this.backupModel;
+
+                try {
+                    const result = await this.parseIngredientsWithAI(ingredients);
+                    this.model = originalModel; // Reset
+                    return result;
+                } catch (backupError) {
+                    this.model = originalModel; // Reset
+                    console.error('❌ Backup model also failed:', backupError);
+                }
+            }
+
             // Fallback to basic parsing
             return {
                 ingredients: this.fallbackIngredientParsing(ingredients),
@@ -252,8 +296,7 @@ Important guidelines:
                     }
                 ],
                 temperature: 0.1,
-                max_tokens: 1000,
-                response_format: { type: "json_object" }
+                max_tokens: 1000
             });
 
             const adjustments = JSON.parse(response.choices[0].message.content);
