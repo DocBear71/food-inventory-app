@@ -484,6 +484,7 @@ export default function RecipeDetailPage() {
                             nutrition={getNormalizedNutrition()}
                             servings={recipe.servings || 1}
                             showPerServing={true}
+                            compact={false}  // MAKE SURE this is false too
                         />
                     </div>
                 )}
@@ -711,11 +712,11 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* Compact Nutrition Display - ONLY show when nutrition panel is hidden */}
+                        {/* Compact Nutrition Display - CHANGE TO PROFESSIONAL STYLE */}
                         {!showNutrition && hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Summary</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
                                     <TouchEnhancedButton
                                         onClick={() => setShowNutritionModal(true)}
                                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
@@ -727,13 +728,13 @@ export default function RecipeDetailPage() {
                                     nutrition={getNormalizedNutrition()}
                                     servings={recipe.servings || 1}
                                     showPerServing={true}
-                                    compact={true}
+                                    compact={false}  // CHANGE from true to false
                                 />
                                 <TouchEnhancedButton
                                     onClick={() => setShowNutrition(true)}
                                     className="w-full mt-3 text-sm text-indigo-600 hover:text-indigo-700"
                                 >
-                                    View detailed nutrition facts →
+                                    View in expanded panel →
                                 </TouchEnhancedButton>
                             </div>
                         )}
