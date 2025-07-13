@@ -1618,7 +1618,7 @@ export default function EnhancedRecipeForm({
                                     <NutritionFacts
                                         nutrition={nutritionForDisplay}  // Use normalized data
                                         servings={parseInt(recipe.servings) || 4}
-                                        showPerServing={false}
+                                        showPerServing={true}
                                         compact={true}
                                     />
 
