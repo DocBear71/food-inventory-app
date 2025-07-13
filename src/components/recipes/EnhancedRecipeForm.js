@@ -465,7 +465,7 @@ export default function EnhancedRecipeForm({
         setIsVideoImporting(true);
 
         const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 5000; // 5 seconds
+        const MIN_DISPLAY_TIME = 10000; // 10 seconds
 
 
         try {
@@ -1267,6 +1267,7 @@ export default function EnhancedRecipeForm({
                     <div
                         className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                         <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                        <h4>Verify ingredients, instructions, and other information, then click "create/update recipe" at the bottom.</h4>
                         {!isEditing && (
                             <div className="flex flex-wrap gap-2">
                                 <TouchEnhancedButton
@@ -1604,9 +1605,9 @@ export default function EnhancedRecipeForm({
                                 <TouchEnhancedButton
                                     type="button"
                                     onClick={addTag}
-                                    className="px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 min-h-[48px] sm:w-auto w-full"
+                                    className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
                                 >
-                                    Add
+                                    + Add Tag
                                 </TouchEnhancedButton>
                             </div>
                         </div>
@@ -1880,7 +1881,7 @@ export default function EnhancedRecipeForm({
                             </>
                         ) : (
                             <>
-                                {isEditing ? '💾 Update Recipe' : '✨ Create Recipe'}
+                                {isEditing ? '💾 Update Recipe' : '✨ Create (Add) Recipe'}
                             </>
                         )}
                     </TouchEnhancedButton>
