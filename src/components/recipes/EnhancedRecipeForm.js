@@ -99,43 +99,54 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
         }
     });
 
+    // REPLACE with this single useEffect for auto-import
     useEffect(() => {
-        const sharedVideoUrl = searchParams.get('videoUrl');
-        const shareSource = searchParams.get('source');
-        const platform = searchParams.get('platform');
-
-        if (sharedVideoUrl && shareSource === 'share') {
-            console.log('📥 Video URL from share params:', sharedVideoUrl);
-
-            // Auto-fill the video URL and show video import
-            setVideoUrl(decodeURIComponent(sharedVideoUrl));
-            setShowVideoImport(true);
-
-            // Clean up URL parameters
-            const url = new URL(window.location);
-            url.searchParams.delete('videoUrl');
-            url.searchParams.delete('source');
-            url.searchParams.delete('platform');
-            window.history.replaceState({}, '', url);
-        }
-    }, [searchParams]);
-
-    useEffect(() => {
-        // Check URL params for shared video
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = urlParams.get('videoUrl');
         const source = urlParams.get('source');
         const platform = urlParams.get('platform');
 
+        console.log('🔍 Auto-import check on mount:');
+        console.log('  - Current URL:', window.location.href);
+        console.log('  - Video URL param:', videoUrl);
+        console.log('  - Source param:', source);
+        console.log('  - Platform param:', platform);
+
         if (videoUrl && source === 'share' && platform === 'facebook') {
+            console.log('✅ Auto-import conditions met!');
             console.log('🎯 Auto-starting Facebook video import:', videoUrl);
 
-            // Auto-trigger the video import
-            setTimeout(() => {
-                handleVideoImport(videoUrl);
-            }, 500); // Small delay to ensure UI is ready
+            // Decode the URL
+            const decodedVideoUrl = decodeURIComponent(videoUrl);
+            console.log('🔗 Decoded URL:', decodedVideoUrl);
+
+            // Set the video URL in the input
+            setVideoUrl(decodedVideoUrl);
+
+            // Show video import section
+            setShowVideoImport(true);
+
+            // Start the import after UI is ready
+            const timer = setTimeout(() => {
+                console.log('⏰ Auto-import timer triggered');
+                handleVideoImport(decodedVideoUrl);
+            }, 1000);
+
+            // Clean up URL parameters after triggering import
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('videoUrl');
+            cleanUrl.searchParams.delete('source');
+            cleanUrl.searchParams.delete('platform');
+            window.history.replaceState({}, '', cleanUrl);
+
+            return () => clearTimeout(timer);
+        } else {
+            console.log('❌ Auto-import conditions NOT met');
+            console.log('  - Has videoUrl?', !!videoUrl);
+            console.log('  - Source is share?', source === 'share');
+            console.log('  - Platform is facebook?', platform === 'facebook');
         }
-    }, []);
+    }, []); // Empty dependency array - only run once on mount
 
     // Auto-expanding textarea hook
     const useAutoExpandingTextarea = () => {
@@ -312,6 +323,9 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
 
     // Video import handler
     const handleVideoImport = async (url) => {
+        console.log('🎥 handleVideoImport called with URL:', url);
+        console.log('🎥 handleVideoImport function exists:', typeof handleVideoImport === 'function');
+        console.log('🎥 Component is mounted and ready');
         // Check if this came from a share
         if (sharedContent && sharedContent.url === url) {
             console.log(`🎯 Processing shared ${sharedContent.type} from ${sharedContent.source}`);
@@ -1088,7 +1102,19 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             {process.env.NODE_ENV === 'development' && (
                 <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-40">
                     isVideoImporting: {isVideoImporting.toString()}<br/>
-                    Modal should be: {isVideoImporting ? 'VISIBLE' : 'HIDDEN'}
+                    Modal should be: {isVideoImporting ? 'VISIBLE' : 'HIDDEN'}<br/>
+
+                    {/* ADD: Manual test button */}
+                    <button
+                        onClick={() => {
+                            const testUrl = "https://www.facebook.com/share/r/1C848ASuHx/";
+                            console.log('🧪 Manual test import:', testUrl);
+                            handleVideoImport(testUrl);
+                        }}
+                        className="bg-red-500 text-white px-2 py-1 rounded mt-2 text-xs"
+                    >
+                        TEST AUTO IMPORT
+                    </button>
                 </div>
             )}
 
