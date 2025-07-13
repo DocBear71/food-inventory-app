@@ -366,7 +366,7 @@ export default function AdminUsersPage() {
                                             <div className="grid grid-cols-7 gap-6 w-full">
                                                 {/* User Info */}
                                                 <div className="col-span-2">
-                                                    <div className="flex items-center ml-3">
+                                                    <div className="flex items-center">
                                                         <div className="flex-shrink-0 h-12 w-12 mr-4">
                                                             <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center shadow-sm">
                                                                 <span className="text-base font-medium text-indigo-800">
@@ -485,7 +485,7 @@ export default function AdminUsersPage() {
                                                     className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded mr-3 mt-1"
                                                 />
                                                 <div className="flex items-center">
-                                                    <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                    <div className="ml-3 h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
                                                         <span className="text-lg font-medium text-indigo-800">
                                                             {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                                         </span>
