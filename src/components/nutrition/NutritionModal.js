@@ -42,7 +42,7 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
         if (avgScore >= 5) return { grade: 'B', color: 'bg-lime-500', description: 'Good' };
         if (avgScore >= -5) return { grade: 'C', color: 'bg-yellow-500', description: 'Fair' };
         if (avgScore >= -15) return { grade: 'D', color: 'bg-orange-500', description: 'Poor' };
-        return { grade: 'E', color: 'bg-red-500', description: 'Very Poor' };
+        return { grade: 'F', color: 'bg-red-500', description: 'Very Poor' };
     };
 
     // Calculate daily values (based on 2000 calorie diet)
@@ -138,7 +138,21 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                             <div className="flex items-end gap-1">
                                 {['A', 'B', 'C', 'D', 'E'].map((grade) => {
                                     const isActive = grade === gradeInfo.grade;
-                                    const isPassed = grade <= gradeInfo.grade;
+                                    const gradeIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(grade);
+                                    const activeIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(gradeInfo.grade);
+                                    const isPassed = gradeIndex <= activeIndex;
+
+                                    // Grade-specific colors with opacity
+                                    const getGradeColor = (g) => {
+                                        switch(g) {
+                                            case 'A': return isPassed ? 'bg-green-500' : 'bg-green-500 opacity-30';
+                                            case 'B': return isPassed ? 'bg-lime-500' : 'bg-lime-500 opacity-30';
+                                            case 'C': return isPassed ? 'bg-yellow-500' : 'bg-yellow-500 opacity-30';
+                                            case 'D': return isPassed ? 'bg-orange-500' : 'bg-orange-500 opacity-30';
+                                            case 'E': return isPassed ? 'bg-red-500' : 'bg-red-500 opacity-30';
+                                            default: return 'bg-gray-200';
+                                        }
+                                    };
 
                                     return (
                                         <div
@@ -146,9 +160,7 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                                             className={`flex items-center justify-center text-white font-bold transition-all duration-300 rounded-md ${
                                                 isActive
                                                     ? `w-10 h-10 text-base ${gradeInfo.color} shadow-lg transform scale-110`
-                                                    : isPassed
-                                                        ? 'w-8 h-8 text-sm bg-gray-400'
-                                                        : 'w-8 h-8 text-sm bg-gray-200'
+                                                    : `w-8 h-8 text-sm ${getGradeColor(grade)}`
                                             }`}
                                         >
                                             {grade}

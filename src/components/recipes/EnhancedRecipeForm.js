@@ -237,6 +237,8 @@ export default function EnhancedRecipeForm({
         fiber: recipe.nutrition.fiber?.value || 0
     };
 
+    console.log('🍎 Nutrition for display:', nutritionForDisplay);
+
     const ShareSuccessIndicator = ({ shareData }) => {
         console.log('ShareSuccessIndicator rendered with:', shareData);
         if (!shareData) return null;
@@ -1614,9 +1616,9 @@ export default function EnhancedRecipeForm({
                             {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                                 <div className="mb-6">
                                     <NutritionFacts
-                                        nutrition={nutritionForDisplay}
+                                        nutrition={nutritionForDisplay}  // Use normalized data
                                         servings={parseInt(recipe.servings) || 4}
-                                        showPerServing={true}
+                                        showPerServing={false}
                                         compact={true}
                                     />
 
