@@ -1,5 +1,6 @@
-// File: src/components/GlobalShareHandler.js
 'use client';
+
+// File: src/components/GlobalShareHandler.js - FIXED: Multi-platform support
 
 import { useShareHandler } from '@/hooks/useShareHandler';
 import { useRouter } from 'next/navigation';
@@ -20,7 +21,9 @@ export default function GlobalShareHandler() {
     useEffect(() => {
         const handleAnyShare = (event) => {
             console.log('🎯 shareReceived event detected:', event.detail);
-            alert(`🎯 JavaScript received share event!\nURL: ${event.detail?.url}\nSource: ${event.detail?.source}`);
+            if (process.env.NODE_ENV === 'development') {
+                alert(`🎯 JavaScript received share event!\nURL: ${event.detail?.url}\nSource: ${event.detail?.source}`);
+            }
         };
 
         window.addEventListener('shareReceived', handleAnyShare);
@@ -30,18 +33,22 @@ export default function GlobalShareHandler() {
         };
     }, []);
 
-    // Global share handler that works from any page
+    // FIXED: Global share handler that works for ALL platforms
     useShareHandler((shareData) => {
         console.log('🌍 useShareHandler callback called with:', shareData);
-        alert(`🚀 Share handler triggered!\nURL: ${shareData.url}\nType: ${shareData.type}`);
 
-        setDebugInfo(`Last share: ${shareData.url} from ${shareData.source}`);
+        if (process.env.NODE_ENV === 'development') {
+            alert(`🚀 Share handler triggered!\nURL: ${shareData.url}\nType: ${shareData.type}\nPlatform: ${shareData.platform}`);
+        }
 
-        if (shareData.type === 'facebook_video') {
+        setDebugInfo(`Last share: ${shareData.platform} from ${shareData.source}`);
+
+        // UPDATED: Handle ALL social media platforms
+        if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
             const encodedUrl = encodeURIComponent(shareData.url);
-            const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=facebook`;
+            const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=${shareData.platform}`;
 
-            console.log('🚀 Navigating to:', targetUrl);
+            console.log(`🚀 Navigating to ${shareData.platform} import:`, targetUrl);
             router.push(targetUrl);
         }
     });
@@ -51,7 +58,7 @@ export default function GlobalShareHandler() {
             {/* Show debug info always during development */}
             {process.env.NODE_ENV === 'development' && (
                 <div className="fixed top-0 left-0 right-0 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 text-sm z-50">
-                    <strong>Debug:</strong> GlobalShareHandler active. {debugInfo || 'No shares yet.'}
+                    <strong>Debug:</strong> GlobalShareHandler active (All platforms). {debugInfo || 'No shares yet.'}
                 </div>
             )}
         </>

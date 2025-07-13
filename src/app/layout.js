@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js v9 - Added global share handler
+// file: /src/app/layout.js v10 - FIXED: Multi-platform share handler
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -31,17 +31,56 @@ function DirectShareHandler() {
             console.log('🎯 DIRECT share handler received:', event.detail);
             const { url, source } = event.detail;
 
-            // Check if it's a Facebook URL
-            if (url && (url.includes('facebook.com') || url.includes('fb.watch'))) {
+            // FIXED: Check for ALL social media platforms, not just Facebook
+            const socialPlatforms = {
+                facebook: {
+                    patterns: [
+                        /facebook\.com\/reel\/\d+/,
+                        /facebook\.com\/watch\?v=\d+/,
+                        /facebook\.com\/share\/r\/[^\/\s]+/,
+                        /facebook\.com\/[^\/]+\/videos\/\d+/,
+                        /fb\.watch\/[^\/\s]+/
+                    ]
+                },
+                tiktok: {
+                    patterns: [
+                        /tiktok\.com\/@[^\/]+\/video\/\d+/,
+                        /tiktok\.com\/t\/[a-zA-Z0-9]+/,
+                        /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
+                        /tiktok\.com\/.*?\/video\/\d+/
+                    ]
+                },
+                instagram: {
+                    patterns: [
+                        /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
+                        /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
+                        /instagram\.com\/tv\/[a-zA-Z0-9_-]+/
+                    ]
+                }
+            };
 
-                // Navigate to recipe import
+            // Test each platform
+            let detectedPlatform = null;
+            for (const [platform, config] of Object.entries(socialPlatforms)) {
+                const isMatch = config.patterns.some(pattern => pattern.test(url));
+                if (isMatch) {
+                    detectedPlatform = platform;
+                    break;
+                }
+            }
+
+            if (detectedPlatform && url) {
+                console.log(`✅ ${detectedPlatform} video detected!`);
+
+                // Navigate to recipe import with detected platform
                 const encodedUrl = encodeURIComponent(url);
-                const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=facebook`;
+                const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=${detectedPlatform}`;
 
                 console.log('🚀 Navigating to:', targetUrl);
                 router.push(targetUrl);
             } else {
-                console.log('❌ Not a Facebook URL:', url);
+                console.log('❌ Not a supported social media URL:', url);
+                console.log('   Supported platforms: Facebook, TikTok, Instagram');
             }
         };
 
@@ -52,6 +91,8 @@ function DirectShareHandler() {
             window.removeEventListener('shareReceived', handleShare);
         };
     }, [router]);
+
+    return null; // This component doesn't render anything
 }
 
 export default function RootLayout({children}) {
