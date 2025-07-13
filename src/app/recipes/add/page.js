@@ -175,6 +175,7 @@ export default function AddRecipePage() {
                     onSubmit={handleRecipeSubmit}
                     onCancel={handleCancel}
                     isEditing={false}
+                    showNutritionAnalysis={true} // Enable nutrition AI for all recipes
                 />
 
 

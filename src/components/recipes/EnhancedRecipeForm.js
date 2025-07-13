@@ -8,10 +8,20 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from "./VideoImportLoadingModal";
 import { useShareHandler} from "@/hooks/useShareHandler";
-import { useSearchParams } from 'next/navigation';
+import {useRouter, useSearchParams} from 'next/navigation';
+import UpdateNutritionButton from "@/components/nutrition/UpdateNutritionButton";
+import NutritionFacts from "@/components/nutrition/NutritionFacts";
+import NutritionModal from "@/components/nutrition/NutritionModal";
 
 
-export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, isEditing = false }) {
+export default function EnhancedRecipeForm({
+                                               initialData,
+                                               onSubmit,
+                                               onCancel,
+                                               isEditing = false,
+                                               isImportMode = false, // NEW: Import mode flag
+                                               showAdvancedNutrition = false // NEW: Advanced nutrition flag
+                                           }) {
     const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
     const [showParser, setShowParser] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
@@ -85,17 +95,25 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
 
+    const router = useRouter();
+
     useShareHandler((shareData) => {
         console.log('📥 Share received in EnhancedRecipeForm:', shareData);
         setSharedContent(shareData);
 
         if (shareData.type === 'facebook_video') {
-            // Auto-fill the video URL input
-            setVideoUrl(shareData.url);
-            // Show video import section
-            setShowVideoImport(true);
-            // Show success message
-            console.log('🎯 Facebook video shared:', shareData.url);
+            // For import mode, continue with current behavior
+            if (isImportMode) {
+                setVideoUrl(shareData.url);
+                setShowVideoImport(true);
+                console.log('🎯 Facebook video shared to import page:', shareData.url);
+            } else {
+                // For regular add page, redirect to import page
+                // Use setTimeout to avoid hook call during render
+                setTimeout(() => {
+                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=facebook`);
+                }, 0);
+            }
         }
     });
 
@@ -1119,13 +1137,13 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
             )}
 
             {/* Input Method Selection */}
-            {!isEditing && (
+            {!isEditing && !isImportMode && (
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
                         How would you like to add this recipe?
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Changed from md:grid-cols-3 to md:grid-cols-4 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <TouchEnhancedButton
                             onClick={() => setInputMethod('manual')}
                             className={`p-4 border-2 rounded-lg text-left transition-colors min-h-[120px] ${
@@ -1152,26 +1170,15 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                             </p>
                         </TouchEnhancedButton>
 
+                        {/* SINGLE IMPORT BUTTON */}
                         <TouchEnhancedButton
-                            onClick={() => setShowUrlImport(true)}
+                            onClick={() => router.push('/recipes/import')}
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
                         >
-                            <div className="text-2xl mb-2">🌐</div>
-                            <h3 className="font-medium text-gray-900">Import from URL</h3>
+                            <div className="text-2xl mb-2">🎯</div>
+                            <h3 className="font-medium text-gray-900">Import Recipe</h3>
                             <p className="text-sm text-gray-600 mt-1">
-                                Import from recipe websites automatically
-                            </p>
-                        </TouchEnhancedButton>
-
-                        {/* ADD THIS NEW VIDEO IMPORT OPTION */}
-                        <TouchEnhancedButton
-                            onClick={() => setShowVideoImport(true)}
-                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
-                        >
-                            <div className="text-2xl mb-2">🎥</div>
-                            <h3 className="font-medium text-gray-900">Social Video Extract</h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                                Extract from TikTok, Instagram, and Facebook using AI
+                                Import from social media, websites, or enhance with AI
                             </p>
                         </TouchEnhancedButton>
                     </div>
@@ -1179,7 +1186,7 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     {inputMethod === 'manual' && (
                         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-sm text-blue-800">
-                                💡 <strong>Tip:</strong> You can always switch to the text parser or URL import if you have a recipe to import!
+                                💡 <strong>Tip:</strong> You can always switch to the text parser or import recipes from other sources!
                             </p>
                         </div>
                     )}
@@ -1534,13 +1541,78 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                         </div>
                     </div>
 
-                    {/* Nutrition (Optional) - MOBILE RESPONSIVE */}
+                    {/* Enhanced Nutrition Section - Using your existing components */}
                     <div className="bg-white shadow rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                            Nutrition Information (Optional)
-                        </h3>
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
+                            <div className="flex gap-2">
+                                {/* View Details Button - using your NutritionModal */}
+                                {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowNutritionModal(true)}
+                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                                    >
+                                        View Details
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {/* Current nutrition display using your NutritionFacts component */}
+                        {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
+                            <div className="mb-6">
+                                <NutritionFacts
+                                    nutrition={recipe.nutrition}
+                                    servings={parseInt(recipe.servings) || 4}
+                                    showPerServing={true}
+                                    compact={true}
+                                />
+
+                                {/* AI Analysis Info */}
+                                {recipe.nutrition.calculationMethod === 'ai_calculated' && (
+                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex items-center text-blue-800 text-sm">
+                                            <span className="mr-2">🤖</span>
+                                            <span>Nutrition calculated by AI analysis</span>
+                                            {recipe.nutrition.confidence && (
+                                                <span className="ml-2 text-blue-600">
+                                    Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
+                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-500 mb-6">
+                                <div className="text-4xl mb-2">📊</div>
+                                <p className="font-medium">No nutrition information yet</p>
+                                <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
+                            </div>
+                        )}
+
+                        {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
+                        <UpdateNutritionButton
+                            recipe={{
+                                ...recipe,
+                                ingredients: recipe.ingredients,
+                                servings: parseInt(recipe.servings) || 4
+                            }}
+                            onNutritionUpdate={(newNutrition) => {
+                                setRecipe(prev => ({
+                                    ...prev,
+                                    nutrition: newNutrition
+                                }));
+                            }}
+                            disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
+                        />
+
+                        {/* Optional: Manual nutrition inputs for basic values */}
+                        {!isImportMode && (
+                            <div className="mt-6 pt-6 border-t">
+                                <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition manually:</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                    {/* Your existing manual nutrition inputs */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Calories
@@ -1607,6 +1679,8 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                                 />
                             </div>
                         </div>
+                    </div>
+                        )}
                     </div>
 
                     {/* Source - MOBILE RESPONSIVE */}
@@ -1739,6 +1813,14 @@ export default function EnhancedRecipeForm({ initialData, onSubmit, onCancel, is
                     </div>
                 </form>
             )}
+
+            <NutritionModal
+                nutrition={recipe.nutrition}
+                isOpen={showNutritionModal}
+                onClose={() => setShowNutritionModal(false)}
+                servings={parseInt(recipe.servings) || 4}
+                recipeTitle={recipe.title || "Recipe"}
+            />
 
         </div>
     );
