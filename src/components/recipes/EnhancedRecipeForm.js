@@ -39,6 +39,7 @@ export default function EnhancedRecipeForm({
     const [sharedContent, setSharedContent] = useState(null);
     const [showNutritionModal, setShowNutritionModal] = useState(false);
     const [showNutritionDetailsModal, setShowNutritionDetailsModal] = useState(false);
+    const [videoImportPlatform, setVideoImportPlatform] = useState('video');
 
     const searchParams = useSearchParams();
 
