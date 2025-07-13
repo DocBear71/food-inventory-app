@@ -132,29 +132,36 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                         </button>
                     </div>
 
-                    {/* Nutritional Grade */}
+                    {/* Enhanced Nutritional Grade Display */}
                     <div className="mt-4">
-                        <div className="flex items-center gap-1 mb-2">
-                            <div className="flex">
-                                {['A', 'B', 'C', 'D', 'E'].map((grade) => (
-                                    <div
-                                        key={grade}
-                                        className={`w-7 h-7 flex items-center justify-center text-white font-bold text-xs ${
-                                            grade === gradeInfo.grade
-                                                ? gradeInfo.color
-                                                : grade <= gradeInfo.grade
-                                                    ? 'bg-gray-300'
-                                                    : 'bg-gray-200'
-                                        }`}
-                                    >
-                                        {grade}
-                                    </div>
-                                ))}
+                        <div className="flex justify-center items-center gap-1 mb-3">
+                            <div className="flex items-end gap-1">
+                                {['A', 'B', 'C', 'D', 'E'].map((grade) => {
+                                    const isActive = grade === gradeInfo.grade;
+                                    const isPassed = grade <= gradeInfo.grade;
+
+                                    return (
+                                        <div
+                                            key={grade}
+                                            className={`flex items-center justify-center text-white font-bold transition-all duration-300 rounded-md ${
+                                                isActive
+                                                    ? `w-10 h-10 text-base ${gradeInfo.color} shadow-lg transform scale-110`
+                                                    : isPassed
+                                                        ? 'w-8 h-8 text-sm bg-gray-400'
+                                                        : 'w-8 h-8 text-sm bg-gray-200'
+                                            }`}
+                                        >
+                                            {grade}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
-                        <p className="text-sm text-gray-700">
-                            Nutritional Score: <span className="font-semibold">{gradeInfo.description}</span>
-                        </p>
+                        <div className="text-center">
+                            <p className="text-sm text-gray-700">
+                                Nutritional Score: <span className="font-semibold text-lg">{gradeInfo.description}</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
 

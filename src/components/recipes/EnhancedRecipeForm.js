@@ -218,6 +218,8 @@ export default function EnhancedRecipeForm({
     const getNormalizedNutritionSummary = () => {
         if (!recipe.nutrition) return null;
 
+        console.log('🔍 Raw nutrition data:', recipe.nutrition);
+
         return {
             calories: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0,
             protein: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0,
@@ -225,6 +227,14 @@ export default function EnhancedRecipeForm({
             fat: recipe.nutrition.fat?.value || recipe.nutrition.fat || 0,
             fiber: recipe.nutrition.fiber?.value || recipe.nutrition.fiber || 0
         };
+    };
+
+    const nutritionForDisplay = {
+        calories: recipe.nutrition.calories?.value || 0,
+        protein: recipe.nutrition.protein?.value || 0,
+        carbs: recipe.nutrition.carbs?.value || 0,
+        fat: recipe.nutrition.fat?.value || 0,
+        fiber: recipe.nutrition.fiber?.value || 0
     };
 
     const ShareSuccessIndicator = ({ shareData }) => {
@@ -1604,7 +1614,7 @@ export default function EnhancedRecipeForm({
                             {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                                 <div className="mb-6">
                                     <NutritionFacts
-                                        nutrition={getNormalizedNutritionSummary()}
+                                        nutrition={nutritionForDisplay}
                                         servings={parseInt(recipe.servings) || 4}
                                         showPerServing={true}
                                         compact={true}
@@ -1669,8 +1679,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
                                             <input
                                                 type="number"
-                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.protein)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('protein', e.target.value)}
                                                 placeholder="15"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1680,8 +1690,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
                                             <input
                                                 type="number"
-                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.carbs)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('carbs', e.target.value)}
                                                 placeholder="30"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1691,8 +1701,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
                                             <input
                                                 type="number"
-                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.fat)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('fat', e.target.value)}
                                                 placeholder="10"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1702,8 +1712,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
                                             <input
                                                 type="number"
-                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.fiber)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('fiber', e.target.value)}
                                                 placeholder="5"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
