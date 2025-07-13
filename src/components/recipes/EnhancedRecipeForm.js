@@ -106,10 +106,13 @@ export default function EnhancedRecipeForm({
 
     const scrollToBasicInfo = () => {
         if (basicInfoRef.current) {
-            basicInfoRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-                inline: 'nearest'
+            const element = basicInfoRef.current;
+            const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+            const offsetPosition = elementPosition - 120; // 120px offset for header + padding
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
             });
         }
     };
@@ -428,6 +431,9 @@ export default function EnhancedRecipeForm({
     const handleVideoImport = async (url) => {
         console.log('🎥 handleVideoImport called with URL:', url);
 
+        const startTime = Date.now();
+        const MIN_DISPLAY_TIME = 10000; // 10 seconds
+
         // Check if this came from a share
         if (sharedContent && sharedContent.url === url) {
             console.log(`🎯 Processing shared ${sharedContent.type} from ${sharedContent.source}`);
@@ -476,8 +482,7 @@ export default function EnhancedRecipeForm({
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
 
-        const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 10000; // 10 seconds
+
 
 
         try {
@@ -638,7 +643,9 @@ export default function EnhancedRecipeForm({
         } catch (error) {
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
-        } finally {
+        }
+
+        const ensureMinimumDisplay = async () => {
             const elapsedTime = Date.now() - startTime;
             const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
 
@@ -652,13 +659,24 @@ export default function EnhancedRecipeForm({
                     message: 'Recipe generated successfully!'
                 });
 
-                await new Promise(resolve => setTimeout(resolve, remainingTime));
+                // Use setTimeout in a Promise to wait for remaining time
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        console.log('🔄 Setting isVideoImporting to false');
+                        setIsVideoImporting(false);
+                        setVideoImportProgress({ stage: '', platform: '', message: '' });
+                        resolve();
+                    }, remainingTime);
+                });
+            } else {
+                console.log('🔄 Setting isVideoImporting to false immediately');
+                setIsVideoImporting(false);
+                setVideoImportProgress({ stage: '', platform: '', message: '' });
             }
+        };
 
-            console.log('🔄 Setting isVideoImporting to false');
-            setIsVideoImporting(false);
-            setVideoImportProgress({stage: '', platform: '', message: ''});
-        }
+        // Call the minimum display function
+        await ensureMinimumDisplay();
     };
 
     // ENHANCED PARSING FUNCTIONS (from RecipeParser)
