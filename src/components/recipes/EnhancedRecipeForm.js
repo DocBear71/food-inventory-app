@@ -1213,6 +1213,20 @@ export default function EnhancedRecipeForm({
                     setIsVideoImporting(false);
                 }}
             />
+            <button
+                onClick={() => {
+                    console.log('🧪 MANUAL TEST: Setting isVideoImporting to TRUE');
+                    setIsVideoImporting(true);
+
+                    setTimeout(() => {
+                        console.log('🧪 MANUAL TEST: Setting isVideoImporting to FALSE');
+                        setIsVideoImporting(false);
+                    }, 3000);
+                }}
+                className="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded z-50"
+            >
+                TEST MODAL
+            </button>
 
             {/* DEBUG: Add visible state indicator */}
             {process.env.NODE_ENV === 'development' && (
