@@ -399,6 +399,11 @@ export default function EnhancedRecipeForm({
         console.log('🎥 handleVideoImport called with URL:', url);
         console.log('🎥 handleVideoImport function exists:', typeof handleVideoImport === 'function');
         console.log('🎥 Component is mounted and ready');
+
+        // ADD THIS: Force minimum display time
+        const startTime = Date.now();
+        const MIN_DISPLAY_TIME = 3000; // 3 seconds minimum
+
         // Check if this came from a share
         if (sharedContent && sharedContent.url === url) {
             console.log(`🎯 Processing shared ${sharedContent.type} from ${sharedContent.source}`);
@@ -639,6 +644,15 @@ export default function EnhancedRecipeForm({
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
+            // ADD THIS: Ensure minimum display time
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
+
+            if (remainingTime > 0) {
+                console.log(`⏱️ Waiting additional ${remainingTime}ms for minimum display time`);
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
+
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
             setVideoImportProgress({ stage: '', platform: '', message: '' });
@@ -1205,13 +1219,22 @@ export default function EnhancedRecipeForm({
                     {/* ADD: Manual test button */}
                     <button
                         onClick={() => {
-                            const testUrl = "https://www.facebook.com/share/r/1C848ASuHx/";
-                            console.log('🧪 Manual test import:', testUrl);
-                            handleVideoImport(testUrl);
+                            console.log('🧪 TEST: Setting isVideoImporting to true');
+                            setIsVideoImporting(true);
                         }}
                         className="bg-red-500 text-white px-2 py-1 rounded mt-2 text-xs"
                     >
-                        TEST AUTO IMPORT
+                        TEST MODAL
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            console.log('🧪 TEST: Setting isVideoImporting to false');
+                            setIsVideoImporting(false);
+                        }}
+                        className="bg-blue-500 text-white px-2 py-1 rounded mt-2 text-xs ml-1"
+                    >
+                        HIDE MODAL
                     </button>
                 </div>
             )}
