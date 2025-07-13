@@ -1187,13 +1187,12 @@ export default function EnhancedRecipeForm({
             })}
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoImportProgress?.platform || 'facebook'}
-                stage={videoImportProgress?.stage || 'processing'}
-                message={videoImportProgress?.message || 'Processing video...'}
+                platform="facebook"  // Static since you know it's Facebook
+                stage="processing"   // Static stage
+                message="Processing Facebook video..."  // Static message
                 videoUrl={videoUrl}
                 onComplete={() => {
                     setIsVideoImporting(false);
-                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                 }}
             />
 
