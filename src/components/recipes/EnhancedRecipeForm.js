@@ -1615,14 +1615,14 @@ export default function EnhancedRecipeForm({
                         </div>
 
                         {/* Current nutrition display - NO duplicate text */}
+                        {/* Current nutrition display - USE FULL STYLE like Image 2 */}
                         {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                             <div className="mb-6">
-                                {/* REMOVE the duplicate serving text - NutritionFacts handles this */}
                                 <NutritionFacts
                                     nutrition={nutritionForDisplay}
                                     servings={parseInt(recipe.servings) || 4}
                                     showPerServing={true}
-                                    compact={true}  // This gives the clean compact version
+                                    compact={false}
                                 />
 
                                 {/* AI Analysis Info */}
@@ -1633,8 +1633,8 @@ export default function EnhancedRecipeForm({
                                             <span>Nutrition calculated by AI analysis</span>
                                             {recipe.nutrition.confidence && (
                                                 <span className="ml-2 text-blue-600">
-                                Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
-                            </span>
+                            Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
+                        </span>
                                             )}
                                         </div>
                                     </div>
