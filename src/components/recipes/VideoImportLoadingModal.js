@@ -16,10 +16,6 @@ const VideoImportLoadingModal = ({
     const [currentTask, setCurrentTask] = useState('');
 
     useEffect(() => {
-        console.log('🎭 VideoImportLoadingModal - isVisible changed to:', isVisible);
-        console.log('🎭 VideoImportLoadingModal - platform:', platform);
-        console.log('🎭 VideoImportLoadingModal - stage:', stage);
-        console.log('🎭 VideoImportLoadingModal - message:', message);
 
         if (!isVisible) {
             setInternalProgress(0);

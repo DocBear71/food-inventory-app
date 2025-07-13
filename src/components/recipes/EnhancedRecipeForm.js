@@ -12,7 +12,6 @@ import {useSearchParams, useRouter} from 'next/navigation'; // Add useRouter her
 import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
-import {Promise} from "mongoose"; // ADD THIS
 
 
 export default function EnhancedRecipeForm({
@@ -136,7 +135,6 @@ export default function EnhancedRecipeForm({
     };
 
     useShareHandler((shareData) => {
-        console.log('📥 Share received in EnhancedRecipeForm:', shareData);
         setSharedContent(shareData);
 
         if (shareData.type === 'facebook_video') {
@@ -144,7 +142,6 @@ export default function EnhancedRecipeForm({
             if (isImportMode) {
                 setVideoUrl(shareData.url);
                 setShowVideoImport(true);
-                console.log('🎯 Facebook video shared to import page:', shareData.url);
             } else {
                 // For regular add page, redirect to import page
                 // Use setTimeout to avoid hook call during render
@@ -155,15 +152,6 @@ export default function EnhancedRecipeForm({
         }
     });
 
-    useEffect(() => {
-        console.log('🎭 isVideoImporting changed to:', isVideoImporting);
-        if (isVideoImporting) {
-            console.log('🎭 Modal should be VISIBLE now!');
-        } else {
-            console.log('🎭 Modal should be HIDDEN now!');
-        }
-    }, [isVideoImporting]);
-
     // REPLACE with this single useEffect for auto-import
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -171,19 +159,10 @@ export default function EnhancedRecipeForm({
         const source = urlParams.get('source');
         const platform = urlParams.get('platform');
 
-        console.log('🔍 Auto-import check on mount:');
-        console.log('  - Current URL:', window.location.href);
-        console.log('  - Video URL param:', videoUrl);
-        console.log('  - Source param:', source);
-        console.log('  - Platform param:', platform);
-
         if (videoUrl && source === 'share' && platform === 'facebook') {
-            console.log('✅ Auto-import conditions met!');
-            console.log('🎯 Auto-starting Facebook video import:', videoUrl);
 
             // Decode the URL
             const decodedVideoUrl = decodeURIComponent(videoUrl);
-            console.log('🔗 Decoded URL:', decodedVideoUrl);
 
             // Set the video URL in the input
             setVideoUrl(decodedVideoUrl);
@@ -193,7 +172,6 @@ export default function EnhancedRecipeForm({
 
             // Start the import after UI is ready
             const timer = setTimeout(() => {
-                console.log('⏰ Auto-import timer triggered');
                 handleVideoImport(decodedVideoUrl);
             }, 1000);
 
@@ -206,10 +184,6 @@ export default function EnhancedRecipeForm({
 
             return () => clearTimeout(timer);
         } else {
-            console.log('❌ Auto-import conditions NOT met');
-            console.log('  - Has videoUrl?', !!videoUrl);
-            console.log('  - Source is share?', source === 'share');
-            console.log('  - Platform is facebook?', platform === 'facebook');
         }
     }, []); // Empty dependency array - only run once on mount
 
@@ -245,8 +219,6 @@ export default function EnhancedRecipeForm({
     const getNormalizedNutritionSummary = () => {
         if (!recipe.nutrition) return null;
 
-        console.log('🔍 Raw nutrition data:', recipe.nutrition);
-
         return {
             calories: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0,
             protein: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0,
@@ -264,10 +236,8 @@ export default function EnhancedRecipeForm({
         fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
     };
 
-    console.log('🍎 Nutrition for display:', nutritionForDisplay);
 
     const ShareSuccessIndicator = ({shareData}) => {
-        console.log('ShareSuccessIndicator rendered with:', shareData);
         if (!shareData) return null;
 
         return (
@@ -339,14 +309,12 @@ export default function EnhancedRecipeForm({
         setImportError('');
 
         try {
-            console.log('Importing recipe from URL:', url);
 
             const response = await apiPost('/api/recipes/scrape', {url: url.trim()});
 
             const data = await response.json();
 
             if (data.success) {
-                console.log('Successfully imported recipe:', data.recipe);
 
                 // ENHANCED: Use smart parsing for ingredients like RecipeParser
                 const parseImportedIngredients = (ingredients) => {
@@ -427,15 +395,8 @@ export default function EnhancedRecipeForm({
         }
     };
 
-    // Add this helper function to track all state changes
-    const setVideoImportingWithLog = (value, reason) => {
-        console.log(`🎭 MODAL STATE CHANGE: ${value} - Reason: ${reason}`);
-        setIsVideoImporting(value);
-    };
-
-    // Video import handler
+        // Video import handler
     const handleVideoImport = async (url) => {
-        console.log('🎥 handleVideoImport called with URL:', url);
 
         // Track start time
         const startTime = Date.now();
@@ -467,8 +428,6 @@ export default function EnhancedRecipeForm({
             return;
         }
 
-        setVideoImportingWithLog(true, 'Starting video import');
-
         // Set initial progress
         setVideoImportProgress({
             stage: 'connecting',
@@ -478,8 +437,6 @@ export default function EnhancedRecipeForm({
 
 
         try {
-            console.log('📡 Starting API call to video-extract...');
-
             // Update progress during API call
             setVideoImportProgress({
                 stage: 'downloading',
@@ -500,37 +457,8 @@ export default function EnhancedRecipeForm({
             });
 
             const data = await response.json();
-            console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
-                console.log('✅ Video extraction successful');
-                console.log('🔍 FULL API RESPONSE:', data);
-                console.log('🔍 VIDEO INFO:', data.videoInfo);
-                console.log('🔍 EXTRACTION METHOD:', data.extractionInfo?.method);
-                console.log('🔍 Expected: Chicken fries recipe');
-                console.log('🔍 Got:', data.recipe.title);
-                console.log('🔍 Description:', data.recipe.description);
-
-                // More detailed verification
-                const isCorrectRecipe = confirm(
-                    `❓ Recipe Verification\n\n` +
-                    `Expected: Chicken fries (canned chicken, egg, cheese, baked)\n` +
-                    `Got: ${data.recipe.title}\n\n` +
-                    `"${data.recipe.description}"\n\n` +
-                    `🎯 Is this YOUR chicken fries video?\n\n` +
-                    `✅ OK = Correct recipe\n` +
-                    `❌ Cancel = Wrong recipe (will show error)`
-                );
-
-                if (!isCorrectRecipe) {
-                    console.log('❌ User rejected recipe - hiding modal');
-                    setVideoImportError(`Wrong recipe extracted! Expected chicken fries but got "${data.recipe.title}". Try using the Facebook share button again to get a fresh URL.`);
-
-                    // HIDE MODAL IMMEDIATELY
-                    setVideoImportingWithLog(false, 'User rejected incorrect recipe');
-                    setVideoImportProgress({ stage: '', platform: '', message: '' });
-                    return;
-                }
 
                 // Set completion progress
                 setVideoImportProgress({
@@ -551,11 +479,9 @@ export default function EnhancedRecipeForm({
                             optional: ing.optional || false
                         };
                         if (ing.videoTimestamp) {
-                            console.log(`✅ Adding timestamp to ingredient ${index}: ${ing.name} at ${ing.videoTimestamp}s`);
                             ingredient.videoTimestamp = ing.videoTimestamp;
                             ingredient.videoLink = ing.videoLink;
                         } else {
-                            console.log(`❌ No timestamp for ingredient ${index}: ${ing.name}`);
                         }
                         return ingredient;
                     }),
@@ -568,11 +494,9 @@ export default function EnhancedRecipeForm({
                                 text: inst.text
                             };
                             if (inst.videoTimestamp) {
-                                console.log(`✅ Adding timestamp to instruction ${index}: at ${inst.videoTimestamp}s`);
                                 instruction.videoTimestamp = inst.videoTimestamp;
                                 instruction.videoLink = inst.videoLink;
                             } else {
-                                console.log(`❌ No timestamp for instruction ${index}`);
                             }
                         } else {
                             instruction = {
@@ -642,20 +566,14 @@ export default function EnhancedRecipeForm({
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
 
-        console.log(`🎭 MODAL: API completed in ${elapsedTime}ms, need to wait ${remainingTime}ms more`);
 
         if (remainingTime > 0) {
-            console.log(`🎭 MODAL: Waiting ${remainingTime}ms before hiding...`);
 
             // Set a timer to hide after remaining time
             setTimeout(() => {
-                console.log('🎭 MODAL: Timer expired, hiding modal now');
-                setVideoImportingWithLog(false, 'Minimum display time completed');
                 setVideoImportProgress({ stage: '', platform: '', message: '' });
             }, remainingTime);
         } else {
-            console.log('🎭 MODAL: API took longer than minimum time, hiding immediately');
-            setVideoImportingWithLog(false, 'API took longer than minimum time');
             setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
     };
@@ -676,7 +594,6 @@ export default function EnhancedRecipeForm({
 
         if (!cleanLine) return null;
 
-        console.log('🥕 Parsing URL import ingredient:', cleanLine);
 
         // Convert fraction characters
         cleanLine = convertFractions(cleanLine);
@@ -969,17 +886,6 @@ export default function EnhancedRecipeForm({
         );
     }
 
-    console.log('🔍 Recipe nutrition data for summary:', recipe.nutrition);
-    console.log('🔍 Sample values:', {
-        calories: recipe.nutrition.calories,
-        protein: recipe.nutrition.protein,
-        fat: recipe.nutrition.fat,
-        carbs: recipe.nutrition.carbs
-    });
-
-    console.log('🔍 Passing to NutritionFacts:', nutritionForDisplay);
-    console.log('🔍 Servings:', parseInt(recipe.servings) || 4);
-
     // Show URL import component
     if (showUrlImport) {
         return (
@@ -1086,8 +992,6 @@ export default function EnhancedRecipeForm({
                     message="Processing Facebook video..."  // Static message
                     videoUrl={videoUrl}
                     onComplete={() => {
-                        console.log('🎭 MODAL: onComplete called - BUT IGNORING IT');
-                        // Don't hide here - let parent control it
                     }}
                     style={{zIndex: 9999}}
                 />
