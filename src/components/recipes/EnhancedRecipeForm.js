@@ -1596,7 +1596,7 @@ export default function EnhancedRecipeForm({
                         </div>
                     </div>
 
-                    {/* Enhanced Nutrition Section */}
+                    {/* Enhanced Nutrition Section - CLEANED UP */}
                     <div className="bg-white shadow rounded-lg p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
@@ -1614,27 +1614,15 @@ export default function EnhancedRecipeForm({
                             </div>
                         </div>
 
-                        {/* Current nutrition display using your NutritionFacts component */}
+                        {/* Current nutrition display - NO duplicate text */}
                         {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                             <div className="mb-6">
-                                {/* ADD THIS: Serving information text */}
-                                <div className="mb-4">
-                                    <div className="flex justify-between items-end mb-3">
-                                        <div>
-                                            <span className="text-sm font-medium text-gray-800">Nutrition Facts</span>
-                                            <span className="text-xs text-gray-500 ml-2">
-                                                    (per serving of {parseInt(recipe.servings) || 4} total)
-                                            </span>
-                                        </div>
-                                        <span className="text-xs text-gray-400 italic">View Details for full nutrition</span>
-                                    </div>
-                                </div>
-
+                                {/* REMOVE the duplicate serving text - NutritionFacts handles this */}
                                 <NutritionFacts
                                     nutrition={nutritionForDisplay}
                                     servings={parseInt(recipe.servings) || 4}
                                     showPerServing={true}
-                                    compact={true}
+                                    compact={true}  // This gives the clean compact version
                                 />
 
                                 {/* AI Analysis Info */}

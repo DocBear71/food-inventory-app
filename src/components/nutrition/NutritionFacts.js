@@ -231,7 +231,10 @@ function NutritionFactsContent({
     if (compact) {
         return (
             <div className="bg-white border rounded-lg p-3 max-w-sm">
-                <div className="text-sm font-medium text-gray-900 mb-2">Nutrition Facts</div>
+                <div className="text-sm font-medium text-gray-900 mb-1">Nutrition Facts</div>
+                <div className="text-xs text-gray-600 mb-3">
+                    per serving of {servings} total servings
+                </div>
                 <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                         <span>Calories</span>
