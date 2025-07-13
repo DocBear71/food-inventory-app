@@ -465,7 +465,7 @@ export default function EnhancedRecipeForm({
         setIsVideoImporting(true);
 
         const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 2000; // 2 seconds
+        const MIN_DISPLAY_TIME = 5000; // 5 seconds
 
 
         try {
@@ -1062,15 +1062,6 @@ export default function EnhancedRecipeForm({
     if (showVideoImport) {
         return (
             <div className="space-y-6">
-                {console.log('🔍 RENDERING MODAL with isVisible:', isVideoImporting)}
-
-                {/* ADD THIS DEBUG TEXT */}
-                <div className="fixed top-10 left-4 bg-yellow-500 text-black p-2 rounded z-50">
-                    DEBUG: Component is rendering!
-                    <br/>
-                    isVideoImporting: {isVideoImporting.toString()}
-                </div>
-
                 <VideoImportLoadingModal
                     isVisible={isVideoImporting}
                     platform="facebook"  // Static since you know it's Facebook
@@ -1082,44 +1073,7 @@ export default function EnhancedRecipeForm({
                     }}
                     style={{zIndex: 9999}}
                 />
-                <button
-                    onClick={() => {
-                        console.log('🧪 TEST: Setting isVideoImporting to TRUE');
-                        setIsVideoImporting(true);
-                    }}
-                    className="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded z-50"
-                >
-                    TEST MODAL
-                </button>
 
-                {/* DEBUG: Add visible state indicator */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-40">
-                        isVideoImporting: {isVideoImporting.toString()}<br/>
-                        Modal should be: {isVideoImporting ? 'VISIBLE' : 'HIDDEN'}<br/>
-
-                        {/* ADD: Manual test button */}
-                        <button
-                            onClick={() => {
-                                console.log('🧪 TEST: Setting isVideoImporting to true');
-                                setIsVideoImporting(true);
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded mt-2 text-xs"
-                        >
-                            TEST MODAL
-                        </button>
-
-                        <button
-                            onClick={() => {
-                                console.log('🧪 TEST: Setting isVideoImporting to false');
-                                setIsVideoImporting(false);
-                            }}
-                            className="bg-blue-500 text-white px-2 py-1 rounded mt-2 text-xs ml-1"
-                        >
-                            HIDE MODAL
-                        </button>
-                    </div>
-                )}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         🎥 Extract Recipe from Social Video (AI-Powered)
