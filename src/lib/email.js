@@ -1,10 +1,142 @@
-// file: /src/lib/email.js v3 - Added expiration notification template and subscription gates
+// file: /src/lib/email.js - Complete email service with all templates and subscription validation
 
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Email templates
+// Normalize different shopping list formats
+const normalizeShoppingListForEmail = (shoppingList) => {
+    let items = [];
+    let stats = { totalItems: 0, needToBuy: 0, inInventory: 0 };
+
+    // Handle different shopping list structures
+    if (shoppingList.items) {
+        if (typeof shoppingList.items === 'object' && !Array.isArray(shoppingList.items)) {
+            // Categorized format: { items: { Pantry: [...], Produce: [...] } }
+            Object.entries(shoppingList.items).forEach(([category, categoryItems]) => {
+                if (Array.isArray(categoryItems)) {
+                    categoryItems.forEach(item => {
+                        items.push({
+                            name: item.name || item.ingredient,
+                            amount: item.amount || '',
+                            category: category.toLowerCase(),
+                            recipes: item.recipes || [],
+                            inInventory: item.inInventory || item.haveAmount > 0,
+                            originalName: item.originalName
+                        });
+                    });
+                }
+            });
+        } else if (Array.isArray(shoppingList.items)) {
+            // Array format
+            items = shoppingList.items.map(item => ({
+                name: item.name || item.ingredient,
+                amount: item.amount || '',
+                category: item.category || 'other',
+                recipes: item.recipes || [],
+                inInventory: item.inInventory || false,
+                originalName: item.originalName
+            }));
+        }
+    }
+
+    // Use provided stats or calculate them
+    if (shoppingList.stats || shoppingList.summary) {
+        const providedStats = shoppingList.stats || shoppingList.summary;
+        stats = {
+            totalItems: providedStats.totalItems || items.length,
+            needToBuy: providedStats.needToBuy || items.filter(item => !item.inInventory).length,
+            inInventory: providedStats.inInventory || providedStats.alreadyHave || items.filter(item => item.inInventory).length
+        };
+    } else {
+        stats = {
+            totalItems: items.length,
+            needToBuy: items.filter(item => !item.inInventory).length,
+            inInventory: items.filter(item => item.inInventory).length
+        };
+    }
+
+    // Group items by category
+    const itemsByCategory = {};
+    items.forEach(item => {
+        const category = item.category || 'other';
+        if (!itemsByCategory[category]) {
+            itemsByCategory[category] = [];
+        }
+        itemsByCategory[category].push(item);
+    });
+
+    return { items, stats, itemsByCategory };
+};
+
+// Get category display names
+const getCategoryDisplayName = (category) => {
+    const names = {
+        produce: '🥬 Produce',
+        grains: '🌾 Grains',
+        pantry: '🥫 Pantry & Dry Goods',
+        condiments: '🫙 Condiments',
+        dairy: '🥛 Dairy & Eggs',
+        meat: '🥩 Meat & Seafood',
+        frozen: '🧊 Frozen Foods',
+        bakery: '🍞 Bakery',
+        other: '📦 Other Items'
+    };
+    return names[category.toLowerCase()] || `📦 ${category}`;
+};
+
+// Generate plain text version for shopping lists
+const generatePlainTextEmail = ({ senderName, normalizedList, personalMessage, context, contextName, dateStr }) => {
+    let text = `SHOPPING LIST\n`;
+    text += `From: ${senderName}\n`;
+    text += `Date: ${dateStr}\n`;
+
+    if (context === 'meal-plan') {
+        text += `Meal Plan: ${contextName}\n`;
+    } else if (context === 'recipe') {
+        text += `Recipe: ${contextName}\n`;
+    } else {
+        text += `Selected Recipes\n`;
+    }
+
+    text += `${'='.repeat(50)}\n\n`;
+
+    if (personalMessage) {
+        text += `PERSONAL MESSAGE:\n${personalMessage}\n\n`;
+    }
+
+    text += `SUMMARY:\n`;
+    text += `Total Items: ${normalizedList.stats.totalItems}\n`;
+    text += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
+    text += `In Inventory: ${normalizedList.stats.inInventory}\n\n`;
+
+    Object.entries(normalizedList.itemsByCategory).forEach(([category, items]) => {
+        text += `${getCategoryDisplayName(category).toUpperCase()} (${items.length} items)\n`;
+        text += `${'-'.repeat(30)}\n`;
+
+        items.forEach(item => {
+            text += `☐ ${item.name}`;
+            if (item.amount) {
+                text += ` - ${item.amount}`;
+            }
+            if (item.inInventory) {
+                text += ` [IN INVENTORY]`;
+            }
+            text += `\n`;
+            if (item.recipes && item.recipes.length > 0) {
+                text += `  Used in: ${item.recipes.join(', ')}\n`;
+            }
+        });
+        text += `\n`;
+    });
+
+    text += `Generated by ${process.env.APP_NAME || 'Doc Bear\'s Comfort Kitchen App'}\n`;
+    text += `${process.env.APP_URL || 'https://docbearscomfort.kitchen'}\n`;
+
+    return text;
+};
+
+// Shopping list email template
 const getShoppingListEmailTemplate = ({
                                           senderName,
                                           recipientName,
@@ -264,7 +396,7 @@ const getShoppingListEmailTemplate = ({
     return { htmlContent, textContent };
 };
 
-// NEW: Get expiration notification email template
+// Expiration notification email template
 const getExpirationNotificationTemplate = ({
                                                userName,
                                                expiringItems,
@@ -751,367 +883,40 @@ The Doc Bear's Comfort Kitchen Team
     return { html, text };
 };
 
-// Normalize different shopping list formats
-const normalizeShoppingListForEmail = (shoppingList) => {
-    let items = [];
-    let stats = { totalItems: 0, needToBuy: 0, inInventory: 0 };
-
-    // Handle different shopping list structures
-    if (shoppingList.items) {
-        if (typeof shoppingList.items === 'object' && !Array.isArray(shoppingList.items)) {
-            // Categorized format: { items: { Pantry: [...], Produce: [...] } }
-            Object.entries(shoppingList.items).forEach(([category, categoryItems]) => {
-                if (Array.isArray(categoryItems)) {
-                    categoryItems.forEach(item => {
-                        items.push({
-                            name: item.name || item.ingredient,
-                            amount: item.amount || '',
-                            category: category.toLowerCase(),
-                            recipes: item.recipes || [],
-                            inInventory: item.inInventory || item.haveAmount > 0,
-                            originalName: item.originalName
-                        });
-                    });
-                }
-            });
-        } else if (Array.isArray(shoppingList.items)) {
-            // Array format
-            items = shoppingList.items.map(item => ({
-                name: item.name || item.ingredient,
-                amount: item.amount || '',
-                category: item.category || 'other',
-                recipes: item.recipes || [],
-                inInventory: item.inInventory || false,
-                originalName: item.originalName
-            }));
-        }
-    }
-
-    // Use provided stats or calculate them
-    if (shoppingList.stats || shoppingList.summary) {
-        const providedStats = shoppingList.stats || shoppingList.summary;
-        stats = {
-            totalItems: providedStats.totalItems || items.length,
-            needToBuy: providedStats.needToBuy || items.filter(item => !item.inInventory).length,
-            inInventory: providedStats.inInventory || providedStats.alreadyHave || items.filter(item => item.inInventory).length
-        };
-    } else {
-        stats = {
-            totalItems: items.length,
-            needToBuy: items.filter(item => !item.inInventory).length,
-            inInventory: items.filter(item => item.inInventory).length
-        };
-    }
-
-    // Group items by category
-    const itemsByCategory = {};
-    items.forEach(item => {
-        const category = item.category || 'other';
-        if (!itemsByCategory[category]) {
-            itemsByCategory[category] = [];
-        }
-        itemsByCategory[category].push(item);
-    });
-
-    return { items, stats, itemsByCategory };
-};
-
-// Generate plain text version
-const generatePlainTextEmail = ({ senderName, normalizedList, personalMessage, context, contextName, dateStr }) => {
-    let text = `SHOPPING LIST\n`;
-    text += `From: ${senderName}\n`;
-    text += `Date: ${dateStr}\n`;
-
-    if (context === 'meal-plan') {
-        text += `Meal Plan: ${contextName}\n`;
-    } else if (context === 'recipe') {
-        text += `Recipe: ${contextName}\n`;
-    } else {
-        text += `Selected Recipes\n`;
-    }
-
-    text += `${'='.repeat(50)}\n\n`;
-
-    if (personalMessage) {
-        text += `PERSONAL MESSAGE:\n${personalMessage}\n\n`;
-    }
-
-    text += `SUMMARY:\n`;
-    text += `Total Items: ${normalizedList.stats.totalItems}\n`;
-    text += `Need to Buy: ${normalizedList.stats.needToBuy}\n`;
-    text += `In Inventory: ${normalizedList.stats.inInventory}\n\n`;
-
-    Object.entries(normalizedList.itemsByCategory).forEach(([category, items]) => {
-        text += `${getCategoryDisplayName(category).toUpperCase()} (${items.length} items)\n`;
-        text += `${'-'.repeat(30)}\n`;
-
-        items.forEach(item => {
-            text += `☐ ${item.name}`;
-            if (item.amount) {
-                text += ` - ${item.amount}`;
-            }
-            if (item.inInventory) {
-                text += ` [IN INVENTORY]`;
-            }
-            text += `\n`;
-            if (item.recipes && item.recipes.length > 0) {
-                text += `  Used in: ${item.recipes.join(', ')}\n`;
-            }
-        });
-        text += `\n`;
-    });
-
-    text += `Generated by ${process.env.APP_NAME || 'Doc Bear\'s Comfort Kitchen App'}\n`;
-    text += `${process.env.APP_URL || 'https://docbearscomfort.kitchen'}\n`;
-
-    return text;
-};
-
-// Get category display names
-const getCategoryDisplayName = (category) => {
-    const names = {
-        produce: '🥬 Produce',
-        grains: '🌾 Grains',
-        pantry: '🥫 Pantry & Dry Goods',
-        condiments: '🫙 Condiments',
-        dairy: '🥛 Dairy & Eggs',
-        meat: '🥩 Meat & Seafood',
-        frozen: '🧊 Frozen Foods',
-        bakery: '🍞 Bakery',
-        other: '📦 Other Items'
-    };
-    return names[category.toLowerCase()] || `📦 ${category}`;
-};
-
-// UPDATED: Main email sending function with subscription validation
-export const sendShoppingListEmail = async ({
-                                                toEmails,
-                                                senderName,
-                                                senderEmail,
-                                                shoppingList,
-                                                personalMessage = '',
-                                                context = 'recipes', // 'recipe', 'recipes', 'meal-plan'
-                                                contextName = 'Selected Recipes',
-                                                userSubscription = null,
-                                                userId = null
-                                            }) => {
-    try {
-        // SUBSCRIPTION VALIDATION - Check if user has email sharing access
-        if (userSubscription) {
-            const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
-
-            // Check feature access
-            if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
-                throw new Error('Email sharing is a Gold feature. Please upgrade your subscription to share shopping lists via email.');
-            }
-
-            // Check usage limits for Gold users (50 emails/month)
-            if (userId) {
-                const { User } = require('./models');
-                const user = await User.findById(userId).select('usageTracking');
-
-                if (user && user.usageTracking) {
-                    const currentMonth = new Date().getMonth();
-                    const currentYear = new Date().getFullYear();
-
-                    // Reset monthly counter if new month
-                    if (user.usageTracking.currentMonth !== currentMonth ||
-                        user.usageTracking.currentYear !== currentYear) {
-                        user.usageTracking.currentMonth = currentMonth;
-                        user.usageTracking.currentYear = currentYear;
-                        user.usageTracking.monthlyEmailShares = 0;
-                    }
-
-                    const currentUsage = user.usageTracking.monthlyEmailShares || 0;
-
-                    if (!checkUsageLimit(userSubscription, 'emailSharesPerMonth', currentUsage)) {
-                        const { getUsageLimit } = require('./subscription-config');
-                        const limit = getUsageLimit(userSubscription, 'emailSharesPerMonth');
-                        throw new Error(`You've reached your monthly email sharing limit (${limit} emails). Upgrade to Platinum for unlimited email sharing.`);
-                    }
-
-                    // Track this usage
-                    user.usageTracking.monthlyEmailShares = currentUsage + 1;
-                    user.usageTracking.lastUpdated = new Date();
-                    await user.save();
-                }
-            }
-        }
-
-        // Validate inputs
-        if (!toEmails || toEmails.length === 0) {
-            throw new Error('At least one recipient email is required');
-        }
-
-        if (!shoppingList) {
-            throw new Error('Shopping list is required');
-        }
-
-        // Generate email content
-        const { htmlContent, textContent } = getShoppingListEmailTemplate({
-            senderName,
-            recipientName: 'there', // Generic greeting for multiple recipients
-            shoppingList,
-            personalMessage,
-            context,
-            contextName,
-            appUrl: process.env.APP_URL || 'https://docbearscomfort.kitchen'
-        });
-
-        // Prepare email data
-        const emailData = {
-            from: process.env.FROM_EMAIL || 'noreply@localhost',
-            to: toEmails,
-            subject: `🛒 Shopping List from ${senderName}${contextName ? ` - ${contextName}` : ''}`,
-            html: htmlContent,
-            text: textContent,
-            replyTo: senderEmail
-        };
-
-        // Send email
-        const result = await resend.emails.send(emailData);
-
-        return {
-            success: true,
-            messageId: result.id,
-            recipientCount: toEmails.length
-        };
-
-    } catch (error) {
-        console.error('Email sending error:', error);
-        throw new Error(`Failed to send email: ${error.message}`);
-    }
-};
-
-// NEW: Send expiration notification email with subscription validation
-export const sendExpirationNotificationEmail = async ({
-                                                          toEmail,
-                                                          userName,
-                                                          expiringItems,
-                                                          userSubscription = null,
-                                                          userId = null
-                                                      }) => {
-    try {
-        // SUBSCRIPTION VALIDATION - Check if user has email notifications access
-        if (userSubscription) {
-            const { checkFeatureAccess, checkUsageLimit } = require('./subscription-config');
-
-            // Check feature access
-            if (!checkFeatureAccess(userSubscription, 'EMAIL_NOTIFICATIONS')) {
-                console.log('User does not have email notifications access, skipping expiration email');
-                return {
-                    success: false,
-                    reason: 'Email notifications require a Gold+ subscription'
-                };
-            }
-
-            // Check usage limits for Gold users (100 emails/month)
-            if (userId) {
-                const { User } = require('./models');
-                const user = await User.findById(userId).select('usageTracking');
-
-                if (user && user.usageTracking) {
-                    const currentMonth = new Date().getMonth();
-                    const currentYear = new Date().getFullYear();
-
-                    // Reset monthly counter if new month
-                    if (user.usageTracking.currentMonth !== currentMonth ||
-                        user.usageTracking.currentYear !== currentYear) {
-                        user.usageTracking.currentMonth = currentMonth;
-                        user.usageTracking.currentYear = currentYear;
-                        user.usageTracking.monthlyEmailNotifications = 0;
-                    }
-
-                    const currentUsage = user.usageTracking.monthlyEmailNotifications || 0;
-
-                    if (!checkUsageLimit(userSubscription, 'emailNotificationsPerMonth', currentUsage)) {
-                        console.log('User has reached email notification limit');
-                        return {
-                            success: false,
-                            reason: 'Monthly email notification limit reached'
-                        };
-                    }
-
-                    // Track this usage
-                    user.usageTracking.monthlyEmailNotifications = currentUsage + 1;
-                    user.usageTracking.lastUpdated = new Date();
-                    await user.save();
-                }
-            }
-        }
-
-        // Validate inputs
-        if (!toEmail) {
-            throw new Error('Recipient email is required');
-        }
-
-        if (!expiringItems || expiringItems.length === 0) {
-            throw new Error('No expiring items provided');
-        }
-
-        // Generate email content
-        const { html, text } = getExpirationNotificationTemplate({
-            userName,
-            expiringItems,
-            totalCount: expiringItems.length,
-            appUrl: process.env.APP_URL || 'https://docbearscomfort.kitchen'
-        });
-
-        // Prepare email data
-        const emailData = {
-            from: process.env.FROM_EMAIL || 'noreply@docbearscomfortkitchen.com',
-            to: [toEmail],
-            subject: `⏰ Food Expiration Alert - ${expiringItems.length} Item${expiringItems.length !== 1 ? 's' : ''} Need Your Attention`,
-            html,
-            text
-        };
-
-        // Send email
-        const result = await resend.emails.send(emailData);
-
-        return {
-            success: true,
-            messageId: result.id,
-            itemCount: expiringItems.length
-        };
-
-    } catch (error) {
-        console.error('Expiration notification email error:', error);
-        throw new Error(`Failed to send expiration notification: ${error.message}`);
-    }
-};
-
-// Validate email addresses
+// Email validation functions
 export const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
 
-// Validate multiple emails
 export const validateEmails = (emails) => {
     return emails.every(email => validateEmail(email.trim()));
 };
 
+// Main EmailService class
 class EmailService {
     constructor() {
-        this.fromEmail = process.env.FROM_EMAIL || 'noreply@docbearscomfortkitchen.com';
+        this.fromEmail = process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen';
         this.fromName = process.env.FROM_NAME || "Doc Bear's Comfort Kitchen";
-        this.baseUrl = process.env.NEXTAUTH_URL || 'https://docbearscomfort.kitchen';
+        this.baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://docbearscomfort.kitchen';
     }
 
     getFromAddress() {
         return `${this.fromName} <${this.fromEmail}>`;
     }
 
-    // UPDATED: Email sending with subscription validation
     async sendEmail(to, subject, htmlContent, textContent = null, userSubscription = null, userId = null) {
         try {
             // SUBSCRIPTION VALIDATION for general email sending
-            if (userSubscription) {
-                const { checkFeatureAccess } = require('./subscription-config');
+            if (userSubscription && userId) {
+                try {
+                    const { checkFeatureAccess } = await import('./subscription-config');
 
-                if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
-                    throw new Error('Email features require a Gold subscription.');
+                    if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
+                        throw new Error('Email features require a Gold subscription.');
+                    }
+                } catch (importError) {
+                    console.warn('Subscription validation skipped - subscription-config not available:', importError.message);
                 }
             }
 
@@ -1122,7 +927,7 @@ class EmailService {
 
             const result = await resend.emails.send({
                 from: this.getFromAddress(),
-                to,
+                to: Array.isArray(to) ? to : [to],
                 subject,
                 html: htmlContent,
                 text: textContent || this.stripHtml(htmlContent)
@@ -1132,7 +937,7 @@ class EmailService {
                 throw new Error(`Resend API error: ${result.error.message}`);
             }
 
-            console.log(`Email sent successfully to ${to} via Resend:`, result.data.id);
+            console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(', ') : to} via Resend:`, result.data.id);
             return {
                 success: true,
                 messageId: result.data.id,
@@ -1176,8 +981,985 @@ class EmailService {
     }
 }
 
-// Email templates optimized for Resend
+// Email templates class
 export class EmailTemplates {
+    // 1. Subscription Upgrade Notification Template
+    static getSubscriptionUpgradeTemplate(userData) {
+        const { userName, userEmail, newTier, previousTier, endDate, upgradeReason, isUpgrade } = userData;
+        const currentYear = new Date().getFullYear();
+        const upgradeDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const tierColors = {
+            free: { bg: '#f0fdf4', border: '#22c55e', text: '#15803d' },
+            gold: { bg: '#fffbeb', border: '#f59e0b', text: '#d97706' },
+            platinum: { bg: '#f8fafc', border: '#64748b', text: '#475569' }
+        };
+
+        const tierIcons = {
+            free: '🌱',
+            gold: '🥇',
+            platinum: '💎'
+        };
+
+        const newTierColor = tierColors[newTier] || tierColors.free;
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription ${isUpgrade ? 'Upgraded' : 'Updated'} - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #e2e8f0;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .upgrade-card {
+            background: ${newTierColor.bg};
+            border: 2px solid ${newTierColor.border};
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .tier-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: ${newTierColor.border};
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .upgrade-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        
+        .features-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .features-section h4 {
+            margin: 0 0 15px 0;
+            color: #0c4a6e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .features-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .features-list li {
+            padding: 8px 0;
+            color: #0c4a6e;
+            font-size: 14px;
+        }
+        
+        .features-list li:before {
+            content: "✓ ";
+            color: #0ea5e9;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .action-button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-value {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Your culinary companion</p>
+        </div>
+        
+        <div class="content">
+            <h1 class="title">${isUpgrade ? '🎉' : '📝'} Subscription ${isUpgrade ? 'Upgraded' : 'Updated'}!</h1>
+            
+            <p>Hello ${userName},</p>
+            
+            <p>Great news! Your Doc Bear's Comfort Kitchen subscription has been ${isUpgrade ? 'upgraded' : 'updated'}.</p>
+            
+            <div class="upgrade-card">
+                <div class="tier-badge">
+                    ${tierIcons[newTier]} ${newTier.charAt(0).toUpperCase() + newTier.slice(1)} Tier
+                </div>
+                <h3 style="margin: 0; color: ${newTierColor.text};">
+                    Welcome to ${newTier.charAt(0).toUpperCase() + newTier.slice(1)}!
+                </h3>
+            </div>
+            
+            <div class="upgrade-details">
+                <div class="detail-row">
+                    <span class="detail-label">Previous Tier:</span>
+                    <span class="detail-value">${previousTier.charAt(0).toUpperCase() + previousTier.slice(1)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">New Tier:</span>
+                    <span class="detail-value">${newTier.charAt(0).toUpperCase() + newTier.slice(1)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Effective Date:</span>
+                    <span class="detail-value">${upgradeDate}</span>
+                </div>
+                ${endDate ? `
+                <div class="detail-row">
+                    <span class="detail-label">Valid Until:</span>
+                    <span class="detail-value">${new Date(endDate).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        })}</span>
+                </div>
+                ` : ''}
+                ${upgradeReason ? `
+                <div class="detail-row">
+                    <span class="detail-label">Reason:</span>
+                    <span class="detail-value">${upgradeReason}</span>
+                </div>
+                ` : ''}
+            </div>
+            
+            ${newTier === 'platinum' ? `
+            <div class="features-section">
+                <h4>🌟 Your Platinum Benefits</h4>
+                <ul class="features-list">
+                    <li>Unlimited inventory items and recipes</li>
+                    <li>Unlimited UPC and receipt scanning</li>
+                    <li>Advanced meal planning tools</li>
+                    <li>Unlimited email sharing and notifications</li>
+                    <li>Recipe collections and organization</li>
+                    <li>Consumption history tracking</li>
+                    <li>Priority customer support</li>
+                </ul>
+            </div>
+            ` : newTier === 'gold' ? `
+            <div class="features-section">
+                <h4>🥇 Your Gold Benefits</h4>
+                <ul class="features-list">
+                    <li>Up to 500 inventory items</li>
+                    <li>Up to 100 personal recipes</li>
+                    <li>50 UPC scans and 20 receipt scans per month</li>
+                    <li>Meal planning tools</li>
+                    <li>Email sharing (50 per month)</li>
+                    <li>Email notifications (100 per month)</li>
+                    <li>Up to 5 recipe collections</li>
+                </ul>
+            </div>
+            ` : ''}
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.APP_URL || 'https://docbearscomfort.kitchen'}/dashboard" class="action-button">
+                    Start Using Your New Features
+                </a>
+            </div>
+            
+            <p>Thank you for being part of the Doc Bear's Comfort Kitchen family! We're excited to help you make the most of your kitchen and reduce food waste.</p>
+            
+            <p>If you have any questions about your subscription or need help getting started with your new features, please don't hesitate to reach out to our support team.</p>
+            
+            <p>Happy cooking!<br>
+            <em>The Doc Bear's Comfort Kitchen Team</em></p>
+        </div>
+        
+        <div class="footer">
+            <p>This notification was sent because your subscription was updated by an administrator</p>
+            <p>Questions? Contact us at <a href="mailto:support@docbearscomfort.kitchen" style="color: #4f46e5;">support@docbearscomfort.kitchen</a></p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const text = `
+Subscription ${isUpgrade ? 'Upgraded' : 'Updated'} - Doc Bear's Comfort Kitchen
+
+Hello ${userName},
+
+Great news! Your Doc Bear's Comfort Kitchen subscription has been ${isUpgrade ? 'upgraded' : 'updated'}.
+
+SUBSCRIPTION DETAILS:
+- Previous Tier: ${previousTier.charAt(0).toUpperCase() + previousTier.slice(1)}
+- New Tier: ${newTier.charAt(0).toUpperCase() + newTier.slice(1)}
+- Effective Date: ${upgradeDate}
+${endDate ? `- Valid Until: ${new Date(endDate).toLocaleDateString()}` : ''}
+${upgradeReason ? `- Reason: ${upgradeReason}` : ''}
+
+${newTier === 'platinum' ? `
+YOUR PLATINUM BENEFITS:
+- Unlimited inventory items and recipes
+- Unlimited UPC and receipt scanning
+- Advanced meal planning tools
+- Unlimited email sharing and notifications
+- Recipe collections and organization
+- Consumption history tracking
+- Priority customer support
+` : newTier === 'gold' ? `
+YOUR GOLD BENEFITS:
+- Up to 500 inventory items
+- Up to 100 personal recipes
+- 50 UPC scans and 20 receipt scans per month
+- Meal planning tools
+- Email sharing (50 per month)
+- Email notifications (100 per month)
+- Up to 5 recipe collections
+` : ''}
+
+Get started: ${process.env.APP_URL || 'https://docbearscomfort.kitchen'}/dashboard
+
+Thank you for being part of the Doc Bear's Comfort Kitchen family! We're excited to help you make the most of your kitchen and reduce food waste.
+
+If you have any questions about your subscription or need help getting started with your new features, please don't hesitate to reach out to our support team.
+
+Happy cooking!
+The Doc Bear's Comfort Kitchen Team
+
+Questions? Contact us at support@docbearscomfort.kitchen
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+        `;
+
+        return { html, text };
+    }
+
+    // 2. Account Suspension Notification Template
+    static getAccountSuspensionTemplate(userData) {
+        const { userName, userEmail, reason, suspensionEndDate, isIndefinite, supportEmail } = userData;
+        const currentYear = new Date().getFullYear();
+        const suspensionDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Suspended - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #fecaca;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .suspension-alert {
+            background: #fef2f2;
+            border: 2px solid #dc2626;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .suspension-alert h3 {
+            color: #dc2626;
+            margin: 0 0 15px 0;
+            font-size: 20px;
+        }
+        
+        .suspension-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        
+        .limited-access-section {
+            background: #fffbeb;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .limited-access-section h4 {
+            margin: 0 0 15px 0;
+            color: #92400e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .access-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .access-list .allowed {
+            color: #059669;
+            padding: 5px 0;
+        }
+        
+        .access-list .allowed:before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .access-list .restricted {
+            color: #dc2626;
+            padding: 5px 0;
+        }
+        
+        .access-list .restricted:before {
+            content: "✗ ";
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .contact-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .contact-section h4 {
+            margin: 0 0 15px 0;
+            color: #0c4a6e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-value {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Account Suspension Notice</p>
+        </div>
+        
+        <div class="content">
+            <h1 class="title">⚠️ Account Suspended</h1>
+            
+            <p>Hello ${userName},</p>
+            
+            <p>We are writing to inform you that your Doc Bear's Comfort Kitchen account has been temporarily suspended.</p>
+            
+            <div class="suspension-alert">
+                <h3>🚫 Account Access Restricted</h3>
+                <p>Your account access has been limited while this suspension is in effect.</p>
+            </div>
+            
+            <div class="suspension-details">
+                <div class="detail-row">
+                    <span class="detail-label">Account:</span>
+                    <span class="detail-value">${userEmail}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Suspension Date:</span>
+                    <span class="detail-value">${suspensionDate}</span>
+                </div>
+                ${reason ? `
+                <div class="detail-row">
+                    <span class="detail-label">Reason:</span>
+                    <span class="detail-value">${reason}</span>
+                </div>
+                ` : ''}
+                <div class="detail-row">
+                    <span class="detail-label">Duration:</span>
+                    <span class="detail-value">
+                        ${isIndefinite ? 'Indefinite' : `Until ${new Date(suspensionEndDate).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        })}`}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="limited-access-section">
+                <h4>⚡ Limited Access During Suspension</h4>
+                <p>While your account is suspended, you have limited access to the application:</p>
+                <ul class="access-list">
+                    <li class="allowed">View your existing recipes and inventory</li>
+                    <li class="allowed">Access your meal plans and shopping lists</li>
+                    <li class="allowed">View your account settings</li>
+                    <li class="restricted">Add new recipes or inventory items</li>
+                    <li class="restricted">Make purchases or subscription changes</li>
+                    <li class="restricted">Share content or send emails</li>
+                    <li class="restricted">Access some premium features</li>
+                </ul>
+            </div>
+            
+            <div class="contact-section">
+                <h4>📞 Questions or Appeals</h4>
+                <p>If you believe this suspension was made in error or would like to appeal this decision, please contact our support team:</p>
+                <p><strong>Email:</strong> <a href="mailto:${supportEmail || 'support@docbearscomfort.kitchen'}" style="color: #0ea5e9;">${supportEmail || 'support@docbearscomfort.kitchen'}</a></p>
+                <p style="margin: 15px 0 0 0; font-size: 14px; color: #6b7280;">
+                    Please include your account email (${userEmail}) in your message for faster assistance.
+                </p>
+            </div>
+            
+            <p>We take account security and community guidelines seriously to ensure a positive experience for all users. We appreciate your understanding and look forward to resolving this matter.</p>
+            
+            <p>Thank you,<br>
+            <em>The Doc Bear's Comfort Kitchen Team</em></p>
+        </div>
+        
+        <div class="footer">
+            <p>This suspension notice was sent automatically from our system</p>
+            <p>Questions? Contact us at <a href="mailto:${supportEmail || 'support@docbearscomfort.kitchen'}" style="color: #4f46e5;">${supportEmail || 'support@docbearscomfort.kitchen'}</a></p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const text = `
+Account Suspended - Doc Bear's Comfort Kitchen
+
+Hello ${userName},
+
+We are writing to inform you that your Doc Bear's Comfort Kitchen account has been temporarily suspended.
+
+SUSPENSION DETAILS:
+- Account: ${userEmail}
+- Suspension Date: ${suspensionDate}
+${reason ? `- Reason: ${reason}` : ''}
+- Duration: ${isIndefinite ? 'Indefinite' : `Until ${new Date(suspensionEndDate).toLocaleDateString()}`}
+
+LIMITED ACCESS DURING SUSPENSION:
+While your account is suspended, you have limited access to the application:
+
+ALLOWED:
+- View your existing recipes and inventory
+- Access your meal plans and shopping lists
+- View your account settings
+
+RESTRICTED:
+- Add new recipes or inventory items
+- Make purchases or subscription changes
+- Share content or send emails
+- Access some premium features
+
+QUESTIONS OR APPEALS:
+If you believe this suspension was made in error or would like to appeal this decision, please contact our support team:
+
+Email: ${supportEmail || 'support@docbearscomfort.kitchen'}
+
+Please include your account email (${userEmail}) in your message for faster assistance.
+
+We take account security and community guidelines seriously to ensure a positive experience for all users. We appreciate your understanding and look forward to resolving this matter.
+
+Thank you,
+The Doc Bear's Comfort Kitchen Team
+
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+        `;
+
+        return { html, text };
+    }
+
+    // 3. Account Reactivation Notification Template
+    static getAccountReactivationTemplate(userData) {
+        const { userName, userEmail, reason, supportEmail } = userData;
+        const currentYear = new Date().getFullYear();
+        const reactivationDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Reactivated - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #a7f3d0;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .reactivation-card {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .reactivation-card h3 {
+            color: #065f46;
+            margin: 0 0 15px 0;
+            font-size: 20px;
+        }
+        
+        .reactivation-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        
+        .welcome-back-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .welcome-back-section h4 {
+            margin: 0 0 15px 0;
+            color: #0c4a6e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .action-button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-value {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Account Reactivated</p>
+        </div>
+        
+        <div class="content">
+            <h1 class="title">🎉 Welcome Back!</h1>
+            
+            <p>Hello ${userName},</p>
+            
+            <p>Great news! Your Doc Bear's Comfort Kitchen account has been reactivated and you now have full access to all features.</p>
+            
+            <div class="reactivation-card">
+                <h3>✅ Account Fully Restored</h3>
+                <p>All restrictions have been lifted and your account is back to normal.</p>
+            </div>
+            
+            <div class="reactivation-details">
+                <div class="detail-row">
+                    <span class="detail-label">Account:</span>
+                    <span class="detail-value">${userEmail}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Reactivation Date:</span>
+                    <span class="detail-value">${reactivationDate}</span>
+                </div>
+                ${reason ? `
+                <div class="detail-row">
+                    <span class="detail-label">Reason:</span>
+                    <span class="detail-value">${reason}</span>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="welcome-back-section">
+                <h4>🚀 You Can Now:</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #0c4a6e;">
+                    <li>Add new recipes and inventory items</li>
+                    <li>Use all scanning and import features</li>
+                    <li>Share content and send emails</li>
+                    <li>Access all premium features</li>
+                    <li>Make purchases and subscription changes</li>
+                    <li>Participate fully in the community</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.APP_URL || 'https://docbearscomfort.kitchen'}/dashboard" class="action-button">
+                    Continue to Your Dashboard
+                </a>
+            </div>
+            
+            <p>We appreciate your patience during the suspension period. If you have any questions or need assistance getting back up to speed, our support team is here to help.</p>
+            
+            <p>Welcome back to the Doc Bear's Comfort Kitchen family!</p>
+            
+            <p>Happy cooking,<br>
+            <em>The Doc Bear's Comfort Kitchen Team</em></p>
+        </div>
+        
+        <div class="footer">
+            <p>This reactivation notice was sent automatically from our system</p>
+            <p>Questions? Contact us at <a href="mailto:${supportEmail || 'support@docbearscomfort.kitchen'}" style="color: #4f46e5;">${supportEmail || 'support@docbearscomfort.kitchen'}</a></p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const text = `
+Account Reactivated - Doc Bear's Comfort Kitchen
+
+Hello ${userName},
+
+Great news! Your Doc Bear's Comfort Kitchen account has been reactivated and you now have full access to all features.
+
+REACTIVATION DETAILS:
+- Account: ${userEmail}
+- Reactivation Date: ${reactivationDate}
+${reason ? `- Reason: ${reason}` : ''}
+
+YOU CAN NOW:
+- Add new recipes and inventory items
+- Use all scanning and import features
+- Share content and send emails
+- Access all premium features
+- Make purchases and subscription changes
+- Participate fully in the community
+
+Continue to your dashboard: ${process.env.APP_URL || 'https://docbearscomfort.kitchen'}/dashboard
+
+We appreciate your patience during the suspension period. If you have any questions or need assistance getting back up to speed, our support team is here to help.
+
+Welcome back to the Doc Bear's Comfort Kitchen family!
+
+Happy cooking,
+The Doc Bear's Comfort Kitchen Team
+
+Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+        `;
+
+        return { html, text };
+    }
+
     static getPasswordResetTemplate(resetUrl, userEmail, expiryMinutes = 10) {
         const currentYear = new Date().getFullYear();
 
@@ -1777,11 +2559,213 @@ Best wishes,
 The Doc Bear's Comfort Kitchen Team
 
 © ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
-    `;
+        `;
 
         return { html, text };
     }
 }
+
+// Main email sending function with subscription validation
+export const sendShoppingListEmail = async ({
+                                                toEmails,
+                                                senderName,
+                                                senderEmail,
+                                                shoppingList,
+                                                personalMessage = '',
+                                                context = 'recipes', // 'recipe', 'recipes', 'meal-plan'
+                                                contextName = 'Selected Recipes',
+                                                userSubscription = null,
+                                                userId = null
+                                            }) => {
+    try {
+        // SUBSCRIPTION VALIDATION - Check if user has email sharing access
+        if (userSubscription && userId) {
+            try {
+                const { checkFeatureAccess, checkUsageLimit } = await import('./subscription-config');
+
+                // Check feature access
+                if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
+                    throw new Error('Email sharing is a Gold feature. Please upgrade your subscription to share shopping lists via email.');
+                }
+
+                // Check usage limits for Gold users (50 emails/month)
+                const { User } = await import('./models');
+                const user = await User.findById(userId).select('usageTracking');
+
+                if (user && user.usageTracking) {
+                    const currentMonth = new Date().getMonth();
+                    const currentYear = new Date().getFullYear();
+
+                    // Reset monthly counter if new month
+                    if (user.usageTracking.currentMonth !== currentMonth ||
+                        user.usageTracking.currentYear !== currentYear) {
+                        user.usageTracking.currentMonth = currentMonth;
+                        user.usageTracking.currentYear = currentYear;
+                        user.usageTracking.monthlyEmailShares = 0;
+                    }
+
+                    const currentUsage = user.usageTracking.monthlyEmailShares || 0;
+
+                    if (!checkUsageLimit(userSubscription, 'emailSharesPerMonth', currentUsage)) {
+                        const { getUsageLimit } = await import('./subscription-config');
+                        const limit = getUsageLimit(userSubscription, 'emailSharesPerMonth');
+                        throw new Error(`You've reached your monthly email sharing limit (${limit} emails). Upgrade to Platinum for unlimited email sharing.`);
+                    }
+
+                    // Track this usage
+                    user.usageTracking.monthlyEmailShares = currentUsage + 1;
+                    user.usageTracking.lastUpdated = new Date();
+                    await user.save();
+                }
+            } catch (importError) {
+                console.warn('Subscription validation skipped - modules not available:', importError.message);
+            }
+        }
+
+        // Validate inputs
+        if (!toEmails || toEmails.length === 0) {
+            throw new Error('At least one recipient email is required');
+        }
+
+        if (!shoppingList) {
+            throw new Error('Shopping list is required');
+        }
+
+        // Generate email content
+        const { htmlContent, textContent } = getShoppingListEmailTemplate({
+            senderName,
+            recipientName: 'there', // Generic greeting for multiple recipients
+            shoppingList,
+            personalMessage,
+            context,
+            contextName,
+            appUrl: process.env.APP_URL || 'https://docbearscomfort.kitchen'
+        });
+
+        // Prepare email data
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen',
+            to: toEmails,
+            subject: `🛒 Shopping List from ${senderName}${contextName ? ` - ${contextName}` : ''}`,
+            html: htmlContent,
+            text: textContent,
+            replyTo: senderEmail
+        };
+
+        // Send email
+        const result = await resend.emails.send(emailData);
+
+        return {
+            success: true,
+            messageId: result.id,
+            recipientCount: toEmails.length
+        };
+
+    } catch (error) {
+        console.error('Email sending error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send expiration notification email with subscription validation
+export const sendExpirationNotificationEmail = async ({
+                                                          toEmail,
+                                                          userName,
+                                                          expiringItems,
+                                                          userSubscription = null,
+                                                          userId = null
+                                                      }) => {
+    try {
+        // SUBSCRIPTION VALIDATION - Check if user has email notifications access
+        if (userSubscription && userId) {
+            try {
+                const { checkFeatureAccess, checkUsageLimit } = await import('./subscription-config');
+
+                // Check feature access
+                if (!checkFeatureAccess(userSubscription, 'EMAIL_NOTIFICATIONS')) {
+                    console.log('User does not have email notifications access, skipping expiration email');
+                    return {
+                        success: false,
+                        reason: 'Email notifications require a Gold+ subscription'
+                    };
+                }
+
+                // Check usage limits for Gold users (100 emails/month)
+                const { User } = await import('./models');
+                const user = await User.findById(userId).select('usageTracking');
+
+                if (user && user.usageTracking) {
+                    const currentMonth = new Date().getMonth();
+                    const currentYear = new Date().getFullYear();
+
+                    // Reset monthly counter if new month
+                    if (user.usageTracking.currentMonth !== currentMonth ||
+                        user.usageTracking.currentYear !== currentYear) {
+                        user.usageTracking.currentMonth = currentMonth;
+                        user.usageTracking.currentYear = currentYear;
+                        user.usageTracking.monthlyEmailNotifications = 0;
+                    }
+
+                    const currentUsage = user.usageTracking.monthlyEmailNotifications || 0;
+
+                    if (!checkUsageLimit(userSubscription, 'emailNotificationsPerMonth', currentUsage)) {
+                        console.log('User has reached email notification limit');
+                        return {
+                            success: false,
+                            reason: 'Monthly email notification limit reached'
+                        };
+                    }
+
+                    // Track this usage
+                    user.usageTracking.monthlyEmailNotifications = currentUsage + 1;
+                    user.usageTracking.lastUpdated = new Date();
+                    await user.save();
+                }
+            } catch (importError) {
+                console.warn('Subscription validation skipped - modules not available:', importError.message);
+            }
+        }
+
+        // Validate inputs
+        if (!toEmail) {
+            throw new Error('Recipient email is required');
+        }
+
+        if (!expiringItems || expiringItems.length === 0) {
+            throw new Error('No expiring items provided');
+        }
+
+        // Generate email content
+        const { html, text } = getExpirationNotificationTemplate({
+            userName,
+            expiringItems,
+            totalCount: expiringItems.length,
+            appUrl: process.env.APP_URL || 'https://docbearscomfort.kitchen'
+        });
+
+        // Prepare email data
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen',
+            to: [toEmail],
+            subject: `⏰ Food Expiration Alert - ${expiringItems.length} Item${expiringItems.length !== 1 ? 's' : ''} Need Your Attention`,
+            html,
+            text
+        };
+
+        // Send email
+        const result = await resend.emails.send(emailData);
+
+        return {
+            success: true,
+            messageId: result.id,
+            itemCount: expiringItems.length
+        };
+
+    } catch (error) {
+        console.error('Expiration notification email error:', error);
+        throw new Error(`Failed to send expiration notification: ${error.message}`);
+    }
+};
 
 // Create singleton instance
 const emailService = new EmailService();
@@ -1837,4 +2821,83 @@ export async function sendAccountDeletionConfirmationEmail(email, userName) {
 
 export async function testEmailConfiguration() {
     return await emailService.testConnection();
+}
+
+// Admin email sending functions
+export async function sendSubscriptionUpgradeEmail(userData) {
+    try {
+        const { html, text } = EmailTemplates.getSubscriptionUpgradeTemplate(userData);
+
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen',
+            to: [userData.userEmail],
+            subject: `🎉 Your Doc Bear's Comfort Kitchen subscription has been ${userData.isUpgrade ? 'upgraded' : 'updated'}!`,
+            html,
+            text
+        };
+
+        const result = await resend.emails.send(emailData);
+
+        console.log(`Subscription upgrade email sent to ${userData.userEmail}:`, result.id);
+        return {
+            success: true,
+            messageId: result.id
+        };
+
+    } catch (error) {
+        console.error('Subscription upgrade email error:', error);
+        throw new Error(`Failed to send subscription upgrade email: ${error.message}`);
+    }
+}
+
+export async function sendAccountSuspensionEmail(userData) {
+    try {
+        const { html, text } = EmailTemplates.getAccountSuspensionTemplate(userData);
+
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen',
+            to: [userData.userEmail],
+            subject: '⚠️ Your Doc Bear\'s Comfort Kitchen account has been suspended',
+            html,
+            text
+        };
+
+        const result = await resend.emails.send(emailData);
+
+        console.log(`Account suspension email sent to ${userData.userEmail}:`, result.id);
+        return {
+            success: true,
+            messageId: result.id
+        };
+
+    } catch (error) {
+        console.error('Account suspension email error:', error);
+        throw new Error(`Failed to send account suspension email: ${error.message}`);
+    }
+}
+
+export async function sendAccountReactivationEmail(userData) {
+    try {
+        const { html, text } = EmailTemplates.getAccountReactivationTemplate(userData);
+
+        const emailData = {
+            from: process.env.FROM_EMAIL || 'noreply@docbearscomfort.kitchen',
+            to: [userData.userEmail],
+            subject: '🎉 Your Doc Bear\'s Comfort Kitchen account has been reactivated!',
+            html,
+            text
+        };
+
+        const result = await resend.emails.send(emailData);
+
+        console.log(`Account reactivation email sent to ${userData.userEmail}:`, result.id);
+        return {
+            success: true,
+            messageId: result.id
+        };
+
+    } catch (error) {
+        console.error('Account reactivation email error:', error);
+        throw new Error(`Failed to send account reactivation email: ${error.message}`);
+    }
 }

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v6 - Fixed sign-out functionality with proper session clearing
+// file: /src/components/layout/MobileDashboardLayout.js v7 - Added Admin Section for Mobile
 
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
@@ -20,6 +20,9 @@ export default function MobileDashboardLayout({children}) {
     const [isScrolled, setIsScrolled] = useState(false);
     const [showPWABanner, setShowPWABanner] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
+
+    // Check if user is admin
+    const isAdmin = session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com';
 
     // Handle scroll state for header styling
     useEffect(() => {
@@ -81,6 +84,38 @@ export default function MobileDashboardLayout({children}) {
             icon: '💡',
             current: pathname === '/recipes/suggestions',
             description: 'Find recipes based on your inventory'
+        }
+    ];
+
+    // ADMIN MENU ITEMS - Only visible to admin users
+    const adminMenuItems = [
+        {
+            name: 'User Management',
+            href: '/admin/users',
+            icon: '👥',
+            current: pathname.startsWith('/admin/users'),
+            description: 'Manage users, subscriptions, and permissions'
+        },
+        {
+            name: 'Analytics Dashboard',
+            href: '/admin/analytics',
+            icon: '📊',
+            current: pathname === '/admin/analytics',
+            description: 'View platform usage statistics and insights'
+        },
+        {
+            name: 'Bulk Recipe Import',
+            href: '/recipes/admin',
+            icon: '📚',
+            current: pathname === '/recipes/admin',
+            description: 'Import recipes from Doc Bear\'s Comfort Food Survival Guide'
+        },
+        {
+            name: 'Admin Settings',
+            href: '/admin/settings',
+            icon: '🔧',
+            current: pathname === '/admin/settings',
+            description: 'System configuration and admin tools'
         }
     ];
 
@@ -166,7 +201,9 @@ export default function MobileDashboardLayout({children}) {
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className="p-2 rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0"
+                            className={`p-2 rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0 ${
+                                isAdmin ? 'bg-purple-600 text-white' : 'bg-indigo-600 text-white'
+                            }`}
                             aria-label="Open menu"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,10 +212,15 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* Two-line title */}
+                        {/* Two-line title with admin indicator */}
                         <div className="flex-1 min-w-0">
                             <div className="text-lg font-bold text-gray-900 leading-tight">
                                 Doc Bear's
+                                {isAdmin && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        Admin
+                                    </span>
+                                )}
                             </div>
                             <div className="text-sm font-semibold text-gray-700 leading-tight">
                                 Comfort Kitchen
@@ -187,6 +229,19 @@ export default function MobileDashboardLayout({children}) {
                     </div>
 
                     <div className="flex items-center space-x-2 flex-shrink-0">
+                        {/* Admin Analytics Quick Access - Only show for admin */}
+                        {isAdmin && (
+                            <TouchEnhancedButton
+                                onClick={() => handleNavigation('/admin/analytics')}
+                                className="p-2 rounded-lg bg-purple-600 text-white shadow-md hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
+                                aria-label="Admin analytics"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                            </TouchEnhancedButton>
+                        )}
+
                         {/* Receipt Scanner Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
@@ -235,8 +290,8 @@ export default function MobileDashboardLayout({children}) {
                                     session?.user?.avatar ? 'hidden' : 'block'
                                 }`}
                             >
-                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                            </span>
+                            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                        </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -254,7 +309,14 @@ export default function MobileDashboardLayout({children}) {
                     <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
                         {/* Menu Header - Fixed */}
                         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
-                            <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+                            <div className="flex items-center space-x-2">
+                                <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+                                {isAdmin && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    Admin
+                                </span>
+                                )}
+                            </div>
                             <TouchEnhancedButton
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
@@ -323,6 +385,37 @@ export default function MobileDashboardLayout({children}) {
                                     ))}
                                 </div>
 
+                                {/* ADMIN SECTION - Only show for admin users */}
+                                {isAdmin && (
+                                    <div className="mb-6">
+                                        <h3 className="text-xs font-semibold text-purple-500 uppercase tracking-wider mb-3 px-4">
+                                            🔒 Admin Panel
+                                        </h3>
+                                        {adminMenuItems.map((item) => (
+                                            <TouchEnhancedButton
+                                                key={item.name}
+                                                onClick={() => handleNavigation(item.href)}
+                                                className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                    item.current
+                                                        ? 'bg-purple-50 text-purple-700 border-l-4 border-purple-500'
+                                                        : 'text-gray-700 hover:bg-purple-50 active:bg-purple-100'
+                                                }`}
+                                            >
+                                                <span className="text-xl mt-0.5">{item.icon}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium">{item.name}</div>
+                                                    {item.description && (
+                                                        <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                                                    )}
+                                                </div>
+                                                {item.current && (
+                                                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"/>
+                                                )}
+                                            </TouchEnhancedButton>
+                                        ))}
+                                    </div>
+                                )}
+
                                 {/* Add some bottom padding to ensure last items are accessible */}
                                 <div className="h-4"></div>
                             </nav>
@@ -348,8 +441,8 @@ export default function MobileDashboardLayout({children}) {
                                                 />
                                             ) : (
                                                 <span className="text-indigo-600 text-sm font-medium">
-            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-        </span>
+                                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                                            </span>
                                             )}
 
                                             {/* Fallback span that shows when image fails to load */}
@@ -370,13 +463,20 @@ export default function MobileDashboardLayout({children}) {
                                                         }
                                                     }}
                                                 >
-            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-        </span>
+                                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                                            </span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-medium text-gray-900 truncate">
-                                                {session.user.name}
+                                            <div className="flex items-center space-x-2">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {session.user.name}
+                                                </div>
+                                                {isAdmin && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                    Admin
+                                                </span>
+                                                )}
                                             </div>
                                             <div className="text-xs text-gray-500 truncate">
                                                 {session.user.email}
@@ -449,8 +549,8 @@ export default function MobileDashboardLayout({children}) {
                             >
                                 <span className="text-lg">{item.icon}</span>
                                 <span className="text-xs font-medium truncate max-w-full px-1">
-                {item.name}
-              </span>
+                                {item.name}
+                            </span>
                                 {item.current && (
                                     <div
                                         className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>

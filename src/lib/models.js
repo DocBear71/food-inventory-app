@@ -783,6 +783,46 @@ const UserSchema = new mongoose.Schema({
         savedRecipes: {type: Number, default: 0},
         lastUpdated: {type: Date, default: Date.now}
     },
+    // Account status and suspension management
+    accountStatus: {
+        status: {
+            type: String,
+            enum: ['active', 'suspended', 'banned'],
+            default: 'active'
+        },
+        suspendedAt: Date,
+        suspendedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        suspensionReason: String,
+        suspensionEndDate: Date, // null for indefinite suspension
+        unsuspendedAt: Date,
+        unsuspendedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        // Keep history of suspension actions
+        suspensionHistory: [{
+            action: {
+                type: String,
+                enum: ['suspend', 'unsuspend', 'auto_unsuspend'],
+                required: true
+            },
+            date: {
+                type: Date,
+                default: Date.now
+            },
+            adminId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            },
+            adminEmail: String,
+            reason: String,
+            duration: Number, // days
+            endDate: Date
+        }]
+    },
 });
 
 UserSchema.pre('save', function(next) {
@@ -812,6 +852,46 @@ UserSchema.pre('save', function(next) {
 
     next();
 });
+
+UserSchema.methods.isSuspended = function() {
+    if (!this.accountStatus || this.accountStatus.status !== 'suspended') {
+        return false;
+    }
+
+    // Check if suspension has expired
+    if (this.accountStatus.suspensionEndDate) {
+        const now = new Date();
+        const endDate = new Date(this.accountStatus.suspensionEndDate);
+        return now < endDate;
+    }
+
+    // Indefinite suspension
+    return true;
+};
+
+// Get suspension details
+UserSchema.methods.getSuspensionInfo = function() {
+    if (!this.isSuspended()) {
+        return { isSuspended: false };
+    }
+
+    const endDate = this.accountStatus.suspensionEndDate
+        ? new Date(this.accountStatus.suspensionEndDate)
+        : null;
+
+    const daysRemaining = endDate
+        ? Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24))
+        : null;
+
+    return {
+        isSuspended: true,
+        reason: this.accountStatus.suspensionReason,
+        suspendedAt: this.accountStatus.suspendedAt,
+        endDate: endDate,
+        daysRemaining: daysRemaining,
+        isIndefinite: !endDate
+    };
+};
 
 // NEW: Method to check if user is admin
 UserSchema.methods.isAdminUser = function() {

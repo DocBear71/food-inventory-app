@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/DashboardLayout.js - v5 - Fixed click-outside to close sidebar
+// file: /src/components/layout/DashboardLayout.js - v6 - Added Admin Section
 
 import {handleMobileSignOut} from '@/lib/mobile-signout';
 import {signOut} from 'next-auth/react';
@@ -10,8 +10,6 @@ import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
 import VerificationBanner from '@/components/auth/VerificationBanner';
-
-
 
 export default function DashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -74,8 +72,26 @@ export default function DashboardLayout({children}) {
         {name: 'Shopping List', href: '/shopping', icon: '🛒'},
         {name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡'},
         {name: 'Account Settings', href: '/account', icon: '👤'},
-        // { name: 'Admin Import', href: '/recipes/admin', icon: '⚙️' },
     ];
+
+    // ADMIN NAVIGATION - Only visible to admin users
+    const adminNavigation = [
+        {name: 'User Management', href: '/admin/users', icon: '👥'},
+        {name: 'Analytics Dashboard', href: '/admin/analytics', icon: '📊'},
+        {
+            name: 'Admin Tools',
+            href: '/admin',
+            icon: '⚙️',
+            submenu: [
+                {name: 'Bulk Recipe Import', href: '/recipes/admin', icon: '📚'},
+                {name: 'System Settings', href: '/admin/settings', icon: '🔧'},
+                {name: 'Data Export', href: '/admin/export', icon: '💾'},
+            ]
+        }
+    ];
+
+    // Check if user is admin
+    const isAdmin = session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com';
 
     // FIXED: Enhanced sign-out that detects environment and uses appropriate method
     const handleSignOut = async () => {
@@ -152,6 +168,78 @@ export default function DashboardLayout({children}) {
         return isCurrentPage(item.href);
     };
 
+    const renderNavSection = (navItems, sectionTitle = null) => (
+        <div className="space-y-1">
+            {sectionTitle && (
+                <div className="px-3 py-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {sectionTitle}
+                    </h3>
+                </div>
+            )}
+            {navItems.map((item) => (
+                <div key={item.name}>
+                    {/* Main navigation item */}
+                    <div className="flex items-center">
+                        <Link
+                            href={item.href}
+                            className={`flex items-center flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                                isParentActive(item)
+                                    ? 'text-indigo-700 bg-indigo-100'
+                                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                            }`}
+                            onClick={() => setSidebarOpen(false)}
+                        >
+                            <span className="mr-3 text-lg">{item.icon}</span>
+                            {item.name}
+                        </Link>
+
+                        {/* Submenu toggle button */}
+                        {item.submenu && (
+                            <TouchEnhancedButton
+                                onClick={() => toggleSubmenu(item.name)}
+                                className="ml-1 p-1 text-gray-400 hover:text-gray-600"
+                            >
+                                <svg
+                                    className={`w-4 h-4 transform transition-transform ${
+                                        expandedMenus[item.name] ? 'rotate-90' : ''
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </TouchEnhancedButton>
+                        )}
+                    </div>
+
+                    {/* Submenu items */}
+                    {item.submenu && (expandedMenus[item.name] || isParentActive(item)) && (
+                        <div className="ml-6 mt-1 space-y-1">
+                            {item.submenu.map((subItem) => (
+                                <Link
+                                    key={subItem.name}
+                                    href={subItem.href}
+                                    className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                                        isCurrentPage(subItem.href)
+                                            ? 'text-indigo-700 bg-indigo-50 font-medium'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                    }`}
+                                    onClick={() => setSidebarOpen(false)}
+                                >
+                                    <span className="mr-2 text-base">{subItem.icon}</span>
+                                    {subItem.name}
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* FIXED: Overlay that appears when sidebar is open (on all screen sizes) */}
@@ -179,116 +267,80 @@ export default function DashboardLayout({children}) {
                     maxHeight: 'calc(100vh - 50%)'
                 }}
             >
-                    <div className="flex flex-col h-full">
-                        {/* Logo/Title */}
-                        <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 flex-shrink-0">
-                            <h1 className="text-lg font-semibold text-white truncate">
-                                Doc Bear's<br/>
-                                Comfort Kitchen
-                            </h1>
-
-                            {/* Close button - FIXED: Now shows on all screen sizes when sidebar is open */}
-                            {sidebarOpen && (
-                                <TouchEnhancedButton
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="text-white hover:text-gray-200 p-1"
-                                    title="Close menu"
-                                >
-                                    <span className="text-xl">×</span>
-                                </TouchEnhancedButton>
+                <div className="flex flex-col h-full">
+                    {/* Logo/Title */}
+                    <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 flex-shrink-0">
+                        <h1 className="text-lg font-semibold text-white truncate">
+                            Doc Bear's<br/>
+                            Comfort Kitchen
+                            {isAdmin && (
+                                <span className="block text-xs text-indigo-200 mt-1">
+                                    Admin Access
+                                </span>
                             )}
-                        </div>
+                        </h1>
 
-                        {/* Navigation */}
-                        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                            {navigation.map((item) => (
-                                <div key={item.name}>
-                                    {/* Main navigation item */}
-                                    <div className="flex items-center">
-                                        <Link
-                                            href={item.href}
-                                            className={`flex items-center flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                                                isParentActive(item)
-                                                    ? 'text-indigo-700 bg-indigo-100'
-                                                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                                            }`}
-                                            onClick={() => setSidebarOpen(false)}
-                                        >
-                                            <span className="mr-3 text-lg">{item.icon}</span>
-                                            {item.name}
-                                        </Link>
-
-                                        {/* Submenu toggle button */}
-                                        {item.submenu && (
-                                            <TouchEnhancedButton
-                                                onClick={() => toggleSubmenu(item.name)}
-                                                className="ml-1 p-1 text-gray-400 hover:text-gray-600"
-                                            >
-                                                <svg
-                                                    className={`w-4 h-4 transform transition-transform ${
-                                                        expandedMenus[item.name] ? 'rotate-90' : ''
-                                                    }`}
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                          d="M9 5l7 7-7 7"/>
-                                                </svg>
-                                            </TouchEnhancedButton>
-                                        )}
-                                    </div>
-
-                                    {/* Submenu items */}
-                                    {item.submenu && (expandedMenus[item.name] || isParentActive(item)) && (
-                                        <div className="ml-6 mt-1 space-y-1">
-                                            {item.submenu.map((subItem) => (
-                                                <Link
-                                                    key={subItem.name}
-                                                    href={subItem.href}
-                                                    className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                                                        isCurrentPage(subItem.href)
-                                                            ? 'text-indigo-700 bg-indigo-50 font-medium'
-                                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                                                    }`}
-                                                    onClick={() => setSidebarOpen(false)}
-                                                >
-                                                    <span className="mr-2 text-base">{subItem.icon}</span>
-                                                    {subItem.name}
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </nav>
-
-                        {/* User info and sign out - Fixed layout */}
-                        {session && (
-                            <div className="border-t border-gray-200 p-4 flex-shrink-0">
-                                <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                                    <div className="text-sm font-medium text-gray-900 truncate">
-                                        {session.user.name}
-                                    </div>
-                                    <div className="text-xs text-gray-500 truncate">
-                                        {session.user.email}
-                                    </div>
-                                </div>
-                                <TouchEnhancedButton
-                                    onClick={handleSignOut}
-                                    disabled={isSigningOut}
-                                    className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
-                                        isSigningOut
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-red-600 hover:bg-red-700'
-                                    }`}
-                                >
-                                    <span className="mr-2">{isSigningOut ? '⏳' : '🚪'}</span>
-                                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-                                </TouchEnhancedButton>
-                            </div>
+                        {/* Close button - FIXED: Now shows on all screen sizes when sidebar is open */}
+                        {sidebarOpen && (
+                            <TouchEnhancedButton
+                                onClick={() => setSidebarOpen(false)}
+                                className="text-white hover:text-gray-200 p-1"
+                                title="Close menu"
+                            >
+                                <span className="text-xl">×</span>
+                            </TouchEnhancedButton>
                         )}
                     </div>
+
+                    {/* Navigation */}
+                    <nav className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+                        {/* Main Navigation */}
+                        {renderNavSection(navigation)}
+
+                        {/* Admin Navigation - Only show for admin users */}
+                        {isAdmin && (
+                            <>
+                                <div className="border-t border-gray-200 my-4"></div>
+                                {renderNavSection(adminNavigation, "Admin Panel")}
+                            </>
+                        )}
+                    </nav>
+
+                    {/* User info and sign out - Fixed layout */}
+                    {session && (
+                        <div className="border-t border-gray-200 p-4 flex-shrink-0">
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-gray-900 truncate">
+                                            {session.user.name}
+                                        </div>
+                                        <div className="text-xs text-gray-500 truncate">
+                                            {session.user.email}
+                                        </div>
+                                    </div>
+                                    {isAdmin && (
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-2">
+                                            Admin
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={handleSignOut}
+                                disabled={isSigningOut}
+                                className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                                    isSigningOut
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`}
+                            >
+                                <span className="mr-2">{isSigningOut ? '⏳' : '🚪'}</span>
+                                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                            </TouchEnhancedButton>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Main content */}
@@ -332,14 +384,40 @@ export default function DashboardLayout({children}) {
                                     <span className="text-gray-900 font-medium">➕ Add New Recipe</span>
                                 </div>
                             )}
+                            {pathname === '/admin/users' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>⚙️ Admin</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">👥 User Management</span>
+                                </div>
+                            )}
+                            {pathname === '/admin/analytics' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>⚙️ Admin</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📊 Analytics Dashboard</span>
+                                </div>
+                            )}
+                            {pathname === '/recipes/admin' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>⚙️ Admin</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📚 Bulk Recipe Import</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Desktop user info */}
                         <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
                             {session && (
                                 <>
-                                    <div className="text-sm text-gray-700">
-                                        Welcome, <span className="font-medium">{session.user.name}</span>
+                                    <div className="text-sm text-gray-700 flex items-center">
+                                        Welcome, <span className="font-medium ml-1">{session.user.name}</span>
+                                        {isAdmin && (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-2">
+                                                Admin
+                                            </span>
+                                        )}
                                     </div>
                                     <TouchEnhancedButton
                                         onClick={handleSignOut}
