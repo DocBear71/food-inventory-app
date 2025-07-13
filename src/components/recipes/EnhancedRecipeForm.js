@@ -11,7 +11,8 @@ import { useShareHandler} from "@/hooks/useShareHandler";
 import { useSearchParams, useRouter } from 'next/navigation'; // Add useRouter here
 import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
-import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton'; // ADD THIS
+import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
+import {Promise} from "mongoose"; // ADD THIS
 
 
 export default function EnhancedRecipeForm({
@@ -138,6 +139,15 @@ export default function EnhancedRecipeForm({
             }
         }
     });
+
+    useEffect(() => {
+        console.log('🎭 isVideoImporting changed to:', isVideoImporting);
+        if (isVideoImporting) {
+            console.log('🎭 Modal should be VISIBLE now!');
+        } else {
+            console.log('🎭 Modal should be HIDDEN now!');
+        }
+    }, [isVideoImporting]);
 
     // REPLACE with this single useEffect for auto-import
     useEffect(() => {
@@ -450,6 +460,10 @@ export default function EnhancedRecipeForm({
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
 
+        // ADD THIS: Force React to render the modal before starting API call
+        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+        console.log('🎭 Modal should now be visible, starting API call...');
+
         const platform = detectPlatformFromUrl(url);
         setVideoImportProgress({
             stage: 'starting',
@@ -657,9 +671,11 @@ export default function EnhancedRecipeForm({
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
+            // Ensure modal shows for at least 2 seconds total
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
-            setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
     };
 
