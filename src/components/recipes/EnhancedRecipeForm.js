@@ -215,6 +215,18 @@ export default function EnhancedRecipeForm({
         return match ? match[1] : '';
     };
 
+    const getNormalizedNutritionSummary = () => {
+        if (!recipe.nutrition) return null;
+
+        return {
+            calories: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0,
+            protein: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0,
+            carbs: recipe.nutrition.carbs?.value || recipe.nutrition.carbs || 0,
+            fat: recipe.nutrition.fat?.value || recipe.nutrition.fat || 0,
+            fiber: recipe.nutrition.fiber?.value || recipe.nutrition.fiber || 0
+        };
+    };
+
     const ShareSuccessIndicator = ({ shareData }) => {
         console.log('ShareSuccessIndicator rendered with:', shareData);
         if (!shareData) return null;
@@ -911,6 +923,14 @@ export default function EnhancedRecipeForm({
         );
     }
 
+    console.log('🔍 Recipe nutrition data for summary:', recipe.nutrition);
+    console.log('🔍 Sample values:', {
+        calories: recipe.nutrition.calories,
+        protein: recipe.nutrition.protein,
+        fat: recipe.nutrition.fat,
+        carbs: recipe.nutrition.carbs
+    });
+
     // Show URL import component
     if (showUrlImport) {
         return (
@@ -1584,7 +1604,7 @@ export default function EnhancedRecipeForm({
                             {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                                 <div className="mb-6">
                                     <NutritionFacts
-                                        nutrition={recipe.nutrition}
+                                        nutrition={getNormalizedNutritionSummary()}
                                         servings={parseInt(recipe.servings) || 4}
                                         showPerServing={true}
                                         compact={true}
