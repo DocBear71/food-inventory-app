@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/VideoImportLoadingModal.js v2 - Enhanced to match other loading modals
+// file: /src/components/recipes/VideoImportLoadingModal.js v3 - External control, no internal timers
 
 import { useEffect, useState } from 'react';
 
@@ -9,11 +9,11 @@ const VideoImportLoadingModal = ({
                                      stage = 'processing',
                                      message = '',
                                      videoUrl = '',
+                                     progress = null, // NEW: Allow external progress control
                                      onComplete = null
                                  }) => {
-    const [progress, setProgress] = useState(0);
+    const [internalProgress, setInternalProgress] = useState(0);
     const [currentTask, setCurrentTask] = useState('');
-    const [showSuccessDelay, setShowSuccessDelay] = useState(false);
 
     useEffect(() => {
         console.log('🎭 VideoImportLoadingModal - isVisible changed to:', isVisible);
@@ -22,46 +22,41 @@ const VideoImportLoadingModal = ({
         console.log('🎭 VideoImportLoadingModal - message:', message);
 
         if (!isVisible) {
-            setProgress(0);
+            setInternalProgress(0);
             setCurrentTask('');
-            setShowSuccessDelay(false);
             return;
         }
 
-        // Simulate realistic video processing stages
+        // If external progress is provided, use it
+        if (progress !== null) {
+            setInternalProgress(progress);
+            setCurrentTask(message);
+            return;
+        }
+
+        // Otherwise use slower, more realistic timing that matches API duration
         const phases = [
-            { progress: 15, task: '🔗 Connecting to video source...', delay: 500 },
-            { progress: 30, task: '📥 Downloading video content...', delay: 800 },
-            { progress: 50, task: '🤖 AI analyzing video content...', delay: 1200 },
-            { progress: 70, task: '📄 Extracting recipe information...', delay: 1000 },
-            { progress: 85, task: '🧪 Analyzing ingredients & instructions...', delay: 800 },
-            { progress: 95, task: '🍳 Calculating nutrition information...', delay: 600 },
-            { progress: 100, task: '✅ Recipe extraction complete!', delay: 400 }
+            { progress: 10, task: '🔗 Connecting to video source...', delay: 2000 },
+            { progress: 25, task: '📥 Downloading video content...', delay: 3000 },
+            { progress: 45, task: '🤖 AI analyzing video content...', delay: 4000 },
+            { progress: 65, task: '📄 Extracting recipe information...', delay: 3000 },
+            { progress: 80, task: '🧪 Analyzing ingredients & instructions...', delay: 2000 },
+            { progress: 90, task: '🍳 Calculating nutrition information...', delay: 2000 },
+            { progress: 95, task: '✅ Finalizing recipe...', delay: 1000 }
+            // Don't go to 100% automatically - let parent control this
         ];
 
         let currentPhase = 0;
+        let phaseTimeout;
 
         const runPhase = () => {
             if (currentPhase < phases.length && isVisible) {
                 const phase = phases[currentPhase];
 
-                setTimeout(() => {
-                    if (isVisible) { // Check if still visible before updating
-                        setProgress(phase.progress);
+                phaseTimeout = setTimeout(() => {
+                    if (isVisible) {
+                        setInternalProgress(phase.progress);
                         setCurrentTask(phase.task);
-
-                        // If this is the final phase, show success and trigger completion
-                        if (phase.progress === 100) {
-                            setShowSuccessDelay(true);
-
-                            // Call onComplete after a brief success display
-                            setTimeout(() => {
-                                if (onComplete) {
-                                    onComplete();
-                                }
-                            }, 1500); // Show success for 1.5 seconds
-                        }
-
                         currentPhase++;
                         runPhase();
                     }
@@ -71,19 +66,29 @@ const VideoImportLoadingModal = ({
 
         // Start the phases
         runPhase();
-    }, [isVisible, onComplete]);
+
+        // Cleanup function
+        return () => {
+            if (phaseTimeout) {
+                clearTimeout(phaseTimeout);
+            }
+        };
+    }, [isVisible, progress, message]);
 
     if (!isVisible) {
         console.log('🎭 VideoImportLoadingModal - not visible, returning null');
         return null;
     }
 
+    const displayProgress = progress !== null ? progress : internalProgress;
+    const displayTask = progress !== null ? message : currentTask;
+
     const getLoadingEmoji = () => {
-        if (progress < 20) return "🔗";
-        if (progress < 40) return "📥";
-        if (progress < 60) return "🤖";
-        if (progress < 80) return "📄";
-        if (progress < 95) return "🧪";
+        if (displayProgress < 20) return "🔗";
+        if (displayProgress < 40) return "📥";
+        if (displayProgress < 60) return "🤖";
+        if (displayProgress < 80) return "📄";
+        if (displayProgress < 95) return "🧪";
         return "✅";
     };
 
@@ -108,12 +113,12 @@ const VideoImportLoadingModal = ({
     };
 
     const getProgressMessage = () => {
-        if (progress < 20) return "🔗 Establishing connection...";
-        if (progress < 40) return "📥 Downloading content...";
-        if (progress < 60) return "🤖 AI analyzing video...";
-        if (progress < 80) return "📄 Extracting recipe...";
-        if (progress < 95) return "🧪 Processing ingredients...";
-        if (progress === 100) return "🎉 Recipe ready to import!";
+        if (displayProgress < 20) return "🔗 Establishing connection...";
+        if (displayProgress < 40) return "📥 Downloading content...";
+        if (displayProgress < 60) return "🤖 AI analyzing video...";
+        if (displayProgress < 80) return "📄 Extracting recipe...";
+        if (displayProgress < 95) return "🧪 Processing ingredients...";
+        if (displayProgress === 100) return "🎉 Recipe ready!";
         return "⚡ Processing your video...";
     };
 
@@ -150,7 +155,7 @@ const VideoImportLoadingModal = ({
 
                 {/* Current Task */}
                 <div className="text-center mb-6">
-                    <p className="text-gray-700 font-medium text-lg mb-2">{currentTask}</p>
+                    <p className="text-gray-700 font-medium text-lg mb-2">{displayTask}</p>
                     <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                         <span>🤖</span>
                         <span>Powered by Doc Bear's AI extraction</span>
@@ -162,17 +167,17 @@ const VideoImportLoadingModal = ({
                 <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
                     <div
                         className={`h-full bg-gradient-to-r ${getPlatformColor()} rounded-full transition-all duration-500 ease-out`}
-                        style={{ width: `${progress}%` }}
+                        style={{ width: `${displayProgress}%` }}
                     ></div>
                 </div>
 
                 {/* Progress Percentage */}
                 <div className="text-center mb-6">
                     <div className="text-3xl font-bold text-gray-900 mb-1">
-                        {Math.round(progress)}%
+                        {Math.round(displayProgress)}%
                     </div>
                     <div className="text-sm text-gray-600 font-medium">
-                        {progress === 100 ? "🎊 Import Complete!" : "Processing..."}
+                        {displayProgress === 100 ? "🎊 Import Complete!" : "Processing..."}
                     </div>
                 </div>
 
@@ -193,17 +198,17 @@ const VideoImportLoadingModal = ({
                 {/* Processing Steps */}
                 <div className="space-y-2">
                     {[
-                        { step: "Connect to video", completed: progress > 15 },
-                        { step: "Download content", completed: progress > 30 },
-                        { step: "AI analysis", completed: progress > 50 },
-                        { step: "Extract recipe", completed: progress > 70 },
-                        { step: "Process nutrition", completed: progress > 95 }
+                        { step: "Connect to video", completed: displayProgress > 15 },
+                        { step: "Download content", completed: displayProgress > 30 },
+                        { step: "AI analysis", completed: displayProgress > 50 },
+                        { step: "Extract recipe", completed: displayProgress > 70 },
+                        { step: "Process nutrition", completed: displayProgress > 90 }
                     ].map((item, index) => (
                         <div key={index} className="flex items-center space-x-3">
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                                 item.completed
                                     ? 'bg-green-500 border-green-500'
-                                    : progress > index * 20
+                                    : displayProgress > index * 20
                                         ? 'border-indigo-500 bg-indigo-100'
                                         : 'border-gray-300'
                             }`}>
@@ -223,7 +228,7 @@ const VideoImportLoadingModal = ({
                 </div>
 
                 {/* Success Message */}
-                {showSuccessDelay && progress === 100 && (
+                {displayProgress === 100 && (
                     <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="text-center">
                             <div className="text-green-800 font-medium mb-1">

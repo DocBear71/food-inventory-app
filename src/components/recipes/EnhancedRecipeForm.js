@@ -439,8 +439,7 @@ export default function EnhancedRecipeForm({
 
         // Track start time
         const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 20000; // 20 seconds
-        console.log('🎭 MODAL: Setting minimum display time for 20 seconds');
+        const MIN_DISPLAY_TIME = 10000; // 10 seconds
 
         // Your existing validation code...
         if (!url || !url.trim()) {
@@ -470,12 +469,34 @@ export default function EnhancedRecipeForm({
 
         setVideoImportingWithLog(true, 'Starting video import');
 
+        // Set initial progress
+        setVideoImportProgress({
+            stage: 'connecting',
+            platform: 'facebook',
+            message: '🔗 Connecting to Facebook...'
+        });
+
+
         try {
             console.log('📡 Starting API call to video-extract...');
+
+            // Update progress during API call
+            setVideoImportProgress({
+                stage: 'downloading',
+                platform: 'facebook',
+                message: '📥 Downloading video content...'
+            });
 
             const response = await apiPost('/api/recipes/video-extract', {
                 url: url.trim(),
                 analysisType: 'ai_vision_enhanced'
+            });
+
+            // Update progress when API completes
+            setVideoImportProgress({
+                stage: 'processing',
+                platform: 'facebook',
+                message: '🤖 AI analyzing video content...'
             });
 
             const data = await response.json();
@@ -483,6 +504,13 @@ export default function EnhancedRecipeForm({
 
             if (data.success) {
                 console.log('✅ Video extraction successful')
+
+                // Set completion progress
+                setVideoImportProgress({
+                    stage: 'complete',
+                    platform: 'facebook',
+                    message: '✅ Recipe extraction complete!'
+                });
 
                 // Process your recipe data
                 const videoRecipe = {
@@ -591,13 +619,6 @@ export default function EnhancedRecipeForm({
 
         if (remainingTime > 0) {
             console.log(`🎭 MODAL: Waiting ${remainingTime}ms before hiding...`);
-
-            // Show completion message while waiting
-            setVideoImportProgress({
-                stage: 'complete',
-                platform: 'facebook',
-                message: 'Recipe generated successfully! Please wait...'
-            });
 
             // Set a timer to hide after remaining time
             setTimeout(() => {
@@ -1039,8 +1060,7 @@ export default function EnhancedRecipeForm({
                     videoUrl={videoUrl}
                     onComplete={() => {
                         console.log('🎭 MODAL: onComplete called - BUT IGNORING IT');
-                        // DON'T call setIsVideoImporting(false) here during import
-                        // setIsVideoImporting(false);
+                        // Don't hide here - let parent control it
                     }}
                     style={{zIndex: 9999}}
                 />
