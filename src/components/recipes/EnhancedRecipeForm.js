@@ -427,6 +427,12 @@ export default function EnhancedRecipeForm({
         }
     };
 
+    // Add this helper function to track all state changes
+    const setVideoImportingWithLog = (value, reason) => {
+        console.log(`🎭 MODAL STATE CHANGE: ${value} - Reason: ${reason}`);
+        setIsVideoImporting(value);
+    };
+
     // Video import handler
     const handleVideoImport = async (url) => {
         console.log('🎥 handleVideoImport called with URL:', url);
@@ -434,7 +440,7 @@ export default function EnhancedRecipeForm({
         // Track start time
         const startTime = Date.now();
         const MIN_DISPLAY_TIME = 20000; // 20 seconds
-        console.log('Setting Modal minimum display time for 20 seconds');
+        console.log('🎭 MODAL: Setting minimum display time for 20 seconds');
 
         // Your existing validation code...
         if (!url || !url.trim()) {
@@ -462,8 +468,7 @@ export default function EnhancedRecipeForm({
             return;
         }
 
-        console.log('🔄 Setting isVideoImporting to true');
-        setIsVideoImporting(true);
+        setVideoImportingWithLog(true, 'Starting video import');
 
         try {
             console.log('📡 Starting API call to video-extract...');
@@ -477,7 +482,7 @@ export default function EnhancedRecipeForm({
             console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
-                console.log('✅ Video extraction successful');
+                console.log('✅ Video extraction successful')
 
                 // Process your recipe data
                 const videoRecipe = {
@@ -578,29 +583,31 @@ export default function EnhancedRecipeForm({
             setVideoImportError('Network error. Please check your connection and try again.');
         }
 
-        // NOW enforce minimum display time AFTER API completes
+        // Calculate remaining time for minimum display
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
 
+        console.log(`🎭 MODAL: API completed in ${elapsedTime}ms, need to wait ${remainingTime}ms more`);
+
         if (remainingTime > 0) {
-            console.log(`⏱️ API completed in ${elapsedTime}ms, waiting additional ${remainingTime}ms for minimum display`);
+            console.log(`🎭 MODAL: Waiting ${remainingTime}ms before hiding...`);
 
             // Show completion message while waiting
             setVideoImportProgress({
                 stage: 'complete',
                 platform: 'facebook',
-                message: 'Recipe generated successfully!'
+                message: 'Recipe generated successfully! Please wait...'
             });
 
-            // Wait for remaining time, THEN hide modal
+            // Set a timer to hide after remaining time
             setTimeout(() => {
-                console.log('🔄 Setting isVideoImporting to false after minimum display time');
-                setIsVideoImporting(false);
+                console.log('🎭 MODAL: Timer expired, hiding modal now');
+                setVideoImportingWithLog(false, 'Minimum display time completed');
                 setVideoImportProgress({ stage: '', platform: '', message: '' });
             }, remainingTime);
         } else {
-            console.log('🔄 Setting isVideoImporting to false immediately (took longer than minimum)');
-            setIsVideoImporting(false);
+            console.log('🎭 MODAL: API took longer than minimum time, hiding immediately');
+            setVideoImportingWithLog(false, 'API took longer than minimum time');
             setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
     };
@@ -1031,7 +1038,9 @@ export default function EnhancedRecipeForm({
                     message="Processing Facebook video..."  // Static message
                     videoUrl={videoUrl}
                     onComplete={() => {
-                        setIsVideoImporting(false);
+                        console.log('🎭 MODAL: onComplete called - BUT IGNORING IT');
+                        // DON'T call setIsVideoImporting(false) here during import
+                        // setIsVideoImporting(false);
                     }}
                     style={{zIndex: 9999}}
                 />
