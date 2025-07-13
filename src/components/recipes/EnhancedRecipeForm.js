@@ -102,6 +102,18 @@ export default function EnhancedRecipeForm({
 
     const router = useRouter();
 
+    const basicInfoRef = useRef(null);
+
+    const scrollToBasicInfo = () => {
+        if (basicInfoRef.current) {
+            basicInfoRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest'
+            });
+        }
+    };
+
     const extractNumber = (value) => {
         if (!value) return '';
         const match = String(value).match(/^(\d+)/);
@@ -482,22 +494,6 @@ export default function EnhancedRecipeForm({
             if (data.success) {
                 console.log('✅ Video extraction successful');
 
-                const elapsedTime = Date.now() - startTime;
-                const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
-
-                if (remainingTime > 0) {
-                    console.log(`⏱️ API completed in ${elapsedTime}ms, waiting additional ${remainingTime}ms for minimum display`);
-
-                    // Show completion message while waiting
-                    setVideoImportProgress({
-                        stage: 'complete',
-                        platform: 'facebook',
-                        message: 'Recipe generated successfully!'
-                    });
-
-                    await new Promise(resolve => setTimeout(resolve, remainingTime));
-                }
-
                 // UPDATE: Set generating stage
                 setVideoImportProgress({
                     stage: 'generating',
@@ -629,6 +625,12 @@ export default function EnhancedRecipeForm({
                 setShowVideoImport(false);
                 setInputMethod('manual');
                 setVideoUrl('');
+
+                // ADD THIS: Schedule auto-scroll after state updates
+                setTimeout(() => {
+                    scrollToBasicInfo();
+                }, 100); // Small delay to ensure state has updated
+
             } else {
                 console.error('❌ Video import failed:', data.error);
                 setVideoImportError(data.error || 'Failed to extract recipe from video');
@@ -637,6 +639,22 @@ export default function EnhancedRecipeForm({
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
+
+            if (remainingTime > 0) {
+                console.log(`⏱️ Ensuring minimum display time: waiting ${remainingTime}ms more`);
+
+                // Show completion message while waiting
+                setVideoImportProgress({
+                    stage: 'complete',
+                    platform: 'facebook',
+                    message: 'Recipe generated successfully!'
+                });
+
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
+
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
             setVideoImportProgress({stage: '', platform: '', message: ''});
@@ -1263,11 +1281,14 @@ export default function EnhancedRecipeForm({
         (inputMethod === 'manual' || isEditing) && (
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Basic Information */}
-                <div className="bg-white shadow rounded-lg p-6">
-                    <div
-                        className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+                <div ref={basicInfoRef} className="bg-white shadow rounded-lg p-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                         <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                        <h4>Verify ingredients, instructions, and other information, then click "create/update recipe" at the bottom.</h4>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <h4 className="text-sm font-medium text-blue-800">
+                                📝 Verify ingredients, instructions, and other information, then click "Create/Update Recipe" at the bottom.
+                            </h4>
+                        </div>
                         {!isEditing && (
                             <div className="flex flex-wrap gap-2">
                                 <TouchEnhancedButton
