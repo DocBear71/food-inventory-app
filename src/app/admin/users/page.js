@@ -368,7 +368,7 @@ export default function AdminUsersPage() {
                                                 <div className="col-span-2">
                                                     <div className="flex items-center">
                                                         <div className="flex-shrink-0 h-12 w-12 mr-4">
-                                                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center shadow-sm">
+                                                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center ml-3 shadow-sm">
                                                                 <span className="text-base font-medium text-indigo-800">
                                                                     {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                                                 </span>
