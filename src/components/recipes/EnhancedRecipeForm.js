@@ -504,20 +504,31 @@ export default function EnhancedRecipeForm({
 
             if (data.success) {
                 console.log('✅ Video extraction successful');
+                console.log('🔍 FULL API RESPONSE:', data);
+                console.log('🔍 VIDEO INFO:', data.videoInfo);
+                console.log('🔍 EXTRACTION METHOD:', data.extractionInfo?.method);
                 console.log('🔍 Expected: Chicken fries recipe');
                 console.log('🔍 Got:', data.recipe.title);
                 console.log('🔍 Description:', data.recipe.description);
 
+                // More detailed verification
                 const isCorrectRecipe = confirm(
-                    `Is this the correct recipe?\n\n` +
-                    `Title: ${data.recipe.title}\n` +
-                    `Description: ${data.recipe.description}\n\n` +
-                    `Click OK if this matches your video, or Cancel to try again.`
+                    `❓ Recipe Verification\n\n` +
+                    `Expected: Chicken fries (canned chicken, egg, cheese, baked)\n` +
+                    `Got: ${data.recipe.title}\n\n` +
+                    `"${data.recipe.description}"\n\n` +
+                    `🎯 Is this YOUR chicken fries video?\n\n` +
+                    `✅ OK = Correct recipe\n` +
+                    `❌ Cancel = Wrong recipe (will show error)`
                 );
 
                 if (!isCorrectRecipe) {
-                    console.log('❌ User says this is wrong recipe');
-                    setVideoImportError('The extracted recipe doesn\'t match your video. Please try again or use a different video URL.');
+                    console.log('❌ User rejected recipe - hiding modal');
+                    setVideoImportError(`Wrong recipe extracted! Expected chicken fries but got "${data.recipe.title}". Try using the Facebook share button again to get a fresh URL.`);
+
+                    // HIDE MODAL IMMEDIATELY
+                    setVideoImportingWithLog(false, 'User rejected incorrect recipe');
+                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                     return;
                 }
 
