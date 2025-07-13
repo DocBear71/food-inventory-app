@@ -35,6 +35,13 @@ export default function AdminUsersPage() {
         endDate: '',
         reason: 'Google Play tester access'
     });
+    const [showIndividualUpgrade, setShowIndividualUpgrade] = useState(false);
+    const [selectedUserForUpgrade, setSelectedUserForUpgrade] = useState(null);
+    const [individualUpgradeData, setIndividualUpgradeData] = useState({
+        tier: 'platinum',
+        endDate: '2024-08-31', // Default to end of August for Google Play testers
+        reason: 'Google Play tester access'
+    });
 
     // Check admin access
     useEffect(() => {
@@ -109,6 +116,47 @@ export default function AdminUsersPage() {
         } else {
             setSelectedUsers(new Set(users.map(u => u._id)));
         }
+    };
+
+    const handleIndividualUpgrade = async () => {
+        try {
+            if (!selectedUserForUpgrade) return;
+
+            const response = await fetch(`/api/admin/users/${selectedUserForUpgrade._id}/upgrade`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tier: individualUpgradeData.tier,
+                    endDate: individualUpgradeData.endDate,
+                    reason: individualUpgradeData.reason
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Individual upgrade failed');
+            }
+
+            const result = await response.json();
+            alert(result.message || `Successfully upgraded ${selectedUserForUpgrade.name} to ${individualUpgradeData.tier}!`);
+
+            setShowIndividualUpgrade(false);
+            setSelectedUserForUpgrade(null);
+            fetchUsers(currentPage);
+
+        } catch (err) {
+            console.error('Individual upgrade error:', err);
+            alert('Error upgrading user: ' + err.message);
+        }
+    };
+
+    const openIndividualUpgrade = (user) => {
+        setSelectedUserForUpgrade(user);
+        setIndividualUpgradeData({
+            tier: 'platinum',
+            endDate: '2024-08-31', // Default to end of August
+            reason: 'Google Play tester access'
+        });
+        setShowIndividualUpgrade(true);
     };
 
     // Bulk upgrade handler
@@ -325,8 +373,8 @@ export default function AdminUsersPage() {
                     </div>
                 ) : (
                     <>
-                        {/* Desktop Table View - FIXED RESPONSIVE CLASSES */}
-                        <div className="hidden md:block bg-white shadow overflow-hidden sm:rounded-md">
+                        {/* Desktop Table View */}
+                        <div className="hidden lg:block bg-white shadow overflow-hidden sm:rounded-md">
                             {/* Desktop Table Header */}
                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center">
@@ -440,7 +488,7 @@ export default function AdminUsersPage() {
                                                         View Details
                                                     </button>
                                                     <button
-                                                        onClick={() => {/* Handle upgrade */}}
+                                                        onClick={() => openIndividualUpgrade(user)}
                                                         className="text-green-600 hover:text-green-900 text-sm font-medium px-3 py-1 border border-green-200 rounded hover:bg-green-50 transition-colors"
                                                     >
                                                         Upgrade
@@ -453,8 +501,8 @@ export default function AdminUsersPage() {
                             </div>
                         </div>
 
-                        {/* Mobile Card View - FIXED RESPONSIVE CLASSES */}
-                        <div className="md:hidden space-y-4">
+                        {/* Mobile Card View */}
+                        <div className="lg:hidden space-y-4">
                             {/* Mobile Select All */}
                             <div className="bg-white rounded-lg shadow p-4">
                                 <label className="flex items-center">
@@ -550,7 +598,7 @@ export default function AdminUsersPage() {
                                                 View Details
                                             </button>
                                             <button
-                                                onClick={() => {/* Handle upgrade */}}
+                                                onClick={() => openIndividualUpgrade(user)}
                                                 className="flex-1 text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                                             >
                                                 Upgrade
@@ -612,6 +660,94 @@ export default function AdminUsersPage() {
                                         Next
                                     </button>
                                 </nav>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Individual Upgrade Modal */}
+                {showIndividualUpgrade && selectedUserForUpgrade && (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                        <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+                            <div className="mt-3">
+                                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                    Upgrade User
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Upgrading <strong>{selectedUserForUpgrade.name}</strong> ({selectedUserForUpgrade.email}) to Platinum tier.
+                                </p>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Subscription Tier
+                                        </label>
+                                        <select
+                                            value={individualUpgradeData.tier}
+                                            onChange={(e) => setIndividualUpgradeData(prev => ({
+                                                ...prev,
+                                                tier: e.target.value
+                                            }))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                        >
+                                            <option value="free">Free</option>
+                                            <option value="gold">Gold</option>
+                                            <option value="platinum">Platinum</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            End Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={individualUpgradeData.endDate}
+                                            onChange={(e) => setIndividualUpgradeData(prev => ({
+                                                ...prev,
+                                                endDate: e.target.value
+                                            }))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Leave empty for permanent upgrade
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Reason
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={individualUpgradeData.reason}
+                                            onChange={(e) => setIndividualUpgradeData(prev => ({
+                                                ...prev,
+                                                reason: e.target.value
+                                            }))}
+                                            placeholder="e.g., Google Play tester access"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
+                                    <button
+                                        onClick={() => {
+                                            setShowIndividualUpgrade(false);
+                                            setSelectedUserForUpgrade(null);
+                                        }}
+                                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleIndividualUpgrade}
+                                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+                                    >
+                                        Upgrade User
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

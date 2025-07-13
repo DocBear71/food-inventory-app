@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/VideoImportSection.js - Updated for TikTok/Instagram
+// file: /src/components/recipes/VideoImportSection.js - Updated for ALL platforms
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -12,12 +12,12 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
     const [error, setError] = useState('');
     const [extractionInfo, setExtractionInfo] = useState(null);
 
-    // Detect video platform
+    // Enhanced platform detection for ALL supported platforms
     const detectVideoPlatform = (url) => {
         const platforms = {
             tiktok: /tiktok\.com/i,
             instagram: /instagram\.com/i,
-            facebook: /facebook\.com|fb\.watch/i
+            facebook: /facebook\.com|fb\.watch|fb\.com/i
         };
 
         for (const [platform, pattern] of Object.entries(platforms)) {
@@ -28,20 +28,21 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         return 'unknown';
     };
 
-    // Validate video URL
+    // Comprehensive URL validation for ALL platforms
     const isValidVideoUrl = (url) => {
         const videoPatterns = [
-            // TikTok patterns
-            /tiktok\.com\/@[^/]+\/video\/\d+/,
+            // TikTok patterns - ENHANCED
+            /tiktok\.com\/@[^\/]+\/video\/\d+/,
             /tiktok\.com\/t\/[a-zA-Z0-9]+/,
             /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
+            /tiktok\.com\/.*?\/video\/\d+/,
 
-            // Instagram patterns
+            // Instagram patterns - ENHANCED
             /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
 
-            // Facebook patterns - ADD these
+            // Facebook patterns - ENHANCED
             /facebook\.com\/watch\/?\?v=\d+/,
             /facebook\.com\/[^\/]+\/videos\/\d+/,
             /fb\.watch\/[a-zA-Z0-9_-]+/,
@@ -63,18 +64,17 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
             return;
         }
 
-
         const platform = detectVideoPlatform(videoUrl);
+        console.log(`🎥 Starting ${platform} video extraction for:`, videoUrl);
 
         setExtracting(true);
         setError('');
         setExtractionInfo(null);
 
         try {
-            console.log(`🎥 Starting ${platform} video extraction for:`, videoUrl);
-
             const response = await apiPost('/api/recipes/video-extract', {
-                url: videoUrl.trim()
+                url: videoUrl.trim(),
+                analysisType: 'ai_vision_enhanced'
             });
 
             if (!response.ok) {
@@ -85,7 +85,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
             const data = await response.json();
 
             if (data.success) {
-                console.log('✅ Video extraction successful:', data.recipe.title);
+                console.log(`✅ ${platform} video extraction successful:`, data.recipe.title);
 
                 setExtractionInfo({
                     platform: data.videoInfo.platform,
@@ -93,10 +93,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                     ingredients: data.recipe.ingredients.length,
                     instructions: data.recipe.instructions.length,
                     extractionMethod: data.extractionInfo.method,
-                    hasTimestamps: data.recipe.ingredients?.some(i => i.timestamp) ||
-                        data.recipe.instructions?.some(i => i.timestamp),
+                    hasTimestamps: data.recipe.ingredients?.some(i => i.videoTimestamp) ||
+                        data.recipe.instructions?.some(i => i.videoTimestamp),
                     cost: data.extractionInfo.cost?.total_usd || 0,
-                    videoDuration: data.recipe.videoDuration
+                    videoDuration: data.recipe.videoMetadata?.videoDuration
                 });
 
                 // Pass the extracted recipe to parent component
@@ -109,7 +109,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
             }
 
         } catch (error) {
-            console.error('❌ Video extraction error:', error);
+            console.error(`❌ ${platform} video extraction error:`, error);
             setError(error.message);
             setExtractionInfo(null);
         } finally {
@@ -148,6 +148,16 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         return colors[platform] || colors.unknown;
     };
 
+    const getPlatformName = (platform) => {
+        const names = {
+            tiktok: 'TikTok',
+            instagram: 'Instagram',
+            facebook: 'Facebook',
+            unknown: 'Video'
+        };
+        return names[platform] || 'Video';
+    };
+
     const detectedPlatform = videoUrl ? detectVideoPlatform(videoUrl) : 'unknown';
 
     return (
@@ -160,10 +170,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                        🎥 Extract Recipe from Video (AI-Powered)
+                        🎥 Extract Recipe from Social Video (AI-Powered)
                     </h3>
                     <p className="text-sm text-gray-600">
-                        Extract recipes from TikTok, Instagram, and Facebook using advanced AI audio analysis  {/* ADD Facebook */}
+                        Extract recipes from TikTok, Instagram, and Facebook using advanced AI analysis
                     </p>
                 </div>
             </div>
@@ -175,7 +185,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         Video URL
                         {detectedPlatform !== 'unknown' && (
                             <span className="ml-2 text-xs bg-white px-2 py-1 rounded-full text-gray-600">
-                                {getPlatformIcon(detectedPlatform)} {detectedPlatform.charAt(0).toUpperCase() + detectedPlatform.slice(1)} detected
+                                {getPlatformIcon(detectedPlatform)} {getPlatformName(detectedPlatform)} detected
                             </span>
                         )}
                     </label>
@@ -211,11 +221,11 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                         </TouchEnhancedButton>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                        <strong>✨ AI-Powered:</strong> Works with any video - no captions required for YouTube!
+                        <strong>✨ AI-Powered:</strong> Works with videos from all supported platforms - no captions required!
                     </div>
                 </div>
 
-                {/* Error Display - Updated for Modal-only */}
+                {/* Error Display */}
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-md p-3">
                         <div className="flex items-start">
@@ -269,13 +279,13 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                     </div>
                 )}
 
-                {/* Loading State - Updated */}
+                {/* Loading State */}
                 {extracting && (
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                         <div className="flex items-center">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
                             <div className="text-blue-800">
-                                <p className="font-medium text-sm">🤖 AI analyzing {detectedPlatform} video audio...</p>
+                                <p className="font-medium text-sm">🤖 AI analyzing {getPlatformName(detectedPlatform)} video...</p>
                                 <p className="text-xs text-blue-600 mt-1">
                                     {detectedPlatform === 'tiktok' && 'TikTok videos typically process in 15-45 seconds using AI audio analysis'}
                                     {detectedPlatform === 'instagram' && 'Instagram Reels usually take 20-60 seconds to process with AI'}
@@ -290,21 +300,73 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                     </div>
                 )}
 
-                {/* Help Section - Updated for Modal-only */}
+                {/* Success State */}
+                {extractionInfo && !extracting && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                        <div className="flex items-start">
+                            <div className="text-green-500 mr-2 mt-0.5">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-green-800 font-medium text-sm">
+                                    🎉 {getPlatformName(extractionInfo.platform)} Recipe Successfully Extracted!
+                                </p>
+                                <div className="text-green-700 text-xs mt-2 space-y-1">
+                                    <p>✅ <strong>Title:</strong> {extractionInfo.title}</p>
+                                    <p>🥕 <strong>Ingredients:</strong> {extractionInfo.ingredients} items</p>
+                                    <p>📋 <strong>Instructions:</strong> {extractionInfo.instructions} steps</p>
+                                    {extractionInfo.hasTimestamps && (
+                                        <p>🎥 <strong>Video Features:</strong> Timestamps and video links included</p>
+                                    )}
+                                    <p>🤖 <strong>Method:</strong> {extractionInfo.extractionMethod}</p>
+                                    {extractionInfo.videoDuration && (
+                                        <p>⏱️ <strong>Video Duration:</strong> {Math.round(extractionInfo.videoDuration / 60)} minutes</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Help Section */}
                 {!extracting && !extractionInfo && !error && (
                     <details className="mt-4">
                         <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
-                            📖 How does AI video extraction work?
+                            📖 How does AI video extraction work? (All Platforms)
                         </summary>
                         <div className="mt-3 text-xs text-gray-500 space-y-2 pl-4 border-l-2 border-gray-200">
                             <p>
                                 <strong>🤖 AI-Powered Processing:</strong> We extract audio from social media videos and use advanced
-                                AI to identify ingredients, instructions, and cooking techniques.
+                                AI to identify ingredients, instructions, and cooking techniques across all supported platforms.
                             </p>
-                            <p>
-                                <strong>🎵 TikTok & 📸 Instagram & 👥 Facebook:</strong> Perfect for quick recipes with clear ingredient
-                                callouts and step-by-step cooking instructions.
-                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                <div className="bg-pink-50 p-2 rounded">
+                                    <p><strong>🎵 TikTok:</strong></p>
+                                    <ul className="list-disc list-inside text-xs mt-1">
+                                        <li>Full audio + video analysis</li>
+                                        <li>Perfect for quick recipes</li>
+                                        <li>15-45 second processing</li>
+                                    </ul>
+                                </div>
+                                <div className="bg-purple-50 p-2 rounded">
+                                    <p><strong>📸 Instagram:</strong></p>
+                                    <ul className="list-disc list-inside text-xs mt-1">
+                                        <li>Reels & posts supported</li>
+                                        <li>Audio + text extraction</li>
+                                        <li>20-60 second processing</li>
+                                    </ul>
+                                </div>
+                                <div className="bg-blue-50 p-2 rounded">
+                                    <p><strong>👥 Facebook:</strong></p>
+                                    <ul className="list-disc list-inside text-xs mt-1">
+                                        <li>Public videos supported</li>
+                                        <li>Share button integration</li>
+                                        <li>30-90 second processing</li>
+                                    </ul>
+                                </div>
+                            </div>
                             <p>
                                 <strong>📺 YouTube Videos:</strong> Not supported for direct video extraction. Instead, copy the
                                 video transcript/captions and use the <strong>📋 Text Paste</strong> option - it works even better
@@ -314,17 +376,17 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                                 <strong>✨ Best Results:</strong> Videos with clear speech, ingredient mentions, and
                                 step-by-step cooking instructions work great across all supported platforms.
                             </p>
-                            <div className="mt-2">
+                            <div className="mt-2 bg-green-50 border border-green-200 rounded p-2">
                                 <strong>🌟 Recommended sources:</strong><br/>
                                 • TikTok: @gordonramsayofficial, @cookingwithlynja<br/>
                                 • Instagram: @tasty, @buzzfeedtasty<br/>
                                 • Facebook: Public cooking pages and viral recipe videos<br/>
                                 • YouTube: Any cooking channel → copy transcript → use Text Paste ✨
                             </div>
-                            <div className="mt-2 bg-green-50 border border-green-200 rounded p-2">
-                                <strong>🚀 Best of Both Worlds:</strong> Social media videos get direct AI processing,
-                                while YouTube transcripts through Text Paste often give even better results since the
-                                text is cleaner and more accurate!
+                            <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2">
+                                <strong>🚀 Share Button Integration:</strong> All three platforms (TikTok, Instagram, Facebook)
+                                support direct sharing to our app! Just use the share button in the mobile app and select
+                                our recipe app for instant import.
                             </div>
                         </div>
                     </details>

@@ -1,4 +1,4 @@
-// File: src/lib/shareHandler.js
+// File: src/lib/shareHandler.js - Enhanced for all platforms
 export const setupWebShareTarget = () => {
     // Only run in browser environment
     if (typeof window === 'undefined') return;
@@ -11,10 +11,44 @@ export const setupWebShareTarget = () => {
             if (event.data && event.data.type === 'SHARE_TARGET') {
                 const { url } = event.data;
 
-                if (url && (url.includes('facebook.com') || url.includes('fb.watch'))) {
+                // Enhanced platform detection
+                const socialPlatforms = [
+                    {
+                        platform: 'facebook',
+                        patterns: [
+                            /facebook\.com/,
+                            /fb\.watch/,
+                            /fb\.com/
+                        ]
+                    },
+                    {
+                        platform: 'tiktok',
+                        patterns: [
+                            /tiktok\.com/,
+                            /vm\.tiktok\.com/
+                        ]
+                    },
+                    {
+                        platform: 'instagram',
+                        patterns: [
+                            /instagram\.com/
+                        ]
+                    }
+                ];
+
+                // Check if URL matches any supported platform
+                const matchedPlatform = socialPlatforms.find(platform =>
+                    platform.patterns.some(pattern => pattern.test(url))
+                );
+
+                if (matchedPlatform) {
                     // Trigger the same handler as mobile
                     window.dispatchEvent(new CustomEvent('shareReceived', {
-                        detail: { url, source: 'web_share_target' }
+                        detail: {
+                            url,
+                            platform: matchedPlatform.platform,
+                            source: 'web_share_target'
+                        }
                     }));
                 }
             }
@@ -30,13 +64,27 @@ export const setupWebShareTarget = () => {
         if (sharedUrl && source === 'share') {
             console.log('🌐 Web share target activated:', sharedUrl);
 
+            // Detect platform from shared URL
+            let platform = 'unknown';
+            if (sharedUrl.includes('facebook.com') || sharedUrl.includes('fb.watch')) {
+                platform = 'facebook';
+            } else if (sharedUrl.includes('tiktok.com')) {
+                platform = 'tiktok';
+            } else if (sharedUrl.includes('instagram.com')) {
+                platform = 'instagram';
+            }
+
             // Clean up URL
             window.history.replaceState({}, document.title, window.location.pathname);
 
             // Dispatch share event
             setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('shareReceived', {
-                    detail: { url: sharedUrl, source: 'web_share_target' }
+                    detail: {
+                        url: sharedUrl,
+                        platform: platform,
+                        source: 'web_share_target'
+                    }
                 }));
             }, 100);
         }

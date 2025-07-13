@@ -1,16 +1,44 @@
 'use client';
-// file: /src/app/recipes/add/page.js v7 - FIXED INSTRUCTION FORMAT
+// file: /src/app/recipes/add/page.js v8 - Enhanced with import data handling
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
-import NutritionModal from "@/components/nutrition/NutritionModal";
 
 export default function AddRecipePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const [importedRecipeData, setImportedRecipeData] = useState(null);
+    const [importSource, setImportSource] = useState(null);
+
+    // Check for imported recipe data
+    useEffect(() => {
+        const imported = searchParams.get('imported');
+        const source = searchParams.get('source');
+        const dataParam = searchParams.get('data');
+
+        if (imported === 'true' && dataParam) {
+            try {
+                const decodedData = JSON.parse(decodeURIComponent(dataParam));
+                console.log('📥 Imported recipe data:', decodedData);
+                setImportedRecipeData(decodedData);
+                setImportSource(source || 'unknown');
+
+                // Clean up URL parameters
+                const cleanUrl = new URL(window.location);
+                cleanUrl.searchParams.delete('imported');
+                cleanUrl.searchParams.delete('source');
+                cleanUrl.searchParams.delete('data');
+                window.history.replaceState({}, '', cleanUrl);
+            } catch (error) {
+                console.error('Error parsing imported recipe data:', error);
+            }
+        }
+    }, [searchParams]);
 
     // Handle recipe submission with video import support
     const handleRecipeSubmit = async (recipeData) => {
@@ -116,9 +144,9 @@ export default function AddRecipePage() {
             const data = await response.json();
 
             if (data.success) {
-
                 // Show success message for video imports
                 if (recipeData.videoMetadata) {
+                    console.log(`✅ ${importSource || 'Video'} recipe imported successfully!`);
                 }
 
                 router.push(`/recipes/${data.recipe._id}`);
@@ -132,8 +160,8 @@ export default function AddRecipePage() {
             console.error('Error creating recipe:', error);
 
             // Enhanced error handling for video imports
-            if (recipeData.videoMetadata) {
-                alert(`Error saving video recipe: ${error.message}\n\nThe recipe was extracted successfully but couldn't be saved. Please try again.`);
+            if (recipeData.videoMetadata || importSource) {
+                alert(`Error saving ${importSource || 'imported'} recipe: ${error.message}\n\nThe recipe was extracted successfully but couldn't be saved. Please try again.`);
             } else {
                 alert('Error creating recipe: ' + error.message);
             }
@@ -147,21 +175,64 @@ export default function AddRecipePage() {
         router.back();
     };
 
+    const getImportSourceInfo = () => {
+        switch (importSource) {
+            case 'tiktok':
+                return { icon: '🎵', name: 'TikTok', color: 'pink' };
+            case 'instagram':
+                return { icon: '📸', name: 'Instagram', color: 'purple' };
+            case 'facebook':
+                return { icon: '👥', name: 'Facebook', color: 'blue' };
+            case 'website':
+                return { icon: '🌐', name: 'Website', color: 'green' };
+            default:
+                return { icon: '🎯', name: 'Import', color: 'indigo' };
+        }
+    };
+
     return (
         <MobileOptimizedLayout>
             <div className="max-w-6xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Add New Recipe</h1>
-                        <div className="text-gray-600 mt-2 space-y-1">
-                            <p>Choose your preferred method to add recipes:</p>
-                            <div className="text-sm space-y-1 mt-2">
-                                <div>• <strong>Manual Entry:</strong> Build recipes step-by-step with full control</div>
-                                <div>• <strong>Text Paste:</strong> Paste recipe text or YouTube transcripts for AI extraction</div>
-                                <div>• <strong>Website Import:</strong> Import directly from recipe websites and blogs</div>
-                                <div>• <strong>Social Video:</strong> Extract from TikTok, Instagram, and Facebook videos</div>
-                            </div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-3xl font-bold text-gray-900">
+                                {importedRecipeData ? 'Review Imported Recipe' : 'Add New Recipe'}
+                            </h1>
+                            {importedRecipeData && (
+                                <div className={`px-3 py-1 rounded-full text-sm font-medium bg-${getImportSourceInfo().color}-100 text-${getImportSourceInfo().color}-800`}>
+                                    {getImportSourceInfo().icon} {getImportSourceInfo().name} Import
+                                </div>
+                            )}
                         </div>
+
+                        {importedRecipeData ? (
+                            <div className="text-gray-600 space-y-1">
+                                <p>Review and edit the imported recipe details below, then save.</p>
+                                {importSource === 'tiktok' && (
+                                    <p className="text-sm">🎵 <strong>TikTok Recipe:</strong> Extracted using AI video analysis with timestamps</p>
+                                )}
+                                {importSource === 'instagram' && (
+                                    <p className="text-sm">📸 <strong>Instagram Recipe:</strong> Extracted using AI content analysis</p>
+                                )}
+                                {importSource === 'facebook' && (
+                                    <p className="text-sm">👥 <strong>Facebook Recipe:</strong> Extracted using AI video analysis</p>
+                                )}
+                                {importSource === 'website' && (
+                                    <p className="text-sm">🌐 <strong>Website Recipe:</strong> Imported and enhanced with AI nutrition</p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-gray-600 mt-2 space-y-1">
+                                <p>Choose your preferred method to add recipes:</p>
+                                <div className="text-sm space-y-1 mt-2">
+                                    <div>• <strong>Manual Entry:</strong> Build recipes step-by-step with full control</div>
+                                    <div>• <strong>Text Paste:</strong> Paste recipe text or YouTube transcripts for AI extraction</div>
+                                    <div>• <strong>Website Import:</strong> Import directly from recipe websites and blogs</div>
+                                    <div>• <strong>Social Video:</strong> Extract from TikTok, Instagram, and Facebook videos</div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <TouchEnhancedButton
                         onClick={() => router.back()}
@@ -171,13 +242,45 @@ export default function AddRecipePage() {
                     </TouchEnhancedButton>
                 </div>
 
+                {/* Import Success Message */}
+                {importedRecipeData && (
+                    <div className={`bg-${getImportSourceInfo().color}-50 border border-${getImportSourceInfo().color}-200 rounded-lg p-6 mb-6`}>
+                        <div className="flex items-start">
+                            <div className={`text-${getImportSourceInfo().color}-600 mr-3 mt-0.5`}>
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className={`text-lg font-medium text-${getImportSourceInfo().color}-800 mb-2`}>
+                                    {getImportSourceInfo().icon} {getImportSourceInfo().name} Recipe Successfully Imported!
+                                </h3>
+                                <div className={`text-sm text-${getImportSourceInfo().color}-700 space-y-1`}>
+                                    <p>✅ <strong>Title:</strong> {importedRecipeData.title || 'Untitled Recipe'}</p>
+                                    <p>🥕 <strong>Ingredients:</strong> {importedRecipeData.ingredients?.length || 0} items</p>
+                                    <p>📋 <strong>Instructions:</strong> {importedRecipeData.instructions?.length || 0} steps</p>
+                                    {importedRecipeData.videoMetadata && (
+                                        <p>🎥 <strong>Video Features:</strong> Timestamps and links included</p>
+                                    )}
+                                    {importedRecipeData.nutrition && Object.keys(importedRecipeData.nutrition).length > 0 && (
+                                        <p>🤖 <strong>Nutrition:</strong> AI-calculated nutrition facts included</p>
+                                    )}
+                                </div>
+                                <div className={`mt-3 text-xs text-${getImportSourceInfo().color}-600`}>
+                                    Review the details below and make any necessary edits before saving your recipe.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <EnhancedRecipeForm
+                    initialData={importedRecipeData}
                     onSubmit={handleRecipeSubmit}
                     onCancel={handleCancel}
                     isEditing={false}
                     showNutritionAnalysis={true} // Enable nutrition AI for all recipes
                 />
-
 
                 <Footer />
             </div>

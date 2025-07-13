@@ -1,4 +1,4 @@
-// File: src/hooks/useShareHandler.js
+// File: src/hooks/useShareHandler.js - Enhanced for all social platforms
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -52,33 +52,63 @@ export const useShareHandler = (onRecipeShare) => {
 
             console.log('📋 Extracted URL:', url);
 
-            // Check Facebook patterns with debug
-            const facebookPatterns = [
-                /facebook\.com\/reel\/\d+/,
-                /facebook\.com\/watch\?v=\d+/,
-                /facebook\.com\/share\/r\/[^\/\s]+/,
-                /fb\.watch\/[^\/\s]+/
-            ];
+            // Enhanced platform detection for ALL social media platforms
+            const socialPlatforms = {
+                facebook: {
+                    patterns: [
+                        /facebook\.com\/reel\/\d+/,
+                        /facebook\.com\/watch\?v=\d+/,
+                        /facebook\.com\/share\/r\/[^\/\s]+/,
+                        /facebook\.com\/[^\/]+\/videos\/\d+/,
+                        /fb\.watch\/[^\/\s]+/
+                    ]
+                },
+                tiktok: {
+                    patterns: [
+                        /tiktok\.com\/@[^\/]+\/video\/\d+/,
+                        /tiktok\.com\/t\/[a-zA-Z0-9]+/,
+                        /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
+                        /tiktok\.com\/.*?\/video\/\d+/
+                    ]
+                },
+                instagram: {
+                    patterns: [
+                        /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
+                        /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
+                        /instagram\.com\/tv\/[a-zA-Z0-9_-]+/
+                    ]
+                }
+            };
 
-            console.log('🔍 Testing patterns against:', url);
-            facebookPatterns.forEach((pattern, index) => {
-                const matches = pattern.test(url);
-                console.log(`  Pattern ${index} (${pattern}): ${matches}`);
-            });
+            // Test each platform
+            let detectedPlatform = null;
+            for (const [platform, config] of Object.entries(socialPlatforms)) {
+                const isMatch = config.patterns.some(pattern => {
+                    const matches = pattern.test(url);
+                    console.log(`🔍 Testing ${platform} pattern ${pattern}: ${matches}`);
+                    return matches;
+                });
 
-            const isFacebookURL = facebookPatterns.some(pattern => pattern.test(url));
-            console.log('🎯 Final result - Is Facebook URL?', isFacebookURL);
+                if (isMatch) {
+                    detectedPlatform = platform;
+                    break;
+                }
+            }
 
-            if (isFacebookURL) {
-                console.log('✅ Facebook video detected, calling onRecipeShare!');
+            console.log('🎯 Detected platform:', detectedPlatform);
+
+            if (detectedPlatform) {
+                console.log(`✅ ${detectedPlatform} video detected, calling onRecipeShare!`);
                 onRecipeShare({
-                    type: 'facebook_video',
+                    type: `${detectedPlatform}_video`,
+                    platform: detectedPlatform,
                     url: url.trim(),
                     source: Capacitor.isNativePlatform() ? 'mobile_share' : 'web_share',
                     timestamp: Date.now()
                 });
             } else {
-                console.log('❌ Not recognized as Facebook URL');
+                console.log('❌ Not recognized as supported social media URL');
+                console.log('   Supported platforms: Facebook, TikTok, Instagram');
             }
         };
 

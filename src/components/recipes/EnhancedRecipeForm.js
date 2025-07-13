@@ -137,16 +137,18 @@ export default function EnhancedRecipeForm({
     useShareHandler((shareData) => {
         setSharedContent(shareData);
 
-        if (shareData.type === 'facebook_video') {
+        // Handle ALL social media platforms
+        if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
             // For import mode, continue with current behavior
             if (isImportMode) {
                 setVideoUrl(shareData.url);
                 setShowVideoImport(true);
+                setVideoImportPlatform(shareData.platform || 'video');
             } else {
                 // For regular add page, redirect to import page
                 // Use setTimeout to avoid hook call during render
                 setTimeout(() => {
-                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=facebook`);
+                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${shareData.platform}`);
                 }, 0);
             }
         }
@@ -159,13 +161,15 @@ export default function EnhancedRecipeForm({
         const source = urlParams.get('source');
         const platform = urlParams.get('platform');
 
-        if (videoUrl && source === 'share' && platform === 'facebook') {
+        if (videoUrl && source === 'share' && ['facebook', 'tiktok', 'instagram'].includes(platform)) {
+            console.log(`📱 Auto-importing ${platform} video:`, videoUrl);
 
             // Decode the URL
             const decodedVideoUrl = decodeURIComponent(videoUrl);
 
             // Set the video URL in the input
             setVideoUrl(decodedVideoUrl);
+            setVideoImportPlatform(platform);
 
             // Show video import section
             setShowVideoImport(true);
@@ -183,7 +187,6 @@ export default function EnhancedRecipeForm({
             window.history.replaceState({}, '', cleanUrl);
 
             return () => clearTimeout(timer);
-        } else {
         }
     }, []); // Empty dependency array - only run once on mount
 
@@ -240,6 +243,18 @@ export default function EnhancedRecipeForm({
     const ShareSuccessIndicator = ({shareData}) => {
         if (!shareData) return null;
 
+        const platformNames = {
+            facebook_video: 'Facebook',
+            tiktok_video: 'TikTok',
+            instagram_video: 'Instagram'
+        };
+
+        const platformIcons = {
+            facebook_video: '👥',
+            tiktok_video: '🎵',
+            instagram_video: '📸'
+        };
+
         return (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center">
@@ -255,8 +270,8 @@ export default function EnhancedRecipeForm({
                             🎯 Video Shared Successfully!
                         </h3>
                         <p className="text-sm text-green-700 mt-1">
-                            Received Facebook video
-                            from {shareData.source === 'android_share' ? 'Android share' : 'web share'}.
+                            Received {platformIcons[shareData.type]} {platformNames[shareData.type]} video
+                            from {shareData.source === 'mobile_share' ? 'mobile share' : 'web share'}.
                             Ready to extract recipe!
                         </p>
                     </div>
