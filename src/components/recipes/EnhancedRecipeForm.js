@@ -1596,58 +1596,69 @@ export default function EnhancedRecipeForm({
                         </div>
                     </div>
 
-                    {/* Enhanced Nutrition Section - Using your existing components */}
-                    {(inputMethod === 'manual' || isEditing || isImportMode) && (
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
-                                <div className="flex gap-2">
-                                    {/* View Details Button - using your NutritionModal */}
-                                    {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => setShowNutritionModal(true)}
-                                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                                        >
-                                            View Details
-                                        </TouchEnhancedButton>
-                                    )}
-                                </div>
+                    {/* Enhanced Nutrition Section */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
+                            <div className="flex gap-2">
+                                {/* View Details Button */}
+                                {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowNutritionModal(true)}
+                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                                    >
+                                        View Details
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
+                        </div>
 
-                            {/* Current nutrition display using your NutritionFacts component */}
-                            {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
-                                <div className="mb-6">
-
-                                    <NutritionFacts
-                                        nutrition={nutritionForDisplay}  // Use normalized data
-                                        servings={parseInt(recipe.servings) || 4}
-                                        showPerServing={true}
-                                        compact={true}
-                                    />
-
-                                    {/* AI Analysis Info */}
-                                    {recipe.nutrition.calculationMethod === 'ai_calculated' && (
-                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                            <div className="flex items-center text-blue-800 text-sm">
-                                                <span className="mr-2">🤖</span>
-                                                <span>Nutrition calculated by AI analysis</span>
-                                                {recipe.nutrition.confidence && (
-                                                    <span className="ml-2 text-blue-600">
-                                    Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
-                                </span>
-                                                )}
-                                            </div>
+                        {/* Current nutrition display using your NutritionFacts component */}
+                        {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
+                            <div className="mb-6">
+                                {/* ADD THIS: Serving information text */}
+                                <div className="mb-4">
+                                    <div className="flex justify-between items-end mb-3">
+                                        <div>
+                                            <span className="text-sm font-medium text-gray-800">Nutrition Facts</span>
+                                            <span className="text-xs text-gray-500 ml-2">
+                                                    (per serving of {parseInt(recipe.servings) || 4} total)
+                                            </span>
                                         </div>
-                                    )}
+                                        <span className="text-xs text-gray-400 italic">View Details for full nutrition</span>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="text-center py-8 text-gray-500 mb-6">
-                                    <div className="text-4xl mb-2">📊</div>
-                                    <p className="font-medium">No nutrition information yet</p>
-                                    <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
-                                </div>
-                            )}
+
+                                <NutritionFacts
+                                    nutrition={nutritionForDisplay}
+                                    servings={parseInt(recipe.servings) || 4}
+                                    showPerServing={true}
+                                    compact={true}
+                                />
+
+                                {/* AI Analysis Info */}
+                                {recipe.nutrition.calculationMethod === 'ai_calculated' && (
+                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex items-center text-blue-800 text-sm">
+                                            <span className="mr-2">🤖</span>
+                                            <span>Nutrition calculated by AI analysis</span>
+                                            {recipe.nutrition.confidence && (
+                                                <span className="ml-2 text-blue-600">
+                                Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
+                            </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-500 mb-6">
+                                <div className="text-4xl mb-2">📊</div>
+                                <p className="font-medium">No nutrition information yet</p>
+                                <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
+                            </div>
+                        )}
 
                             {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
                             <UpdateNutritionButton
@@ -1729,7 +1740,6 @@ export default function EnhancedRecipeForm({
                                 </div>
                             )}
                         </div>
-                    )}
 
 
                     {/* Source - MOBILE RESPONSIVE */}
