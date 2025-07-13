@@ -477,18 +477,6 @@ export default function RecipeDetailPage() {
                     )}
                 </div>
 
-                {/* Nutrition Panel - UPDATED LOGIC */}
-                {showNutrition && hasNutritionData && (
-                    <div className="mb-8">
-                        <NutritionFacts
-                            nutrition={getNormalizedNutrition()}
-                            servings={recipe.servings || 1}
-                            showPerServing={true}
-                            compact={false}  // MAKE SURE this is false too
-                        />
-                    </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-8">
@@ -730,12 +718,6 @@ export default function RecipeDetailPage() {
                                     showPerServing={true}
                                     compact={false}  // CHANGE from true to false
                                 />
-                                <TouchEnhancedButton
-                                    onClick={() => setShowNutrition(true)}
-                                    className="w-full mt-3 text-sm text-indigo-600 hover:text-indigo-700"
-                                >
-                                    View in expanded panel →
-                                </TouchEnhancedButton>
                             </div>
                         )}
                     </div>

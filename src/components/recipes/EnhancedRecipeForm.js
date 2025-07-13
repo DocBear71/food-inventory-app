@@ -1162,12 +1162,13 @@ export default function EnhancedRecipeForm({
         <div className="space-y-6">
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoImportProgress.platform || 'facebook'}
-                stage={videoImportProgress.stage || 'processing'}
-                message={videoImportProgress.message || 'Processing video...'}
-                onCancel={() => {
+                platform={videoImportPlatform || 'video'} // 'facebook', 'instagram', 'tiktok', etc.
+                stage="processing"
+                message="Processing video..."
+                videoUrl={videoUrl}
+                onComplete={() => {
+                    // Called when the modal finishes its animation
                     setIsVideoImporting(false);
-                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                 }}
             />
 

@@ -1,236 +1,250 @@
 'use client';
-
-// file: /src/components/recipes/VideoImportLoadingModal.js
+// file: /src/components/recipes/VideoImportLoadingModal.js v2 - Enhanced to match other loading modals
 
 import { useEffect, useState } from 'react';
 
-export default function VideoImportLoadingModal({
-                                                    isVisible,
-                                                    platform = 'facebook',
-                                                    stage = 'processing',
-                                                    message = 'Processing video...',
-                                                    onCancel
-                                                }) {
-    const [dots, setDots] = useState('');
+const VideoImportLoadingModal = ({
+                                     isVisible = false,
+                                     platform = 'video',
+                                     stage = 'processing',
+                                     message = '',
+                                     videoUrl = '',
+                                     onComplete = null
+                                 }) => {
+    const [progress, setProgress] = useState(0);
+    const [currentTask, setCurrentTask] = useState('');
+    const [showSuccessDelay, setShowSuccessDelay] = useState(false);
 
-    // DEBUG: Add console logs
     useEffect(() => {
         console.log('🎭 VideoImportLoadingModal - isVisible changed to:', isVisible);
         console.log('🎭 VideoImportLoadingModal - platform:', platform);
         console.log('🎭 VideoImportLoadingModal - stage:', stage);
         console.log('🎭 VideoImportLoadingModal - message:', message);
-    }, [isVisible, platform, stage, message]);
 
-    const platformInfo = {
-        tiktok: {
-            name: 'TikTok',
-            icon: '🎵',
-            color: 'from-pink-500 to-purple-600',
-            bgColor: 'from-pink-50 to-purple-50',
-            borderColor: 'border-pink-200',
-            estimatedTime: '15-45 seconds',
-            description: 'Quick viral recipes and cooking trends'
-        },
-        instagram: {
-            name: 'Instagram',
-            icon: '📸',
-            color: 'from-purple-500 to-pink-600',
-            bgColor: 'from-purple-50 to-pink-50',
-            borderColor: 'border-purple-200',
-            estimatedTime: '20-60 seconds',
-            description: 'Recipe reels and cooking posts'
-        },
-        facebook: {
-            name: 'Facebook',
-            icon: '👥',
-            color: 'from-blue-500 to-indigo-600',
-            bgColor: 'from-blue-50 to-indigo-50',
-            borderColor: 'border-blue-200',
-            estimatedTime: '15-30 seconds',
-            description: 'AI-powered recipe extraction'
-        },
-        unknown: {
-            name: 'Video',
-            icon: '🎥',
-            color: 'from-gray-500 to-gray-600',
-            bgColor: 'from-gray-50 to-gray-50',
-            borderColor: 'border-gray-200',
-            estimatedTime: '30-120 seconds',
-            description: 'Processing video content'
+        if (!isVisible) {
+            setProgress(0);
+            setCurrentTask('');
+            setShowSuccessDelay(false);
+            return;
         }
-    };
 
-    const stageInfo = {
-        starting: {
-            icon: '🎬',
-            title: 'Starting Analysis',
-            progress: 10
-        },
-        downloading: {
-            icon: '📥',
-            title: 'Downloading Video',
-            progress: 25
-        },
-        processing: {
-            icon: '🤖',
-            title: 'AI Frame Analysis',
-            progress: 60
-        },
-        generating: {
-            icon: '📝',
-            title: 'Creating Recipe',
-            progress: 85
-        },
-        complete: {
-            icon: '✅',
-            title: 'Complete',
-            progress: 100
-        }
-    };
+        // Simulate realistic video processing stages
+        const phases = [
+            { progress: 15, task: '🔗 Connecting to video source...', delay: 500 },
+            { progress: 30, task: '📥 Downloading video content...', delay: 800 },
+            { progress: 50, task: '🤖 AI analyzing video content...', delay: 1200 },
+            { progress: 70, task: '📄 Extracting recipe information...', delay: 1000 },
+            { progress: 85, task: '🧪 Analyzing ingredients & instructions...', delay: 800 },
+            { progress: 95, task: '🍳 Calculating nutrition information...', delay: 600 },
+            { progress: 100, task: '✅ Recipe extraction complete!', delay: 400 }
+        ];
 
-    const info = platformInfo[platform] || platformInfo.unknown;
-    const currentStage = stageInfo[stage] || stageInfo.processing;
+        let currentPhase = 0;
 
-    // Animate dots
-    useEffect(() => {
-        if (!isVisible) return;
+        const runPhase = () => {
+            if (currentPhase < phases.length && isVisible) {
+                const phase = phases[currentPhase];
 
-        const interval = setInterval(() => {
-            setDots(prev => prev.length >= 3 ? '' : prev + '.');
-        }, 500);
+                setTimeout(() => {
+                    if (isVisible) { // Check if still visible before updating
+                        setProgress(phase.progress);
+                        setCurrentTask(phase.task);
 
-        return () => clearInterval(interval);
-    }, [isVisible]);
+                        // If this is the final phase, show success and trigger completion
+                        if (phase.progress === 100) {
+                            setShowSuccessDelay(true);
 
-    // DEBUG: Early return with logging
+                            // Call onComplete after a brief success display
+                            setTimeout(() => {
+                                if (onComplete) {
+                                    onComplete();
+                                }
+                            }, 1500); // Show success for 1.5 seconds
+                        }
+
+                        currentPhase++;
+                        runPhase();
+                    }
+                }, phase.delay);
+            }
+        };
+
+        // Start the phases
+        runPhase();
+    }, [isVisible, onComplete]);
+
     if (!isVisible) {
         console.log('🎭 VideoImportLoadingModal - not visible, returning null');
         return null;
     }
 
-    console.log('🎭 VideoImportLoadingModal - rendering modal');
+    const getLoadingEmoji = () => {
+        if (progress < 20) return "🔗";
+        if (progress < 40) return "📥";
+        if (progress < 60) return "🤖";
+        if (progress < 80) return "📄";
+        if (progress < 95) return "🧪";
+        return "✅";
+    };
 
-    const steps = [
-        { key: 'starting', label: 'Initialize analysis', completed: ['downloading', 'processing', 'generating', 'complete'].includes(stage) },
-        { key: 'downloading', label: 'Download video', completed: ['processing', 'generating', 'complete'].includes(stage) },
-        { key: 'processing', label: 'AI frame analysis', completed: ['generating', 'complete'].includes(stage) },
-        { key: 'generating', label: 'Generate recipe', completed: ['complete'].includes(stage) }
-    ];
+    const getPlatformEmoji = () => {
+        switch (platform.toLowerCase()) {
+            case 'facebook': return '📘';
+            case 'instagram': return '📷';
+            case 'tiktok': return '🎵';
+            case 'youtube': return '📺';
+            default: return '🎥';
+        }
+    };
+
+    const getPlatformColor = () => {
+        switch (platform.toLowerCase()) {
+            case 'facebook': return 'from-blue-500 to-blue-600';
+            case 'instagram': return 'from-pink-500 to-purple-600';
+            case 'tiktok': return 'from-black to-red-600';
+            case 'youtube': return 'from-red-500 to-red-600';
+            default: return 'from-indigo-500 to-purple-600';
+        }
+    };
+
+    const getProgressMessage = () => {
+        if (progress < 20) return "🔗 Establishing connection...";
+        if (progress < 40) return "📥 Downloading content...";
+        if (progress < 60) return "🤖 AI analyzing video...";
+        if (progress < 80) return "📄 Extracting recipe...";
+        if (progress < 95) return "🧪 Processing ingredients...";
+        if (progress === 100) return "🎉 Recipe ready to import!";
+        return "⚡ Processing your video...";
+    };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative`}>
-                {/* Cancel button */}
-                {onCancel && stage !== 'complete' && (
-                    <button
-                        onClick={() => {
-                            console.log('🚫 Modal cancel button clicked');
-                            onCancel();
-                        }}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                )}
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-md flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-xl border border-gray-100">
 
-                {/* Header */}
-                <div className="text-center mb-6">
-                    <div className="text-4xl mb-3">
-                        {currentStage.icon}
+                {/* Main Loading Spinner */}
+                <div className="flex justify-center mb-6">
+                    <div className="relative">
+                        {/* Outer spinning ring - dynamic color based on platform */}
+                        <div className={`w-20 h-20 border-4 border-gray-200 rounded-full animate-spin`}
+                             style={{
+                                 borderTopColor: platform === 'facebook' ? '#1877F2' :
+                                     platform === 'instagram' ? '#E4405F' :
+                                         platform === 'tiktok' ? '#FF0050' :
+                                             platform === 'youtube' ? '#FF0000' :
+                                                 '#6366F1'
+                             }}></div>
+
+                        {/* Center emoji with platform-specific background */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${getPlatformColor()} rounded-full flex items-center justify-center shadow-lg animate-pulse`}>
+                                <span className="text-white text-xl">{getLoadingEmoji()}</span>
+                            </div>
+                        </div>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                        {currentStage.title}
-                    </h3>
-                    <p className="text-gray-600 capitalize">
-                        Importing from {platform}
-                    </p>
                 </div>
 
-                {/* Progress Animation */}
-                <div className="mb-6">
-                    <div className="flex justify-center mb-4">
-                        {stage === 'complete' ? (
-                            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                            </div>
-                        ) : (
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                        )}
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                    {getPlatformEmoji()} {platform.charAt(0).toUpperCase() + platform.slice(1)} Recipe Importer
+                </h3>
+
+                {/* Current Task */}
+                <div className="text-center mb-6">
+                    <p className="text-gray-700 font-medium text-lg mb-2">{currentTask}</p>
+                    <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                        <span>🤖</span>
+                        <span>Powered by Doc Bear's AI extraction</span>
+                        <span>🤖</span>
                     </div>
-                    <p className="text-center text-gray-700 font-medium">
-                        {message}{stage !== 'complete' ? dots : ''}
-                    </p>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mb-6">
-                    <div className="flex justify-between text-xs text-gray-500 mb-2">
-                        <span>Progress</span>
-                        <span>{currentStage.progress}%</span>
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+                    <div
+                        className={`h-full bg-gradient-to-r ${getPlatformColor()} rounded-full transition-all duration-500 ease-out`}
+                        style={{ width: `${progress}%` }}
+                    ></div>
+                </div>
+
+                {/* Progress Percentage */}
+                <div className="text-center mb-6">
+                    <div className="text-3xl font-bold text-gray-900 mb-1">
+                        {Math.round(progress)}%
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                            className={`h-2 ${stage === 'complete' ? 'bg-green-500' : 'bg-indigo-600'} rounded-full transition-all duration-1000 ease-out`}
-                            style={{ width: `${currentStage.progress}%` }}
-                        ></div>
+                    <div className="text-sm text-gray-600 font-medium">
+                        {progress === 100 ? "🎊 Import Complete!" : "Processing..."}
                     </div>
                 </div>
 
-                {/* Progress Steps */}
-                <div className="space-y-2 mb-6">
-                    {steps.map((step, index) => (
-                        <div key={step.key} className="flex items-center">
-                            <div className={`w-4 h-4 rounded-full mr-3 ${
-                                step.completed ? 'bg-green-500' :
-                                    stage === step.key ? 'bg-indigo-600 animate-pulse' :
-                                        'bg-gray-300'
-                            }`}></div>
-                            <span className={`text-sm ${
-                                step.completed ? 'text-green-600 font-medium' :
-                                    stage === step.key ? 'text-indigo-600 font-medium' :
-                                        'text-gray-500'
+                {/* Video Info */}
+                {videoUrl && (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+                        <div className="text-center">
+                            <div className="text-sm font-medium text-gray-700 mb-1">
+                                Source Video
+                            </div>
+                            <div className="text-xs text-gray-500 break-all">
+                                {videoUrl.length > 50 ? `${videoUrl.substring(0, 47)}...` : videoUrl}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Processing Steps */}
+                <div className="space-y-2">
+                    {[
+                        { step: "Connect to video", completed: progress > 15 },
+                        { step: "Download content", completed: progress > 30 },
+                        { step: "AI analysis", completed: progress > 50 },
+                        { step: "Extract recipe", completed: progress > 70 },
+                        { step: "Process nutrition", completed: progress > 95 }
+                    ].map((item, index) => (
+                        <div key={index} className="flex items-center space-x-3">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                item.completed
+                                    ? 'bg-green-500 border-green-500'
+                                    : progress > index * 20
+                                        ? 'border-indigo-500 bg-indigo-100'
+                                        : 'border-gray-300'
                             }`}>
-                                {step.label}
+                                {item.completed && (
+                                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                            <span className={`text-sm ${
+                                item.completed ? 'text-green-600 font-medium' : 'text-gray-600'
+                            }`}>
+                                {item.step}
                             </span>
-                            {step.completed && (
-                                <svg className="w-4 h-4 ml-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                            )}
                         </div>
                     ))}
                 </div>
 
-                {/* Tips */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <p className="text-blue-800 text-sm">
-                        💡 {stage === 'complete' ? 'Recipe extracted successfully! The form will be populated automatically.' :
-                        'This usually takes 15-30 seconds. The AI is watching your video and extracting the complete recipe!'}
-                    </p>
+                {/* Success Message */}
+                {showSuccessDelay && progress === 100 && (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="text-center">
+                            <div className="text-green-800 font-medium mb-1">
+                                🎉 Recipe Successfully Extracted!
+                            </div>
+                            <div className="text-green-600 text-sm">
+                                Review and edit your imported recipe before saving
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Progress Message */}
+                <div className="text-center mt-4">
+                    <div className="text-sm text-gray-600 font-medium">
+                        {getProgressMessage()}
+                    </div>
                 </div>
-
-                {/* Expected time (only show if not complete) */}
-                {stage !== 'complete' && (
-                    <div className="text-center text-sm text-gray-500">
-                        Expected time: {info.estimatedTime}
-                    </div>
-                )}
-
-                {/* DEBUG INFO */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="mt-4 bg-red-100 p-2 rounded text-xs">
-                        <strong>Debug:</strong> Modal is rendering!<br/>
-                        Platform: {platform}<br/>
-                        Stage: {stage}<br/>
-                        Message: {message}<br/>
-                        Progress: {currentStage.progress}%
-                    </div>
-                )}
             </div>
         </div>
     );
-}
+};
+
+export default VideoImportLoadingModal;
