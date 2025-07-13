@@ -99,6 +99,24 @@ export default function EnhancedRecipeForm({
 
     const router = useRouter();
 
+    const extractNumber = (value) => {
+        if (!value) return '';
+        const match = String(value).match(/^(\d+)/);
+        return match ? match[1] : '';
+    };
+
+    const extractNutritionValue = (value) => {
+        if (!value) return '';
+
+        // Handle object format {value: 320, unit: 'kcal'}
+        if (typeof value === 'object' && value.value !== undefined) {
+            return String(value.value);
+        }
+
+        // Handle number or string
+        return String(value);
+    };
+
     useShareHandler((shareData) => {
         console.log('📥 Share received in EnhancedRecipeForm:', shareData);
         setSharedContent(shareData);
@@ -1286,7 +1304,7 @@ export default function EnhancedRecipeForm({
                                 </label>
                                 <input
                                     type="number"
-                                    value={recipe.prepTime}
+                                    value={extractNumber(recipe.prepTime)} // CHANGE THIS
                                     onChange={(e) => updateRecipe('prepTime', e.target.value)}
                                     className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     style={{ minHeight: '48px' }}
@@ -1300,7 +1318,7 @@ export default function EnhancedRecipeForm({
                                 </label>
                                 <input
                                     type="number"
-                                    value={recipe.cookTime}
+                                    value={extractNumber(recipe.cookTime)} // CHANGE THIS
                                     onChange={(e) => updateRecipe('cookTime', e.target.value)}
                                     className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     style={{ minHeight: '48px' }}
@@ -1314,7 +1332,7 @@ export default function EnhancedRecipeForm({
                                 </label>
                                 <input
                                     type="number"
-                                    value={recipe.servings}
+                                    value={extractNumber(recipe.servings)} // CHANGE THIS
                                     onChange={(e) => updateRecipe('servings', e.target.value)}
                                     className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     style={{ minHeight: '48px' }}
@@ -1552,6 +1570,7 @@ export default function EnhancedRecipeForm({
                                     {/* View Details Button - using your NutritionModal */}
                                     {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
                                         <TouchEnhancedButton
+                                            type="button"
                                             onClick={() => setShowNutritionModal(true)}
                                             className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
                                         >
@@ -1619,7 +1638,7 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
                                             <input
                                                 type="number"
-                                                value={recipe.nutrition.calories?.value || recipe.nutrition.calories || ''}
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
                                                 onChange={(e) => updateNutrition('calories', e.target.value)}
                                                 placeholder="250"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -1630,8 +1649,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
                                             <input
                                                 type="number"
-                                                value={recipe.nutrition.protein?.value || recipe.nutrition.protein || ''}
-                                                onChange={(e) => updateNutrition('protein', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
                                                 placeholder="15"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1641,8 +1660,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
                                             <input
                                                 type="number"
-                                                value={recipe.nutrition.carbs?.value || recipe.nutrition.carbs || ''}
-                                                onChange={(e) => updateNutrition('carbs', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
                                                 placeholder="30"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1652,8 +1671,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
                                             <input
                                                 type="number"
-                                                value={recipe.nutrition.fat?.value || recipe.nutrition.fat || ''}
-                                                onChange={(e) => updateNutrition('fat', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
                                                 placeholder="10"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
@@ -1663,8 +1682,8 @@ export default function EnhancedRecipeForm({
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
                                             <input
                                                 type="number"
-                                                value={recipe.nutrition.fiber?.value || recipe.nutrition.fiber || ''}
-                                                onChange={(e) => updateNutrition('fiber', e.target.value)}
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
                                                 placeholder="5"
                                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{ minHeight: '48px' }}
