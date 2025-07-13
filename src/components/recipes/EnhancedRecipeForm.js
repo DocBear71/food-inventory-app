@@ -430,9 +430,9 @@ export default function EnhancedRecipeForm({
     // Video import handler
     const handleVideoImport = async (url) => {
         console.log('🎥 handleVideoImport called with URL:', url);
-
+        console.log('Setting Modal minimum display time for 20 seconds')
         const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 10000; // 10 seconds
+        const MIN_DISPLAY_TIME = 20000; // 20 seconds
 
         // Check if this came from a share
         if (sharedContent && sharedContent.url === url) {
@@ -481,9 +481,6 @@ export default function EnhancedRecipeForm({
         // DEBUG: Log state changes
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
-
-
-
 
         try {
             console.log('📡 Starting API call to video-extract...');
