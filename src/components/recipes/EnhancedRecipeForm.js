@@ -397,8 +397,6 @@ export default function EnhancedRecipeForm({
     // Video import handler
     const handleVideoImport = async (url) => {
         console.log('🎥 handleVideoImport called with URL:', url);
-        console.log('🎥 handleVideoImport function exists:', typeof handleVideoImport === 'function');
-        console.log('🎥 Component is mounted and ready');
 
         // ADD THIS: Force minimum display time
         const startTime = Date.now();
@@ -468,8 +466,6 @@ export default function EnhancedRecipeForm({
             message: 'Initializing video analysis...'
         });
 
-        // DEBUG: Check if modal should be visible
-        console.log('🎭 Modal should be visible now. isVideoImporting:', true);
 
         try {
             console.log('📡 Starting API call to video-extract...');
@@ -495,14 +491,32 @@ export default function EnhancedRecipeForm({
                 message: 'AI analyzing video frames...'
             });
 
-            const response = await apiPost('/api/recipes/video-extract', requestPayload);
+            const response = await apiPost('/api/recipes/video-extract', {
+                url: url.trim(),
+                analysisType: 'ai_vision_enhanced'
+            });
             const data = await response.json();
 
             console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
                 console.log('✅ Video extraction successful');
-                console.log('🔍 Raw recipe data from API:', data.recipe);
+
+                const elapsedTime = Date.now() - startTime;
+                const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
+
+                if (remainingTime > 0) {
+                    console.log(`⏱️ API completed in ${elapsedTime}ms, waiting additional ${remainingTime}ms for minimum display`);
+
+                    // Show completion message while waiting
+                    setVideoImportProgress({
+                        stage: 'complete',
+                        platform: 'facebook',
+                        message: 'Recipe generated successfully!'
+                    });
+
+                    await new Promise(resolve => setTimeout(resolve, remainingTime));
+                }
 
                 // UPDATE: Set generating stage
                 setVideoImportProgress({
@@ -608,9 +622,8 @@ export default function EnhancedRecipeForm({
                     }
                 };
 
-                console.log('🎯 Final videoRecipe object:', videoRecipe);
-                console.log('🕒 Ingredients with timestamps:', videoRecipe.ingredients.filter(i => i.videoTimestamp));
-                console.log('🕒 Instructions with timestamps:', videoRecipe.instructions.filter(i => i.videoTimestamp));
+                setRecipe(videoRecipe);
+                setTagsString(videoRecipe.tags.join(', '));
 
                 // UPDATE: Show completion message
                 setVideoImportProgress({
@@ -644,15 +657,6 @@ export default function EnhancedRecipeForm({
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
-            // ADD THIS: Ensure minimum display time
-            const elapsedTime = Date.now() - startTime;
-            const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
-
-            if (remainingTime > 0) {
-                console.log(`⏱️ Waiting additional ${remainingTime}ms for minimum display time`);
-                await new Promise(resolve => setTimeout(resolve, remainingTime));
-            }
-
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
             setVideoImportProgress({ stage: '', platform: '', message: '' });
