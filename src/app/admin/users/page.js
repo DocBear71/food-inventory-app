@@ -1,5 +1,5 @@
 // file: /src/app/admin/users/page.js
-// Admin Users Management Page - Main user list with search, filter, and actions
+// Admin Users Management Page - Mobile-responsive with card layout
 
 'use client';
 
@@ -154,19 +154,19 @@ export default function AdminUsersPage() {
 
     const getTierBadgeColor = (tier) => {
         switch (tier) {
-            case 'admin': return 'bg-purple-100 text-purple-800';
-            case 'platinum': return 'bg-gray-100 text-gray-800';
-            case 'gold': return 'bg-yellow-100 text-yellow-800';
-            default: return 'bg-green-100 text-green-800';
+            case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'platinum': return 'bg-gray-100 text-gray-800 border-gray-200';
+            case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            default: return 'bg-green-100 text-green-800 border-green-200';
         }
     };
 
     const getStatusBadgeColor = (status) => {
         switch (status) {
-            case 'active': return 'bg-green-100 text-green-800';
-            case 'trial': return 'bg-blue-100 text-blue-800';
-            case 'expired': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'active': return 'bg-green-100 text-green-800 border-green-200';
+            case 'trial': return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'expired': return 'bg-red-100 text-red-800 border-red-200';
+            default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
 
@@ -184,20 +184,20 @@ export default function AdminUsersPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-                    <p className="mt-2 text-gray-600">
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">User Management</h1>
+                    <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
                         Manage user accounts, subscriptions, and access permissions.
                     </p>
                 </div>
 
                 {/* Filters and Search */}
-                <div className="bg-white p-6 rounded-lg shadow mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        {/* Search */}
-                        <div className="md:col-span-2">
+                <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+                    <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-5 sm:gap-4">
+                        {/* Search - Full width on mobile */}
+                        <div className="sm:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Search Users
                             </label>
@@ -206,7 +206,7 @@ export default function AdminUsersPage() {
                                 value={filters.search}
                                 onChange={(e) => handleFilterChange('search', e.target.value)}
                                 placeholder="Search by name or email..."
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             />
                         </div>
 
@@ -218,7 +218,7 @@ export default function AdminUsersPage() {
                             <select
                                 value={filters.tier}
                                 onChange={(e) => handleFilterChange('tier', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                                 <option value="">All Tiers</option>
                                 <option value="free">Free</option>
@@ -236,7 +236,7 @@ export default function AdminUsersPage() {
                             <select
                                 value={filters.status}
                                 onChange={(e) => handleFilterChange('status', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                                 <option value="">All Statuses</option>
                                 <option value="active">Active</option>
@@ -258,7 +258,7 @@ export default function AdminUsersPage() {
                                     handleFilterChange('sortBy', sortBy);
                                     handleFilterChange('sortOrder', sortOrder);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                                 <option value="createdAt-desc">Newest First</option>
                                 <option value="createdAt-asc">Oldest First</option>
@@ -272,20 +272,20 @@ export default function AdminUsersPage() {
                     {/* Bulk Actions */}
                     {selectedUsers.size > 0 && (
                         <div className="mt-4 pt-4 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                                 <span className="text-sm text-gray-600">
                                     {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
                                 </span>
-                                <div className="space-x-2">
+                                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                     <button
                                         onClick={() => setShowBulkUpgrade(true)}
-                                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+                                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
                                     >
                                         Bulk Upgrade to Platinum
                                     </button>
                                     <button
                                         onClick={() => setSelectedUsers(new Set())}
-                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
+                                        className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
                                     >
                                         Clear Selection
                                     </button>
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
 
                 {/* Error State */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                    <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4 sm:mb-6">
                         <div className="flex">
                             <div className="flex-shrink-0">
                                 <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -313,23 +313,24 @@ export default function AdminUsersPage() {
                     </div>
                 )}
 
-                {/* Users Table */}
-                <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                    {loading ? (
-                        <div className="p-8 text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                            <p className="mt-2 text-gray-500">Loading users...</p>
-                        </div>
-                    ) : users.length === 0 ? (
-                        <div className="p-8 text-center">
-                            <p className="text-gray-500">No users found matching your criteria.</p>
-                        </div>
-                    ) : (
-                        <ul className="divide-y divide-gray-200">
-                            {/* Table Header */}
-                            <li className="bg-gray-50 px-6 py-3">
+                {/* Loading State */}
+                {loading ? (
+                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                        <p className="mt-2 text-gray-500">Loading users...</p>
+                    </div>
+                ) : users.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                        <p className="text-gray-500">No users found matching your criteria.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Desktop Table View */}
+                        <div className="hidden lg:block bg-white shadow overflow-hidden sm:rounded-md">
+                            {/* Desktop Table Header */}
+                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center">
-                                    <div className="flex items-center h-5">
+                                    <div className="flex items-center h-5 mr-4">
                                         <input
                                             type="checkbox"
                                             checked={selectedUsers.size === users.length && users.length > 0}
@@ -337,159 +338,289 @@ export default function AdminUsersPage() {
                                             className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                         />
                                     </div>
-                                    <div className="ml-6 grid grid-cols-7 gap-4 w-full text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                        <div className="col-span-2">User</div>
+                                    <div className="grid grid-cols-7 gap-6 w-full text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                        <div className="col-span-2">User Information</div>
                                         <div>Subscription</div>
-                                        <div>Usage Stats</div>
+                                        <div>Usage Statistics</div>
                                         <div>Member Since</div>
                                         <div>Last Active</div>
                                         <div>Actions</div>
                                     </div>
                                 </div>
-                            </li>
+                            </div>
 
-                            {/* User Rows */}
-                            {users.map((user) => (
-                                <li key={user._id} className="px-6 py-4 hover:bg-gray-50">
-                                    <div className="flex items-center">
-                                        <div className="flex items-center h-5">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedUsers.has(user._id)}
-                                                onChange={() => toggleUserSelection(user._id)}
-                                                className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                                            />
-                                        </div>
-                                        <div className="ml-6 grid grid-cols-7 gap-4 w-full">
-                                            {/* User Info */}
-                                            <div className="col-span-2">
-                                                <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10">
-                                                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                                            <span className="text-sm font-medium text-indigo-800">
-                                                                {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                                                            </span>
+                            {/* Desktop User Rows */}
+                            <div className="divide-y divide-gray-200">
+                                {users.map((user) => (
+                                    <div key={user._id} className="px-6 py-6 hover:bg-gray-50">
+                                        <div className="flex items-center">
+                                            <div className="flex items-center h-5 mr-4">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedUsers.has(user._id)}
+                                                    onChange={() => toggleUserSelection(user._id)}
+                                                    className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-7 gap-6 w-full">
+                                                {/* User Info */}
+                                                <div className="col-span-2">
+                                                    <div className="flex items-center">
+                                                        <div className="flex-shrink-0 h-12 w-12 mr-4">
+                                                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center shadow-sm">
+                                                                <span className="text-base font-medium text-indigo-800">
+                                                                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center mb-1">
+                                                                <span className="text-sm font-medium text-gray-900 mr-2">
+                                                                    {user.name}
+                                                                </span>
+                                                                {user.isAdmin && (
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                                                        Admin
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-sm text-gray-500 truncate">{user.email}</div>
                                                         </div>
                                                     </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {user.name}
+                                                </div>
+
+                                                {/* Subscription */}
+                                                <div className="space-y-2">
+                                                    <div>
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getTierBadgeColor(user.subscription.tier)}`}>
+                                                            {user.subscription.tier.charAt(0).toUpperCase() + user.subscription.tier.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadgeColor(user.subscription.status)}`}>
+                                                            {user.subscription.status.charAt(0).toUpperCase() + user.subscription.status.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Usage Stats */}
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                    <div className="flex items-center">
+                                                        <span className="mr-2">📝</span>
+                                                        <span>{user.stats.personalRecipes} recipes</span>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <span className="mr-2">📦</span>
+                                                        <span>{user.stats.inventoryItems} items</span>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <span className="mr-2">📱</span>
+                                                        <span>{user.stats.monthlyUPCScans} scans</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Member Since */}
+                                                <div className="text-sm text-gray-600">
+                                                    <div className="font-medium text-gray-900 mb-1">Member Since</div>
+                                                    <div>{formatDate(user.createdAt)}</div>
+                                                </div>
+
+                                                {/* Last Active */}
+                                                <div className="text-sm text-gray-600">
+                                                    <div className="font-medium text-gray-900 mb-1">Last Active</div>
+                                                    <div>{user.updatedAt ? formatDate(user.updatedAt) : 'Never'}</div>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex flex-col space-y-2">
+                                                    <button
+                                                        onClick={() => router.push(`/admin/users/${user._id}`)}
+                                                        className="text-indigo-600 hover:text-indigo-900 text-sm font-medium px-3 py-1 border border-indigo-200 rounded hover:bg-indigo-50 transition-colors"
+                                                    >
+                                                        View Details
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {/* Handle upgrade */}}
+                                                        className="text-green-600 hover:text-green-900 text-sm font-medium px-3 py-1 border border-green-200 rounded hover:bg-green-50 transition-colors"
+                                                    >
+                                                        Upgrade
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="lg:hidden space-y-4">
+                            {/* Mobile Select All */}
+                            <div className="bg-white rounded-lg shadow p-4">
+                                <label className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedUsers.size === users.length && users.length > 0}
+                                        onChange={toggleSelectAll}
+                                        className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700">
+                                        Select all users ({users.length})
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* Mobile User Cards */}
+                            {users.map((user) => (
+                                <div key={user._id} className="bg-white rounded-lg shadow overflow-hidden">
+                                    <div className="p-4">
+                                        {/* User Header */}
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedUsers.has(user._id)}
+                                                    onChange={() => toggleUserSelection(user._id)}
+                                                    className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded mr-3 mt-1"
+                                                />
+                                                <div className="flex items-center">
+                                                    <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                        <span className="text-lg font-medium text-indigo-800">
+                                                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="ml-3">
+                                                        <div className="flex items-center">
+                                                            <h3 className="text-sm font-medium text-gray-900">
+                                                                {user.name}
+                                                            </h3>
                                                             {user.isAdmin && (
-                                                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                                                     Admin
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="text-sm text-gray-500">{user.email}</div>
+                                                        <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                                                            {user.email}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            {/* Subscription */}
+                                        {/* Subscription Badges */}
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTierBadgeColor(user.subscription.tier)}`}>
+                                                {user.subscription.tier.charAt(0).toUpperCase() + user.subscription.tier.slice(1)}
+                                            </span>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeColor(user.subscription.status)}`}>
+                                                {user.subscription.status}
+                                            </span>
+                                        </div>
+
+                                        {/* Stats Grid */}
+                                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                                             <div>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTierBadgeColor(user.subscription.tier)}`}>
-                                                    {user.subscription.tier.charAt(0).toUpperCase() + user.subscription.tier.slice(1)}
-                                                </span>
-                                                <div className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(user.subscription.status)}`}>
-                                                    {user.subscription.status}
-                                                </div>
+                                                <dt className="text-gray-500">Usage Stats</dt>
+                                                <dd className="mt-1 text-gray-900">
+                                                    <div className="text-xs space-y-1">
+                                                        <div>📝 {user.stats.personalRecipes} recipes</div>
+                                                        <div>📦 {user.stats.inventoryItems} items</div>
+                                                        <div>📱 {user.stats.monthlyUPCScans} scans</div>
+                                                    </div>
+                                                </dd>
                                             </div>
-
-                                            {/* Usage Stats */}
-                                            <div className="text-xs text-gray-500">
-                                                <div>📝 {user.stats.personalRecipes} recipes</div>
-                                                <div>📦 {user.stats.inventoryItems} items</div>
-                                                <div>📱 {user.stats.monthlyUPCScans} scans</div>
-                                            </div>
-
-                                            {/* Member Since */}
-                                            <div className="text-sm text-gray-500">
-                                                {formatDate(user.createdAt)}
-                                            </div>
-
-                                            {/* Last Active */}
-                                            <div className="text-sm text-gray-500">
-                                                {user.updatedAt ? formatDate(user.updatedAt) : 'Never'}
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => router.push(`/admin/users/${user._id}`)}
-                                                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                                                >
-                                                    View
-                                                </button>
-                                                <button
-                                                    onClick={() => {/* Handle upgrade */}}
-                                                    className="text-green-600 hover:text-green-900 text-sm font-medium"
-                                                >
-                                                    Upgrade
-                                                </button>
+                                            <div>
+                                                <dt className="text-gray-500">Dates</dt>
+                                                <dd className="mt-1 text-gray-900">
+                                                    <div className="text-xs space-y-1">
+                                                        <div>Joined: {formatDate(user.createdAt)}</div>
+                                                        <div>Active: {user.updatedAt ? formatDate(user.updatedAt) : 'Never'}</div>
+                                                    </div>
+                                                </dd>
                                             </div>
                                         </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
 
-                    {/* Pagination */}
-                    {pagination.totalPages > 1 && (
-                        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                            <div className="flex-1 flex justify-between sm:hidden">
-                                <button
-                                    onClick={() => fetchUsers(currentPage - 1)}
-                                    disabled={!pagination.hasPrev}
-                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => fetchUsers(currentPage + 1)}
-                                    disabled={!pagination.hasNext}
-                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Next
-                                </button>
+                                        {/* Actions */}
+                                        <div className="flex space-x-3 pt-3 border-t border-gray-200">
+                                            <button
+                                                onClick={() => router.push(`/admin/users/${user._id}`)}
+                                                className="flex-1 text-center px-4 py-2 border border-indigo-300 text-indigo-600 rounded-md hover:bg-indigo-50 text-sm font-medium"
+                                            >
+                                                View Details
+                                            </button>
+                                            <button
+                                                onClick={() => {/* Handle upgrade */}}
+                                                className="flex-1 text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                                            >
+                                                Upgrade
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-lg shadow mt-4">
+                        <div className="flex-1 flex justify-between sm:hidden">
+                            <button
+                                onClick={() => fetchUsers(currentPage - 1)}
+                                disabled={!pagination.hasPrev}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Previous
+                            </button>
+                            <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700">
+                                {currentPage} / {pagination.totalPages}
+                            </span>
+                            <button
+                                onClick={() => fetchUsers(currentPage + 1)}
+                                disabled={!pagination.hasNext}
+                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Showing page <span className="font-medium">{currentPage}</span> of{' '}
+                                    <span className="font-medium">{pagination.totalPages}</span> ({pagination.totalUsers} total users)
+                                </p>
                             </div>
-                            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm text-gray-700">
-                                        Showing page <span className="font-medium">{currentPage}</span> of{' '}
-                                        <span className="font-medium">{pagination.totalPages}</span> ({pagination.totalUsers} total users)
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                        <button
-                                            onClick={() => fetchUsers(currentPage - 1)}
-                                            disabled={!pagination.hasPrev}
-                                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                            {currentPage} / {pagination.totalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => fetchUsers(currentPage + 1)}
-                                            disabled={!pagination.hasNext}
-                                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Next
-                                        </button>
-                                    </nav>
-                                </div>
+                            <div>
+                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                                    <button
+                                        onClick={() => fetchUsers(currentPage - 1)}
+                                        disabled={!pagination.hasPrev}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                        {currentPage} / {pagination.totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => fetchUsers(currentPage + 1)}
+                                        disabled={!pagination.hasNext}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                                    >
+                                        Next
+                                    </button>
+                                </nav>
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Bulk Upgrade Modal */}
                 {showBulkUpgrade && (
                     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                        <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
                             <div className="mt-3">
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                                     Bulk Upgrade Users
@@ -510,7 +641,7 @@ export default function AdminUsersPage() {
                                                 ...prev,
                                                 endDate: e.target.value
                                             }))}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                         />
                                     </div>
 
@@ -526,21 +657,21 @@ export default function AdminUsersPage() {
                                                 reason: e.target.value
                                             }))}
                                             placeholder="e.g., Google Play tester access"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end space-x-3 mt-6">
+                                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
                                     <button
                                         onClick={() => setShowBulkUpgrade(false)}
-                                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={handleBulkUpgrade}
-                                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
                                     >
                                         Upgrade Users
                                     </button>
