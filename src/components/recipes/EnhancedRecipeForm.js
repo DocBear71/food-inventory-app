@@ -41,6 +41,7 @@ export default function EnhancedRecipeForm({
     const [showNutritionDetailsModal, setShowNutritionDetailsModal] = useState(false);
     const [videoImportPlatform, setVideoImportPlatform] = useState('video');
 
+
     const searchParams = useSearchParams();
 
     const CATEGORY_OPTIONS = [
@@ -290,6 +291,15 @@ export default function EnhancedRecipeForm({
         setInputMethod('manual'); // Switch back to manual editing
     };
 
+    const detectPlatformFromUrl = (url) => {
+        if (!url) return 'video';
+        const urlLower = url.toLowerCase();
+        if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
+        if (urlLower.includes('instagram.com')) return 'instagram';
+        if (urlLower.includes('tiktok.com')) return 'tiktok';
+        return 'video';
+    };
+
     // Enhanced URL import with smart parsing
     const handleUrlImport = async (url) => {
         if (!url || !url.trim()) {
@@ -436,6 +446,14 @@ export default function EnhancedRecipeForm({
         // DEBUG: Log state changes
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
+
+        const platform = detectPlatformFromUrl(url);
+        setVideoImportProgress({
+            stage: 'starting',
+            platform: platform, // Use detected platform
+            message: `Initializing ${platform} video analysis...`
+        });
+
         setVideoImportError('');
 
         // ADD: Set initial progress stage
@@ -1161,15 +1179,21 @@ export default function EnhancedRecipeForm({
 
     return (
         <div className="space-y-6">
+            {console.log('🎭 Modal props:', {
+                isVisible: isVideoImporting,
+                platform: videoImportProgress?.platform,
+                stage: videoImportProgress?.stage,
+                message: videoImportProgress?.message
+            })}
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoImportPlatform || 'video'} // 'facebook', 'instagram', 'tiktok', etc.
-                stage="processing"
-                message="Processing video..."
+                platform={videoImportProgress?.platform || 'facebook'}
+                stage={videoImportProgress?.stage || 'processing'}
+                message={videoImportProgress?.message || 'Processing video...'}
                 videoUrl={videoUrl}
                 onComplete={() => {
-                    // Called when the modal finishes its animation
                     setIsVideoImporting(false);
+                    setVideoImportProgress({ stage: '', platform: '', message: '' });
                 }}
             />
 
