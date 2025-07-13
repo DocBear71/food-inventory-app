@@ -1,7 +1,8 @@
-// file: /src/app/admin/analytics/page.js
-// Admin Analytics Dashboard - Comprehensive usage statistics and insights
 
 'use client';
+
+// file: /src/app/admin/analytics/page.js
+// Admin Analytics Dashboard - Comprehensive usage statistics and insights
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';

@@ -1,7 +1,8 @@
-// file: /src/components/admin/BulkTesterUpgrade.js
-// Google Play Tester Bulk Upgrade Utility - Special component for your closed beta
 
 'use client';
+
+// file: /src/components/admin/BulkTesterUpgrade.js
+// Google Play Tester Bulk Upgrade Utility - Special component for your closed beta
 
 import { useState } from 'react';
 

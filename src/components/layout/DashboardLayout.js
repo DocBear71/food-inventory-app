@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/DashboardLayout.js - v6 - Added Admin Section
+// file: /src/components/layout/DashboardLayout.js - v7 - Cleaned up admin clutter
 
 import {handleMobileSignOut} from '@/lib/mobile-signout';
 import {signOut} from 'next-auth/react';
@@ -268,16 +268,11 @@ export default function DashboardLayout({children}) {
                 }}
             >
                 <div className="flex flex-col h-full">
-                    {/* Logo/Title */}
+                    {/* Logo/Title - CLEANED UP */}
                     <div className="flex items-center justify-between h-16 px-4 bg-indigo-600 flex-shrink-0">
                         <h1 className="text-lg font-semibold text-white truncate">
                             Doc Bear's<br/>
                             Comfort Kitchen
-                            {isAdmin && (
-                                <span className="block text-xs text-indigo-200 mt-1">
-                                    Admin Access
-                                </span>
-                            )}
                         </h1>
 
                         {/* Close button - FIXED: Now shows on all screen sizes when sidebar is open */}
@@ -306,7 +301,7 @@ export default function DashboardLayout({children}) {
                         )}
                     </nav>
 
-                    {/* User info and sign out - Fixed layout */}
+                    {/* User info and sign out - CLEANED UP */}
                     {session && (
                         <div className="border-t border-gray-200 p-4 flex-shrink-0">
                             <div className="bg-gray-50 rounded-lg p-3 mb-3">
@@ -319,11 +314,6 @@ export default function DashboardLayout({children}) {
                                             {session.user.email}
                                         </div>
                                     </div>
-                                    {isAdmin && (
-                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-2">
-                                            Admin
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                             <TouchEnhancedButton
@@ -345,7 +335,7 @@ export default function DashboardLayout({children}) {
 
             {/* Main content */}
             <div>
-                {/* Top bar */}
+                {/* Top bar - CLEANED UP */}
                 <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
                     <div className="flex items-center justify-between h-16 px-4">
                         {/* Menu button - FIXED: Now visible on all screen sizes */}
@@ -407,17 +397,12 @@ export default function DashboardLayout({children}) {
                             )}
                         </div>
 
-                        {/* Desktop user info */}
+                        {/* Desktop user info - CLEANED UP */}
                         <div className="hidden lg:flex lg:items-center lg:space-x-4 ml-auto">
                             {session && (
                                 <>
                                     <div className="text-sm text-gray-700 flex items-center">
                                         Welcome, <span className="font-medium ml-1">{session.user.name}</span>
-                                        {isAdmin && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-2">
-                                                Admin
-                                            </span>
-                                        )}
                                     </div>
                                     <TouchEnhancedButton
                                         onClick={handleSignOut}

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v7 - Added Admin Section for Mobile
+// file: /src/components/layout/MobileDashboardLayout.js v8 - Cleaned up admin clutter
 
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
@@ -188,7 +188,7 @@ export default function MobileDashboardLayout({children}) {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Mobile Header - back at top */}
+            {/* Mobile Header - CLEANED UP */}
             <header className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
                 isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
             }`}
@@ -201,9 +201,7 @@ export default function MobileDashboardLayout({children}) {
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className={`p-2 rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0 ${
-                                isAdmin ? 'bg-purple-600 text-white' : 'bg-indigo-600 text-white'
-                            }`}
+                            className="p-2 rounded-lg shadow-md bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition-all touch-friendly flex-shrink-0"
                             aria-label="Open menu"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,15 +210,10 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* Two-line title with admin indicator */}
+                        {/* Clean two-line title */}
                         <div className="flex-1 min-w-0">
                             <div className="text-lg font-bold text-gray-900 leading-tight">
                                 Doc Bear's
-                                {isAdmin && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        Admin
-                                    </span>
-                                )}
                             </div>
                             <div className="text-sm font-semibold text-gray-700 leading-tight">
                                 Comfort Kitchen
@@ -229,19 +222,6 @@ export default function MobileDashboardLayout({children}) {
                     </div>
 
                     <div className="flex items-center space-x-2 flex-shrink-0">
-                        {/* Admin Analytics Quick Access - Only show for admin */}
-                        {isAdmin && (
-                            <TouchEnhancedButton
-                                onClick={() => handleNavigation('/admin/analytics')}
-                                className="p-2 rounded-lg bg-purple-600 text-white shadow-md hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
-                                aria-label="Admin analytics"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                            </TouchEnhancedButton>
-                        )}
-
                         {/* Receipt Scanner Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
@@ -266,7 +246,7 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* User avatar with profile link - FIXED DISPLAY LOGIC */}
+                        {/* User avatar with profile link - CLEANED UP */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
                             className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden flex-shrink-0 relative"
@@ -307,15 +287,10 @@ export default function MobileDashboardLayout({children}) {
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
                     <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
-                        {/* Menu Header - Fixed */}
+                        {/* Menu Header - CLEANED UP */}
                         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
                             <div className="flex items-center space-x-2">
                                 <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
-                                {isAdmin && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    Admin
-                                </span>
-                                )}
                             </div>
                             <TouchEnhancedButton
                                 onClick={() => setMobileMenuOpen(false)}
@@ -421,7 +396,7 @@ export default function MobileDashboardLayout({children}) {
                             </nav>
                         </div>
 
-                        {/* User Profile & Sign Out Section - Fixed at bottom */}
+                        {/* User Profile & Sign Out Section - CLEANED UP */}
                         <div className="border-t bg-gray-50 flex-shrink-0">
                             {/* User Info */}
                             {session && (
@@ -468,15 +443,8 @@ export default function MobileDashboardLayout({children}) {
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center space-x-2">
-                                                <div className="text-sm font-medium text-gray-900 truncate">
-                                                    {session.user.name}
-                                                </div>
-                                                {isAdmin && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                    Admin
-                                                </span>
-                                                )}
+                                            <div className="text-sm font-medium text-gray-900 truncate">
+                                                {session.user.name}
                                             </div>
                                             <div className="text-xs text-gray-500 truncate">
                                                 {session.user.email}

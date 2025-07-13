@@ -1,7 +1,8 @@
-// file: /src/app/admin/users/[id]/page.js
-// Admin User Detail Page - Comprehensive individual user management
 
 'use client';
+
+// file: /src/app/admin/users/[id]/page.js
+// Admin User Detail Page - Comprehensive individual user management
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';

@@ -1,7 +1,8 @@
-// file: /src/app/admin/users/page.js
-// Admin Users Management Page - Mobile-responsive with card layout
 
 'use client';
+
+// file: /src/app/admin/users/page.js
+// Admin Users Management Page - Mobile-responsive with card layout
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -330,7 +331,7 @@ export default function AdminUsersPage() {
                             {/* Desktop Table Header */}
                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center">
-                                    <div className="flex items-center h-5 mr-4">
+                                    <div className="flex items-center h-5 mr-6">
                                         <input
                                             type="checkbox"
                                             checked={selectedUsers.size === users.length && users.length > 0}
@@ -354,7 +355,7 @@ export default function AdminUsersPage() {
                                 {users.map((user) => (
                                     <div key={user._id} className="px-6 py-6 hover:bg-gray-50">
                                         <div className="flex items-center">
-                                            <div className="flex items-center h-5 mr-4">
+                                            <div className="flex items-center h-5 mr-6">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedUsers.has(user._id)}
