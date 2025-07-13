@@ -1,4 +1,3 @@
-
 'use client';
 
 // file: /src/app/admin/users/page.js
@@ -326,8 +325,8 @@ export default function AdminUsersPage() {
                     </div>
                 ) : (
                     <>
-                        {/* Desktop Table View */}
-                        <div className="hidden lg:block bg-white shadow overflow-hidden sm:rounded-md">
+                        {/* Desktop Table View - FIXED RESPONSIVE CLASSES */}
+                        <div className="hidden md:block bg-white shadow overflow-hidden sm:rounded-md">
                             {/* Desktop Table Header */}
                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center">
@@ -454,8 +453,8 @@ export default function AdminUsersPage() {
                             </div>
                         </div>
 
-                        {/* Mobile Card View */}
-                        <div className="lg:hidden space-y-4">
+                        {/* Mobile Card View - FIXED RESPONSIVE CLASSES */}
+                        <div className="md:hidden space-y-4">
                             {/* Mobile Select All */}
                             <div className="bg-white rounded-lg shadow p-4">
                                 <label className="flex items-center">
