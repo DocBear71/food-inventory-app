@@ -408,10 +408,6 @@ export default function EnhancedRecipeForm({
     const handleVideoImport = async (url) => {
         console.log('🎥 handleVideoImport called with URL:', url);
 
-        // ADD THIS: Force minimum display time
-        const startTime = Date.now();
-        const MIN_DISPLAY_TIME = 3000; // 3 seconds minimum
-
         // Check if this came from a share
         if (sharedContent && sharedContent.url === url) {
             console.log(`🎯 Processing shared ${sharedContent.type} from ${sharedContent.source}`);
@@ -460,20 +456,19 @@ export default function EnhancedRecipeForm({
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
 
+        const startTime = Date.now();
+        const MIN_DISPLAY_TIME = 2000; // 2 seconds
+
 
         try {
             console.log('📡 Starting API call to video-extract...');
 
-            const [apiResponse] = await Promise.all([
-                apiPost('/api/recipes/video-extract', {
-                    url: url.trim(),
-                    analysisType: 'ai_vision_enhanced'
-                }),
-                // Ensure modal shows for at least 2 seconds
-                new Promise(resolve => setTimeout(resolve, 2000))
-            ]);
+            const response = await apiPost('/api/recipes/video-extract', {
+                url: url.trim(),
+                analysisType: 'ai_vision_enhanced'
+            });
 
-            const data = await apiResponse.json();
+            const data = await response.json();
             console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
@@ -636,6 +631,7 @@ export default function EnhancedRecipeForm({
         } finally {
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
+            setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
     };
 
