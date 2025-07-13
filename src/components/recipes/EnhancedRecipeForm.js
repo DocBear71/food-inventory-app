@@ -1212,6 +1212,7 @@ export default function EnhancedRecipeForm({
                 onComplete={() => {
                     setIsVideoImporting(false);
                 }}
+                style={{ zIndex: 9999 }}
             />
             <button
                 onClick={() => {
