@@ -428,6 +428,8 @@ export default function EnhancedRecipeForm({
             return;
         }
 
+        setIsVideoImporting(true);
+
         // Set initial progress
         setVideoImportProgress({
             stage: 'connecting',
