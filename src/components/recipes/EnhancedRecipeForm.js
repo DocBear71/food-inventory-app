@@ -230,11 +230,11 @@ export default function EnhancedRecipeForm({
     };
 
     const nutritionForDisplay = {
-        calories: recipe.nutrition.calories?.value || 0,
-        protein: recipe.nutrition.protein?.value || 0,
-        carbs: recipe.nutrition.carbs?.value || 0,
-        fat: recipe.nutrition.fat?.value || 0,
-        fiber: recipe.nutrition.fiber?.value || 0
+        calories: { value: recipe.nutrition.calories?.value || 0, unit: 'kcal' },
+        protein: { value: recipe.nutrition.protein?.value || 0, unit: 'g' },
+        carbs: { value: recipe.nutrition.carbs?.value || 0, unit: 'g' },
+        fat: { value: recipe.nutrition.fat?.value || 0, unit: 'g' },
+        fiber: { value: recipe.nutrition.fiber?.value || 0, unit: 'g' }
     };
 
     console.log('🍎 Nutrition for display:', nutritionForDisplay);
@@ -943,6 +943,9 @@ export default function EnhancedRecipeForm({
         carbs: recipe.nutrition.carbs
     });
 
+    console.log('🔍 Passing to NutritionFacts:', nutritionForDisplay);
+    console.log('🔍 Servings:', parseInt(recipe.servings) || 4);
+
     // Show URL import component
     if (showUrlImport) {
         return (
@@ -1615,6 +1618,7 @@ export default function EnhancedRecipeForm({
                             {/* Current nutrition display using your NutritionFacts component */}
                             {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
                                 <div className="mb-6">
+
                                     <NutritionFacts
                                         nutrition={nutritionForDisplay}  // Use normalized data
                                         servings={parseInt(recipe.servings) || 4}
