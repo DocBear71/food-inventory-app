@@ -460,57 +460,20 @@ export default function EnhancedRecipeForm({
         console.log('🔄 Setting isVideoImporting to true');
         setIsVideoImporting(true);
 
-        // ADD THIS: Force React to render the modal before starting API call
-        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
-        console.log('🎭 Modal should now be visible, starting API call...');
-
-        const platform = detectPlatformFromUrl(url);
-        setVideoImportProgress({
-            stage: 'starting',
-            platform: platform, // Use detected platform
-            message: `Initializing ${platform} video analysis...`
-        });
-
-        setVideoImportError('');
-
-        // ADD: Set initial progress stage
-        setVideoImportProgress({
-            stage: 'starting',
-            platform: 'facebook',
-            message: 'Initializing video analysis...'
-        });
-
 
         try {
             console.log('📡 Starting API call to video-extract...');
 
-            // UPDATE: Set downloading stage
-            setVideoImportProgress({
-                stage: 'downloading',
-                platform: 'facebook',
-                message: 'Downloading video from Facebook...'
-            });
+            const [apiResponse] = await Promise.all([
+                apiPost('/api/recipes/video-extract', {
+                    url: url.trim(),
+                    analysisType: 'ai_vision_enhanced'
+                }),
+                // Ensure modal shows for at least 2 seconds
+                new Promise(resolve => setTimeout(resolve, 2000))
+            ]);
 
-            const requestPayload = {
-                url: url.trim(),
-                analysisType: 'ai_vision_enhanced' // Signal to use AI frame analysis
-            };
-
-            console.log('📡 Starting API call with AI analysis:', requestPayload);
-
-            // UPDATE: Set processing stage
-            setVideoImportProgress({
-                stage: 'processing',
-                platform: 'facebook',
-                message: 'AI analyzing video frames...'
-            });
-
-            const response = await apiPost('/api/recipes/video-extract', {
-                url: url.trim(),
-                analysisType: 'ai_vision_enhanced'
-            });
-            const data = await response.json();
-
+            const data = await apiResponse.json();
             console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
@@ -671,9 +634,6 @@ export default function EnhancedRecipeForm({
             console.error('💥 Video import error:', error);
             setVideoImportError('Network error. Please check your connection and try again.');
         } finally {
-            // Ensure modal shows for at least 2 seconds total
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
             console.log('🔄 Setting isVideoImporting to false');
             setIsVideoImporting(false);
         }
