@@ -503,7 +503,23 @@ export default function EnhancedRecipeForm({
             console.log('📥 Received response from video-extract:', data);
 
             if (data.success) {
-                console.log('✅ Video extraction successful')
+                console.log('✅ Video extraction successful');
+                console.log('🔍 Expected: Chicken fries recipe');
+                console.log('🔍 Got:', data.recipe.title);
+                console.log('🔍 Description:', data.recipe.description);
+
+                const isCorrectRecipe = confirm(
+                    `Is this the correct recipe?\n\n` +
+                    `Title: ${data.recipe.title}\n` +
+                    `Description: ${data.recipe.description}\n\n` +
+                    `Click OK if this matches your video, or Cancel to try again.`
+                );
+
+                if (!isCorrectRecipe) {
+                    console.log('❌ User says this is wrong recipe');
+                    setVideoImportError('The extracted recipe doesn\'t match your video. Please try again or use a different video URL.');
+                    return;
+                }
 
                 // Set completion progress
                 setVideoImportProgress({
