@@ -1197,37 +1197,34 @@ export default function EnhancedRecipeForm({
 
     return (
         <div className="space-y-6">
-            {console.log('🎭 Modal props:', {
-                isVisible: isVideoImporting,
-                platform: videoImportProgress?.platform,
-                stage: videoImportProgress?.stage,
-                message: videoImportProgress?.message
-            })}
+            {/* DEBUG VERSION */}
+            {console.log('🔍 RENDERING MODAL with isVisible:', isVideoImporting)}
+
+            {isVideoImporting && (
+                <div className="fixed inset-0 bg-red-500 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-8 rounded">
+                        <h2>TEST MODAL IS VISIBLE!</h2>
+                        <p>isVideoImporting: {isVideoImporting.toString()}</p>
+                        <button
+                            onClick={() => setIsVideoImporting(false)}
+                            className="bg-blue-500 text-white p-2 rounded mt-4"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform="facebook"  // Static since you know it's Facebook
-                stage="processing"   // Static stage
-                message="Processing Facebook video..."  // Static message
+                platform="facebook"
+                stage="processing"
+                message="Processing Facebook video..."
                 videoUrl={videoUrl}
                 onComplete={() => {
                     setIsVideoImporting(false);
                 }}
-                style={{ zIndex: 9999 }}
             />
-            <button
-                onClick={() => {
-                    console.log('🧪 MANUAL TEST: Setting isVideoImporting to TRUE');
-                    setIsVideoImporting(true);
-
-                    setTimeout(() => {
-                        console.log('🧪 MANUAL TEST: Setting isVideoImporting to FALSE');
-                        setIsVideoImporting(false);
-                    }, 3000);
-                }}
-                className="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded z-50"
-            >
-                TEST MODAL
-            </button>
 
             {/* DEBUG: Add visible state indicator */}
             {process.env.NODE_ENV === 'development' && (
