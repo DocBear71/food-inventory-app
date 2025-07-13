@@ -8,10 +8,10 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from "./VideoImportLoadingModal";
 import { useShareHandler} from "@/hooks/useShareHandler";
-import {useRouter, useSearchParams} from 'next/navigation';
-import UpdateNutritionButton from "@/components/nutrition/UpdateNutritionButton";
-import NutritionFacts from "@/components/nutrition/NutritionFacts";
-import NutritionModal from "@/components/nutrition/NutritionModal";
+import { useSearchParams, useRouter } from 'next/navigation'; // Add useRouter here
+import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
+import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
+import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton'; // ADD THIS
 
 
 export default function EnhancedRecipeForm({
@@ -37,6 +37,8 @@ export default function EnhancedRecipeForm({
     const [videoInfo, setVideoInfo] = useState(null);
     const [importSource, setImportSource] = useState(null);
     const [sharedContent, setSharedContent] = useState(null);
+    const [showNutritionModal, setShowNutritionModal] = useState(false);
+    const [showNutritionDetailsModal, setShowNutritionDetailsModal] = useState(false);
 
     const searchParams = useSearchParams();
 
@@ -1542,146 +1544,138 @@ export default function EnhancedRecipeForm({
                     </div>
 
                     {/* Enhanced Nutrition Section - Using your existing components */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
-                            <div className="flex gap-2">
-                                {/* View Details Button - using your NutritionModal */}
-                                {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowNutritionModal(true)}
-                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                                    >
-                                        View Details
-                                    </TouchEnhancedButton>
-                                )}
+                    {(inputMethod === 'manual' || isEditing || isImportMode) && (
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
+                                <div className="flex gap-2">
+                                    {/* View Details Button - using your NutritionModal */}
+                                    {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowNutritionModal(true)}
+                                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                                        >
+                                            View Details
+                                        </TouchEnhancedButton>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Current nutrition display using your NutritionFacts component */}
-                        {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
-                            <div className="mb-6">
-                                <NutritionFacts
-                                    nutrition={recipe.nutrition}
-                                    servings={parseInt(recipe.servings) || 4}
-                                    showPerServing={true}
-                                    compact={true}
-                                />
+                            {/* Current nutrition display using your NutritionFacts component */}
+                            {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
+                                <div className="mb-6">
+                                    <NutritionFacts
+                                        nutrition={recipe.nutrition}
+                                        servings={parseInt(recipe.servings) || 4}
+                                        showPerServing={true}
+                                        compact={true}
+                                    />
 
-                                {/* AI Analysis Info */}
-                                {recipe.nutrition.calculationMethod === 'ai_calculated' && (
-                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <div className="flex items-center text-blue-800 text-sm">
-                                            <span className="mr-2">🤖</span>
-                                            <span>Nutrition calculated by AI analysis</span>
-                                            {recipe.nutrition.confidence && (
-                                                <span className="ml-2 text-blue-600">
+                                    {/* AI Analysis Info */}
+                                    {recipe.nutrition.calculationMethod === 'ai_calculated' && (
+                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div className="flex items-center text-blue-800 text-sm">
+                                                <span className="mr-2">🤖</span>
+                                                <span>Nutrition calculated by AI analysis</span>
+                                                {recipe.nutrition.confidence && (
+                                                    <span className="ml-2 text-blue-600">
                                     Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
                                 </span>
-                                            )}
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 mb-6">
+                                    <div className="text-4xl mb-2">📊</div>
+                                    <p className="font-medium">No nutrition information yet</p>
+                                    <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
+                                </div>
+                            )}
+
+                            {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
+                            <UpdateNutritionButton
+                                recipe={{
+                                    ...recipe,
+                                    ingredients: recipe.ingredients,
+                                    servings: parseInt(recipe.servings) || 4
+                                }}
+                                onNutritionUpdate={(newNutrition) => {
+                                    setRecipe(prev => ({
+                                        ...prev,
+                                        nutrition: newNutrition
+                                    }));
+                                }}
+                                disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
+                            />
+
+                            {/* Optional: Manual nutrition inputs for basic values */}
+                            {!isImportMode && (
+                                <div className="mt-6 pt-6 border-t">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition manually:</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                                            <input
+                                                type="number"
+                                                value={recipe.nutrition.calories?.value || recipe.nutrition.calories || ''}
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                placeholder="250"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
+                                            <input
+                                                type="number"
+                                                value={recipe.nutrition.protein?.value || recipe.nutrition.protein || ''}
+                                                onChange={(e) => updateNutrition('protein', e.target.value)}
+                                                placeholder="15"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
+                                            <input
+                                                type="number"
+                                                value={recipe.nutrition.carbs?.value || recipe.nutrition.carbs || ''}
+                                                onChange={(e) => updateNutrition('carbs', e.target.value)}
+                                                placeholder="30"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
+                                            <input
+                                                type="number"
+                                                value={recipe.nutrition.fat?.value || recipe.nutrition.fat || ''}
+                                                onChange={(e) => updateNutrition('fat', e.target.value)}
+                                                placeholder="10"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
+                                            <input
+                                                type="number"
+                                                value={recipe.nutrition.fiber?.value || recipe.nutrition.fiber || ''}
+                                                onChange={(e) => updateNutrition('fiber', e.target.value)}
+                                                placeholder="5"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ minHeight: '48px' }}
+                                            />
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500 mb-6">
-                                <div className="text-4xl mb-2">📊</div>
-                                <p className="font-medium">No nutrition information yet</p>
-                                <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
-                            </div>
-                        )}
-
-                        {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
-                        <UpdateNutritionButton
-                            recipe={{
-                                ...recipe,
-                                ingredients: recipe.ingredients,
-                                servings: parseInt(recipe.servings) || 4
-                            }}
-                            onNutritionUpdate={(newNutrition) => {
-                                setRecipe(prev => ({
-                                    ...prev,
-                                    nutrition: newNutrition
-                                }));
-                            }}
-                            disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
-                        />
-
-                        {/* Optional: Manual nutrition inputs for basic values */}
-                        {!isImportMode && (
-                            <div className="mt-6 pt-6 border-t">
-                                <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition manually:</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                                    {/* Your existing manual nutrition inputs */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Calories
-                                </label>
-                                <input
-                                    type="number"
-                                    value={recipe.nutrition.calories}
-                                    onChange={(e) => updateNutrition('calories', e.target.value)}
-                                    placeholder="250"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{ minHeight: '48px' }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Protein (g)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={recipe.nutrition.protein}
-                                    onChange={(e) => updateNutrition('protein', e.target.value)}
-                                    placeholder="15"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{ minHeight: '48px' }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Carbs (g)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={recipe.nutrition.carbs}
-                                    onChange={(e) => updateNutrition('carbs', e.target.value)}
-                                    placeholder="30"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{ minHeight: '48px' }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Fat (g)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={recipe.nutrition.fat}
-                                    onChange={(e) => updateNutrition('fat', e.target.value)}
-                                    placeholder="10"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{ minHeight: '48px' }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Fiber (g)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={recipe.nutrition.fiber}
-                                    onChange={(e) => updateNutrition('fiber', e.target.value)}
-                                    placeholder="5"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{ minHeight: '48px' }}
-                                />
-                            </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                        )}
-                    </div>
+                    )}
+
 
                     {/* Source - MOBILE RESPONSIVE */}
                     <div className="bg-white shadow rounded-lg p-6">
@@ -1814,6 +1808,7 @@ export default function EnhancedRecipeForm({
                 </form>
             )}
 
+            {/* Add your NutritionModal at the very end of the component, before the closing </div> */}
             <NutritionModal
                 nutrition={recipe.nutrition}
                 isOpen={showNutritionModal}
@@ -1821,6 +1816,7 @@ export default function EnhancedRecipeForm({
                 servings={parseInt(recipe.servings) || 4}
                 recipeTitle={recipe.title || "Recipe"}
             />
+
 
         </div>
     );
