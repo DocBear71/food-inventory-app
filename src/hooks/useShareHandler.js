@@ -1,4 +1,4 @@
-// File: src/hooks/useShareHandler.js - Enhanced for all social platforms
+// File: src/hooks/useShareHandler.js - COMPLETE FIX
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -52,7 +52,7 @@ export const useShareHandler = (onRecipeShare) => {
 
             console.log('📋 Extracted URL:', url);
 
-            // Enhanced platform detection for ALL social media platforms
+            // ENHANCED platform detection for ALL social media platforms
             const socialPlatforms = {
                 facebook: {
                     patterns: [

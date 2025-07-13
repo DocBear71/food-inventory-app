@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { useRouter } from 'next/navigation';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import EnhancedRecipeForm from '@/components/recipes/EnhancedRecipeForm';
@@ -21,6 +21,39 @@ export default function ImportRecipePage() {
         platform: '',
         message: ''
     });
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoUrl = urlParams.get('videoUrl');
+        const source = urlParams.get('source');
+        const platform = urlParams.get('platform');
+
+        // Handle auto-import from share buttons
+        if (videoUrl && source === 'share' && ['facebook', 'tiktok', 'instagram'].includes(platform)) {
+            console.log(`📱 Auto-importing ${platform} video from share button:`, videoUrl);
+
+            // Decode the URL
+            const decodedVideoUrl = decodeURIComponent(videoUrl);
+
+            // Set import method and URL
+            setImportMethod('url');
+            setUrlInput(decodedVideoUrl);
+
+            // Clean up URL parameters immediately
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('videoUrl');
+            cleanUrl.searchParams.delete('source');
+            cleanUrl.searchParams.delete('platform');
+            window.history.replaceState({}, '', cleanUrl);
+
+            // Start the import after UI is ready
+            const timer = setTimeout(() => {
+                handleUrlImport();
+            }, 1000);
+
+            return () => clearTimeout(timer);
+        }
+    }, []); // Empty dependency array - only run once on mount
 
     // Enhanced platform detection
     const detectPlatformFromUrl = (url) => {
@@ -106,26 +139,27 @@ export default function ImportRecipePage() {
         setVideoImportProgress({
             stage: 'connecting',
             platform: platform,
-            message: `🔗 Connecting to ${platform}...`
+            message: `🔗 Connecting to ${platform.charAt(0).toUpperCase() + platform.slice(1)}...`
         });
 
         try {
-            // Update progress during API call
+            // Update progress messages with correct platform names
             setVideoImportProgress({
                 stage: 'downloading',
                 platform: platform,
-                message: '📥 Downloading video content...'
+                message: `📥 Downloading ${platform} video content...`
             });
 
             const response = await apiPost('/api/recipes/video-extract', {
                 url: url,
+                platform: platform, // Pass platform to API
                 analysisType: 'ai_vision_enhanced'
             });
 
             setVideoImportProgress({
                 stage: 'processing',
                 platform: platform,
-                message: '🤖 AI analyzing video content...'
+                message: `🤖 AI analyzing ${platform} video content...`
             });
 
             const data = await response.json();
@@ -134,7 +168,7 @@ export default function ImportRecipePage() {
                 setVideoImportProgress({
                     stage: 'complete',
                     platform: platform,
-                    message: '✅ Recipe extraction complete!'
+                    message: `✅ ${platform.charAt(0).toUpperCase() + platform.slice(1)} recipe extraction complete!`
                 });
 
                 // Navigate to add page with the extracted recipe data
@@ -142,11 +176,11 @@ export default function ImportRecipePage() {
                     router.push(`/recipes/add?imported=true&source=${platform}&data=${encodeURIComponent(JSON.stringify(data.recipe))}`);
                 }, 2000);
             } else {
-                throw new Error(data.error || 'Failed to extract recipe from video');
+                throw new Error(data.error || `Failed to extract recipe from ${platform} video`);
             }
         } catch (error) {
-            console.error('Video import error:', error);
-            setImportError(`${platform} video extraction failed: ${error.message}`);
+            console.error(`${platform} video import error:`, error);
+            setImportError(`${platform.charAt(0).toUpperCase() + platform.slice(1)} video extraction failed: ${error.message}`);
         } finally {
             setTimeout(() => {
                 setIsVideoImporting(false);

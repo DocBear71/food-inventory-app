@@ -251,8 +251,9 @@ export async function POST(request) {
             );
         }
 
-        const { url, analysisType } = await request.json();
+        const { url, analysisType, platform } = await request.json(); // ADD platform parameter
         console.log('🎬 [VERCEL] Analysis type requested:', analysisType);
+        console.log('🎬 [VERCEL] Platform hint provided:', platform); // ADD logging
 
         if (!url) {
             return NextResponse.json(
@@ -263,11 +264,27 @@ export async function POST(request) {
 
         console.log('🎬 [VERCEL] Processing video URL:', url);
 
-        // Detect video platform
-        const videoInfo = detectVideoPlatform(url);
+        // Detect video platform (with hint support)
+        let videoInfo;
+        try {
+            videoInfo = detectVideoPlatform(url);
+        } catch (error) {
+            // If detection fails but platform hint provided, use hint
+            if (platform && ['tiktok', 'instagram', 'facebook'].includes(platform)) {
+                console.log(`🎯 [VERCEL] Using platform hint: ${platform}`);
+                videoInfo = {
+                    platform: platform,
+                    videoId: url.split('/').pop(), // Simple ID extraction
+                    originalUrl: url
+                };
+            } else {
+                throw error; // Re-throw if no valid hint
+            }
+        }
+
         console.log(`📺 [VERCEL] Video info: ${videoInfo.platform} - ${videoInfo.videoId}`);
 
-        // Use Modal for ALL platforms (TikTok, Instagram, YouTube)
+        // Use Modal for ALL platforms with platform-specific handling
         const result = await callModalForVideoExtraction(videoInfo, analysisType);
 
         console.log('✅ [VERCEL] Extraction complete:', {
@@ -278,7 +295,7 @@ export async function POST(request) {
             title: result.recipe.title
         });
 
-        // Return schema-compatible data
+        // Return schema-compatible data with platform info
         return NextResponse.json({
             success: true,
             recipe: result.recipe, // Already transformed to match schema
@@ -312,6 +329,10 @@ export async function POST(request) {
 
         if (error.message.includes('Unsupported video platform')) {
             enhancedErrorMessage = 'Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube videos, copy the transcript and use the Text Paste option.';
+        } else if (error.message.includes('TikTok')) {
+            enhancedErrorMessage = 'TikTok video processing failed. Try ensuring the video is public and using the share link from the TikTok mobile app.';
+        } else if (error.message.includes('Instagram')) {
+            enhancedErrorMessage = 'Instagram video processing failed. Try ensuring the Reel is public and using the share link from Instagram.';
         } else if (error.message.includes('Facebook video could not be processed')) {
             enhancedErrorMessage = 'Facebook video processing failed. Try ensuring the video is public, or copy any recipe text from the video and use Text Paste instead.';
         } else if (error.message.includes('Modal API error')) {
@@ -323,12 +344,23 @@ export async function POST(request) {
             supportedPlatforms: ['TikTok', 'Instagram', 'Facebook'],
             note: 'All video processing powered by Modal AI. For YouTube, use Text Paste with transcripts.',
             troubleshooting: {
-                tiktok: 'Use share links directly from TikTok app',
-                instagram: 'Make sure Reels are public',
-                facebook: 'Use public Facebook videos - if private, try Text Paste with any recipe text instead',
-                youtube: 'YouTube not supported - copy transcript and use Text Paste option instead'
+                tiktok: [
+                    'Use share links directly from TikTok app',
+                    'Ensure video is public (not private or followers-only)',
+                    'Try popular cooking creators for best results'
+                ],
+                instagram: [
+                    'Make sure Reels are public (not private accounts)',
+                    'Use direct share links from Instagram',
+                    'Try content from popular cooking accounts'
+                ],
+                facebook: [
+                    'Use public Facebook videos - if private, try Text Paste with any recipe text instead',
+                    'Try using the share link from Facebook mobile app',
+                    'For private videos, copy any recipe text and use Text Paste'
+                ],
+                youtube: ['YouTube not supported - copy transcript and use Text Paste option instead']
             }
         }, { status: 400 });
-
     }
 }

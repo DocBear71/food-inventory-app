@@ -139,14 +139,15 @@ export default function EnhancedRecipeForm({
 
         // Handle ALL social media platforms
         if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
+            console.log(`🎯 ${shareData.platform} video shared:`, shareData.url);
+
             // For import mode, continue with current behavior
             if (isImportMode) {
                 setVideoUrl(shareData.url);
                 setShowVideoImport(true);
                 setVideoImportPlatform(shareData.platform || 'video');
             } else {
-                // For regular add page, redirect to import page
-                // Use setTimeout to avoid hook call during render
+                // For regular add page, redirect to import page with platform info
                 setTimeout(() => {
                     router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${shareData.platform}`);
                 }, 0);
