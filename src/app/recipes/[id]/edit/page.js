@@ -1,8 +1,8 @@
 'use client';
-// file: /src/app/recipes/[id]/edit/page.js v6 - Added UpdateNutritionButton and moved buttons
+// file: /src/app/recipes/[id]/edit/page.js v6 - FIXED: Move AutoExpandingTextarea outside component
 
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -10,6 +10,43 @@ import Footer from '@/components/legal/Footer';
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { apiGet, apiPut } from '@/lib/api-config';
 import NutritionModal from "@/components/nutrition/NutritionModal";
+
+// FIXED: Move AutoExpandingTextarea OUTSIDE the main component
+const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+    const textareaRef = useRef(null);
+
+    const adjustHeight = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        adjustHeight();
+    }, [value, adjustHeight]); // Add value as dependency
+
+    // FIXED: Use stable onChange handler
+    const handleChange = useCallback((e) => {
+        onChange(e);
+        // Use setTimeout to ensure DOM update happens first
+        setTimeout(adjustHeight, 0);
+    }, [onChange, adjustHeight]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value || ''}
+            onChange={handleChange}
+            onInput={adjustHeight}
+            placeholder={placeholder}
+            className={`${className} resize-none overflow-hidden`}
+            style={{ minHeight: '48px' }}
+            {...props}
+        />
+    );
+};
 
 export default function EditRecipePage() {
     let session = null;
@@ -28,7 +65,7 @@ export default function EditRecipePage() {
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [recipe, setRecipe] = useState(null); // Store full recipe for nutrition button
+    const [recipe, setRecipe] = useState(null);
     const [showNutritionModal, setShowNutritionModal] = useState(false);
 
     const CATEGORY_OPTIONS = [
@@ -50,7 +87,6 @@ export default function EditRecipePage() {
         { value: 'breakfast', label: 'Breakfast' }
     ];
 
-    // Update formData state to include category and nutrition:
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -66,46 +102,6 @@ export default function EditRecipePage() {
         category: 'entrees',
         nutrition: {}
     });
-
-    // Auto-expanding textarea hook
-    const useAutoExpandingTextarea = () => {
-        const textareaRef = useRef(null);
-
-        const adjustHeight = () => {
-            const textarea = textareaRef.current;
-            if (textarea) {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
-            }
-        };
-
-        useEffect(() => {
-            adjustHeight();
-        });
-
-        return [textareaRef, adjustHeight];
-    };
-
-    // Auto-expanding textarea component
-    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
-        const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
-
-        return (
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={(e) => {
-                    onChange(e);
-                    setTimeout(adjustHeight, 0);
-                }}
-                onInput={adjustHeight}
-                placeholder={placeholder}
-                className={`${className} resize-none overflow-hidden`}
-                style={{ minHeight: '48px' }}
-                {...props}
-            />
-        );
-    };
 
     useEffect(() => {
         if (recipeId) {
@@ -209,14 +205,14 @@ export default function EditRecipePage() {
         }));
     };
 
-    const updateInstruction = (index, value) => {
+    const updateInstruction = useCallback((index, value) => {
         setFormData(prev => ({
             ...prev,
             instructions: prev.instructions.map((instruction, i) =>
                 i === index ? value : instruction  // Direct string assignment
             )
         }));
-    };
+    }, []); // Empty dependencies - this function is stable
 
     // Handle nutrition update from AI analysis
     const handleNutritionUpdate = (nutrition, analysisResult) => {
@@ -582,7 +578,7 @@ export default function EditRecipePage() {
                         </div>
                     </div>
 
-                    {/* Instructions - MOBILE RESPONSIVE */}
+                    {/* Instructions - FIXED */}
                     <div className="bg-white rounded-lg border p-6">
                         <h2 className="text-xl font-semibold text-gray-900 mb-6">Instructions</h2>
 
@@ -591,9 +587,9 @@ export default function EditRecipePage() {
                                 <div key={`instruction-${index}`} className="border border-gray-200 rounded-lg p-4">
                                     {/* Top row: Step number and Delete button */}
                                     <div className="flex justify-between items-center mb-3">
-            <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                {index + 1}
-            </span>
+                                        <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                            {index + 1}
+                                        </span>
                                         {formData.instructions.length > 1 && (
                                             <TouchEnhancedButton
                                                 type="button"
@@ -606,11 +602,10 @@ export default function EditRecipePage() {
                                         )}
                                     </div>
 
-                                    {/* FIXED: Textarea with stable key and direct value binding */}
+                                    {/* FIXED: Use stable AutoExpandingTextarea without dynamic key */}
                                     <AutoExpandingTextarea
-                                        key={`textarea-${index}`} // Stable key
-                                        value={instruction} // Direct string value
-                                        onChange={(e) => updateInstruction(index, e.target.value)} // Direct value update
+                                        value={instruction}
+                                        onChange={(e) => updateInstruction(index, e.target.value)}
                                         placeholder={`Step ${index + 1} instructions...`}
                                         className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
                                         required
@@ -619,7 +614,7 @@ export default function EditRecipePage() {
                             ))}
                         </div>
 
-                        {/* Add Step Button - Moved to bottom */}
+                        {/* Add Step Button */}
                         <div className="mt-6">
                             <TouchEnhancedButton
                                 type="button"

@@ -13,16 +13,52 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 
+// FIXED: Move AutoExpandingTextarea OUTSIDE the main component
+const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+    const textareaRef = useRef(null);
+
+    const adjustHeight = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        adjustHeight();
+    }, [value, adjustHeight]); // Add value as dependency
+
+    // FIXED: Use stable onChange handler
+    const handleChange = useCallback((e) => {
+        onChange(e);
+        // Use setTimeout to ensure DOM update happens first
+        setTimeout(adjustHeight, 0);
+    }, [onChange, adjustHeight]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value || ''}
+            onChange={handleChange}
+            onInput={adjustHeight}
+            placeholder={placeholder}
+            className={`${className} resize-none overflow-hidden`}
+            style={{ minHeight: '48px' }}
+            {...props}
+        />
+    );
+};
 
 export default function EnhancedRecipeForm({
                                                initialData,
                                                onSubmit,
                                                onCancel,
                                                isEditing = false,
-                                               isImportMode = false, // NEW: Import mode flag
-                                               showAdvancedNutrition = false // NEW: Advanced nutrition flag
+                                               isImportMode = false,
+                                               showAdvancedNutrition = false
                                            }) {
-    const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'parser', 'url'
+    const [inputMethod, setInputMethod] = useState('manual');
     const [showParser, setShowParser] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
     const [showVideoImport, setShowVideoImport] = useState(false);
@@ -40,7 +76,6 @@ export default function EnhancedRecipeForm({
     const [showNutritionModal, setShowNutritionModal] = useState(false);
     const [showNutritionDetailsModal, setShowNutritionDetailsModal] = useState(false);
     const [videoImportPlatform, setVideoImportPlatform] = useState('video');
-
 
     const searchParams = useSearchParams();
 
@@ -88,7 +123,6 @@ export default function EnhancedRecipeForm({
     });
 
     const [tagInput, setTagInput] = useState('');
-    // FIXED: Add state for tags string to prevent comma parsing issues
     const [tagsString, setTagsString] = useState(
         initialData?.tags ? initialData.tags.join(', ') : ''
     );
@@ -100,8 +134,7 @@ export default function EnhancedRecipeForm({
     const [importError, setImportError] = useState('');
 
     const router = useRouter();
-
-    const basicInfoRef = useRef(null);
+    const basicInfoRef = useRef(null)
 
     const scrollToBasicInfo = () => {
         if (basicInfoRef.current) {
@@ -194,54 +227,35 @@ export default function EnhancedRecipeForm({
         }
     }, []); // Empty dependency array - only run once on mount
 
-    // Auto-expanding textarea hook
-    const useAutoExpandingTextarea = () => {
-        const textareaRef = useRef(null);
-
-        const adjustHeight = () => {
-            const textarea = textareaRef.current;
-            if (textarea) {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
-            }
-        };
-
-        useEffect(() => {
-            adjustHeight();
-        });
-
-        return [textareaRef, adjustHeight];
-    };
-
     // Helper function to clean nutrition values (remove units)
-    const cleanNutritionValue = (value) => {
-        if (!value) return '';
-
-        // Extract just the number from strings like "203 kcal", "12 g", "9 mg"
-        const strValue = String(value);
-        const match = strValue.match(/^(\d+(?:\.\d+)?)/);
-        return match ? match[1] : '';
-    };
-
-    const getNormalizedNutritionSummary = () => {
-        if (!recipe.nutrition) return null;
-
-        return {
-            calories: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0,
-            protein: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0,
-            carbs: recipe.nutrition.carbs?.value || recipe.nutrition.carbs || 0,
-            fat: recipe.nutrition.fat?.value || recipe.nutrition.fat || 0,
-            fiber: recipe.nutrition.fiber?.value || recipe.nutrition.fiber || 0
-        };
-    };
-
-    const nutritionForDisplay = {
-        calories: {value: recipe.nutrition.calories?.value || 0, unit: 'kcal'},
-        protein: {value: recipe.nutrition.protein?.value || 0, unit: 'g'},
-        carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
-        fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
-        fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
-    };
+    // const cleanNutritionValue = (value) => {
+    //     if (!value) return '';
+    //
+    //     // Extract just the number from strings like "203 kcal", "12 g", "9 mg"
+    //     const strValue = String(value);
+    //     const match = strValue.match(/^(\d+(?:\.\d+)?)/);
+    //     return match ? match[1] : '';
+    // };
+    //
+    // const getNormalizedNutritionSummary = () => {
+    //     if (!recipe.nutrition) return null;
+    //
+    //     return {
+    //         calories: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0,
+    //         protein: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0,
+    //         carbs: recipe.nutrition.carbs?.value || recipe.nutrition.carbs || 0,
+    //         fat: recipe.nutrition.fat?.value || recipe.nutrition.fat || 0,
+    //         fiber: recipe.nutrition.fiber?.value || recipe.nutrition.fiber || 0
+    //     };
+    // };
+    //
+    // const nutritionForDisplay = {
+    //     calories: {value: recipe.nutrition.calories?.value || 0, unit: 'kcal'},
+    //     protein: {value: recipe.nutrition.protein?.value || 0, unit: 'g'},
+    //     carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
+    //     fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
+    //     fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
+    // };
 
     // Handle parsed recipe data
     const handleParsedRecipe = (parsedData) => {
@@ -735,7 +749,7 @@ export default function EnhancedRecipeForm({
         }));
     };
 
-    const updateInstruction = (index, value) => {
+    const updateInstruction = useCallback((index, value) => {
         setRecipe(prev => ({
             ...prev,
             instructions: prev.instructions.map((inst, i) => {
@@ -750,7 +764,7 @@ export default function EnhancedRecipeForm({
                 return inst;
             })
         }));
-    };
+    }, []); // Empty dependencies - this function is stable
 
     const getInstructionText = (instruction) => {
         if (typeof instruction === 'string') {
@@ -1428,6 +1442,7 @@ export default function EnhancedRecipeForm({
                     </TouchEnhancedButton>
                 </div>
 
+                {/* Instructions Section - FIXED */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Instructions ({recipe.instructions.length})
@@ -1440,7 +1455,7 @@ export default function EnhancedRecipeForm({
                             const stepNumber = typeof instruction === 'object' ? instruction.step : index + 1;
 
                             return (
-                                <div key={`instruction-${index}-${stepNumber}`} className="border border-gray-200 rounded-lg p-4">
+                                <div key={index} className="border border-gray-200 rounded-lg p-4">
                                     {/* Top row: Step number and Delete button */}
                                     <div className="flex justify-between items-center mb-3">
                                         <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
@@ -1456,7 +1471,7 @@ export default function EnhancedRecipeForm({
                                         </TouchEnhancedButton>
                                     </div>
 
-                                    {/* FIXED: Textarea with consistent value handling */}
+                                    {/* FIXED: Stable AutoExpandingTextarea */}
                                     <AutoExpandingTextarea
                                         value={instructionText}
                                         onChange={(e) => updateInstruction(index, e.target.value)}
