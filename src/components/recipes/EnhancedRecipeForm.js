@@ -249,13 +249,13 @@ export default function EnhancedRecipeForm({
     //     };
     // };
     //
-    // const nutritionForDisplay = {
-    //     calories: {value: recipe.nutrition.calories?.value || 0, unit: 'kcal'},
-    //     protein: {value: recipe.nutrition.protein?.value || 0, unit: 'g'},
-    //     carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
-    //     fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
-    //     fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
-    // };
+    const nutritionForDisplay = {
+        calories: {value: recipe.nutrition.calories?.value || 0, unit: 'kcal'},
+        protein: {value: recipe.nutrition.protein?.value || 0, unit: 'g'},
+        carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
+        fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
+        fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
+    };
 
     // Handle parsed recipe data
     const handleParsedRecipe = (parsedData) => {
