@@ -108,8 +108,9 @@ export default function ForgotPasswordPage() {
                         </div>
                     </div>
                 </div>
-                <Footer />
             </div>
+                <Footer />
+
                 </MobileOptimizedLayout>
         );
     }
