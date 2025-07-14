@@ -1,4 +1,3 @@
-
 'use client';
 
 // file: /src/app/admin/users/[id]/page.js
@@ -7,11 +6,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-
-// Add this function for static export compatibility
-export async function generateStaticParams() {
-    return [];
-}
 
 // Add metadata for better SEO (optional)
 export const metadata = {

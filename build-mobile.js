@@ -1,6 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from "fs";
+import path from "path";
+import {execSync} from "child_process";
+
 
 console.log('🚀 Starting mobile build...');
 
@@ -12,6 +13,7 @@ const apiBackupPath = path.join(projectRoot, 'temp-api-backup');
 const dynamicRoutes = [
     path.join(projectRoot, 'src', 'app', 'recipes', '[id]'),
     path.join(projectRoot, 'src', 'app', 'collections', '[id]'),
+    path.join(projectRoot, 'src', 'app', 'admin', 'users', '[id]'),
     // Add any other dynamic routes you might have
 ];
 const dynamicBackups = [];
