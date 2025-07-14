@@ -1,7 +1,7 @@
 'use client';
-// file: /src/components/recipes/RecipeParser.js v4 - Using shared parsing utilities
+// file: /src/components/recipes/RecipeParser.js v5 - FIXED: Move AutoExpandingTextarea outside component
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {
     parseIngredientLine,
@@ -15,51 +15,48 @@ import {
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
 
+// FIXED: Move AutoExpandingTextarea OUTSIDE the main component
+const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+    const textareaRef = useRef(null);
+
+    const adjustHeight = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        adjustHeight();
+    }, [value, adjustHeight]); // Add value as dependency
+
+    // FIXED: Use stable onChange handler
+    const handleChange = useCallback((e) => {
+        onChange(e);
+        // Use setTimeout to ensure DOM update happens first
+        setTimeout(adjustHeight, 0);
+    }, [onChange, adjustHeight]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value || ''}
+            onChange={handleChange}
+            onInput={adjustHeight}
+            placeholder={placeholder}
+            className={`${className} resize-none overflow-hidden`}
+            style={{ minHeight: '48px' }}
+            {...props}
+        />
+    );
+};
+
 export default function RecipeParser({ onRecipeParsed, onCancel }) {
     const [rawText, setRawText] = useState('');
     const [parsedRecipe, setParsedRecipe] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
-
-    // Auto-expanding textarea hook
-    const useAutoExpandingTextarea = () => {
-        const textareaRef = useRef(null);
-
-        const adjustHeight = () => {
-            const textarea = textareaRef.current;
-            if (textarea) {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.max(textarea.scrollHeight, 48)}px`;
-            }
-        };
-
-        useEffect(() => {
-            adjustHeight();
-        });
-
-        return [textareaRef, adjustHeight];
-    };
-
-    // Auto-expanding textarea component
-    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
-        const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
-
-        return (
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={(e) => {
-                    onChange(e);
-                    setTimeout(adjustHeight, 0);
-                }}
-                onInput={adjustHeight}
-                placeholder={placeholder}
-                className={`${className} resize-none overflow-hidden`}
-                style={{ minHeight: '48px' }}
-                {...props}
-            />
-        );
-    };
 
     // Enhanced parsing function with admin-level intelligence using shared utilities
     const parseRecipeText = (text) => {
@@ -315,7 +312,6 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         return instructions;
     };
 
-    // Rest of the component remains the same...
     const handleParse = () => {
         setIsParsing(true);
 
@@ -349,14 +345,15 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
         }));
     };
 
-    const handleEditInstruction = (index, value) => {
+    // FIXED: Stable handleEditInstruction function
+    const handleEditInstruction = useCallback((index, value) => {
         setParsedRecipe(prev => ({
             ...prev,
             instructions: prev.instructions.map((inst, i) =>
                 i === index ? { ...inst, instruction: value } : inst
             )
         }));
-    };
+    }, []); // Empty dependencies - this function is stable
 
     return (
         <div className="space-y-6">
@@ -383,7 +380,6 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
                         </ul>
                     </div>
 
-                    {/* NEW: YouTube Transcript Guidance Section */}
                     <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <div className="flex items-start">
                             <div className="text-purple-600 mr-3 mt-0.5">
@@ -417,7 +413,6 @@ export default function RecipeParser({ onRecipeParsed, onCancel }) {
                         </div>
                     </div>
 
-
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -444,6 +439,7 @@ The parser will automatically:
                                 className="w-full h-64 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                 style={{ minHeight: '256px' }}
                             />
+                        </div>
 
                         <div className="flex flex-col sm:flex-row justify-between gap-3">
                             <TouchEnhancedButton
@@ -471,9 +467,8 @@ The parser will automatically:
                         </div>
                     </div>
                 </div>
-                </div>
             ) : (
-                // Preview Phase - keeping the existing preview UI
+                // Preview Phase
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         ✨ Parsed Recipe Preview
@@ -507,7 +502,7 @@ The parser will automatically:
                                 </div>
                             </div>
 
-                            {/* Rest of preview form - keeping existing structure but with mobile responsive updates */}
+                            {/* Basic info fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -686,7 +681,7 @@ The parser will automatically:
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Instructions - Mobile Responsive */}
+                            {/* Instructions - FIXED */}
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
                                     Instructions ({parsedRecipe.instructions.length})
@@ -713,7 +708,7 @@ The parser will automatically:
                                                 </TouchEnhancedButton>
                                             </div>
 
-                                            {/* Textarea */}
+                                            {/* FIXED: Stable AutoExpandingTextarea */}
                                             <AutoExpandingTextarea
                                                 value={instruction.instruction}
                                                 onChange={(e) => handleEditInstruction(index, e.target.value)}
@@ -805,7 +800,7 @@ The parser will automatically:
                         </div>
                     )}
                 </div>
-            )};
+            )}
         </div>
     );
 }

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/EnhancedRecipeForm.js v5 - MOBILE RESPONSIVE LAYOUT
+// file: /src/components/recipes/EnhancedRecipeForm.js v6 - MOBILE RESPONSIVE LAYOUT
 
 
 import {useState, useEffect, useRef, useCallback} from 'react';
@@ -867,30 +867,6 @@ export default function EnhancedRecipeForm({
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    // Auto-expanding textarea component
-    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
-        const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
-
-        // FIXED: Prevent unnecessary re-renders
-        const handleChange = useCallback((e) => {
-            onChange(e);
-            setTimeout(adjustHeight, 0);
-        }, [onChange, adjustHeight]);
-
-        return (
-            <textarea
-                ref={textareaRef}
-                value={value || ''} // Ensure always a string
-                onChange={handleChange}
-                onInput={adjustHeight}
-                placeholder={placeholder}
-                className={`${className} resize-none overflow-hidden`}
-                style={{ minHeight: '48px' }}
-                {...props}
-            />
-        );
     };
 
     // Show parser component
