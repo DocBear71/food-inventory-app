@@ -88,6 +88,7 @@ const VideoImportLoadingModal = ({
         return "✅";
     };
 
+    // Make sure getPlatformEmoji() handles all platforms:
     const getPlatformEmoji = () => {
         switch (platform.toLowerCase()) {
             case 'facebook': return '📘';
@@ -98,6 +99,7 @@ const VideoImportLoadingModal = ({
         }
     };
 
+// And getPlatformColor() should handle all platforms:
     const getPlatformColor = () => {
         switch (platform.toLowerCase()) {
             case 'facebook': return 'from-blue-500 to-blue-600';
