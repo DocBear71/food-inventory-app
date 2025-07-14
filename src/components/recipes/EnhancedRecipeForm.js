@@ -990,11 +990,10 @@ export default function EnhancedRecipeForm({
             <div className="space-y-6">
                 <VideoImportLoadingModal
                     isVisible={isVideoImporting}
-                    platform={videoImportPlatform}
-                    stage="processing"
-                    message={`Processing ${videoImportPlatform} video...`}
+                    platform={videoImportProgress.platform || 'facebook'}
+                    stage={videoImportProgress.stage || 'processing'}
+                    message={videoImportProgress.message || 'Processing video...'}
                     videoUrl={videoUrl}
-                    progress={videoImportProgress}
                     onComplete={() => {}}
                     style={{zIndex: 9999}}
                 />
