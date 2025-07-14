@@ -7,13 +7,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
-// Add metadata for better SEO (optional)
-export const metadata = {
-    title: 'User Management - Admin Dashboard',
-    description: 'Manage individual user accounts and subscriptions',
-};
-
-
 export default function AdminUserDetailPage({ params }) {
     const { data: session, status } = useSession();
     const router = useRouter();
