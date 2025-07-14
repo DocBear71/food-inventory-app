@@ -1,15 +1,15 @@
 // file: /src/app/api/meal-plans/[id]/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { MealPlan } from '@/lib/models';
 
 // GET - Fetch a single meal plan
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const resolvedParams = await params;
         const { id } = resolvedParams;
 
@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
     try {
         console.log('=== PUT /api/meal-plans/[id] START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const resolvedParams = await params;
         const { id } = resolvedParams;
 
@@ -120,7 +120,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete a meal plan
 export async function DELETE(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const resolvedParams = await params;
         const { id } = resolvedParams;
 

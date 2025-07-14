@@ -2,15 +2,15 @@
 // UPDATED - Admin User Upgrade API with Email Notifications
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { sendSubscriptionUpgradeEmail } from '@/lib/email';
 
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -181,7 +181,7 @@ export async function POST(request, { params }) {
 // Bulk upgrade endpoint for Google Play testers - UPDATED with email notifications
 export async function PATCH(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

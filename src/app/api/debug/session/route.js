@@ -2,8 +2,8 @@
 // Debug API to test session detection
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import { cookies } from 'next/headers';
 
 export async function GET(request) {
@@ -11,7 +11,7 @@ export async function GET(request) {
 
     try {
         // Check NextAuth session
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         // Get all cookies
         const cookieStore = cookies();

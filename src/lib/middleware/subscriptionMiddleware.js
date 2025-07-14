@@ -1,7 +1,7 @@
 // file: /src/lib/middleware/subscriptionMiddleware.js v2 - FIXED: Use proper feature gates
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import {
@@ -16,7 +16,7 @@ export async function withSubscriptionCheck(handler, requiredFeature, options = 
     return async (req, res) => {
         try {
             // Get the session
-            const session = await getServerSession(req, res, authOptions);
+            const session = await auth();
 
             if (!session?.user?.id) {
                 return res.status(401).json({

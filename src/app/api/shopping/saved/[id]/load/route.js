@@ -1,8 +1,8 @@
 // file: /src/app/api/shopping/saved/[id]/load/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { SavedShoppingList, UserInventory } from '@/lib/models';
 
@@ -28,7 +28,7 @@ function capitalizeFirstLetter(string) {
 // POST - Load a saved shopping list (converts to active shopping list format)
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

@@ -1,15 +1,15 @@
 // file: /src/lib/mobile-session-middleware.js
 // Middleware to check both NextAuth and mobile sessions
 
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 
 export async function getSessionFromRequest(request) {
     console.log('🔍 Checking session for API request...');
 
     try {
         // First, try NextAuth session
-        const nextAuthSession = await getServerSession(authOptions);
+        const nextAuthSession = await auth();
 
         if (nextAuthSession?.user) {
             console.log('✅ NextAuth session found:', nextAuthSession.user.email);

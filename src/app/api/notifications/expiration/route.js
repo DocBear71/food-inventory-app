@@ -1,8 +1,8 @@
 // file: /src/app/api/notifications/expiration/route.js v2 - Enhanced with email notifications
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { UserInventory, User } from '@/lib/models';
 import { sendExpirationNotificationEmail } from '@/lib/email';
@@ -10,7 +10,7 @@ import { sendExpirationNotificationEmail } from '@/lib/email';
 // GET - Get expiration notifications for user (with optional email sending)
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -191,7 +191,7 @@ export async function GET(request) {
 // POST - Mark items as used/consumed OR send email notification
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -2,15 +2,15 @@
 // UPDATED - Admin User Suspend API with Email Notifications
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { sendAccountSuspensionEmail, sendAccountReactivationEmail } from '@/lib/email';
 
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -211,7 +211,7 @@ export async function POST(request, { params }) {
 // GET endpoint to check suspension status - unchanged
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

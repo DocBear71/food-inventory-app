@@ -1,15 +1,15 @@
 // file: /src/app/api/inventory/consume/route.js - v5 Diagnostic version to identify MongoDB issue
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { UserInventory } from '@/lib/models';
 
 // POST - Consume inventory items with enhanced dual unit support
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -248,7 +248,7 @@ export async function POST(request) {
 // GET - Get consumption history with enhanced dual unit support
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -314,7 +314,7 @@ export async function GET(request) {
 // DELETE - Reverse/undo a consumption (un-consume)
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

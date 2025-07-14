@@ -1,8 +1,8 @@
 // file: /src/app/api/meal-plans/[id]/shopping-list/route.js v2
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { MealPlan, Recipe, UserInventory } from '@/lib/models';
 
@@ -115,7 +115,7 @@ export async function POST(request, { params }) {
     try {
         console.log('=== POST /api/meal-plans/[id]/shopping-list START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         // Fix for Next.js 15 - await params
         const resolvedParams = await params;
@@ -369,7 +369,7 @@ export async function POST(request, { params }) {
 // PUT - Update shopping list (mark items as purchased, etc.)
 export async function PUT(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         // Fix for Next.js 15 - await params
         const resolvedParams = await params;

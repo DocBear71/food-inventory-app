@@ -1,8 +1,8 @@
 // file: /src/app/api/test-consume/route.js - Simple test route to debug consumption
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { UserInventory } from '@/lib/models';
 
@@ -10,7 +10,7 @@ export async function POST(request) {
     console.log('=== TEST CONSUME API CALLED ===');
 
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         console.log('Session:', session?.user?.id ? 'Found' : 'Not found');
 
         if (!session?.user?.id) {
@@ -85,7 +85,7 @@ export async function GET(request) {
     console.log('=== TEST GET CONSUME HISTORY ===');
 
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         console.log('Session for GET:', session?.user?.id ? 'Found' : 'Not found');
 
         if (!session?.user?.id) {

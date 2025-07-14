@@ -1,8 +1,8 @@
 // file: /src/app/api/email/send-shopping-list/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User, EmailLog } from '@/lib/models';
 import { sendShoppingListEmail, validateEmails } from '@/lib/email';
@@ -12,7 +12,7 @@ export async function POST(request) {
         console.log('=== Email Shopping List API v1 ===');
 
         // Check authentication
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -134,7 +134,7 @@ export async function POST(request) {
 
         // Log failed email attempt
         try {
-            const session = await getServerSession(authOptions);
+            const session = await auth();
             if (session?.user?.id) {
                 const failedLog = new EmailLog({
                     userId: session.user.id,

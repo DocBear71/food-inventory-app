@@ -1,15 +1,15 @@
 // file: /src/app/api/shopping/saved/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { SavedShoppingList, Recipe, MealPlan } from '@/lib/models';
 
 // GET - Fetch user's saved shopping lists
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -107,7 +107,7 @@ export async function GET(request) {
 // POST - Save a new shopping list
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -214,7 +214,7 @@ export async function POST(request) {
 // DELETE - Delete multiple saved lists
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

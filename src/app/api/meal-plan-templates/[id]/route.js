@@ -1,15 +1,15 @@
 // file: /src/app/api/meal-plan-templates/[id]/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { MealPlanTemplate, MealPlan } from '@/lib/models';
 
 // GET - Fetch specific template
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -45,7 +45,7 @@ export async function GET(request, { params }) {
 // PUT - Update template
 export async function PUT(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -101,7 +101,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete template
 export async function DELETE(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

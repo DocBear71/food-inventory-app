@@ -1,7 +1,7 @@
 // file: /src/app/api/subscription/status/route.js v5 - FIXED admin detection
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
@@ -10,7 +10,7 @@ export async function GET(request) {
         console.log('🔍 === SUBSCRIPTION API DEBUG START ===');
         console.log('Subscription status API called');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             console.log('No session or user ID found');

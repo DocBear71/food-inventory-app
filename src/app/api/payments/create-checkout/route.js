@@ -1,8 +1,8 @@
 // file: /src/app/api/payments/create-checkout/route.js v2 - Enhanced with Iowa sales tax collection
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import Stripe from 'stripe';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
@@ -13,7 +13,7 @@ export async function POST(request) {
     try {
         console.log('🔄 Creating Stripe checkout session...');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'Authentication required' },

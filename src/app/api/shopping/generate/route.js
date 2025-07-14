@@ -1,8 +1,8 @@
 // file: /src/app/api/shopping/generate/route.js v40 - FIXED ingredient matching
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { Recipe, UserInventory, MealPlan } from '@/lib/models';
 
@@ -747,7 +747,7 @@ async function getRecipeIdsFromMealPlan(mealPlanId) {
 
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

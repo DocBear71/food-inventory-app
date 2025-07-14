@@ -1,13 +1,16 @@
-// file: /src/lib/auth.js - v5 - FIXED: Added admin/tier information to session
-console.log('Auth config loading...');
-import CredentialsProvider from 'next-auth/providers/credentials';
+// file: /src/lib/auth.js - NextAuth v5 configuration
+
+import NextAuth from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
-export const authOptions = {
+console.log('NextAuth v5 config loading...');
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
     providers: [
-        CredentialsProvider({
+        Credentials({  // Note: Credentials instead of CredentialsProvider in v5
             name: 'credentials',
             credentials: {
                 email: { label: 'Email', type: 'email' },
@@ -36,10 +39,8 @@ export const authOptions = {
                         return null;
                     }
 
-                    // **IMPORTANT: Check and expire trial FIRST, before determining admin status**
+                    // Check and expire trial FIRST, before determining admin status
                     const trialExpired = user.checkAndExpireTrial();
-
-                    // Check and reset monthly usage
                     const usageReset = user.checkAndResetMonthlyUsage();
 
                     // Save if either trial expired or usage was reset
@@ -53,16 +54,16 @@ export const authOptions = {
                         }
                     }
 
-                    // **NOW get effective tier AFTER potential trial expiration**
+                    // Get effective tier AFTER potential trial expiration
                     const effectiveTier = user.getEffectiveTier?.() || 'free';
                     const subscriptionTier = user.subscription?.tier || 'free';
 
-                    // **FIXED: Proper admin determination - only actual admin users or active/admin tiers**
+                    // Proper admin determination
                     const isAdmin = user.isAdmin === true ||
                         effectiveTier === 'admin' ||
                         (effectiveTier === 'platinum' && user.subscription?.status === 'active');
 
-                    console.log('🔐 Authorizing user:', {
+                    console.log('🔐 Authorizing user (v5):', {
                         id: user._id.toString(),
                         email: user.email,
                         effectiveTier: effectiveTier,
@@ -104,7 +105,7 @@ export const authOptions = {
                         usage: usage
                     };
                 } catch (error) {
-                    console.error('Auth error:', error);
+                    console.error('Auth error (v5):', error);
                     return null;
                 }
             }
@@ -122,126 +123,116 @@ export const authOptions = {
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                // Store ALL user data in the JWT token
                 token.id = user.id;
                 token.emailVerified = user.emailVerified;
                 token.avatar = user.avatar;
-                // ADDED: Store subscription/admin information in JWT
                 token.subscriptionTier = user.subscriptionTier;
                 token.subscriptionStatus = user.subscriptionStatus;
                 token.effectiveTier = user.effectiveTier;
                 token.subscription = user.subscription;
                 token.isAdmin = user.isAdmin;
                 token.roles = user.roles;
-                token.createdAt = user.createdAt;  // **ADD THIS**
-                token.usage = user.usage;  // **ADD THIS**
+                token.createdAt = user.createdAt;
+                token.usage = user.usage;
 
-                console.log('🎫 JWT token created with data:', {
+                console.log('🎫 JWT token created (v5):', {
                     id: token.id,
                     email: token.email,
                     effectiveTier: token.effectiveTier,
                     subscriptionTier: token.subscriptionTier,
                     isAdmin: token.isAdmin,
-                    createdAt: token.createdAt,  // **ADD THIS**
-                    hasUsage: !!token.usage  // **ADD THIS**
+                    createdAt: token.createdAt,
+                    hasUsage: !!token.usage
                 });
             }
             return token;
         },
         async session({ session, token }) {
             if (token) {
-                // Include ALL data in the session
                 session.user.id = token.id;
                 session.user.emailVerified = token.emailVerified;
                 session.user.avatar = token.avatar;
-                // ADDED: Include subscription/admin information in session
                 session.user.subscriptionTier = token.subscriptionTier;
                 session.user.subscriptionStatus = token.subscriptionStatus;
                 session.user.effectiveTier = token.effectiveTier;
                 session.user.subscription = token.subscription;
                 session.user.isAdmin = token.isAdmin;
                 session.user.roles = token.roles;
-                session.user.createdAt = token.createdAt;  // **ADD THIS**
-                session.user.usage = token.usage;  // **ADD THIS**
+                session.user.createdAt = token.createdAt;
+                session.user.usage = token.usage;
 
-                console.log('👤 Session created with data:', {
+                console.log('👤 Session created (v5):', {
                     id: session.user.id,
                     email: session.user.email,
                     effectiveTier: session.user.effectiveTier,
                     subscriptionTier: session.user.subscriptionTier,
                     isAdmin: session.user.isAdmin,
-                    createdAt: session.user.createdAt,  // **ADD THIS**
-                    hasUsage: !!session.user.usage,  // **ADD THIS**
+                    createdAt: session.user.createdAt,
+                    hasUsage: !!session.user.usage,
                     allKeys: Object.keys(session.user)
                 });
 
-                // **NEW: Store in mobile session storage for cross-platform compatibility**
+                // Store in mobile session storage for cross-platform compatibility
                 if (typeof window !== 'undefined' && session?.user) {
                     try {
-                        console.log('💾 Storing session in mobile session from NextAuth callback...');
+                        console.log('💾 Storing session in mobile session from NextAuth v5 callback...');
                         const { MobileSession } = await import('@/lib/mobile-session-simple');
                         const success = await MobileSession.setSession(session);
 
                         if (success) {
-                            console.log('✅ Mobile session stored successfully from NextAuth callback');
+                            console.log('✅ Mobile session stored successfully from NextAuth v5 callback');
                         } else {
-                            console.error('❌ Failed to store mobile session from NextAuth callback');
+                            console.error('❌ Failed to store mobile session from NextAuth v5 callback');
                         }
                     } catch (error) {
-                        console.error('💥 Error storing mobile session in NextAuth callback:', error);
+                        console.error('💥 Error storing mobile session in NextAuth v5 callback:', error);
                     }
                 }
             }
             return session;
         },
         async redirect({ url, baseUrl }) {
-            console.log('Auth redirect:', url, '→', baseUrl);
+            console.log('Auth redirect (v5):', url, '→', baseUrl);
 
-            // For sign out, always go to home page
             if (url.includes('signout') || url.includes('signOut')) {
                 return '/';
             }
 
-            // For mobile apps, always redirect to dashboard after login
             if (url === '/dashboard' || url.endsWith('/dashboard')) {
                 return '/dashboard';
             }
 
-            // Handle relative URLs
             if (url.startsWith('/')) {
                 return url;
             }
 
-            // Handle absolute URLs that match our domain
             if (url.startsWith(baseUrl)) {
                 return url;
             }
 
-            // Default redirect
             return '/dashboard';
         },
         async signIn({ user, account, profile }) {
-            console.log('SignIn callback - User:', {
+            console.log('SignIn callback (v5) - User:', {
                 id: user.id,
                 email: user.email,
                 effectiveTier: user.effectiveTier,
                 isAdmin: user.isAdmin
             });
-            console.log('SignIn callback - Account:', account);
+            console.log('SignIn callback (v5) - Account:', account);
             return true;
         },
     },
     events: {
         async signOut({ token, session }) {
-            console.log('SignOut event triggered - clearing all auth state');
+            console.log('SignOut event triggered (v5) - clearing all auth state');
         },
         async session({ token, session }) {
-            // Prevent session restoration after signout
             if (session && session.expires) {
                 const now = new Date();
                 const expires = new Date(session.expires);
                 if (now >= expires) {
-                    console.log('Session expired, preventing restoration');
+                    console.log('Session expired (v5), preventing restoration');
                     return null;
                 }
             }
@@ -249,4 +240,4 @@ export const authOptions = {
     },
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
-};
+});

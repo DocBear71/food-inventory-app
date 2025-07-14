@@ -1,8 +1,8 @@
 // file: /src/app/api/user/delete-account/route.js
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import {
@@ -23,7 +23,7 @@ import { sendAccountDeletionConfirmationEmail } from '@/lib/email';
 
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -226,7 +226,7 @@ export async function POST(request) {
 // Verify deletion request (optional pre-check)
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

@@ -1,8 +1,8 @@
 // file: /src/app/api/contacts/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { Contact } from '@/lib/models';
 import { validateEmail } from '@/lib/email';
@@ -10,7 +10,7 @@ import { validateEmail } from '@/lib/email';
 // GET - Fetch user's contacts
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -43,7 +43,7 @@ export async function GET(request) {
 // POST - Add new contact
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -110,7 +110,7 @@ export async function POST(request) {
 // DELETE - Remove contact
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

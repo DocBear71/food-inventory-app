@@ -1,8 +1,8 @@
 // file: /src/app/api/user/avatar/route.js v4 - VERCEL OPTIMIZED
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import mongoose from 'mongoose';
@@ -358,7 +358,7 @@ export async function GET(request) {
 // Simple DELETE route
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user) {
             return createJsonResponse({ error: 'Unauthorized' }, 401);
         }

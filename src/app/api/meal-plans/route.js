@@ -1,8 +1,8 @@
 // file: /src/app/api/meal-plans/route.js - v2
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { MealPlan, Recipe } from '@/lib/models';
 
@@ -11,7 +11,7 @@ export async function GET(request) {
     try {
         console.log('=== GET /api/meal-plans START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -78,7 +78,7 @@ export async function POST(request) {
     try {
         console.log('=== POST /api/meal-plans START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -196,7 +196,7 @@ export async function PUT(request) {
     try {
         console.log('=== PUT /api/meal-plans START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -262,7 +262,7 @@ export async function PUT(request) {
 // DELETE - Delete meal plan
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

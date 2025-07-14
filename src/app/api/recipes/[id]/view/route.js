@@ -1,15 +1,15 @@
 // file: /src/app/api/recipes/[id]/view/route.js v3 - Enhanced view tracking with user data and rate limiting
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { Recipe } from '@/lib/models';
 
 // POST - Track a recipe view with enhanced analytics
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const { id: recipeId } = await params;
 
         if (!recipeId) {

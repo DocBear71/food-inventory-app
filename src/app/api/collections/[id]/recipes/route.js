@@ -3,15 +3,15 @@
 // DELETE /api/collections/[id]/recipes - Remove recipe from collection
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { RecipeCollection, Recipe } from '@/lib/models'; // FIXED: Correct import
 import mongoose from 'mongoose';
 
 export async function POST(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -115,7 +115,7 @@ export async function POST(request, { params }) {
 
 export async function DELETE(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

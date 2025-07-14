@@ -1,8 +1,8 @@
 // file: /src/app/api/admin/meals/route.js v1 - Curated meals management API for admin meal entry system
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { CuratedMeal, User } from '@/lib/models';
 
@@ -13,7 +13,7 @@ export const revalidate = 0;
 // GET - Fetch curated meals (admin view with all statuses)
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -104,7 +104,7 @@ export async function GET(request) {
 // POST - Create new curated meal
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -226,7 +226,7 @@ export async function POST(request) {
 // PUT - Update curated meal or handle approval/rejection
 export async function PUT(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -333,7 +333,7 @@ export async function PUT(request) {
 // DELETE - Remove curated meal
 export async function DELETE(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

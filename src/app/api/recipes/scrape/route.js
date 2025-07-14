@@ -1,8 +1,8 @@
 // file: /src/app/api/recipes/scrape/route.js - v3 - Enhanced with RecipeParser.js logic
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import {
     parseIngredientLine,
     parseInstructionLine,
@@ -457,7 +457,7 @@ export async function POST(request) {
     try {
         console.log('=== Enhanced Recipe URL Scraping API START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

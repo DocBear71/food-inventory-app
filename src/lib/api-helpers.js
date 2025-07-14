@@ -1,7 +1,7 @@
 // file: /src/lib/api-helpers.js - Simple API wrapper for better error handling
 
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -10,7 +10,7 @@ export async function withAuth(handler) {
     return async (request) => {
         try {
             // Get the session
-            const session = await getServerSession(authOptions);
+            const session = await auth();
 
             if (!session?.user?.id) {
                 return new Response(

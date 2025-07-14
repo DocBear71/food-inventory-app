@@ -1,13 +1,13 @@
 // file: src/app/api/support/contact/route.js v1 - API route for contact support
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import emailService from '@/lib/email';
 
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const body = await request.json();
 
         const {

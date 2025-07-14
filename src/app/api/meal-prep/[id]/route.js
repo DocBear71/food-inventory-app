@@ -1,15 +1,15 @@
 // file: /src/app/api/meal-prep/[id]/route.js v1
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { MealPrepSuggestion } from '@/lib/models';
 
 // GET - Fetch specific meal prep suggestion
 export async function GET(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
 // PUT - Update meal prep suggestion (mark tasks complete, add feedback, etc.)
 export async function PUT(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -105,7 +105,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete meal prep suggestion
 export async function DELETE(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

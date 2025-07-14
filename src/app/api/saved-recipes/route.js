@@ -1,8 +1,8 @@
 // file: /src/app/api/saved-recipes/route.js v8 - FIXED for M0 MongoDB limits with better connection management and error handling
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB, { connectWithRetry } from '@/lib/mongodb'; // Import both versions
 import { User, Recipe } from '@/lib/models';
 
@@ -211,7 +211,7 @@ export async function GET(request) {
     try {
         console.log('🔍 GET /api/saved-recipes - Starting request');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             console.log('❌ GET /api/saved-recipes - No session found');
@@ -460,7 +460,7 @@ export async function POST(request) {
     try {
         console.log('📝 POST /api/saved-recipes - Starting request');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({
@@ -705,7 +705,7 @@ export async function DELETE(request) {
     try {
         console.log('🔍 DELETE /api/saved-recipes - Starting request');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             console.log('❌ DELETE /api/saved-recipes - No session found');

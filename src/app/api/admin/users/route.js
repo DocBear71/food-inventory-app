@@ -2,14 +2,14 @@
 // Admin Users API - List users with pagination, search, and filtering
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
 export async function GET(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         // Check if user is admin
         if (!session?.user?.id) {

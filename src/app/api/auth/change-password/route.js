@@ -1,8 +1,8 @@
 // file: /src/app/api/auth/change-password/route.js
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
@@ -10,7 +10,7 @@ import { User } from '@/lib/models';
 export async function POST(request) {
     try {
         // Check if user is authenticated
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

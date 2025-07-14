@@ -95,7 +95,7 @@ export async function checkUserStatus(userId) {
 // Middleware function for API routes
 export function withUserStatusCheck(handler) {
     return async (request, context) => {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (session?.user?.id) {
             const statusCheck = await checkUserStatus(session.user.id);

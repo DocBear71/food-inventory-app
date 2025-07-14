@@ -1,14 +1,14 @@
 // file: /src/app/api/shopping/saved/unarchive/route.js
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import dbConnect from '@/lib/mongodb';
 import { SavedShoppingList } from '@/lib/models';
 
 export async function PUT(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

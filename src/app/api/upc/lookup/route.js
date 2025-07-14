@@ -1,7 +1,7 @@
 // Enhanced UPC lookup route with USDA FoodData Central backup
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
@@ -340,7 +340,7 @@ const FALLBACK_PRODUCTS = {
 export async function GET(request) {
     try {
         // Authentication and subscription checks (keep existing logic)
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json(

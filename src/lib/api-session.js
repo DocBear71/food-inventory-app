@@ -1,15 +1,15 @@
 // file: /src/lib/api-session.js
 // Fixed API session wrapper
 
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import { NextResponse } from 'next/server';
 
 export async function requireApiSession(request) {
     console.log('🔐 Checking API session...');
 
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user) {
             console.log('❌ No server session found');

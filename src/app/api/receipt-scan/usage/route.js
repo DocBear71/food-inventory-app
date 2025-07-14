@@ -1,8 +1,8 @@
 // file: /src/app/api/receipt-scan/usage/route.js - v5 - Fixed validation issues with User model
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -41,7 +41,7 @@ export async function GET(request) {
     try {
         console.log('GET /api/receipt-scan/usage - Starting...');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             console.log('No session or user ID found');
@@ -172,7 +172,7 @@ export async function POST(request) {
     try {
         console.log('POST /api/receipt-scan/usage - Starting...');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             console.log('No session or user ID found');

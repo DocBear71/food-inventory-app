@@ -1,8 +1,8 @@
 // file: /src/app/api/recipes/[id]/reviews/route.js v3 - FIXED
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { Recipe, User } from '@/lib/models';
 
@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
     try {
         console.log('=== GET /api/recipes/[id]/reviews START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const { id: recipeId } = await params;
 
         console.log('Recipe ID:', recipeId);
@@ -111,7 +111,7 @@ export async function POST(request, { params }) {
     try {
         console.log('=== POST /api/recipes/[id]/reviews START ===');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const recipeId = params.id;
 
         if (!session?.user?.id) {
@@ -255,7 +255,7 @@ export async function POST(request, { params }) {
 // PUT - Update an existing review
 export async function PUT(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const recipeId = params.id;
 
         if (!session?.user?.id) {
@@ -356,7 +356,7 @@ export async function PUT(request, { params }) {
 // DELETE - Remove a review
 export async function DELETE(request, { params }) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         const recipeId = params.id;
 
         if (!session?.user?.id) {

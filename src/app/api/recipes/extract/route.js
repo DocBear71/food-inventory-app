@@ -1,12 +1,11 @@
 // file: /src/app/api/recipes/extract/route.js - v9 UPDATED FOR NEW DELIMITED FORMAT
 
 import {NextResponse} from 'next/server';
-import {getServerSession} from 'next-auth/next';
-import {authOptions} from '@/lib/auth';
+import { auth } from '@/lib/auth';
 
 export async function POST(request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
 
         if (!session?.user?.id) {
             return NextResponse.json({error: 'Unauthorized'}, {status: 401});

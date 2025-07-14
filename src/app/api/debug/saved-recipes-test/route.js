@@ -1,8 +1,8 @@
 // file: /src/app/api/debug/saved-recipes-test/route.js - Debug endpoint to test saved recipes API
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -10,7 +10,7 @@ export async function GET(request) {
     try {
         console.log('🧪 DEBUG: Testing saved recipes endpoint...');
 
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         console.log('✅ DEBUG: Session check:', !!session?.user?.id);
 
         if (!session?.user?.id) {
