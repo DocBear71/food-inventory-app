@@ -1,7 +1,11 @@
-import fs from "fs";
-import path from "path";
-import {execSync} from "child_process";
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log('🚀 Starting mobile build...');
 
@@ -14,7 +18,6 @@ const dynamicRoutes = [
     path.join(projectRoot, 'src', 'app', 'recipes', '[id]'),
     path.join(projectRoot, 'src', 'app', 'collections', '[id]'),
     path.join(projectRoot, 'src', 'app', 'admin', 'users', '[id]'),
-    // Add any other dynamic routes you might have
 ];
 const dynamicBackups = [];
 
@@ -73,10 +76,10 @@ async function main() {
 
         // Copy mobile config
         console.log('⚙️ Using mobile configuration...');
-        if (fs.existsSync('next.config.js')) {
-            fs.copyFileSync('next.config.js', 'next.config.backup.js');
+        if (fs.existsSync('next.config.ts')) {
+            fs.copyFileSync('next.config.ts', 'next.config.backup.js');
         }
-        fs.copyFileSync('next.config.mobile.js', 'next.config.js');
+        fs.copyFileSync('next.config.mobile.js', 'next.config.ts');
 
         // Run the build
         console.log('🔨 Building mobile app...');
@@ -111,7 +114,7 @@ async function main() {
 
             // Restore original config
             if (fs.existsSync('next.config.backup.js')) {
-                fs.copyFileSync('next.config.backup.js', 'next.config.js');
+                fs.copyFileSync('next.config.backup.js', 'next.config.ts');
                 fs.unlinkSync('next.config.backup.js');
                 console.log('✅ Config restored');
             }

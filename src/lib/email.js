@@ -1960,6 +1960,10 @@ Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
         return { html, text };
     }
 
+    // Updated getPasswordResetTemplate with better HTML structure and fallback link
+
+    // Updated getPasswordResetTemplate with better HTML structure and fallback link
+
     static getPasswordResetTemplate(resetUrl, userEmail, expiryMinutes = 10) {
         const currentYear = new Date().getFullYear();
 
@@ -2030,18 +2034,44 @@ Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
             margin: 30px auto;
             padding: 16px 32px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
+            color: #ffffff !important;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
             font-size: 16px;
             text-align: center;
             transition: all 0.2s;
+            border: none;
+            cursor: pointer;
         }
         
         .reset-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .reset-button:visited {
+            color: #ffffff !important;
+        }
+        
+        .backup-link {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .backup-link p {
+            margin: 0 0 10px 0;
+        }
+        
+        .backup-link a {
+            color: #667eea;
+            word-break: break-all;
         }
         
         .footer {
@@ -2062,6 +2092,45 @@ Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
             color: #a0aec0;
             margin-top: 20px;
         }
+        
+        /* Ensure buttons work across email clients */
+        .reset-button-table {
+            width: 100%;
+            border: 0;
+            cellpadding: 0;
+            cellspacing: 0;
+        }
+        
+        .reset-button-table td {
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        .reset-button-cell {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            padding: 16px 32px;
+            display: inline-block;
+        }
+        
+        .reset-button-cell a {
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .reset-button {
+                width: calc(100% - 40px) !important;
+                padding: 16px 20px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2080,7 +2149,22 @@ Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
                 <p>If you requested this password reset, click the button below to create a new password:</p>
             </div>
             
-            <a href="${resetUrl}" class="reset-button">Reset My Password</a>
+            <!-- Primary button using table structure for better email client compatibility -->
+            <table class="reset-button-table">
+                <tr>
+                    <td>
+                        <div class="reset-button-cell">
+                            <a href="${resetUrl}" target="_blank" rel="noopener noreferrer">Reset My Password</a>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Fallback link for email clients that don't support the button -->
+            <div class="backup-link">
+                <p><strong>Button not working?</strong> Copy and paste this link into your browser:</p>
+                <p><a href="${resetUrl}" target="_blank" rel="noopener noreferrer">${resetUrl}</a></p>
+            </div>
             
             <div class="message">
                 <p>This link will expire in <strong>${expiryMinutes} minutes</strong> and can only be used once.</p>
@@ -2103,16 +2187,24 @@ Hello,
 
 We received a request to reset the password for your account associated with ${userEmail}.
 
-If you requested this password reset, click the link below to create a new password:
+If you requested this password reset, CLICK OR COPY the link below to create a new password:
 
+RESET PASSWORD LINK:
 ${resetUrl}
+
+INSTRUCTIONS:
+1. Click the link above if it's clickable in your email
+2. OR copy and paste the entire link into your web browser
+3. Follow the instructions on the page to set your new password
 
 This link will expire in ${expiryMinutes} minutes and can only be used once.
 
 If you didn't request a password reset, you can safely ignore this email.
 
+Need help? Contact support at support@docbearscomfort.kitchen
+
 © ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
-        `;
+    `;
 
         return { html, text };
     }
