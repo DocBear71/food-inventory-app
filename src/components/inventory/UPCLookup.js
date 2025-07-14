@@ -293,24 +293,54 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setShowAutocomplete(false);
 
         try {
-            // FIXED: Use absolute URL with proper encoding
-            const response = apiGet(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=${page}&page_size=15`);
+            console.log('🔍 Starting text search for:', query);
+
+            // FIXED: Use proper fetch with correct URL construction
+            const params = new URLSearchParams({
+                query: query.trim(),
+                page: page.toString(),
+                page_size: '15'
+            });
+
+            const response = await fetch(`/api/upc/search?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
 
             console.log('🔍 Search response status:', response.status);
 
+            // FIXED: Check response status before parsing
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Search API error:', errorText);
-                throw new Error(`Search API returned ${response.status}: ${errorText}`);
+                console.error('❌ Search API error:', response.status, errorText);
+                throw new Error(`Search API returned ${response.status}: ${response.statusText}`);
             }
 
-            const data = await response.json();
-            console.log('🔍 Search response data:', data);
+            // FIXED: Proper JSON parsing with error handling
+            let data;
+            try {
+                const responseText = await response.text();
+                console.log('📄 Raw response length:', responseText.length);
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON parse error:', parseError);
+                throw new Error('Invalid response format from search API');
+            }
+
+            console.log('🔍 Search response data:', {
+                success: data.success,
+                resultsCount: data.results?.length || 0,
+                totalResults: data.pagination?.totalResults || 0
+            });
 
             if (data.success) {
                 const results = data.results || [];
                 setSearchResults(results);
-                // Handle missing pagination data gracefully
                 setTotalPages(data.pagination?.totalPages || Math.ceil(results.length / 15) || 1);
 
                 console.log(`✅ Search successful: ${results.length} results found`);
@@ -365,6 +395,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 alert('❌ Search is taking longer than usual. Please try again.');
             } else if (error.message.includes('404')) {
                 alert('❌ Search service not available. Please try again later.');
+            } else if (error.message.includes('Invalid response format')) {
+                alert('❌ Search service returned invalid data. Please try again.');
             } else {
                 alert(`❌ Search failed: ${error.message}. Please try again.`);
             }
@@ -558,6 +590,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
+    useEffect(() => {
+        debugAPIEndpoint();
+    }, []);
+
 // Handle clicks outside autocomplete to close it
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -620,14 +656,43 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         try {
-            // FIXED: Use absolute URL and proper encoding
-            const response = apiGet(`/api/upc/search?query=${encodeURIComponent(query.trim())}&page=1&page_size=5`);
+            console.log('🔍 Starting autocomplete for:', query);
+
+            // FIXED: Use proper fetch with error handling
+            const params = new URLSearchParams({
+                query: query.trim(),
+                page: '1',
+                page_size: '5'
+            });
+
+            const response = await fetch(`/api/upc/search?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
 
             console.log('🔍 Autocomplete response status:', response.status);
 
             if (response.ok) {
-                const data = await response.json();
-                console.log('🔍 Autocomplete response:', data);
+                // FIXED: Proper response handling
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.log('❌ Autocomplete JSON parse error:', parseError);
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                    return;
+                }
+
+                console.log('🔍 Autocomplete response:', {
+                    success: data.success,
+                    resultsCount: data.results?.length || 0
+                });
 
                 if (data.success && data.results) {
                     const suggestions = data.results.slice(0, 3).map(product => ({
@@ -657,6 +722,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             setShowAutocomplete(false);
         }
     };
+
+    const debugAPIEndpoint = () => {
+        console.log('🔍 UPC Search API Debug:', {
+            currentURL: window.location.href,
+            apiEndpoint: '/api/upc/search',
+            fullURL: `${window.location.origin}/api/upc/search`,
+            userAgent: navigator.userAgent.substring(0, 100)
+        });
+    };
+
 
 // Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {

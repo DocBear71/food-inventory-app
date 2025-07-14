@@ -1525,8 +1525,7 @@ function InventoryContent() {
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         >
                                             <option value="">Select category</option>
-                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients
-                                            </option>
+                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
                                             <option value="Beans">Beans</option>
                                             <option value="Beverages">Beverages</option>
                                             <option value="Bouillon">Bouillon</option>
@@ -1547,14 +1546,15 @@ function InventoryContent() {
                                             <option value="Fresh Spices">Fresh Spices</option>
                                             <option value="Fresh Vegetables">Fresh Vegetables</option>
                                             <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood
-                                            </option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
                                             <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
                                             <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
                                             <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
                                             <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
                                             <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
                                             <option value="Frozen Fruit">Frozen Fruit</option>
+                                            <option value="Frozen Meals">Frozen Meals</option>
+                                            <option value="Frozen Other Items">Frozen Other Items</option>
                                             <option value="Frozen Vegetables">Frozen Vegetables</option>
                                             <option value="Grains">Grains</option>
                                             <option value="Other">Other</option>
