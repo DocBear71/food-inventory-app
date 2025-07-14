@@ -392,6 +392,7 @@ export default function ImportRecipePage() {
                                         style={{minHeight: '48px'}}
                                         disabled={isImporting}
                                     />
+                                    <br/>
                                     <TouchEnhancedButton
                                         onClick={handleUrlImport}
                                         disabled={!urlInput.trim() || isImporting}

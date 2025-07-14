@@ -141,21 +141,24 @@ export default function EnhancedRecipeForm({
         if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
             console.log(`🎯 ${shareData.platform} video shared:`, shareData.url);
 
+            // ADDED: Set the platform when video is shared
+            const platform = shareData.platform || detectPlatformFromUrl(shareData.url);
+            setVideoImportPlatform(platform);
+
             // For import mode, continue with current behavior
             if (isImportMode) {
                 setVideoUrl(shareData.url);
                 setShowVideoImport(true);
-                setVideoImportPlatform(shareData.platform || 'video');
             } else {
                 // For regular add page, redirect to import page with platform info
                 setTimeout(() => {
-                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${shareData.platform}`);
+                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${platform}`);
                 }, 0);
             }
         }
     });
 
-    // REPLACE with this single useEffect for auto-import
+    // 6. UPDATE: Auto-import useEffect to set platform
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = urlParams.get('videoUrl');
@@ -170,7 +173,7 @@ export default function EnhancedRecipeForm({
 
             // Set the video URL in the input
             setVideoUrl(decodedVideoUrl);
-            setVideoImportPlatform(platform);
+            setVideoImportPlatform(platform);  // CHANGED: Set platform from URL params
 
             // Show video import section
             setShowVideoImport(true);
@@ -238,47 +241,6 @@ export default function EnhancedRecipeForm({
         carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
         fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
         fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
-    };
-
-
-    const ShareSuccessIndicator = ({shareData}) => {
-        if (!shareData) return null;
-
-        const platformNames = {
-            facebook_video: 'Facebook',
-            tiktok_video: 'TikTok',
-            instagram_video: 'Instagram'
-        };
-
-        const platformIcons = {
-            facebook_video: '👥',
-            tiktok_video: '🎵',
-            instagram_video: '📸'
-        };
-
-        return (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center">
-                    <div className="text-green-600 mr-3">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd"
-                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                  clipRule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-medium text-green-800">
-                            🎯 Video Shared Successfully!
-                        </h3>
-                        <p className="text-sm text-green-700 mt-1">
-                            Received {platformIcons[shareData.type]} {platformNames[shareData.type]} video
-                            from {shareData.source === 'mobile_share' ? 'mobile share' : 'web share'}.
-                            Ready to extract recipe!
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     // Handle parsed recipe data
@@ -424,6 +386,9 @@ export default function EnhancedRecipeForm({
             return;
         }
 
+        const detectedPlatform = detectPlatformFromUrl(url);
+        setVideoImportPlatform(detectedPlatform);
+
         const videoPatterns = [
             /tiktok\.com\/@[^/]+\/video\//,
             /tiktok\.com\/t\//,
@@ -446,11 +411,11 @@ export default function EnhancedRecipeForm({
 
         setIsVideoImporting(true);
 
-        // Set initial progress
+        // Set initial progress with detected platform
         setVideoImportProgress({
             stage: 'connecting',
-            platform: 'facebook',
-            message: '🔗 Connecting to Facebook...'
+            platform: detectedPlatform,  // CHANGED: Use detected platform
+            message: `🔗 Connecting to ${detectedPlatform}...`  // CHANGED: Dynamic message
         });
 
 
@@ -458,8 +423,8 @@ export default function EnhancedRecipeForm({
             // Update progress during API call
             setVideoImportProgress({
                 stage: 'downloading',
-                platform: 'facebook',
-                message: '📥 Downloading video content...'
+                platform: detectedPlatform,  // CHANGED: Use detected platform
+                message: `📥 Downloading ${detectedPlatform} video content...`  // CHANGED: Dynamic message
             });
 
             const response = await apiPost('/api/recipes/video-extract', {
@@ -470,18 +435,17 @@ export default function EnhancedRecipeForm({
             // Update progress when API completes
             setVideoImportProgress({
                 stage: 'processing',
-                platform: 'facebook',
-                message: '🤖 AI analyzing video content...'
+                platform: detectedPlatform,  // CHANGED: Use detected platform
+                message: `🤖 AI analyzing ${detectedPlatform} video content...`  // CHANGED: Dynamic message
             });
 
             const data = await response.json();
 
             if (data.success) {
-
                 // Set completion progress
                 setVideoImportProgress({
                     stage: 'complete',
-                    platform: 'facebook',
+                    platform: detectedPlatform,  // CHANGED: Use detected platform
                     message: '✅ Recipe extraction complete!'
                 });
 
@@ -1005,12 +969,11 @@ export default function EnhancedRecipeForm({
             <div className="space-y-6">
                 <VideoImportLoadingModal
                     isVisible={isVideoImporting}
-                    platform="facebook"  // Static since you know it's Facebook
-                    stage="processing"   // Static stage
-                    message="Processing Facebook video..."  // Static message
+                    platform={videoImportPlatform}
+                    stage="processing"
+                    message={`Processing ${videoImportPlatform} video...`}
                     videoUrl={videoUrl}
-                    onComplete={() => {
-                    }}
+                    onComplete={() => {}}
                     style={{zIndex: 9999}}
                 />
 
