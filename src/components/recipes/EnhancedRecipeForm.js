@@ -2,7 +2,7 @@
 // file: /src/components/recipes/EnhancedRecipeForm.js v5 - MOBILE RESPONSIVE LAYOUT
 
 
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect, useRef, useCallback} from 'react';
 import RecipeParser from './RecipeParser';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from '@/lib/api-config';
@@ -738,10 +738,28 @@ export default function EnhancedRecipeForm({
     const updateInstruction = (index, value) => {
         setRecipe(prev => ({
             ...prev,
-            instructions: prev.instructions.map((inst, i) =>
-                i === index ? {...inst, instruction: value} : inst
-            )
+            instructions: prev.instructions.map((inst, i) => {
+                if (i === index) {
+                    // Always maintain the same object structure
+                    if (typeof inst === 'object') {
+                        return { ...inst, instruction: value };
+                    } else {
+                        return { step: index + 1, instruction: value };
+                    }
+                }
+                return inst;
+            })
         }));
+    };
+
+    const getInstructionText = (instruction) => {
+        if (typeof instruction === 'string') {
+            return instruction;
+        }
+        if (typeof instruction === 'object') {
+            return instruction.instruction || instruction.text || '';
+        }
+        return '';
     };
 
     const removeInstruction = (index) => {
@@ -838,21 +856,24 @@ export default function EnhancedRecipeForm({
     };
 
     // Auto-expanding textarea component
-    const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
+    const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
         const [textareaRef, adjustHeight] = useAutoExpandingTextarea();
+
+        // FIXED: Prevent unnecessary re-renders
+        const handleChange = useCallback((e) => {
+            onChange(e);
+            setTimeout(adjustHeight, 0);
+        }, [onChange, adjustHeight]);
 
         return (
             <textarea
                 ref={textareaRef}
-                value={value}
-                onChange={(e) => {
-                    onChange(e);
-                    setTimeout(adjustHeight, 0);
-                }}
+                value={value || ''} // Ensure always a string
+                onChange={handleChange}
                 onInput={adjustHeight}
                 placeholder={placeholder}
                 className={`${className} resize-none overflow-hidden`}
-                style={{minHeight: '48px'}}
+                style={{ minHeight: '48px' }}
                 {...props}
             />
         );
@@ -1408,41 +1429,45 @@ export default function EnhancedRecipeForm({
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Instructions - MOBILE RESPONSIVE */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Instructions ({recipe.instructions.length})
                     </h3>
 
                     <div className="space-y-4">
-                        {recipe.instructions.map((instruction, index) => (
-                            <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                {/* Top row: Step number and Delete button */}
-                                <div className="flex justify-between items-center mb-3">
-                                    <div
-                                        className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
-                                        {instruction.step}
-                                    </div>
-                                    <TouchEnhancedButton
-                                        type="button"
-                                        onClick={() => removeInstruction(index)}
-                                        className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                        disabled={recipe.instructions.length === 1}
-                                    >
-                                        ✕
-                                    </TouchEnhancedButton>
-                                </div>
+                        {recipe.instructions.map((instruction, index) => {
+                            // Get consistent values for rendering
+                            const instructionText = getInstructionText(instruction);
+                            const stepNumber = typeof instruction === 'object' ? instruction.step : index + 1;
 
-                                {/* Textarea - full width */}
-                                <AutoExpandingTextarea
-                                    value={instruction.instruction}
-                                    onChange={(e) => updateInstruction(index, e.target.value)}
-                                    placeholder="Describe this step..."
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    required
-                                />
-                            </div>
-                        ))}
+                            return (
+                                <div key={`instruction-${index}-${stepNumber}`} className="border border-gray-200 rounded-lg p-4">
+                                    {/* Top row: Step number and Delete button */}
+                                    <div className="flex justify-between items-center mb-3">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
+                                            {stepNumber}
+                                        </div>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => removeInstruction(index)}
+                                            className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                            disabled={recipe.instructions.length === 1}
+                                        >
+                                            ✕
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* FIXED: Textarea with consistent value handling */}
+                                    <AutoExpandingTextarea
+                                        value={instructionText}
+                                        onChange={(e) => updateInstruction(index, e.target.value)}
+                                        placeholder="Describe this step..."
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        required
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <TouchEnhancedButton

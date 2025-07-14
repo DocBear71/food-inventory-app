@@ -120,21 +120,17 @@ export default function EditRecipePage() {
 
             if (data.success) {
                 const recipeData = data.recipe;
-                setRecipe(recipeData); // Store full recipe for nutrition button
+                setRecipe(recipeData);
 
-                // FIXED: Handle both string and object instruction formats
+                // FIXED: Simplified instruction processing - keep it as strings for editing
                 const processedInstructions = recipeData.instructions && recipeData.instructions.length > 0
                     ? recipeData.instructions.map(instruction => {
-                        // If it's a string, return as-is
+                        // Always convert to string for editing, regardless of original format
                         if (typeof instruction === 'string') {
                             return instruction;
                         }
-                        // If it's an object (video format), extract the text
-                        if (typeof instruction === 'object' && instruction.text) {
-                            return instruction.text;
-                        }
-                        // Fallback for any other format
-                        return String(instruction);
+                        // If it's an object, extract the text content
+                        return instruction.text || instruction.instruction || String(instruction);
                     })
                     : [''];
 
@@ -147,10 +143,9 @@ export default function EditRecipePage() {
                             amount: ing.amount || '',
                             unit: ing.unit || '',
                             optional: ing.optional || false
-                            // Note: We don't preserve video timestamps in edit mode
                         }))
                         : [{ name: '', amount: '', unit: '', optional: false }],
-                    instructions: processedInstructions,
+                    instructions: processedInstructions, // Use simplified strings
                     prepTime: recipeData.prepTime ? recipeData.prepTime.toString() : '',
                     cookTime: recipeData.cookTime ? recipeData.cookTime.toString() : '',
                     servings: recipeData.servings ? recipeData.servings.toString() : '',
@@ -171,6 +166,7 @@ export default function EditRecipePage() {
             setFetchLoading(false);
         }
     };
+
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -217,7 +213,7 @@ export default function EditRecipePage() {
         setFormData(prev => ({
             ...prev,
             instructions: prev.instructions.map((instruction, i) =>
-                i === index ? value : instruction
+                i === index ? value : instruction  // Direct string assignment
             )
         }));
     };
@@ -251,27 +247,23 @@ export default function EditRecipePage() {
 
             // Filter out empty ingredients and instructions
             const ingredients = formData.ingredients.filter(ing => ing.name.trim());
+
+            // FIXED: Keep instructions as strings for compatibility
             const instructions = formData.instructions
                 .filter(inst => inst.trim())
-                .map((inst, index) => ({
-                    text: inst,
-                    step: index + 1,
-                    videoTimestamp: null,
-                    videoLink: null
-                }));
+                .map((inst, index) => inst.trim()); // Keep as strings, not objects
 
             const recipeData = {
                 ...formData,
                 tags,
                 ingredients,
-                instructions,
+                instructions, // Send as string array
                 prepTime: formData.prepTime ? parseInt(formData.prepTime) : null,
                 cookTime: formData.cookTime ? parseInt(formData.cookTime) : null,
                 servings: formData.servings ? parseInt(formData.servings) : null
             };
 
             const response = await apiPut(`/api/recipes/${recipeId}`, recipeData);
-
             const data = await response.json();
 
             if (data.success) {
@@ -596,12 +588,12 @@ export default function EditRecipePage() {
 
                         <div className="space-y-4">
                             {formData.instructions.map((instruction, index) => (
-                                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                <div key={`instruction-${index}`} className="border border-gray-200 rounded-lg p-4">
                                     {/* Top row: Step number and Delete button */}
                                     <div className="flex justify-between items-center mb-3">
-                                        <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                                            {index + 1}
-                                        </span>
+            <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                {index + 1}
+            </span>
                                         {formData.instructions.length > 1 && (
                                             <TouchEnhancedButton
                                                 type="button"
@@ -614,10 +606,11 @@ export default function EditRecipePage() {
                                         )}
                                     </div>
 
-                                    {/* Textarea - full width */}
+                                    {/* FIXED: Textarea with stable key and direct value binding */}
                                     <AutoExpandingTextarea
-                                        value={instruction}
-                                        onChange={(e) => updateInstruction(index, e.target.value)}
+                                        key={`textarea-${index}`} // Stable key
+                                        value={instruction} // Direct string value
+                                        onChange={(e) => updateInstruction(index, e.target.value)} // Direct value update
                                         placeholder={`Step ${index + 1} instructions...`}
                                         className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
                                         required
