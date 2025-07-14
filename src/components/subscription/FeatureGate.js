@@ -17,6 +17,20 @@ export default function FeatureGate({
     const featureGate = useFeatureGate(feature, currentCount);
     const { promptUpgrade } = useUpgradePrompt();
 
+    // FIXED: Add explicit check for loading state
+    if (featureGate.tier === 'loading' || featureGate.hasAccess === null) {
+        return (
+            <div className="animate-pulse bg-gray-100 rounded p-4">
+                <div className="text-sm text-gray-500">Loading feature access...</div>
+            </div>
+        );
+    }
+
+    // FIXED: Admin and Platinum users should always have access
+    if (featureGate.isAdmin || featureGate.tier === 'platinum' || featureGate.tier === 'admin') {
+        return children;
+    }
+
     // If user has access and capacity, render children
     if (featureGate.canUse) {
         return children;

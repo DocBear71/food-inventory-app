@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { UserInventory, User } from '@/lib/models';
-import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
+import { getSubscriptionTier, checkUsageLimit, getRequiredTier, getUpgradeMessage, FEATURE_GATES } from '@/lib/subscription-config';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -104,11 +105,64 @@ export async function POST(request) {
 
         const currentItemCount = inventory.items.length;
 
-        // Check subscription limits
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
+        // FIXED: Use proper subscription object instead of simplified one
+        const userSubscription = user.subscription || { tier: 'free', status: 'free' };
+        const effectiveTier = getSubscriptionTier(userSubscription);
+
+        console.log('🔍 EMERGENCY DEBUG - Inventory POST:', {
+            userId: session.user.id,
+            email: session.user.email,
+            userSubscription,
+            effectiveTier,
+            currentItems: currentItemCount,
+            isAdmin: user.isAdmin,
+            fullUserSubscription: user.subscription
+        });
+
+        // EMERGENCY BYPASS for Platinum/Admin users
+        if (effectiveTier === 'platinum' || effectiveTier === 'admin' || user.isAdmin) {
+            console.log('✅ EMERGENCY PLATINUM/ADMIN BYPASS - Unlimited inventory access');
+            // Skip ALL limit checking - continue to item creation
+        } else {
+            // Only check limits for Free/Gold users
+            const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, currentItemCount);
+
+            console.log('🔍 Capacity check result:', {
+                hasCapacity,
+                tier: effectiveTier,
+                currentItems: currentItemCount,
+                feature: FEATURE_GATES.INVENTORY_LIMIT
+            });
+
+            if (!hasCapacity) {
+                const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
+                let errorMessage;
+                if (effectiveTier === 'free') {
+                    errorMessage = `You've reached the free plan limit of 50 inventory items.`;
+                } else if (effectiveTier === 'gold') {
+                    errorMessage = `You've reached the Gold plan limit of 250 inventory items.`;
+                } else {
+                    errorMessage = getUpgradeMessage(FEATURE_GATES.INVENTORY_LIMIT, requiredTier);
+                }
+
+                console.log('❌ Inventory limit exceeded:', {
+                    tier: effectiveTier,
+                    currentCount: currentItemCount,
+                    errorMessage
+                });
+
+                return NextResponse.json({
+                    error: errorMessage,
+                    code: 'INVENTORY_LIMIT_EXCEEDED',
+                    feature: FEATURE_GATES.INVENTORY_LIMIT,
+                    currentCount: currentItemCount,
+                    currentTier: effectiveTier,
+                    requiredTier: requiredTier,
+                    upgradeUrl: `/pricing?source=inventory-limit&feature=inventory&required=${requiredTier}`
+                }, { status: 403 });
+            }
+        }
+
 
         // DUPLICATE DETECTION LOGIC
         if (mergeDuplicates) {

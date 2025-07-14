@@ -321,37 +321,47 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // FIXED: Use session data directly if available (for mobile sessions)
-        if (session?.user?.subscriptionTier && session?.user?.effectiveTier) {
-            console.log('📋 Using session data for subscription - SKIPPING API CALL:', {
-                tier: session.user.effectiveTier,
-                isAdmin: session.user.isAdmin
-            });
+        // FIXED: Priority system for subscription data
 
+        // 1. Admin users - highest priority
+        if (session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') {
+            console.log('📋 Admin user - setting admin subscription');
             setSubscriptionData({
-                tier: session.user.effectiveTier,
-                isAdmin: session.user.isAdmin,
+                tier: 'admin',
+                isAdmin: true,
                 isActive: true,
                 isTrialActive: false,
                 usage: session.user.usage || {},
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
-            setError(null);
-            setRetryCount(0);
-            setIsFetching(false);
             return;
         }
 
-        // FIXED: Also check for basic subscription data in session
-        if (session?.user?.isAdmin || session?.user?.subscriptionStatus) {
-            console.log('📋 Using basic session data for subscription - SKIPPING API CALL:', {
-                isAdmin: session.user.isAdmin,
-                subscriptionStatus: session.user.subscriptionStatus
-            });
-
+        // 2. Session has subscription object - use it directly (for mobile/enhanced sessions)
+        if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
+            console.log('📋 Using session subscription object:', session.user.subscription);
             setSubscriptionData({
-                tier: session.user.isAdmin ? 'admin' : (session.user.subscriptionTier || 'free'),
+                tier: session.user.subscription.tier,
+                isAdmin: session.user.isAdmin || false,
+                isActive: session.user.subscription.status === 'active',
+                isTrialActive: session.user.subscription.status === 'trial',
+                usage: session.user.usage || {},
+                subscription: session.user.subscription,
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 3. Session has individual subscription fields
+        if (session?.user?.subscriptionTier || session?.user?.effectiveTier) {
+            console.log('📋 Using session tier fields:', {
+                subscriptionTier: session.user.subscriptionTier,
+                effectiveTier: session.user.effectiveTier
+            });
+            setSubscriptionData({
+                tier: session.user.effectiveTier || session.user.subscriptionTier,
                 isAdmin: session.user.isAdmin || false,
                 isActive: true,
                 isTrialActive: false,
@@ -359,15 +369,12 @@ export function SubscriptionProvider({ children }) {
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
-            setError(null);
-            setRetryCount(0);
-            setIsFetching(false);
             return;
         }
 
-        // Only fetch from API if we don't have ANY subscription data in session
+        // 4. Only fetch from API if we have no subscription data at all
         if (session?.user?.id) {
-            console.log('📊 Session found but no subscription data, fetching from API...');
+            console.log('📊 No subscription data in session, fetching from API...');
             fetchSubscriptionData(true);
         }
 

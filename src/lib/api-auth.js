@@ -1,7 +1,6 @@
 // file: /src/lib/api-auth.js - Enhanced API authentication for mobile compatibility
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
 import { User } from '@/lib/models';
 import connectDB from '@/lib/mongodb';
 

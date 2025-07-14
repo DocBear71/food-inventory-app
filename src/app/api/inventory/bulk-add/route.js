@@ -5,7 +5,8 @@ import { auth } from '@/lib/auth';
 // authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { UserInventory, User } from '@/lib/models';
-import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
+import { getSubscriptionTier, checkUsageLimit, getRequiredTier, getUpgradeMessage, FEATURE_GATES } from '@/lib/subscription-config';
+
 
 // POST - Bulk add items to inventory (with subscription limits and OCR engine tracking)
 export async function POST(request) {
@@ -57,33 +58,60 @@ export async function POST(request) {
         const requestedItemCount = items.length;
         const totalAfterAdd = currentItemCount + requestedItemCount;
 
-        // Check subscription limits
-        const userSubscription = {
-            tier: user.getEffectiveTier(),
-            status: user.subscription?.status || 'free'
-        };
+        // OLD CODE ENDS HERE - REPLACE WITH:
 
-        // Check if adding these items would exceed the limit
-        const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.ADD_INVENTORY_ITEM, totalAfterAdd - 1);
+        // EMERGENCY FIX: Use proper subscription object and feature gate
+        const userSubscription = user.subscription || { tier: 'free', status: 'free' };
+        const effectiveTier = getSubscriptionTier(userSubscription);
 
-        if (!hasCapacity) {
-            const requiredTier = getRequiredTier(FEATURE_GATES.ADD_INVENTORY_ITEM);
-            const maxItems = userSubscription.tier === 'free' ? 50 :
-                userSubscription.tier === 'gold' ? 250 : 'unlimited';
+        console.log('🔍 EMERGENCY DEBUG - Bulk-add POST:', {
+            userId: session.user.id,
+            email: session.user.email,
+            userSubscription,
+            effectiveTier,
+            currentItems: currentItemCount,
+            requestedItems: requestedItemCount,
+            isAdmin: user.isAdmin,
+            source,
+            ocrEngine
+        });
 
-            console.log(`❌ Bulk add rejected: ${userSubscription.tier} tier limit exceeded. Current: ${currentItemCount}, Requested: ${requestedItemCount}, Max: ${maxItems}`);
+        // EMERGENCY BYPASS for Platinum/Admin users
+        if (effectiveTier === 'platinum' || effectiveTier === 'admin' || user.isAdmin) {
+            console.log('✅ EMERGENCY PLATINUM/ADMIN BYPASS - Unlimited bulk-add access');
+            // Skip ALL limit checking - continue to item validation
+        } else {
+            // Use INVENTORY_LIMIT feature gate (not ADD_INVENTORY_ITEM which doesn't exist)
+            const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, totalAfterAdd - 1);
 
-            return NextResponse.json({
-                error: `Adding ${requestedItemCount} items would exceed your limit. You have ${currentItemCount} items and can add ${maxItems === 'unlimited' ? 'unlimited' : maxItems - currentItemCount} more.`,
-                code: 'USAGE_LIMIT_EXCEEDED',
-                feature: FEATURE_GATES.ADD_INVENTORY_ITEM,
-                currentCount: currentItemCount,
-                requestedCount: requestedItemCount,
-                maxItems: maxItems,
-                currentTier: userSubscription.tier,
-                requiredTier: requiredTier,
-                upgradeUrl: `/pricing?source=inventory-bulk-limit&feature=${FEATURE_GATES.ADD_INVENTORY_ITEM}&required=${requiredTier}`
-            }, { status: 403 });
+            console.log('🔍 Bulk-add capacity check:', {
+                hasCapacity,
+                tier: effectiveTier,
+                currentItems: currentItemCount,
+                requestedItems: requestedItemCount,
+                totalAfterAdd,
+                feature: FEATURE_GATES.INVENTORY_LIMIT
+            });
+
+            if (!hasCapacity) {
+                const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
+                const maxItems = effectiveTier === 'free' ? 50 :
+                    effectiveTier === 'gold' ? 250 : 'unlimited';
+
+                console.log(`❌ Bulk add rejected: ${effectiveTier} tier limit exceeded. Current: ${currentItemCount}, Requested: ${requestedItemCount}, Max: ${maxItems}`);
+
+                return NextResponse.json({
+                    error: `Adding ${requestedItemCount} items would exceed your limit. You have ${currentItemCount} items and can add ${maxItems === 'unlimited' ? 'unlimited' : maxItems - currentItemCount} more.`,
+                    code: 'USAGE_LIMIT_EXCEEDED',
+                    feature: FEATURE_GATES.INVENTORY_LIMIT,
+                    currentCount: currentItemCount,
+                    requestedCount: requestedItemCount,
+                    maxItems: maxItems,
+                    currentTier: effectiveTier,
+                    requiredTier: requiredTier,
+                    upgradeUrl: `/pricing?source=inventory-bulk-limit&feature=inventory&required=${requiredTier}`
+                }, { status: 403 });
+            }
         }
 
         // Validate each item

@@ -22,7 +22,7 @@ export const FEATURE_GATES = {
 
     // Premium features
     COMMON_ITEMS_WIZARD: 'common_items_wizard',
-    CONSUMPTION_HISTORY: 'CONSUMPTION_HISTORY',
+    CONSUMPTION_HISTORY: 'consumption_history', // FIXED: lowercase
     CREATE_MEAL_PLAN: 'create_meal_plan',
     EMAIL_SHARING: 'email_sharing',
     EMAIL_NOTIFICATIONS: 'email_notifications',
