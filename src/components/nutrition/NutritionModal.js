@@ -108,38 +108,39 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-            <div className="bg-white rounded-lg max-w-md w-full max-h-[95vh] overflow-hidden mx-auto">
+            <div className="bg-white rounded-lg max-w-md w-full max-h-[95vh] overflow-hidden mx-auto relative">
                 {/* Header */}
-                <div className="bg-green-50 p-4 border-b">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-bold text-sm">N</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-bold text-gray-900 text-lg truncate">Nutrition</h3>
-                                <p className="text-sm text-gray-600 truncate">{recipeTitle}</p>
-                                <button className="text-green-600 text-sm flex items-center gap-1 mt-1">
-                                    more info <Info size={12} />
-                                </button>
-                            </div>
+                <div className="bg-green-50 p-4 border-b relative">
+                    {/* FIXED: Close button with better positioning and visibility */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 z-10 p-2 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm border border-gray-200"
+                        aria-label="Close nutrition modal"
+                    >
+                        <X size={18} className="text-gray-600" />
+                    </button>
+
+                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-12">
+                        <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm">N</span>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-1 hover:bg-gray-200 rounded flex-shrink-0 ml-2"
-                        >
-                            <X size={20} className="text-gray-600" />
-                        </button>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-gray-900 text-lg truncate">Nutrition</h3>
+                            <p className="text-sm text-gray-600 truncate">{recipeTitle}</p>
+                            <button className="text-green-600 text-sm flex items-center gap-1 mt-1">
+                                more info <Info size={12} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Enhanced Nutritional Grade Display */}
                     <div className="mt-4">
                         <div className="flex justify-center items-center gap-1 mb-3">
                             <div className="flex items-end gap-1">
-                                {['A', 'B', 'C', 'D', 'E'].map((grade) => {
+                                {['A', 'B', 'C', 'D', 'F'].map((grade) => {
                                     const isActive = grade === gradeInfo.grade;
-                                    const gradeIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(grade);
-                                    const activeIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(gradeInfo.grade);
+                                    const gradeIndex = ['A', 'B', 'C', 'D', 'F'].indexOf(grade);
+                                    const activeIndex = ['A', 'B', 'C', 'D', 'F'].indexOf(gradeInfo.grade);
                                     const isPassed = gradeIndex <= activeIndex;
 
                                     // Grade-specific colors with opacity
@@ -149,7 +150,7 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                                             case 'B': return isPassed ? 'bg-lime-500' : 'bg-lime-500 opacity-30';
                                             case 'C': return isPassed ? 'bg-yellow-500' : 'bg-yellow-500 opacity-30';
                                             case 'D': return isPassed ? 'bg-orange-500' : 'bg-orange-500 opacity-30';
-                                            case 'E': return isPassed ? 'bg-red-500' : 'bg-red-500 opacity-30';
+                                            case 'F': return isPassed ? 'bg-red-500' : 'bg-red-500 opacity-30';
                                             default: return 'bg-gray-200';
                                         }
                                     };

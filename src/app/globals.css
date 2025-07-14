@@ -1154,6 +1154,9 @@ input[type="radio"]:focus {
 .from-pink-500 { --tw-gradient-from: #ec4899 !important; --tw-gradient-to: rgba(236, 72, 153, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
 .from-blue-50 { --tw-gradient-from: #eff6ff !important; --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
 .from-green-50 { --tw-gradient-from: #f0fdf4 !important; --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-black { --tw-gradient-from: #000000 !important; --tw-gradient-to: rgba(0, 0, 0, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-gray-900 { --tw-gradient-from: #111827 !important; --tw-gradient-to: rgba(17, 24, 39, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-slate-900 { --tw-gradient-from: #0f172a !important; --tw-gradient-to: rgba(15, 23, 42, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
 
 /* Gradient To Colors */
 .to-red-400 { --tw-gradient-to: #f87171 !important; }
@@ -1191,6 +1194,7 @@ input[type="radio"]:focus {
 .to-pink-600 { --tw-gradient-to: #db2777 !important; }
 .to-blue-50 { --tw-gradient-to: #eff6ff !important; }
 .to-indigo-50 { --tw-gradient-to: #eef2ff !important; }
+
 
 /* Gradient Via Colors (for 3-color gradients) */
 .via-yellow-400 { --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fbbf24, var(--tw-gradient-to) !important; }

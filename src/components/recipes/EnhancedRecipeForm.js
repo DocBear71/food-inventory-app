@@ -973,6 +973,7 @@ export default function EnhancedRecipeForm({
                     stage="processing"
                     message={`Processing ${videoImportPlatform} video...`}
                     videoUrl={videoUrl}
+                    progress={videoImportProgress}
                     onComplete={() => {}}
                     style={{zIndex: 9999}}
                 />
