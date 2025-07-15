@@ -2147,7 +2147,7 @@ function InventoryContent() {
                                                     'No expiration set'
                                                 )}
                                             </div>
-                                            {/* Price Information Display */}
+                                            {/* Price Information Display
                                             {item.currentBestPrice && (
                                                 <div className="text-xs text-gray-600 mb-2">
                                                     <div className="flex justify-between">
@@ -2161,7 +2161,7 @@ function InventoryContent() {
                                                         </div>
                                                     )}
                                                 </div>
-                                            )}
+                                            )}*/}
 
                                             {/* Action Buttons - Updated for compact view */}
                                             <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
