@@ -1,9 +1,10 @@
-// file: /src/app/api/shopping/custom/route.js
+// file: /src/app/api/shopping/custom/route.js v2 - Fixed UUID import
+
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { User, SavedShoppingList } from '@/lib/models';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -97,10 +98,10 @@ export async function POST(request) {
             }
         };
 
-        // Create saved shopping list record
+        // Create saved shopping list record - FIXED: Using randomUUID() from crypto
         const savedList = new SavedShoppingList({
             userId: session.user.id,
-            id: uuidv4(),
+            id: randomUUID(),
             name: name.trim(),
             description: description.trim(),
             listType: listType,
