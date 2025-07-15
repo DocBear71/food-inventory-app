@@ -19,6 +19,8 @@ import FeatureGate from '@/components/subscription/FeatureGate';
 import {apiPut, apiGet, apiPost, apiDelete} from '@/lib/api-config';
 import AddToShoppingListModal from '@/components/shopping/AddToShoppingListModal';
 import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashboard';
+import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
+import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
 
 
 // Import smart display utilities
@@ -85,6 +87,54 @@ function parseSizeString(sizeString) {
 
     return extractNumberAndUnit(cleanString);
 }
+
+function OfflineIndicator() {
+    const [isOnline, setIsOnline] = useState(true);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        const updateOnlineStatus = () => setIsOnline(navigator.onLine);
+
+        const checkPendingPrices = async () => {
+            try {
+                const { OfflinePriceStorage } = await import('@/lib/offline-price-storage');
+                const pending = await OfflinePriceStorage.getPendingPrices();
+                setPendingCount(pending.length);
+            } catch (error) {
+                console.log('Could not check pending prices');
+            }
+        };
+
+        updateOnlineStatus();
+        checkPendingPrices();
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // Check pending prices every 30 seconds
+        const interval = setInterval(checkPendingPrices, 30000);
+
+        return () => {
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+            clearInterval(interval);
+        };
+    }, []);
+
+    if (isOnline && pendingCount === 0) return null;
+
+    return (
+        <div className={`fixed top-4 right-4 z-50 px-3 py-2 rounded-lg text-sm font-medium ${
+            isOnline
+                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                : 'bg-orange-100 text-orange-800 border border-orange-200'
+        }`}>
+            {!isOnline && '📴 Offline'}
+            {isOnline && pendingCount > 0 && `🔄 Syncing ${pendingCount} prices...`}
+        </div>
+    );
+}
+
 
 // Helper function to extract number and unit from a string
 function extractNumberAndUnit(text) {
@@ -190,7 +240,13 @@ function InventoryContent() {
     const [trackingPriceForItem, setTrackingPriceForItem] = useState(null); // 🆕 ADD THIS
     const [priceTrackingModal, setPriceTrackingModal] = useState(false); // 🆕 ADD THIS
     const [stores, setStores] = useState([]); // 🆕 ADD THIS
-    const [activeTab, setActiveTab] = useState('inventory'); // Add this if you don't have tabs yet
+    const [activeTab, setActiveTab] = useState('inventory');
+    const [priceFilters, setPriceFilters] = useState({
+        priceRange: { min: '', max: '' },
+        priceStatus: 'all',
+        storeFilter: 'all',
+        sortBy: 'price-asc'
+    });
 
 
     const subscription = useSubscription();
@@ -304,6 +360,36 @@ function InventoryContent() {
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [searchQuery]);
+
+    useEffect(() => {
+        // Sync offline prices when coming back online
+        const handleOnline = async () => {
+            try {
+                const { OfflinePriceStorage } = await import('@/lib/offline-price-storage');
+                const synced = await OfflinePriceStorage.syncPendingPrices();
+
+                if (synced > 0) {
+                    showToast(`📡 Synced ${synced} offline prices!`);
+                    // Refresh inventory to show updated prices
+                    fetchInventory();
+                }
+            } catch (error) {
+                console.error('Sync failed:', error);
+            }
+        };
+
+        // Sync immediately if online
+        if (navigator.onLine) {
+            handleOnline();
+        }
+
+        // Listen for online events
+        window.addEventListener('online', handleOnline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+        };
+    }, []);
 
     // Add this useEffect to listen for inventory updates
     useEffect(() => {
@@ -791,58 +877,38 @@ function InventoryContent() {
     const getFilteredAndSortedInventory = () => {
         let filtered = [...inventory];
 
-        // ENHANCED: Apply search filter with better matching
+        // Existing search filter
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(item => {
-                // Existing search fields
                 const nameMatch = item.name.toLowerCase().includes(query);
                 const brandMatch = item.brand && item.brand.toLowerCase().includes(query);
                 const categoryMatch = item.category && item.category.toLowerCase().includes(query);
                 const upcMatch = item.upc && item.upc.includes(query);
-
-                // NEW: Enhanced search fields
                 const locationMatch = item.location.toLowerCase().includes(query);
                 const unitMatch = item.unit && item.unit.toLowerCase().includes(query);
 
-                // NEW: Smart partial matching for better results
-                const smartMatch = (
-                    item.name.toLowerCase().startsWith(query) ||
-                    (item.brand && item.brand.toLowerCase().startsWith(query)) ||
-                    query.split(' ').every(word =>
-                        item.name.toLowerCase().includes(word) ||
-                        (item.brand && item.brand.toLowerCase().includes(word))
-                    )
-                );
-
-                return nameMatch || brandMatch || categoryMatch || upcMatch ||
-                    locationMatch || unitMatch || smartMatch;
+                return nameMatch || brandMatch || categoryMatch || upcMatch || locationMatch || unitMatch;
             });
         }
 
-        // Apply status filter (your existing code)
+        // Existing filters (status, location, category)
         if (filterStatus !== 'all') {
             filtered = filtered.filter(item => {
                 const status = getExpirationStatus(item.expirationDate);
                 switch (filterStatus) {
-                    case 'expired':
-                        return status.status === 'expired';
-                    case 'expiring':
-                        return ['expires-today', 'expires-soon', 'expires-week'].includes(status.status);
-                    case 'fresh':
-                        return status.status === 'fresh' || status.status === 'no-date';
-                    default:
-                        return true;
+                    case 'expired': return status.status === 'expired';
+                    case 'expiring': return ['expires-today', 'expires-soon', 'expires-week'].includes(status.status);
+                    case 'fresh': return status.status === 'fresh' || status.status === 'no-date';
+                    default: return true;
                 }
             });
         }
 
-        // Apply location filter (your existing code)
         if (filterLocation !== 'all') {
             filtered = filtered.filter(item => item.location === filterLocation);
         }
 
-        // Apply category filter (your existing code)
         if (filterCategory !== 'all') {
             filtered = filtered.filter(item =>
                 filterCategory === 'uncategorized'
@@ -851,47 +917,79 @@ function InventoryContent() {
             );
         }
 
-        // ENHANCED: Apply sorting with new options
+        // NEW: Price-based filters
+        if (priceFilters.priceRange.min || priceFilters.priceRange.max) {
+            filtered = filtered.filter(item => {
+                const price = item.currentBestPrice?.price || item.averagePrice;
+                if (!price) return false;
+
+                const min = priceFilters.priceRange.min ? parseFloat(priceFilters.priceRange.min) : 0;
+                const max = priceFilters.priceRange.max ? parseFloat(priceFilters.priceRange.max) : Infinity;
+
+                return price >= min && price <= max;
+            });
+        }
+
+        if (priceFilters.priceStatus !== 'all') {
+            filtered = filtered.filter(item => {
+                const hasPrice = item.currentBestPrice?.price || item.averagePrice;
+
+                switch (priceFilters.priceStatus) {
+                    case 'tracked':
+                        return hasPrice;
+                    case 'untracked':
+                        return !hasPrice;
+                    case 'good-deals':
+                        return hasPrice && item.averagePrice && item.currentBestPrice?.price < (item.averagePrice * 0.9);
+                    case 'expensive':
+                        return hasPrice && item.averagePrice && item.currentBestPrice?.price > (item.averagePrice * 1.1);
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        if (priceFilters.storeFilter !== 'all') {
+            filtered = filtered.filter(item =>
+                item.currentBestPrice?.store === priceFilters.storeFilter ||
+                item.priceHistory?.some(p => p.store === priceFilters.storeFilter)
+            );
+        }
+
+        // Enhanced sorting with price options
         filtered.sort((a, b) => {
-            switch (sortBy) {
+            switch (priceFilters.sortBy !== 'price-asc' ? priceFilters.sortBy : sortBy) {
+                case 'price-asc':
+                    const priceA = a.currentBestPrice?.price || a.averagePrice || 0;
+                    const priceB = b.currentBestPrice?.price || b.averagePrice || 0;
+                    return priceA - priceB;
+                case 'price-desc':
+                    const priceDescA = a.currentBestPrice?.price || a.averagePrice || 0;
+                    const priceDescB = b.currentBestPrice?.price || b.averagePrice || 0;
+                    return priceDescB - priceDescA;
+                case 'savings-desc':
+                    const savingsA = a.averagePrice && a.currentBestPrice?.price ?
+                        (a.averagePrice - a.currentBestPrice.price) : 0;
+                    const savingsB = b.averagePrice && b.currentBestPrice?.price ?
+                        (b.averagePrice - b.currentBestPrice.price) : 0;
+                    return savingsB - savingsA;
+                case 'last-updated':
+                    const dateA = a.priceHistory?.length ? new Date(a.priceHistory[a.priceHistory.length - 1].date) : new Date(0);
+                    const dateB = b.priceHistory?.length ? new Date(b.priceHistory[b.priceHistory.length - 1].date) : new Date(0);
+                    return dateB - dateA;
+
+                // Existing sort options
                 case 'expiration':
-                    // Your existing expiration sorting logic
                     if (!a.expirationDate && !b.expirationDate) return 0;
                     if (!a.expirationDate) return 1;
                     if (!b.expirationDate) return -1;
-
-                    const aStatus = getExpirationStatus(a.expirationDate);
-                    const bStatus = getExpirationStatus(b.expirationDate);
-
-                    const priorityOrder = ['expired', 'expires-today', 'expires-soon', 'expires-week', 'fresh', 'no-date'];
-                    const aPriority = priorityOrder.indexOf(aStatus.status);
-                    const bPriority = priorityOrder.indexOf(bStatus.status);
-
-                    if (aPriority !== bPriority) {
-                        return aPriority - bPriority;
-                    }
-
                     return new Date(a.expirationDate) - new Date(b.expirationDate);
-
                 case 'name':
                     return a.name.localeCompare(b.name);
                 case 'category':
                     return (a.category || 'Other').localeCompare(b.category || 'Other');
                 case 'location':
                     return a.location.localeCompare(b.location);
-                case 'quantity':
-                    return b.quantity - a.quantity; // Highest quantity first
-                case 'date-added':
-                    return new Date(b.addedDate || 0) - new Date(a.addedDate || 0); // Newest first
-                // NEW: Additional sorting options
-                case 'brand':
-                    return (a.brand || '').localeCompare(b.brand || '');
-                case 'expiration-date':
-                    // Sort by actual expiration date (not status)
-                    if (!a.expirationDate && !b.expirationDate) return 0;
-                    if (!a.expirationDate) return 1;
-                    if (!b.expirationDate) return -1;
-                    return new Date(a.expirationDate) - new Date(b.expirationDate);
                 default:
                     return 0;
             }
@@ -918,6 +1016,13 @@ function InventoryContent() {
         setFilterLocation('all');
         setFilterCategory('all');
         setSortBy('expiration');
+        // NEW: Clear price filters too
+        setPriceFilters({
+            priceRange: { min: '', max: '' },
+            priceStatus: 'all',
+            storeFilter: 'all',
+            sortBy: 'price-asc'
+        });
     };
 
     // Quick filter presets
@@ -936,10 +1041,10 @@ function InventoryContent() {
             case 'fridge':
                 setFilterLocation('fridge');
                 break;
-            case 'fridge freezer':
+            case 'fridge-freezer':
                 setFilterLocation('fridge-freezer');
                 break;
-            case 'deep/standup freezer':
+            case 'deep-freezer':
                 setFilterLocation('deep-freezer');
                 break;
             case 'kitchen':
@@ -1332,7 +1437,7 @@ function InventoryContent() {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Doc Bear's Comfort Kitchen</h1>
                     </div>
-
+                    <OfflineIndicator />
                     {/* Usage Info Header */}
                     <div className="flex items-center justify-between">
                         <div>
@@ -1808,6 +1913,13 @@ function InventoryContent() {
                         </div>
                     </div>
                 </div>
+
+                {/* 🆕 ADVANCED PRICE SEARCH - ADD THIS */}
+                <AdvancedPriceSearch
+                    onFiltersChange={setPriceFilters}
+                    inventory={inventory}
+                />
+
 
                 {/* Add/Edit Item Form */}
                 {showAddForm && (
@@ -2437,11 +2549,11 @@ function InventoryContent() {
                                 </TouchEnhancedButton>
                             </div>
 
-                            <PriceTrackingForm
+                            <MobilePriceTrackingModal
                                 item={trackingPriceForItem}
-                                stores={stores}
-                                onPriceAdded={handlePriceAdded}
+                                isOpen={priceTrackingModal}
                                 onClose={handleClosePriceTracking}
+                                onPriceAdded={handlePriceAdded}
                             />
                         </div>
                     </div>
@@ -2507,9 +2619,46 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
         setError('');
 
         try {
+            // Check if online
+            const isOnline = navigator.onLine;
+
+            if (!isOnline) {
+                // Save offline using IndexedDB
+                try {
+                    const { OfflinePriceStorage } = await import('@/lib/offline-price-storage');
+                    const saved = await OfflinePriceStorage.savePriceOffline(item._id, formData);
+
+                    if (saved) {
+                        // Show offline success message
+                        console.log('💾 Price saved offline');
+                        alert('💾 Price saved offline. Will sync when internet returns.');
+
+                        // Reset form and close
+                        setFormData({
+                            price: '',
+                            store: '',
+                            size: '',
+                            unit: '',
+                            isOnSale: false,
+                            notes: ''
+                        });
+                        onClose();
+                    } else {
+                        throw new Error('Failed to save offline');
+                    }
+                } catch (offlineError) {
+                    console.error('Offline save failed:', offlineError);
+                    setError('Unable to save offline. Please check your connection.');
+                }
+
+                setLoading(false);
+                return;
+            }
+
+            // Online - normal submission
             const response = await fetch(`/api/inventory/${item._id}/prices`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
@@ -2518,6 +2667,16 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
             if (data.success) {
                 onPriceAdded(data.data);
                 onClose();
+
+                // Reset form
+                setFormData({
+                    price: '',
+                    store: '',
+                    size: '',
+                    unit: '',
+                    isOnSale: false,
+                    notes: ''
+                });
             } else {
                 setError(data.error || 'Failed to add price');
             }
@@ -2574,10 +2733,22 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
                             {store.name} {store.chain && `(${store.chain})`}
                         </option>
                     ))}
-                    <option value="Walmart">Walmart</option>
-                    <option value="Target">Target</option>
+                    <option value="">Select chain</option>
+                    <option value="Albertsons">Albertsons</option>
+                    <option value="Aldi">Aldi</option>
+                    <option value="Costco">Costco</option>
+                    <option value="H-E-B">H-E-B</option>
+                    <option value="Hy-Vee">Hy-Vee</option>
                     <option value="Kroger">Kroger</option>
+                    <option value="Meijer">Meijer</option>
+                    <option value="Publix">Publix</option>
                     <option value="Safeway">Safeway</option>
+                    <option value="Sam's Club">Sam's Club</option>
+                    <option value="Smiths">Smith's</option>
+                    <option value="Target">Target</option>
+                    <option value="Trader Joe's">Trader Joe's</option>
+                    <option value="Walmart">Walmart</option>
+                    <option value="Whole Foods">Whole Foods</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
