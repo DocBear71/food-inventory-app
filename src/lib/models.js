@@ -1802,7 +1802,96 @@ const InventoryItemSchema = new mongoose.Schema({
     fdcId: String, // USDA Food Data Central ID for nutrition lookup
     // Expiration tracking fields
     notificationSent: {type: Boolean, default: false},
-    lastNotifiedDate: Date
+    lastNotifiedDate: Date,
+    priceHistory: [{
+        price: { type: Number, required: true },
+        store: { type: String, required: true },
+        date: { type: Date, default: Date.now },
+        size: { type: String }, // "12 oz", "1 lb", etc.
+        unitPrice: { type: Number }, // price per unit (calculated)
+        unit: { type: String }, // "oz", "lb", "each"
+        isOnSale: { type: Boolean, default: false },
+        saleEndDate: { type: Date },
+        notes: { type: String },
+        receiptPhoto: { type: String }, // Optional receipt image
+        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
+
+    // Current best price tracking
+    currentBestPrice: {
+        price: { type: Number },
+        store: { type: String },
+        date: { type: Date },
+        unitPrice: { type: Number },
+        isOnSale: { type: Boolean, default: false }
+    },
+
+    // Price alerts
+    priceAlerts: {
+        enabled: { type: Boolean, default: false },
+        targetPrice: { type: Number },
+        alertWhenBelow: { type: Boolean, default: true },
+        lastAlertSent: { type: Date }
+    },
+
+    // Average pricing calculations
+    averagePrice: { type: Number },
+    lowestPrice: { type: Number },
+    highestPrice: { type: Number },
+    priceStability: { type: String, enum: ['stable', 'volatile', 'trending-up', 'trending-down'] }
+});
+
+const storeSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    chain: {
+        type: String,
+        trim: true
+    },
+    address: {
+        type: String,
+        trim: true
+    },
+    city: {
+        type: String,
+        trim: true
+    },
+    state: {
+        type: String,
+        trim: true
+    },
+    zipCode: {
+        type: String,
+        trim: true
+    },
+    coordinates: {
+        lat: { type: Number },
+        lng: { type: Number }
+    },
+    storeId: {
+        type: String,
+        trim: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    addedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    }
 });
 
 // Consumption History Schema for tracking inventory usage
@@ -2061,6 +2150,17 @@ SavedShoppingListSchema.pre('save', function (next) {
     this.stats.categories = [...new Set(this.items.map(item => item.category))].length;
 
     next();
+});
+
+UserSchema.add({
+    priceTrackingPreferences: {
+        defaultStore: { type: String },
+        priceAlertFrequency: { type: String, enum: ['immediate', 'daily', 'weekly'], default: 'daily' },
+        trackPricesAutomatically: { type: Boolean, default: true },
+        showPriceHistory: { type: Boolean, default: true },
+        preferredCurrency: { type: String, default: 'USD' },
+        roundPricesToCents: { type: Boolean, default: true }
+    }
 });
 
 // Check if user has accepted current version of legal documents
@@ -2868,13 +2968,14 @@ CuratedMealSchema.index({estimatedTime: 1});
 CuratedMealSchema.index({difficulty: 1});
 
 // Declare variables first
-let User, UserInventory, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
+let User, UserInventory, InventoryItem, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
     ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal, RecipeCollection;
 
 try {
     // Export models (prevent re-compilation in development)
     User = mongoose.models.User || mongoose.model('User', UserSchema);
     UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
+    InventoryItem = mongoose.models.InventoryItem || mongoose.model('InventoryItems', InventoryItemSchema);
     Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
     DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
     MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
@@ -2897,6 +2998,7 @@ try {
     const emptyModel = {};
     User = User || emptyModel;
     UserInventory = UserInventory || emptyModel;
+    InventoryItem = InventoryItems || emptyModel;
     Recipe = Recipe || emptyModel;
     DailyNutritionLog = DailyNutritionLog || emptyModel;
     MealPlan = MealPlan || emptyModel;
@@ -2915,6 +3017,7 @@ try {
 export {
     User,
     UserInventory,
+    InventoryItem,
     Recipe,
     DailyNutritionLog,
     NutritionSchema,

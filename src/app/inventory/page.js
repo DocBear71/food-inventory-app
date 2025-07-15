@@ -2147,44 +2147,63 @@ function InventoryContent() {
                                                     'No expiration set'
                                                 )}
                                             </div>
+                                            {/* Price Information Display */}
+                                            {item.currentBestPrice && (
+                                                <div className="text-xs text-gray-600 mb-2">
+                                                    <div className="flex justify-between">
+                                                        <span>Best Price:</span>
+                                                        <span className="font-medium">${item.currentBestPrice.price.toFixed(2)} at {item.currentBestPrice.store}</span>
+                                                    </div>
+                                                    {item.averagePrice && (
+                                                        <div className="flex justify-between">
+                                                            <span>Avg Price:</span>
+                                                            <span>${item.averagePrice.toFixed(2)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {/* Action Buttons - Updated for compact view */}
                                             <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
                                                 <TouchEnhancedButton
                                                     onClick={() => handleAddToShoppingList(item)}
-                                                    className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    } ${
+                                                    className={`flex-1 text-xs font-medium py-1.5 px-2 rounded border transition-colors ${
                                                         expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
-                                                            ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
-                                                            : 'bg-green-50 border-green-200 hover:bg-green-100'
+                                                            ? 'bg-white text-green-700 border-green-300 hover:bg-green-50 shadow-sm'
+                                                            : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                                                     }`}
                                                     title="Add to Shopping List"
                                                 >
-                                                    {userPreferences.compactView ? '🛒' : '🛒 Add'}
+                                                    🛒 Add
                                                 </TouchEnhancedButton>
+
+                                                {/* NEW: Price Tracking Button */}
+                                                <TouchEnhancedButton
+                                                    onClick={() => setTrackingPriceForItem(item)}
+                                                    className="flex-1 bg-yellow-50 text-yellow-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-yellow-100 border border-yellow-200"
+                                                    title="Track Prices"
+                                                >
+                                                    💰 Price
+                                                </TouchEnhancedButton>
+
                                                 <TouchEnhancedButton
                                                     onClick={() => setConsumingItem(item)}
-                                                    className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
+                                                    className="flex-1 bg-blue-50 text-blue-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-blue-100 border border-blue-200"
                                                     title="Use/Consume Item"
                                                 >
-                                                    {userPreferences.compactView ? '📦' : '📦 Use'}
+                                                    📦 Use
                                                 </TouchEnhancedButton>
+
                                                 <TouchEnhancedButton
                                                     onClick={() => handleEdit(item)}
-                                                    className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
+                                                    className="flex-1 bg-indigo-50 text-indigo-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-indigo-100 border border-indigo-200"
                                                 >
-                                                    {userPreferences.compactView ? '✏️' : '✏️ Edit'}
+                                                    ✏️ Edit
                                                 </TouchEnhancedButton>
+
                                                 <TouchEnhancedButton
                                                     onClick={() => handleDelete(item._id)}
-                                                    className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
+                                                    className="bg-red-50 text-red-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-red-100 border border-red-200"
                                                 >
                                                     🗑️
                                                 </TouchEnhancedButton>

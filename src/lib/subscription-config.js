@@ -37,7 +37,13 @@ export const FEATURE_GATES = {
     RECIPE_COLLECTIONS: 'recipe_collections',
     SAVE_RECIPE: 'save_recipe',
     PUBLIC_RECIPES: 'public_recipes',
-    MAKE_RECIPE_PUBLIC: 'make_recipe_public'
+    MAKE_RECIPE_PUBLIC: 'make_recipe_public',
+
+    // 🆕 ADD THESE NEW PRICE TRACKING FEATURES:
+    PRICE_TRACKING: 'price_tracking',
+    PRICE_HISTORY: 'price_history',
+    PRICE_ALERTS: 'price_alerts',
+    PRICE_EXPORT: 'price_export'
 };
 
 // Usage limits by tier
@@ -52,7 +58,10 @@ export const USAGE_LIMITS = {
         recipeCollections: 2,
         mealPlansActive: 0,
         emailSharesPerMonth: 0,
-        emailNotificationsPerMonth: 0
+        emailNotificationsPerMonth: 0,
+        priceTrackingItems: 10,        // Can track prices for 10 items
+        priceEntriesPerMonth: 25,      // Can add 25 price entries per month
+        priceHistoryDays: 30          // Keep 30 days of price history
     },
     [SUBSCRIPTION_TIERS.GOLD]: {
         inventoryItems: 250,
@@ -64,7 +73,10 @@ export const USAGE_LIMITS = {
         recipeCollections: 10,
         mealPlansActive: 3,
         emailSharesPerMonth: 50,
-        emailNotificationsPerMonth: 100
+        emailNotificationsPerMonth: 100,
+        priceTrackingItems: 50,        // Can track prices for 50 items
+        priceEntriesPerMonth: 100,     // Can add 100 price entries per month
+        priceHistoryDays: 180         // Keep 180 days of price history
     },
     [SUBSCRIPTION_TIERS.PLATINUM]: {
         inventoryItems: -1, // unlimited
@@ -76,7 +88,10 @@ export const USAGE_LIMITS = {
         recipeCollections: -1, // unlimited
         mealPlansActive: -1, // unlimited
         emailSharesPerMonth: -1, // unlimited
-        emailNotificationsPerMonth: -1
+        emailNotificationsPerMonth: -1,
+        priceTrackingItems: -1,        // Unlimited price tracking
+        priceEntriesPerMonth: -1,      // Unlimited price entries
+        priceHistoryDays: -1          // Keep unlimited price history
     },
     // NEW: Admin tier - unlimited everything
     [SUBSCRIPTION_TIERS.ADMIN]: {
@@ -89,7 +104,10 @@ export const USAGE_LIMITS = {
         recipeCollections: -1, // unlimited
         mealPlansActive: -1, // unlimited
         emailSharesPerMonth: -1, // unlimited
-        emailNotificationsPerMonth: -1 // unlimited
+        emailNotificationsPerMonth: -1, // unlimited
+        priceTrackingItems: -1,        // Unlimited price tracking
+        priceEntriesPerMonth: -1,      // Unlimited price entries
+        priceHistoryDays: -1          // Keep unlimited price history
     }
 };
 
@@ -114,7 +132,11 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true, // limited by usage
         [FEATURE_GATES.SAVE_RECIPE]: true, // limited
         [FEATURE_GATES.PUBLIC_RECIPES]: false,
-        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: false
+        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: false,
+        [FEATURE_GATES.PRICE_TRACKING]: true,     // Basic price tracking (limited)
+        [FEATURE_GATES.PRICE_HISTORY]: true,      // View price history (limited)
+        [FEATURE_GATES.PRICE_ALERTS]: false,      // No price alerts
+        [FEATURE_GATES.PRICE_EXPORT]: false       // No price export
     },
     [SUBSCRIPTION_TIERS.GOLD]: {
         [FEATURE_GATES.INVENTORY_LIMIT]: true,
@@ -135,7 +157,11 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
         [FEATURE_GATES.SAVE_RECIPE]: true,
         [FEATURE_GATES.PUBLIC_RECIPES]: true,
-        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
+        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true,
+        [FEATURE_GATES.PRICE_TRACKING]: true,     // Enhanced price tracking
+        [FEATURE_GATES.PRICE_HISTORY]: true,      // Extended price history
+        [FEATURE_GATES.PRICE_ALERTS]: false,      // No email alerts yet
+        [FEATURE_GATES.PRICE_EXPORT]: false       // No export yet
     },
     [SUBSCRIPTION_TIERS.PLATINUM]: {
         [FEATURE_GATES.INVENTORY_LIMIT]: true,
@@ -156,7 +182,11 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
         [FEATURE_GATES.SAVE_RECIPE]: true,
         [FEATURE_GATES.PUBLIC_RECIPES]: true,
-        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
+        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true,
+        [FEATURE_GATES.PRICE_TRACKING]: true,     // Unlimited price tracking
+        [FEATURE_GATES.PRICE_HISTORY]: true,      // Unlimited price history
+        [FEATURE_GATES.PRICE_ALERTS]: true,       // Email price alerts
+        [FEATURE_GATES.PRICE_EXPORT]: true        // Export price data
     },
     // NEW: Admin tier - access to everything
     [SUBSCRIPTION_TIERS.ADMIN]: {
@@ -178,7 +208,11 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.RECIPE_COLLECTIONS]: true,
         [FEATURE_GATES.SAVE_RECIPE]: true,
         [FEATURE_GATES.PUBLIC_RECIPES]: true,
-        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true
+        [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: true,
+        [FEATURE_GATES.PRICE_TRACKING]: true,     // Unlimited price tracking
+        [FEATURE_GATES.PRICE_HISTORY]: true,      // Unlimited price history
+        [FEATURE_GATES.PRICE_ALERTS]: true,       // Email price alerts
+        [FEATURE_GATES.PRICE_EXPORT]: true        // Export price data
     }
 };
 
@@ -237,6 +271,15 @@ export function checkUsageLimit(subscription, feature, currentUsage) {
         case FEATURE_GATES.RECIPE_COLLECTIONS:
             limitKey = 'recipeCollections';
             break;
+        case FEATURE_GATES.PRICE_TRACKING:
+            limitKey = 'priceTrackingItems';
+            break;
+        case 'priceEntriesPerMonth':  // Special case for monthly price entries
+            limitKey = 'priceEntriesPerMonth';
+            break;
+        case 'priceHistoryDays':      // Special case for price history retention
+            limitKey = 'priceHistoryDays';
+            break;
         default:
             // For access-only features, check if tier has access
             return checkFeatureAccess(subscription, feature);
@@ -287,6 +330,15 @@ export function getRemainingUsage(subscription, feature, currentUsage) {
             break;
         case FEATURE_GATES.RECIPE_COLLECTIONS:
             limitKey = 'recipeCollections';
+            break;
+        case FEATURE_GATES.PRICE_TRACKING:
+            limitKey = 'priceTrackingItems';
+            break;
+        case 'priceEntriesPerMonth':
+            limitKey = 'priceEntriesPerMonth';
+            break;
+        case 'priceHistoryDays':
+            limitKey = 'priceHistoryDays';
             break;
         default:
             return 0;
@@ -339,5 +391,9 @@ export const FEATURE_DESCRIPTIONS = {
     [FEATURE_GATES.RECIPE_COLLECTIONS]: 'Organize recipes in collections',
     [FEATURE_GATES.SAVE_RECIPE]: 'Save individual recipes for quick access',
     [FEATURE_GATES.PUBLIC_RECIPES]: 'Share recipes with the community',
-    [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: 'Make individual recipes public'
+    [FEATURE_GATES.MAKE_RECIPE_PUBLIC]: 'Make individual recipes public',
+    [FEATURE_GATES.PRICE_TRACKING]: 'Track grocery prices for your inventory items',
+    [FEATURE_GATES.PRICE_HISTORY]: 'View historical price data and trends',
+    [FEATURE_GATES.PRICE_ALERTS]: 'Get email alerts when prices drop below your target',
+    [FEATURE_GATES.PRICE_EXPORT]: 'Export price data for analysis'
 };
