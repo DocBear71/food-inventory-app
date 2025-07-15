@@ -29,7 +29,7 @@ const analyzeDietaryInfo = (recipes) => {
 
     const timeCategories = {
         quick: ['quick', '15 min', '20 min', '30 min', 'fast', 'easy'],
-        makeAhead: ['make-ahead', 'make ahead', 'prep ahead', 'freezer', 'meal prep']
+        makeAhead: ['make-ahead', 'make ahead', 'prep ahead', 'fridge-freezer', 'meal prep']
     };
 
     const results = {

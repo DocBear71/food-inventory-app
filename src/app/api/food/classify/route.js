@@ -49,7 +49,7 @@ export async function POST(request) {
             "classification": {
                 "category": "fresh_produce|dairy|meat|frozen|pantry|bakery|beverages|snacks|condiments|prepared_foods",
                 "subcategory": "specific subcategory within main category",
-                "storage_location": "fridge|freezer|pantry|counter",
+                "storage_location": "fridge|fridge-freezer|deep-freezer|pantry|counter",
                 "confidence_score": 0.95
             },
             "storage_info": {
@@ -84,7 +84,7 @@ export async function POST(request) {
 
         Storage Locations:
         - fridge: items needing refrigeration (32-40°F)
-        - freezer: items needing freezing (0°F or below)
+        - fridge freezer: items needing freezing (0°F or below)
         - pantry: dry storage items
         - counter: items best at room temperature
 
@@ -113,7 +113,8 @@ export async function POST(request) {
             'bakery', 'beverages', 'snacks', 'condiments', 'prepared_foods'
         ];
 
-        const validStorageLocations = ['fridge', 'freezer', 'pantry', 'counter'];
+        const validStorageLocations = ['all', 'pantry', 'kitchen', 'fridge', 'fridge-freezer', 'deep-freezer', 'garage', 'other'];
+
 
         if (!validCategories.includes(classification.classification.category)) {
             classification.classification.category = 'pantry'; // Safe default
@@ -196,7 +197,7 @@ function getFallbackClassification(itemName) {
                 fresh_produce: name.includes('potato') || name.includes('onion') ? 'pantry' : 'fridge',
                 dairy: 'fridge',
                 meat: 'fridge',
-                frozen: 'freezer',
+                frozen: 'fridge freezer',
                 bakery: 'counter',
                 beverages: name.includes('juice') || name.includes('milk') ? 'fridge' : 'pantry'
             };
@@ -314,7 +315,7 @@ export async function PUT(request) {
                     ]
                     
                     Categories: fresh_produce, dairy, meat, frozen, pantry, bakery, beverages, snacks, condiments, prepared_foods
-                    Storage: fridge, freezer, pantry, counter
+                    Storage: fridge, fridge-freezer, deep/stand-up freezer, pantry, counter
                     
                     Return ONLY valid JSON array.
                     `;

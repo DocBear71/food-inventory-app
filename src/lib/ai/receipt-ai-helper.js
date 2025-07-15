@@ -196,7 +196,7 @@ export async function aiClassifyFoodItem(itemName, existingCategory = "", contex
         Return JSON:
         {
             "category": "Best category from your existing list",
-            "storage_location": "pantry|fridge|freezer|kitchen",
+            "storage_location": "pantry|fridge|fridge-freezer|deep-freezer|kitchen",
             "confidence": 0.95,
             "reasoning": "Why this classification"
         }

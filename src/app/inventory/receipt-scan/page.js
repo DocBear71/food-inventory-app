@@ -2615,7 +2615,8 @@ export default function ReceiptScan() {
         const nameLower = name.toLowerCase();
 
         if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
-            return 'freezer';
+            // Default frozen items to fridge freezer, but user can change to deep freezer
+            return 'fridge-freezer';
         }
         if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
             return 'fridge';
@@ -3503,8 +3504,8 @@ export default function ReceiptScan() {
                                                                         <option value="pantry">Pantry</option>
                                                                         <option value="kitchen">Kitchen Cabinets</option>
                                                                         <option value="fridge">Fridge</option>
-                                                                        <option value="fridge">Fridge Freezer</option>
-                                                                        <option value="freezer">Deep/Stand-up Freezer</option>
+                                                                        <option value="fridge-freezer">Fridge Freezer</option>
+                                                                        <option value="deep-freezer">Deep/Stand-up Freezer</option>
                                                                         <option value="garage">Garage/Storage</option>
                                                                         <option value="other">Other</option>
                                                                     </select>

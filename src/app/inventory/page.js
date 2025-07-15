@@ -922,8 +922,11 @@ function InventoryContent() {
             case 'fridge':
                 setFilterLocation('fridge');
                 break;
-            case 'freezer':
-                setFilterLocation('freezer');
+            case 'fridge freezer':
+                setFilterLocation('fridge freezer');
+                break;
+            case 'deep/standup freezer':
+                setFilterLocation('deep/standup freezer');
                 break;
             case 'kitchen':
                 setFilterLocation('kitchen');
@@ -1593,10 +1596,17 @@ function InventoryContent() {
                                     ❄️ Fridge
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('freezer')}
+                                    onClick={() => applyQuickFilter('fridge-freezer')}
                                     className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
                                 >
-                                    🧊 Freezer
+                                    🧊 Fridge Freezer
+                                </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('deep-freezer')}
+                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
+                                >
+                                    ❄️ Deep Freezer
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
                                     onClick={clearAllFilters}
@@ -1815,8 +1825,8 @@ function InventoryContent() {
                                             <option value="pantry">Pantry</option>
                                             <option value="kitchen">Kitchen Cabinets</option>
                                             <option value="fridge">Fridge</option>
-                                            <option value="fridge">Fridge Freezer</option>
-                                            <option value="freezer">Deep/Stand-up Freezer</option>
+                                            <option value="fridge-freezer">Fridge Freezer</option>
+                                            <option value="deep-freezer">Deep/Stand-up Freezer</option>
                                             <option value="garage">Garage/Storage</option>
                                             <option value="other">Other</option>
 
@@ -2147,21 +2157,24 @@ function InventoryContent() {
                                                     'No expiration set'
                                                 )}
                                             </div>
-                                            {/* Price Information Display
-                                            {item.currentBestPrice && (
+                                            {/* Price Information Display - FIXED with type safety */}
+                                            {item.currentBestPrice && item.currentBestPrice.price && (
                                                 <div className="text-xs text-gray-600 mb-2">
                                                     <div className="flex justify-between">
                                                         <span>Best Price:</span>
-                                                        <span className="font-medium">${item.currentBestPrice.price.toFixed(2)} at {item.currentBestPrice.store}</span>
+                                                        <span className="font-medium">
+                ${typeof item.currentBestPrice.price === 'number' ? item.currentBestPrice.price.toFixed(2) : 'N/A'}
+                                                            {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
+            </span>
                                                     </div>
-                                                    {item.averagePrice && (
+                                                    {item.averagePrice && typeof item.averagePrice === 'number' && (
                                                         <div className="flex justify-between">
                                                             <span>Avg Price:</span>
                                                             <span>${item.averagePrice.toFixed(2)}</span>
                                                         </div>
                                                     )}
                                                 </div>
-                                            )}*/}
+                                            )}
 
                                             {/* Action Buttons - Updated for compact view */}
                                             <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>

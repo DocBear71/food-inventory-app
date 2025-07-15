@@ -505,8 +505,8 @@ export default function AddItemsPage() {
                                         <option value="pantry">Pantry</option>
                                         <option value="kitchen">Kitchen Cabinets</option>
                                         <option value="fridge">Fridge</option>
-                                        <option value="fridge">Fridge Freezer</option>
-                                        <option value="freezer">Deep/Stand-up Freezer</option>
+                                        <option value="fridge-freezer">Fridge Freezer</option>
+                                        <option value="deep-freezer">Deep/Stand-up Freezer</option>
                                         <option value="garage">Garage/Storage</option>
                                         <option value="other">Other</option>
                                     </select>

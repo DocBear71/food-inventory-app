@@ -285,19 +285,19 @@ export const COMMON_ITEMS = {
         name: '🧊 Frozen Foods',
         icon: '🧊',
         items: [
-            { name: 'Frozen Peas', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Frozen Corn', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Frozen Broccoli', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Frozen Mixed Vegetables', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
-            { name: 'Frozen Berries', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'freezer' },
+            { name: 'Frozen Peas', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge-freezer' },
+            { name: 'Frozen Corn', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge-freezer' },
+            { name: 'Frozen Broccoli', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge-freezer' },
+            { name: 'Frozen Mixed Vegetables', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge-freezer' },
+            { name: 'Frozen Berries', category: 'Frozen Vegetables', unit: 'item', defaultQuantity: 1, location: 'fridge-freezer' },
             {
                 name: 'Chicken Breasts (Frozen)',
                 category: 'Fresh/Frozen Poultry',
                 unit: 'lbs',
                 defaultQuantity: 2,
                 secondaryUnit: 'item',
-                defaultSecondaryQuantity: 0, // User can specify piece count if desired
-                location: 'freezer'
+                defaultSecondaryQuantity: 0,
+                location: 'deep-freezer' // Bulk meat items might go in deep freezer
             },
             {
                 name: 'Ground Beef (Frozen)',
@@ -305,8 +305,8 @@ export const COMMON_ITEMS = {
                 unit: 'lbs',
                 defaultQuantity: 1,
                 secondaryUnit: 'package',
-                defaultSecondaryQuantity: 0, // User can specify package count if desired
-                location: 'freezer'
+                defaultSecondaryQuantity: 0,
+                location: 'deep-freezer' // Bulk meat items might go in deep freezer
             },
         ]
     },

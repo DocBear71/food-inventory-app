@@ -117,7 +117,7 @@ export async function PUT(request) {
             // Validate enum values for inventory preferences
             const validSortOptions = ['expiration', 'expiration-date', 'name', 'brand', 'category', 'location', 'quantity', 'date-added'];
             const validStatusOptions = ['all', 'expired', 'expiring', 'fresh'];
-            const validLocationOptions = ['all', 'pantry', 'kitchen', 'fridge', 'freezer', 'garage', 'other'];
+            const validLocationOptions = ['all', 'pantry', 'kitchen', 'fridge', 'fridge-freezer', 'deep-freezer', 'garage', 'other'];
             const validItemsPerPage = ['all', '20', '50', '100'];
 
             if (body.inventoryPreferences.defaultSortBy && !validSortOptions.includes(body.inventoryPreferences.defaultSortBy)) {

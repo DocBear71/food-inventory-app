@@ -559,7 +559,8 @@ export default function ProfilePage() {
             'pantry': 'Pantry',
             'kitchen': 'Kitchen',
             'fridge': 'Fridge',
-            'freezer': 'Freezer',
+            'fridge-freezer': 'Fridge Freezer',
+            'deep-freezer': 'Deep/Stand-up Freezer',
             'garage': 'Garage/Storage',
             'other': 'Other'
         };
@@ -1038,7 +1039,8 @@ export default function ProfilePage() {
                                                                 <option value="pantry">🏠 Pantry</option>
                                                                 <option value="kitchen">🚪 Kitchen</option>
                                                                 <option value="fridge">❄️ Fridge</option>
-                                                                <option value="freezer">🧊 Freezer</option>
+                                                                <option value="fridge-freezer">🧊 Fridge Freezer</option>
+                                                                <option value="deep-freezer">❄️ Deep/Stand-up Freezer</option>
                                                                 <option value="garage">🏠 Garage/Storage</option>
                                                                 <option value="other">📦 Other</option>
                                                             </select>

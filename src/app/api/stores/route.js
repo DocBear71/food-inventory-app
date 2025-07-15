@@ -4,60 +4,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
-
-// Store Schema (define inline since we need it for this API)
-const storeSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true,
-        trim: true
-    },
-    chain: {
-        type: String,
-        trim: true
-    },
-    address: {
-        type: String,
-        trim: true
-    },
-    city: {
-        type: String,
-        trim: true
-    },
-    state: {
-        type: String,
-        trim: true
-    },
-    zipCode: {
-        type: String,
-        trim: true
-    },
-    coordinates: {
-        lat: { type: Number },
-        lng: { type: Number }
-    },
-    storeId: {
-        type: String,
-        trim: true
-    },
-    isActive: {
-        type: Boolean,
-        default: true
-    },
-    addedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    }
-});
+import { Store } from '@/lib/models.js';
 
 // Create or get the Store model
 const Store = mongoose.models.Store || mongoose.model('Store', storeSchema);

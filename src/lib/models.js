@@ -783,7 +783,7 @@ const UserSchema = new mongoose.Schema({
         },
         defaultFilterLocation: {
             type: String,
-            enum: ['all', 'pantry', 'kitchen', 'fridge', 'freezer', 'garage', 'other'],
+            enum: ['all', 'pantry', 'kitchen', 'fridge', 'fridge-freezer', 'deep-freezer', 'garage', 'other'],
             default: 'all'
         },
         showQuickFilters: {
@@ -1676,14 +1676,19 @@ const MealPrepKnowledgeSchema = new mongoose.Schema({
         tips: [String]
     }],
 
-    // Storage recommendations
+    // Food/Recipe model - Update storage enum (if you have one)
     storage: {
         refrigerator: {
             maxDays: {type: Number},
             containerType: {type: String},
             tips: [String]
         },
-        freezer: {
+        fridge_freezer: {
+            maxMonths: {type: Number},
+            packagingMethod: {type: String},
+            thawingInstructions: {type: String}
+        },
+        deep_freezer: {
             maxMonths: {type: Number},
             packagingMethod: {type: String},
             thawingInstructions: {type: String}
@@ -1793,7 +1798,7 @@ const InventoryItemSchema = new mongoose.Schema({
     addedDate: {type: Date, default: Date.now},
     location: {
         type: String,
-        enum: ['pantry', 'kitchen', 'fridge', 'freezer', 'other'],
+        enum: ['pantry', 'kitchen', 'fridge', 'fridge-freezer', 'deep-freezer', 'garage', 'other'],
         default: 'pantry'
     },
     notes: String,
@@ -1841,7 +1846,7 @@ const InventoryItemSchema = new mongoose.Schema({
     priceStability: { type: String, enum: ['stable', 'volatile', 'trending-up', 'trending-down'] }
 });
 
-const storeSchema = new mongoose.Schema({
+const StoreSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
@@ -2968,7 +2973,7 @@ CuratedMealSchema.index({estimatedTime: 1});
 CuratedMealSchema.index({difficulty: 1});
 
 // Declare variables first
-let User, UserInventory, InventoryItem, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
+let User, UserInventory, InventoryItem, Store, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
     ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal, RecipeCollection;
 
 try {
@@ -2976,6 +2981,7 @@ try {
     User = mongoose.models.User || mongoose.model('User', UserSchema);
     UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
     InventoryItem = mongoose.models.InventoryItem || mongoose.model('InventoryItems', InventoryItemSchema);
+    Store = mongoose.models.Store || mongoose.model('Store', StoreSchema);
     Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
     DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
     MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
@@ -2998,7 +3004,8 @@ try {
     const emptyModel = {};
     User = User || emptyModel;
     UserInventory = UserInventory || emptyModel;
-    InventoryItem = InventoryItems || emptyModel;
+    InventoryItem = InventoryItem || emptyModel;
+    Store = Store || emptyModel;
     Recipe = Recipe || emptyModel;
     DailyNutritionLog = DailyNutritionLog || emptyModel;
     MealPlan = MealPlan || emptyModel;
@@ -3018,6 +3025,7 @@ export {
     User,
     UserInventory,
     InventoryItem,
+    Store,
     Recipe,
     DailyNutritionLog,
     NutritionSchema,
