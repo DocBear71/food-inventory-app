@@ -13,11 +13,12 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {useSubscription} from '@/hooks/useSubscription';
-import { useFeatureGate } from '@/hooks/useSubscription';
+import {useFeatureGate} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import { apiPut, apiGet, apiPost, apiDelete } from '@/lib/api-config';
+import {apiPut, apiGet, apiPost, apiDelete} from '@/lib/api-config';
 import AddToShoppingListModal from '@/components/shopping/AddToShoppingListModal';
+import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashboard';
 
 
 // Import smart display utilities
@@ -33,7 +34,7 @@ import {
 // Helper function to parse quantity/serving size and extract size info
 function parseProductSize(product) {
     if (!product) {
-        return { quantity: null, unit: null };
+        return {quantity: null, unit: null};
     }
 
     // Try multiple fields in order of preference
@@ -54,13 +55,13 @@ function parseProductSize(product) {
         }
     }
 
-    return { quantity: null, unit: null };
+    return {quantity: null, unit: null};
 }
 
 // Helper function to parse individual size strings
 function parseSizeString(sizeString) {
     if (!sizeString || typeof sizeString !== 'string') {
-        return { quantity: null, unit: null };
+        return {quantity: null, unit: null};
     }
 
     // Remove content in parentheses first, then clean up
@@ -162,12 +163,12 @@ function extractNumberAndUnit(text) {
             const mappedUnit = unitMap[rawUnit];
 
             if (mappedUnit && quantity > 0) {
-                return { quantity, unit: mappedUnit };
+                return {quantity, unit: mappedUnit};
             }
         }
     }
 
-    return { quantity: null, unit: null };
+    return {quantity: null, unit: null};
 }
 
 // Separate component for search params to wrap in Suspense
@@ -189,6 +190,8 @@ function InventoryContent() {
     const [trackingPriceForItem, setTrackingPriceForItem] = useState(null); // 🆕 ADD THIS
     const [priceTrackingModal, setPriceTrackingModal] = useState(false); // 🆕 ADD THIS
     const [stores, setStores] = useState([]); // 🆕 ADD THIS
+    const [activeTab, setActiveTab] = useState('inventory'); // Add this if you don't have tabs yet
+
 
     const subscription = useSubscription();
 
@@ -478,6 +481,11 @@ function InventoryContent() {
         };
     }, []);
 
+    const tabs = [
+        {id: 'inventory', name: 'Inventory', icon: '📦'},
+        {id: 'analytics', name: 'Price Analytics', icon: '📊'}
+    ];
+
     const fetchUserPreferences = async () => {
         try {
             const response = await apiGet('/api/user/profile');
@@ -682,7 +690,7 @@ function InventoryContent() {
         setShowShoppingListModal(true);
     };
 
-    const handleAddToNewList = async ({ item, listName }) => {
+    const handleAddToNewList = async ({item, listName}) => {
         try {
             console.log('Creating new shopping list:', listName, 'with item:', item.name);
 
@@ -731,7 +739,7 @@ function InventoryContent() {
         }
     };
 
-    const handleAddToExistingList = async ({ item, listId }) => {
+    const handleAddToExistingList = async ({item, listId}) => {
         try {
             console.log('Adding to existing list:', listId, 'with item:', item.name);
 
@@ -1292,7 +1300,8 @@ function InventoryContent() {
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div
+                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <div className="text-lg text-gray-600">Loading dashboard...</div>
                     </div>
                 </div>
@@ -1391,12 +1400,12 @@ function InventoryContent() {
                                                 {usage.tier === 'free' && ' Upgrade to Gold for 250 items or Platinum for unlimited.'}
                                                 {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
                                             </p>
-                                                <TouchEnhancedButton
-                                                    onClick={() => window.location.href = '/pricing'}
-                                                    className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
-                                                >
-                                                    🚀 Upgrade Now
-                                                </TouchEnhancedButton>
+                                            <TouchEnhancedButton
+                                                onClick={() => window.location.href = '/pricing'}
+                                                className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
+                                            >
+                                                🚀 Upgrade Now
+                                            </TouchEnhancedButton>
                                         </div>
                                     </div>
                                 </div>
@@ -1609,6 +1618,29 @@ function InventoryContent() {
                     </div>
                 </div>
 
+                {/* 🆕 ADD TAB NAVIGATION HERE */}
+                <div className="mb-6">
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8">
+                            {tabs.map((tab) => (
+                                <TouchEnhancedButton
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                        activeTab === tab.id
+                                            ? 'border-indigo-500 text-indigo-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <span className="mr-2">{tab.icon}</span>
+                                    {tab.name}
+                                </TouchEnhancedButton>
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+
+
                 {/* Enhanced Search and Filtering */}
                 <div className="bg-white shadow rounded-lg p-4 space-y-4">
                     {/* Search Bar */}
@@ -1707,9 +1739,15 @@ function InventoryContent() {
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
                                 <option value="all">📦 All Items ({inventory.length})</option>
-                                <option value="expired">🚨 Expired ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})</option>
-                                <option value="expiring">⏰ Expiring Soon ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
-                                <option value="fresh">✅ Fresh ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                                <option value="expired">🚨 Expired
+                                    ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})
+                                </option>
+                                <option value="expiring">⏰ Expiring Soon
+                                    ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})
+                                </option>
+                                <option value="fresh">✅ Fresh
+                                    ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
+                                </option>
                             </select>
                         </div>
 
@@ -1846,7 +1884,8 @@ function InventoryContent() {
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         >
                                             <option value="">Select category</option>
-                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
+                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients
+                                            </option>
                                             <option value="Beans">Beans</option>
                                             <option value="Beverages">Beverages</option>
                                             <option value="Bouillon">Bouillon</option>
@@ -1867,7 +1906,8 @@ function InventoryContent() {
                                             <option value="Fresh Spices">Fresh Spices</option>
                                             <option value="Fresh Vegetables">Fresh Vegetables</option>
                                             <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood
+                                            </option>
                                             <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
                                             <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
                                             <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
@@ -2069,360 +2109,387 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {/* Inventory Grid Display with Smart Units */}
-                <div className="bg-white shadow rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                Current Inventory ({filteredInventory.length} items)
-                            </h3>
+                {/* 🆕 CONDITIONAL CONTENT BASED ON ACTIVE TAB */}
+                {activeTab === 'inventory' && (
+                    <>
+                        {/* Inventory Grid Display with Smart Units */}
+                        <div className="bg-white shadow rounded-lg">
+                            <div className="px-4 py-5 sm:p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                        Current Inventory ({filteredInventory.length} items)
+                                    </h3>
 
-                            {/* ADD: View Toggle */}
-                            <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-600">View:</span>
-                                <TouchEnhancedButton
-                                    onClick={() => setUserPreferences(prev => ({...prev, compactView: false}))}
-                                    className={`px-3 py-1 text-xs rounded ${
-                                        !userPreferences.compactView
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
-                                >
-                                    📋 Standard
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => setUserPreferences(prev => ({...prev, compactView: true}))}
-                                    className={`px-3 py-1 text-xs rounded ${
-                                        userPreferences.compactView
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
-                                >
-                                    📄 Compact
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-
-                        {loading ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500">Loading inventory...</div>
-                            </div>
-                        ) : filteredInventory.length === 0 ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500 mb-4">
-                                    {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
+                                    {/* ADD: View Toggle */}
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-sm text-gray-600">View:</span>
+                                        <TouchEnhancedButton
+                                            onClick={() => setUserPreferences(prev => ({...prev, compactView: false}))}
+                                            className={`px-3 py-1 text-xs rounded ${
+                                                !userPreferences.compactView
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            }`}
+                                        >
+                                            📋 Standard
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => setUserPreferences(prev => ({...prev, compactView: true}))}
+                                            className={`px-3 py-1 text-xs rounded ${
+                                                userPreferences.compactView
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            }`}
+                                        >
+                                            📄 Compact
+                                        </TouchEnhancedButton>
+                                    </div>
                                 </div>
-                                {/* In the empty inventory section, replace the existing content with: */}
-                                {inventory.length === 0 && (
+
+                                {loading ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500">Loading inventory...</div>
+                                    </div>
+                                ) : filteredInventory.length === 0 ? (
                                     <div className="text-center py-8">
                                         <div className="text-gray-500 mb-4">
-                                            {getUsageInfo().tier === 'free' ? (
-                                                <>
-                                                    <div className="text-gray-500 mb-4">No items in your inventory yet
-                                                    </div>
-                                                    <div
-                                                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                                        <div className="text-sm text-blue-800">
-                                                            <strong>📦 Inventory Limits:</strong>
-                                                            <ul className="mt-2 space-y-1 text-left">
-                                                                <li>• <strong>Free:</strong> Store up to 50 items</li>
-                                                                <li>• <strong>Gold:</strong> Store up to 250 items</li>
-                                                                <li>• <strong>Platinum:</strong> Unlimited inventory
-                                                                </li>
-                                                                <li>• Track expiration dates</li>
-                                                                <li>• Monitor food waste</li>
-                                                            </ul>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                'No items in your inventory yet'
-                                            )}
+                                            {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
                                         </div>
-                                        <FeatureGate
-                                            feature={FEATURE_GATES.INVENTORY_LIMIT}
-                                            currentCount={0}
-                                            fallback={
-                                                <TouchEnhancedButton
-                                                    onClick={() => window.location.href = '/pricing?source=inventory-empty'}
-                                                    className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
+                                        {/* In the empty inventory section, replace the existing content with: */}
+                                        {inventory.length === 0 && (
+                                            <div className="text-center py-8">
+                                                <div className="text-gray-500 mb-4">
+                                                    {getUsageInfo().tier === 'free' ? (
+                                                        <>
+                                                            <div className="text-gray-500 mb-4">No items in your
+                                                                inventory
+                                                                yet
+                                                            </div>
+                                                            <div
+                                                                className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                                                <div className="text-sm text-blue-800">
+                                                                    <strong>📦 Inventory Limits:</strong>
+                                                                    <ul className="mt-2 space-y-1 text-left">
+                                                                        <li>• <strong>Free:</strong> Store up to 50
+                                                                            items
+                                                                        </li>
+                                                                        <li>• <strong>Gold:</strong> Store up to 250
+                                                                            items
+                                                                        </li>
+                                                                        <li>• <strong>Platinum:</strong> Unlimited
+                                                                            inventory
+                                                                        </li>
+                                                                        <li>• Track expiration dates</li>
+                                                                        <li>• Monitor food waste</li>
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        'No items in your inventory yet'
+                                                    )}
+                                                </div>
+                                                <FeatureGate
+                                                    feature={FEATURE_GATES.INVENTORY_LIMIT}
+                                                    currentCount={0}
+                                                    fallback={
+                                                        <TouchEnhancedButton
+                                                            onClick={() => window.location.href = '/pricing?source=inventory-empty'}
+                                                            className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
+                                                        >
+                                                            🚀 Upgrade to Add Items
+                                                        </TouchEnhancedButton>
+                                                    }
                                                 >
-                                                    🚀 Upgrade to Add Items
-                                                </TouchEnhancedButton>
-                                            }
-                                        >
-                                            <TouchEnhancedButton
-                                                onClick={() => setShowAddForm(true)}
-                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                            >
-                                                Add your first item
-                                            </TouchEnhancedButton>
-                                        </FeatureGate>
+                                                    <TouchEnhancedButton
+                                                        onClick={() => setShowAddForm(true)}
+                                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                                    >
+                                                        Add your first item
+                                                    </TouchEnhancedButton>
+                                                </FeatureGate>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className={`grid gap-4 ${
+                                        userPreferences.compactView
+                                            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                            : 'grid-cols-1 sm:grid-cols-2'
+                                    }`}>
+                                        {filteredInventory.map((item) => {
+                                            const expirationInfo = getExpirationStatus(item.expirationDate);
+
+                                            return (
+                                                <div
+                                                    key={item._id}
+                                                    className={`border rounded-lg ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative ${
+                                                        userPreferences.compactView ? 'p-3' : 'p-4'
+                                                    }`}
+                                                    style={{
+                                                        borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
+                                                            expirationInfo.color === 'orange' ? '#f97316' :
+                                                                expirationInfo.color === 'yellow' ? '#eab308' :
+                                                                    expirationInfo.color === 'green' ? '#22c55e' : '#6b7280',
+                                                        borderLeftWidth: '4px'
+                                                    }}
+                                                >
+                                                    {/* Status Icon - Top Right */}
+                                                    <div
+                                                        className={`absolute ${userPreferences.compactView ? 'top-1 right-1' : 'top-2 right-2'} text-lg`}>
+                                                        {expirationInfo.icon || '📦'}
+                                                    </div>
+
+                                                    {/* Item Name and Brand */}
+                                                    <div
+                                                        className={`${userPreferences.compactView ? 'mb-2 pr-6' : 'mb-3 pr-8'}`}>
+                                                        <h4 className={`font-semibold text-gray-900 leading-tight mb-1 ${
+                                                            userPreferences.compactView ? 'text-sm' : 'text-sm'
+                                                        }`}>
+                                                            {item.name}
+                                                        </h4>
+                                                        {item.brand && (
+                                                            <p className={`text-gray-600 ${userPreferences.compactView ? 'text-xs' : 'text-xs'}`}>
+                                                                {item.brand}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* 🆕 PRICE INFORMATION DISPLAY - SAFE VERSION */}
+                                                    {item.currentBestPrice?.price && (
+                                                        <div className="text-xs text-gray-600 mb-2">
+                                                            <div className="flex justify-between">
+                                                                <span>Best Price:</span>
+                                                                <span className="font-medium">
+                                    ${(Number(item.currentBestPrice.price) || 0).toFixed(2)}
+                                                                    {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
+                                </span>
+                                                            </div>
+                                                            {item.averagePrice && (
+                                                                <div className="flex justify-between">
+                                                                    <span>Avg Price:</span>
+                                                                    <span>${(Number(item.averagePrice) || 0).toFixed(2)}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Smart Quantity Display */}
+                                                    <div
+                                                        className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
+                                                        <div
+                                                            className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
+                                                            {formatInventoryDisplayText(item)}
+                                                        </div>
+                                                        <span
+                                                            className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
+                                                                userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
+                                                            }`}>
+                            {item.location}
+                        </span>
+                                                    </div>
+
+                                                    {/* Category - Only show in standard view or if no brand */}
+                                                    {(!userPreferences.compactView || !item.brand) && (
+                                                        <div
+                                                            className={`text-gray-500 ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
+                                                            {item.category || 'No category'}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Expiration Status */}
+                                                    <div
+                                                        className={`font-medium ${expirationInfo.textColor} ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
+                                                        {item.expirationDate ? (
+                                                            <div>
+                                                                {!userPreferences.compactView && (
+                                                                    <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
+                                                                )}
+                                                                <div>{expirationInfo.label}</div>
+                                                            </div>
+                                                        ) : (
+                                                            'No expiration set'
+                                                        )}
+                                                    </div>
+
+                                                    {/* 🆕 ENHANCED ACTION BUTTONS WITH PRICE TRACKING */}
+                                                    <div
+                                                        className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
+                                                        <TouchEnhancedButton
+                                                            onClick={() => handleAddToShoppingList(item)}
+                                                            className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
+                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            } ${
+                                                                expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
+                                                                    ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
+                                                                    : 'bg-green-50 border-green-200 hover:bg-green-100'
+                                                            }`}
+                                                            title="Add to Shopping List"
+                                                        >
+                                                            {userPreferences.compactView ? '🛒' : '🛒 Add'}
+                                                        </TouchEnhancedButton>
+
+                                                        {/* 🆕 FEATURE-GATED PRICE TRACKING BUTTON */}
+                                                        <TouchEnhancedButton
+                                                            onClick={() => handleOpenPriceTracking(item)}
+                                                            className={`flex-1 font-medium rounded border transition-colors ${
+                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            } ${
+                                                                priceTrackingGate.canUse
+                                                                    ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200'
+                                                                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                                            }`}
+                                                            title={priceTrackingGate.canUse ? "Track Prices" : "Price Tracking (Gold+ Feature)"}
+                                                        >
+                                                            {userPreferences.compactView ? '💰' : priceTrackingGate.canUse ? '💰 Price' : '💰 Gold+'}
+                                                        </TouchEnhancedButton>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setConsumingItem(item)}
+                                                            className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
+                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            }`}
+                                                            title="Use/Consume Item"
+                                                        >
+                                                            {userPreferences.compactView ? '📦' : '📦 Use'}
+                                                        </TouchEnhancedButton>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => handleEdit(item)}
+                                                            className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
+                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            }`}
+                                                        >
+                                                            {userPreferences.compactView ? '✏️' : '✏️ Edit'}
+                                                        </TouchEnhancedButton>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => handleDelete(item._id)}
+                                                            className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
+                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            }`}
+                                                        >
+                                                            🗑️
+                                                        </TouchEnhancedButton>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className={`grid gap-4 ${
-                                userPreferences.compactView
-                                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                                    : 'grid-cols-1 sm:grid-cols-2'
-                            }`}>
-                                {filteredInventory.map((item) => {
-                                    const expirationInfo = getExpirationStatus(item.expirationDate);
+                        </div>
+                    </>
+                )}
 
-                                    return (
-                                        <div
-                                            key={item._id}
-                                            className={`border rounded-lg ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative ${
-                                                userPreferences.compactView ? 'p-3' : 'p-4'
-                                            }`}
-                                            style={{
-                                                borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
-                                                    expirationInfo.color === 'orange' ? '#f97316' :
-                                                        expirationInfo.color === 'yellow' ? '#eab308' :
-                                                            expirationInfo.color === 'green' ? '#22c55e' : '#6b7280',
-                                                borderLeftWidth: '4px'
-                                            }}
-                                        >
-                                            {/* Status Icon - Top Right */}
-                                            <div className={`absolute ${userPreferences.compactView ? 'top-1 right-1' : 'top-2 right-2'} text-lg`}>
-                                                {expirationInfo.icon || '📦'}
-                                            </div>
+                {activeTab === 'analytics' && (
+                    <PriceAnalyticsDashboard/>
+                )}
+            </div>
 
-                                            {/* Item Name and Brand */}
-                                            <div className={`${userPreferences.compactView ? 'mb-2 pr-6' : 'mb-3 pr-8'}`}>
-                                                <h4 className={`font-semibold text-gray-900 leading-tight mb-1 ${
-                                                    userPreferences.compactView ? 'text-sm' : 'text-sm'
-                                                }`}>
-                                                    {item.name}
-                                                </h4>
-                                                {item.brand && (
-                                                    <p className={`text-gray-600 ${userPreferences.compactView ? 'text-xs' : 'text-xs'}`}>
-                                                        {item.brand}
-                                                    </p>
-                                                )}
-                                            </div>
+            {/* Common Items Wizard Modal */}
+            <CommonItemsWizard
+                isOpen={showCommonItemsWizard}
+                onClose={() => setShowCommonItemsWizard(false)}
+                onComplete={handleCommonItemsComplete}
+            />
 
-                                            {/* 🆕 PRICE INFORMATION DISPLAY - SAFE VERSION */}
-                                            {item.currentBestPrice?.price && (
-                                                <div className="text-xs text-gray-600 mb-2">
-                                                    <div className="flex justify-between">
-                                                        <span>Best Price:</span>
-                                                        <span className="font-medium">
-                                    ${(Number(item.currentBestPrice.price) || 0).toFixed(2)}
-                                                            {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
-                                </span>
-                                                    </div>
-                                                    {item.averagePrice && (
-                                                        <div className="flex justify-between">
-                                                            <span>Avg Price:</span>
-                                                            <span>${(Number(item.averagePrice) || 0).toFixed(2)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+            {/* Consumption Modal */}
+            {consumingItem && (
+                <InventoryConsumption
+                    item={consumingItem}
+                    onConsume={handleConsumption}
+                    onClose={() => setConsumingItem(null)}
+                    mode="single"
+                />
+            )}
 
-                                            {/* Smart Quantity Display */}
-                                            <div className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
-                                                <div className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
-                                                    {formatInventoryDisplayText(item)}
-                                                </div>
-                                                <span
-                                                    className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
-                                                        userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
-                                                    }`}>
-                            {item.location}
-                        </span>
-                                            </div>
+            {/* Consumption History Modal */}
+            {showConsumptionHistory && (
+                <ConsumptionHistory
+                    onClose={() => setShowConsumptionHistory(false)}
+                />
+            )}
 
-                                            {/* Category - Only show in standard view or if no brand */}
-                                            {(!userPreferences.compactView || !item.brand) && (
-                                                <div className={`text-gray-500 ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
-                                                    {item.category || 'No category'}
-                                                </div>
-                                            )}
+            {/* Add to Shopping List Modal */}
+            <AddToShoppingListModal
+                isOpen={showShoppingListModal}
+                onClose={() => {
+                    setShowShoppingListModal(false);
+                    setSelectedItemForShopping(null);
+                }}
+                item={selectedItemForShopping}
+                onAddToNew={handleAddToNewList}
+                onAddToExisting={handleAddToExistingList}
+            />
 
-                                            {/* Expiration Status */}
-                                            <div className={`font-medium ${expirationInfo.textColor} ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
-                                                {item.expirationDate ? (
-                                                    <div>
-                                                        {!userPreferences.compactView && (
-                                                            <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
-                                                        )}
-                                                        <div>{expirationInfo.label}</div>
-                                                    </div>
-                                                ) : (
-                                                    'No expiration set'
-                                                )}
-                                            </div>
-
-                                            {/* 🆕 ENHANCED ACTION BUTTONS WITH PRICE TRACKING */}
-                                            <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
-                                                <TouchEnhancedButton
-                                                    onClick={() => handleAddToShoppingList(item)}
-                                                    className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    } ${
-                                                        expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
-                                                            ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
-                                                            : 'bg-green-50 border-green-200 hover:bg-green-100'
-                                                    }`}
-                                                    title="Add to Shopping List"
-                                                >
-                                                    {userPreferences.compactView ? '🛒' : '🛒 Add'}
-                                                </TouchEnhancedButton>
-
-                                                {/* 🆕 FEATURE-GATED PRICE TRACKING BUTTON */}
-                                                <TouchEnhancedButton
-                                                    onClick={() => handleOpenPriceTracking(item)}
-                                                    className={`flex-1 font-medium rounded border transition-colors ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    } ${
-                                                        priceTrackingGate.canUse
-                                                            ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200'
-                                                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                                    }`}
-                                                    title={priceTrackingGate.canUse ? "Track Prices" : "Price Tracking (Gold+ Feature)"}
-                                                >
-                                                    {userPreferences.compactView ? '💰' : priceTrackingGate.canUse ? '💰 Price' : '💰 Gold+'}
-                                                </TouchEnhancedButton>
-
-                                                <TouchEnhancedButton
-                                                    onClick={() => setConsumingItem(item)}
-                                                    className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
-                                                    title="Use/Consume Item"
-                                                >
-                                                    {userPreferences.compactView ? '📦' : '📦 Use'}
-                                                </TouchEnhancedButton>
-
-                                                <TouchEnhancedButton
-                                                    onClick={() => handleEdit(item)}
-                                                    className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
-                                                >
-                                                    {userPreferences.compactView ? '✏️' : '✏️ Edit'}
-                                                </TouchEnhancedButton>
-
-                                                <TouchEnhancedButton
-                                                    onClick={() => handleDelete(item._id)}
-                                                    className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
-                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                    }`}
-                                                >
-                                                    🗑️
-                                                </TouchEnhancedButton>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+            {priceTrackingModal && trackingPriceForItem && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-semibold">💰 Track Price: {trackingPriceForItem.name}</h2>
+                                <TouchEnhancedButton
+                                    onClick={handleClosePriceTracking}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </TouchEnhancedButton>
                             </div>
-                        )}
+
+                            <PriceTrackingForm
+                                item={trackingPriceForItem}
+                                stores={stores}
+                                onPriceAdded={handlePriceAdded}
+                                onClose={handleClosePriceTracking}
+                            />
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* Common Items Wizard Modal */}
-                <CommonItemsWizard
-                    isOpen={showCommonItemsWizard}
-                    onClose={() => setShowCommonItemsWizard(false)}
-                    onComplete={handleCommonItemsComplete}
-                />
-
-                {/* Consumption Modal */}
-                {consumingItem && (
-                    <InventoryConsumption
-                        item={consumingItem}
-                        onConsume={handleConsumption}
-                        onClose={() => setConsumingItem(null)}
-                        mode="single"
-                    />
-                )}
-
-                {/* Consumption History Modal */}
-                {showConsumptionHistory && (
-                    <ConsumptionHistory
-                        onClose={() => setShowConsumptionHistory(false)}
-                    />
-                )}
-
-                {/* Add to Shopping List Modal */}
-                <AddToShoppingListModal
-                    isOpen={showShoppingListModal}
-                    onClose={() => {
-                        setShowShoppingListModal(false);
-                        setSelectedItemForShopping(null);
-                    }}
-                    item={selectedItemForShopping}
-                    onAddToNew={handleAddToNewList}
-                    onAddToExisting={handleAddToExistingList}
-                />
-
-                {priceTrackingModal && trackingPriceForItem && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-                            <div className="p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-lg font-semibold">💰 Track Price: {trackingPriceForItem.name}</h2>
-                                    <TouchEnhancedButton
-                                        onClick={handleClosePriceTracking}
-                                        className="text-gray-400 hover:text-gray-600"
-                                    >
-                                        ✕
-                                    </TouchEnhancedButton>
-                                </div>
-
-                                <PriceTrackingForm
-                                    item={trackingPriceForItem}
-                                    stores={stores}
-                                    onPriceAdded={handlePriceAdded}
-                                    onClose={handleClosePriceTracking}
-                                />
+            {showUpgradePrompt.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="text-center">
+                            <div
+                                className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                                <span className="text-2xl">💰</span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                Unlock {showUpgradePrompt.feature}
+                            </h3>
+                            <p className="text-gray-600 mb-6">
+                                {showUpgradePrompt.description}. Available with {showUpgradePrompt.requiredTier} and
+                                Platinum subscriptions.
+                            </p>
+                            <div className="flex gap-3">
+                                <TouchEnhancedButton
+                                    onClick={() => setShowUpgradePrompt({...showUpgradePrompt, show: false})}
+                                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md"
+                                >
+                                    Maybe Later
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => window.location.href = '/pricing?source=price-tracking'}
+                                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md font-semibold"
+                                >
+                                    Upgrade Now
+                                </TouchEnhancedButton>
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {showUpgradePrompt.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg max-w-md w-full p-6">
-                            <div className="text-center">
-                                <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-                                    <span className="text-2xl">💰</span>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    Unlock {showUpgradePrompt.feature}
-                                </h3>
-                                <p className="text-gray-600 mb-6">
-                                    {showUpgradePrompt.description}. Available with {showUpgradePrompt.requiredTier} and Platinum subscriptions.
-                                </p>
-                                <div className="flex gap-3">
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowUpgradePrompt({...showUpgradePrompt, show: false})}
-                                        className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md"
-                                    >
-                                        Maybe Later
-                                    </TouchEnhancedButton>
-                                    <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=price-tracking'}
-                                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md font-semibold"
-                                    >
-                                        Upgrade Now
-                                    </TouchEnhancedButton>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+            <Footer/>
 
-                <Footer/>
-            </div>
         </MobileOptimizedLayout>
-    );
+    )
+        ;
 }
 
-function PriceTrackingForm({ item, stores, onPriceAdded, onClose }) {
+function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
     const [formData, setFormData] = useState({
         price: '',
         store: '',
@@ -2442,7 +2509,7 @@ function PriceTrackingForm({ item, stores, onPriceAdded, onClose }) {
         try {
             const response = await fetch(`/api/inventory/${item._id}/prices`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(formData)
             });
 
@@ -2606,13 +2673,14 @@ export default function Inventory() {
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div
+                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <div className="text-lg text-gray-600">Loading...</div>
                     </div>
                 </div>
             </MobileOptimizedLayout>
         }>
-            <InventoryContent />
+            <InventoryContent/>
         </Suspense>
     );
 }

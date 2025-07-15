@@ -309,8 +309,243 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                         </button>
                     </div>
 
-                    {/* Rest of your existing tab content... */}
-                    {/* (Keep all the existing tab content from your current modal) */}
+                    {/* Tab Content */}
+                    <div className="min-h-[400px]">
+                        {/* Add Price Tab */}
+                        {activeTab === 'add-price' && (
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Price *
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                required
+                                                value={formData.price}
+                                                onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
+                                                className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="0.00"
+                                                style={{fontSize: '16px'}}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Store *
+                                        </label>
+                                        <select
+                                            required
+                                            value={formData.store}
+                                            onChange={(e) => setFormData(prev => ({...prev, store: e.target.value}))}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{fontSize: '16px'}}
+                                        >
+                                            <option value="">Select store</option>
+                                            {stores.map(store => (
+                                                <option key={store._id} value={store.name}>
+                                                    {store.name} {store.chain && `(${store.chain})`}
+                                                </option>
+                                            ))}
+                                            <option value="">Select chain</option>
+                                            <option value="add-new">+ Add New Store</option>
+                                            <option value="Albertsons">Albertsons</option>
+                                            <option value="Aldi">Aldi</option>
+                                            <option value="Costco">Costco</option>
+                                            <option value="H-E-B">H-E-B</option>
+                                            <option value="Hy-Vee">Hy-Vee</option>
+                                            <option value="Kroger">Kroger</option>
+                                            <option value="Meijer">Meijer</option>
+                                            <option value="Publix">Publix</option>
+                                            <option value="Safeway">Safeway</option>
+                                            <option value="Sam's Club">Sam's Club</option>
+                                            <option value="Smiths">Smith's</option>
+                                            <option value="Target">Target</option>
+                                            <option value="Trader Joe's">Trader Joe's</option>
+                                            <option value="Walmart">Walmart</option>
+                                            <option value="Whole Foods">Whole Foods</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    {formData.store === 'add-new' && (
+                                        <div className="mt-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                            <h4 className="text-sm font-medium text-gray-700 mb-2">Add New Store</h4>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Store name"
+                                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    onChange={(e) => setQuickAddStore(prev => ({...prev, name: e.target.value}))}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Chain (optional)"
+                                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    onChange={(e) => setQuickAddStore(prev => ({...prev, chain: e.target.value}))}
+                                                />
+                                            </div>
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={handleQuickAddStore}
+                                                className="mt-2 text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+                                            >
+                                                Save & Use Store
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Package Size
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.size}
+                                            onChange={(e) => setFormData(prev => ({...prev, size: e.target.value}))}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            placeholder="e.g., 12 oz, 1 lb"
+                                            style={{fontSize: '16px'}}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Unit
+                                        </label>
+                                        <select
+                                            value={formData.unit}
+                                            onChange={(e) => setFormData(prev => ({...prev, unit: e.target.value}))}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{fontSize: '16px'}}
+                                        >
+                                            <option value="">Select unit</option>
+                                            <option value="oz">Ounces</option>
+                                            <option value="lb">Pounds</option>
+                                            <option value="g">Grams</option>
+                                            <option value="kg">Kilograms</option>
+                                            <option value="ml">Milliliters</option>
+                                            <option value="l">Liters</option>
+                                            <option value="each">Each</option>
+                                            <option value="package">Package</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="isOnSale"
+                                            checked={formData.isOnSale}
+                                            onChange={(e) => setFormData(prev => ({...prev, isOnSale: e.target.checked}))}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="isOnSale" className="ml-2 block text-sm text-gray-700">
+                                            This item was on sale
+                                        </label>
+                                    </div>
+
+                                    {formData.isOnSale && (
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Sale End Date</label>
+                                            <input
+                                                type="date"
+                                                value={formData.saleEndDate}
+                                                onChange={(e) => setFormData(prev => ({...prev, saleEndDate: e.target.value}))}
+                                                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Notes
+                                    </label>
+                                    <textarea
+                                        value={formData.notes}
+                                        onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
+                                        rows={2}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Optional notes about this price..."
+                                        style={{fontSize: '16px'}}
+                                    />
+                                </div>
+
+                                <TouchEnhancedButton
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 font-medium"
+                                >
+                                    {loading ? 'Adding Price...' : 'Add Price Entry'}
+                                </TouchEnhancedButton>
+                            </form>
+                        )}
+
+                        {/* Price History Tab */}
+                        {activeTab === 'history' && (
+                            <div>
+                                {priceHistory.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <div className="text-gray-400 text-6xl mb-4">📊</div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Price History</h3>
+                                        <p className="text-gray-500 mb-4">Start tracking prices to see trends and find the best deals.</p>
+                                        <TouchEnhancedButton
+                                            onClick={() => setActiveTab('add-price')}
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                                        >
+                                            Add First Price
+                                        </TouchEnhancedButton>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                                        {priceHistory.map((entry, index) => (
+                                            <div key={index} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-3 mb-2">
+                                                            <div className="text-xl font-bold text-green-600">${formatPrice(entry.price)}</div>
+                                                            <div className="text-sm font-medium text-gray-700">{entry.store}</div>
+                                                            {entry.isOnSale && (
+                                                                <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                                                                    On Sale
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="text-sm text-gray-600 space-y-1">
+                                                            <div>📅 {formatDate(entry.date)}</div>
+                                                            {entry.size && entry.unit && (
+                                                                <div>📦 {entry.size} {entry.unit}
+                                                                    {entry.unitPrice && ` (${formatPrice(entry.unitPrice)}/${entry.unit})`}
+                                                                </div>
+                                                            )}
+                                                            {entry.notes && (
+                                                                <div className="italic">💭 "{entry.notes}"</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <TouchEnhancedButton
+                                                        onClick={() => handleDeletePrice(entry._id)}
+                                                        className="ml-4 text-red-600 hover:text-red-800 text-sm"
+                                                        title="Delete this price entry"
+                                                    >
+                                                        🗑️
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     {/* For the Alerts tab, update the feature detection: */}
                     {activeTab === 'alerts' && (
@@ -328,10 +563,60 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                     </div>
                                 </div>
                             ) : null}
+                            <div className="space-y-4 opacity-50">
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="enableAlerts"
+                                        checked={alerts.enabled}
+                                        onChange={(e) => setAlerts(prev => ({...prev, enabled: e.target.checked}))}
+                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        disabled
+                                    />
+                                    <label htmlFor="enableAlerts" className="ml-2 block text-sm text-gray-700">
+                                        Enable price alerts for this item
+                                    </label>
+                                </div>
 
-                            {/* Rest of alerts tab content... */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Target Price
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={alerts.targetPrice}
+                                            onChange={(e) => setAlerts(prev => ({...prev, targetPrice: e.target.value}))}
+                                            className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            placeholder="0.00"
+                                            disabled
+                                        />
+                                    </div>
+                                </div>
+
+                                <TouchEnhancedButton
+                                    onClick={handleUpdateAlerts}
+                                    disabled
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                                >
+                                    Save Alert Settings
+                                </TouchEnhancedButton>
+                            </div>
+
+                            <div className="text-center">
+                                <TouchEnhancedButton
+                                    onClick={() => window.location.href = '/pricing?source=price-alerts'}
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                >
+                                    Upgrade to Platinum
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
                     )}
+                    </div>
                 </div>
             </div>
         </div>

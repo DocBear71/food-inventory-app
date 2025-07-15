@@ -233,6 +233,17 @@ export default function Dashboard() {
                             </Link>
 
                             <Link
+                                href="/stores"
+                                className="flex items-center p-6 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors min-h-[100px]"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">🏪</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-teal-900 text-base">My Stores</div>
+                                    <div className="text-sm text-teal-700">Manage price tracking stores</div>
+                                </div>
+                            </Link>
+
+                            <Link
                                 href="/recipes"
                                 className="flex items-center p-6 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors min-h-[100px]"
                             >

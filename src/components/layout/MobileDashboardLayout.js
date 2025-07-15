@@ -83,6 +83,14 @@ export default function MobileDashboardLayout({children}) {
             description: 'Quickly add common household items to your inventory',
             section: 'Inventory'
         },
+        {
+            name: 'My Stores',
+            href: '/stores',
+            icon: '🏪',
+            current: pathname === '/stores',
+            description: 'Manage your favorite stores for price tracking',
+            section: 'Inventory'
+        },
 
         // Shopping List Section - NEW
         {

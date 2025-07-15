@@ -58,7 +58,8 @@ export default function DashboardLayout({children}) {
                 {name: 'View Inventory', href: '/inventory', icon: '📋'},
                 {name: 'Add Items to Shopping List', href: '/shopping/add-items', icon: '🛒'},
                 {name: 'Recently Used Items', href: '/shopping/add-items?tab=consumed', icon: '🔄'},
-                {name: 'Usage History', href: '/inventory/history', icon: '📊'}
+                {name: 'Usage History', href: '/inventory/history', icon: '📊'},
+                {name: 'My Stores', href: '/stores', icon: '🏪'}
             ]
         },
         {
