@@ -1,12 +1,11 @@
-// file: /src/app/api/user/preferences/route.js - v2 - Added PWA banner preference
+// file: /src/app/api/user/preferences/route.js - Enhanced version
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
-// GET - Fetch user preferences
+// GET - Fetch user preferences (ENHANCED)
 export async function GET(request) {
     try {
         const session = await auth();
@@ -24,7 +23,7 @@ export async function GET(request) {
 
         // Return user preferences (with defaults if not set)
         const preferences = {
-            // Meal planning preferences
+            // Existing meal planning preferences
             weekStartDay: user.mealPlanningPreferences?.weekStartDay || 'monday',
             defaultMealTypes: user.mealPlanningPreferences?.defaultMealTypes || ['breakfast', 'lunch', 'dinner'],
             planningHorizon: user.mealPlanningPreferences?.planningHorizon || 'week',
@@ -35,8 +34,18 @@ export async function GET(request) {
             preferredCuisines: user.mealPlanningPreferences?.preferredCuisines || [],
             cookingTimePreference: user.mealPlanningPreferences?.cookingTimePreference || 'any',
 
-            // PWA preferences
-            disablePWABanner: user.disablePWABanner || false
+            // Existing PWA preference
+            disablePWABanner: user.disablePWABanner || false,
+
+            // NEW: Inventory preferences
+            inventoryPreferences: {
+                defaultSortBy: user.inventoryPreferences?.defaultSortBy || 'expiration',
+                defaultFilterStatus: user.inventoryPreferences?.defaultFilterStatus || 'all',
+                defaultFilterLocation: user.inventoryPreferences?.defaultFilterLocation || 'all',
+                showQuickFilters: user.inventoryPreferences?.showQuickFilters ?? true,
+                itemsPerPage: user.inventoryPreferences?.itemsPerPage || 'all',
+                compactView: user.inventoryPreferences?.compactView ?? false
+            }
         };
 
         return NextResponse.json({
@@ -53,7 +62,7 @@ export async function GET(request) {
     }
 }
 
-// PUT - Update user preferences
+// PUT - Update user preferences (ENHANCED)
 export async function PUT(request) {
     try {
         const session = await auth();
@@ -72,17 +81,20 @@ export async function PUT(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Initialize mealPlanningPreferences if it doesn't exist
+        // Initialize nested objects if they don't exist
         if (!user.mealPlanningPreferences) {
             user.mealPlanningPreferences = {};
         }
+        if (!user.inventoryPreferences) {
+            user.inventoryPreferences = {};
+        }
 
-        // Handle PWA banner preference (top-level field)
+        // Handle PWA banner preference (existing)
         if (body.disablePWABanner !== undefined) {
             user.disablePWABanner = body.disablePWABanner;
         }
 
-        // Handle meal planning preferences (nested object)
+        // Handle meal planning preferences (existing)
         const mealPlanningFields = [
             'weekStartDay', 'defaultMealTypes', 'planningHorizon', 'shoppingDay',
             'mealPrepDays', 'dietaryRestrictions', 'avoidIngredients',
@@ -95,6 +107,42 @@ export async function PUT(request) {
             }
         });
 
+        // NEW: Handle inventory preferences
+        if (body.inventoryPreferences) {
+            const inventoryFields = [
+                'defaultSortBy', 'defaultFilterStatus', 'defaultFilterLocation',
+                'showQuickFilters', 'itemsPerPage', 'compactView'
+            ];
+
+            // Validate enum values for inventory preferences
+            const validSortOptions = ['expiration', 'expiration-date', 'name', 'brand', 'category', 'location', 'quantity', 'date-added'];
+            const validStatusOptions = ['all', 'expired', 'expiring', 'fresh'];
+            const validLocationOptions = ['all', 'pantry', 'kitchen', 'fridge', 'freezer', 'garage', 'other'];
+            const validItemsPerPage = ['all', '20', '50', '100'];
+
+            if (body.inventoryPreferences.defaultSortBy && !validSortOptions.includes(body.inventoryPreferences.defaultSortBy)) {
+                return NextResponse.json({ error: 'Invalid sort option' }, { status: 400 });
+            }
+
+            if (body.inventoryPreferences.defaultFilterStatus && !validStatusOptions.includes(body.inventoryPreferences.defaultFilterStatus)) {
+                return NextResponse.json({ error: 'Invalid filter status' }, { status: 400 });
+            }
+
+            if (body.inventoryPreferences.defaultFilterLocation && !validLocationOptions.includes(body.inventoryPreferences.defaultFilterLocation)) {
+                return NextResponse.json({ error: 'Invalid filter location' }, { status: 400 });
+            }
+
+            if (body.inventoryPreferences.itemsPerPage && !validItemsPerPage.includes(body.inventoryPreferences.itemsPerPage)) {
+                return NextResponse.json({ error: 'Invalid items per page' }, { status: 400 });
+            }
+
+            inventoryFields.forEach(key => {
+                if (body.inventoryPreferences[key] !== undefined) {
+                    user.inventoryPreferences[key] = body.inventoryPreferences[key];
+                }
+            });
+        }
+
         user.updatedAt = new Date();
         await user.save();
 
@@ -104,7 +152,8 @@ export async function PUT(request) {
             success: true,
             preferences: {
                 ...user.mealPlanningPreferences,
-                disablePWABanner: user.disablePWABanner
+                disablePWABanner: user.disablePWABanner,
+                inventoryPreferences: user.inventoryPreferences
             },
             message: 'Preferences updated successfully'
         });
@@ -118,7 +167,7 @@ export async function PUT(request) {
     }
 }
 
-// PATCH - Update specific preference (for PWA banner)
+// PATCH - Update specific preference (ENHANCED for inventory)
 export async function PATCH(request) {
     try {
         const session = await auth();
@@ -137,7 +186,7 @@ export async function PATCH(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Handle PWA banner preference
+        // Handle PWA banner preference (existing)
         if (body.disablePWABanner !== undefined) {
             user.disablePWABanner = body.disablePWABanner;
             user.updatedAt = new Date();
@@ -149,6 +198,34 @@ export async function PATCH(request) {
                 success: true,
                 disablePWABanner: user.disablePWABanner,
                 message: 'PWA banner preference updated successfully'
+            });
+        }
+
+        // NEW: Handle single inventory preference updates
+        if (body.inventoryPreference) {
+            if (!user.inventoryPreferences) {
+                user.inventoryPreferences = {};
+            }
+
+            const { key, value } = body.inventoryPreference;
+
+            // Validate the key and value
+            const validKeys = ['defaultSortBy', 'defaultFilterStatus', 'defaultFilterLocation', 'showQuickFilters', 'itemsPerPage', 'compactView'];
+
+            if (!validKeys.includes(key)) {
+                return NextResponse.json({ error: 'Invalid inventory preference key' }, { status: 400 });
+            }
+
+            user.inventoryPreferences[key] = value;
+            user.updatedAt = new Date();
+            await user.save();
+
+            console.log('Inventory preference updated:', key, '=', value);
+
+            return NextResponse.json({
+                success: true,
+                inventoryPreferences: user.inventoryPreferences,
+                message: 'Inventory preference updated successfully'
             });
         }
 

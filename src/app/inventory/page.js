@@ -188,12 +188,21 @@ function InventoryContent() {
 
     const subscription = useSubscription();
 
+    const [userPreferences, setUserPreferences] = useState({
+        defaultSortBy: 'expiration',
+        defaultFilterStatus: 'all',
+        defaultFilterLocation: 'all',
+        showQuickFilters: true,
+        itemsPerPage: 'all',
+        compactView: false
+    });
+
     // Advanced filtering and search
-    const [filterStatus, setFilterStatus] = useState('all');
-    const [filterLocation, setFilterLocation] = useState('all');
+    const [filterStatus, setFilterStatus] = useState('all'); // Will be updated from preferences
+    const [filterLocation, setFilterLocation] = useState('all'); // Will be updated from preferences
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState('expiration');
+    const [sortBy, setSortBy] = useState('expiration'); // Will be updated from preferences
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
@@ -248,8 +257,15 @@ function InventoryContent() {
     useEffect(() => {
         if (session) {
             fetchInventory();
+            fetchUserPreferences(); // NEW: Load user preferences
         }
     }, [session]);
+
+    useEffect(() => {
+        if (userPreferences.defaultSortBy !== 'expiration') { // Only save if not default
+            savePreferencesToProfile(userPreferences);
+        }
+    }, [userPreferences]);
 
     useEffect(() => {
         const shouldOpenWizard = searchParams.get('wizard') === 'true';
@@ -257,6 +273,28 @@ function InventoryContent() {
             setShowCommonItemsWizard(true);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Ctrl/Cmd + K to focus search
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                const searchInput = document.getElementById('search');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }
+
+            // Escape to clear search
+            if (event.key === 'Escape' && searchQuery) {
+                setSearchQuery('');
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [searchQuery]);
 
     // Add this useEffect to listen for inventory updates
     useEffect(() => {
@@ -433,6 +471,38 @@ function InventoryContent() {
             }
         };
     }, []);
+
+    const fetchUserPreferences = async () => {
+        try {
+            const response = await apiGet('/api/user/profile');
+            const data = await response.json();
+
+            if (data.success && data.user?.inventoryPreferences) {
+                const prefs = data.user.inventoryPreferences;
+                setUserPreferences(prefs);
+
+                // Apply preferences to current filters
+                setFilterStatus(prefs.defaultFilterStatus);
+                setFilterLocation(prefs.defaultFilterLocation);
+                setSortBy(prefs.defaultSortBy);
+
+                console.log('✅ Applied user inventory preferences:', prefs);
+            }
+        } catch (error) {
+            console.log('Could not load user preferences, using defaults');
+        }
+    };
+
+    const savePreferencesToProfile = async (newPreferences) => {
+        try {
+            await apiPut('/api/user/profile', {
+                inventoryPreferences: newPreferences
+            });
+            console.log('✅ Saved inventory preferences');
+        } catch (error) {
+            console.log('Could not save preferences:', error);
+        }
+    };
 
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {
@@ -707,18 +777,36 @@ function InventoryContent() {
     const getFilteredAndSortedInventory = () => {
         let filtered = [...inventory];
 
-        // Apply search filter
+        // ENHANCED: Apply search filter with better matching
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(item =>
-                item.name.toLowerCase().includes(query) ||
-                (item.brand && item.brand.toLowerCase().includes(query)) ||
-                (item.category && item.category.toLowerCase().includes(query)) ||
-                (item.upc && item.upc.includes(query))
-            );
+            filtered = filtered.filter(item => {
+                // Existing search fields
+                const nameMatch = item.name.toLowerCase().includes(query);
+                const brandMatch = item.brand && item.brand.toLowerCase().includes(query);
+                const categoryMatch = item.category && item.category.toLowerCase().includes(query);
+                const upcMatch = item.upc && item.upc.includes(query);
+
+                // NEW: Enhanced search fields
+                const locationMatch = item.location.toLowerCase().includes(query);
+                const unitMatch = item.unit && item.unit.toLowerCase().includes(query);
+
+                // NEW: Smart partial matching for better results
+                const smartMatch = (
+                    item.name.toLowerCase().startsWith(query) ||
+                    (item.brand && item.brand.toLowerCase().startsWith(query)) ||
+                    query.split(' ').every(word =>
+                        item.name.toLowerCase().includes(word) ||
+                        (item.brand && item.brand.toLowerCase().includes(word))
+                    )
+                );
+
+                return nameMatch || brandMatch || categoryMatch || upcMatch ||
+                    locationMatch || unitMatch || smartMatch;
+            });
         }
 
-        // Apply status filter
+        // Apply status filter (your existing code)
         if (filterStatus !== 'all') {
             filtered = filtered.filter(item => {
                 const status = getExpirationStatus(item.expirationDate);
@@ -735,12 +823,12 @@ function InventoryContent() {
             });
         }
 
-        // Apply location filter
+        // Apply location filter (your existing code)
         if (filterLocation !== 'all') {
             filtered = filtered.filter(item => item.location === filterLocation);
         }
 
-        // Apply category filter
+        // Apply category filter (your existing code)
         if (filterCategory !== 'all') {
             filtered = filtered.filter(item =>
                 filterCategory === 'uncategorized'
@@ -749,10 +837,11 @@ function InventoryContent() {
             );
         }
 
-        // Apply sorting
+        // ENHANCED: Apply sorting with new options
         filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'expiration':
+                    // Your existing expiration sorting logic
                     if (!a.expirationDate && !b.expirationDate) return 0;
                     if (!a.expirationDate) return 1;
                     if (!b.expirationDate) return -1;
@@ -780,6 +869,15 @@ function InventoryContent() {
                     return b.quantity - a.quantity; // Highest quantity first
                 case 'date-added':
                     return new Date(b.addedDate || 0) - new Date(a.addedDate || 0); // Newest first
+                // NEW: Additional sorting options
+                case 'brand':
+                    return (a.brand || '').localeCompare(b.brand || '');
+                case 'expiration-date':
+                    // Sort by actual expiration date (not status)
+                    if (!a.expirationDate && !b.expirationDate) return 0;
+                    if (!a.expirationDate) return 1;
+                    if (!b.expirationDate) return -1;
+                    return new Date(a.expirationDate) - new Date(b.expirationDate);
                 default:
                     return 0;
             }
@@ -1440,7 +1538,7 @@ function InventoryContent() {
                             <input
                                 type="text"
                                 id="search"
-                                placeholder="Search by name, brand, category, or UPC..."
+                                placeholder="Search by name, brand, category, location, or UPC..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -1459,54 +1557,56 @@ function InventoryContent() {
                         </div>
                     </div>
 
-                    {/* Quick Filter Buttons */}
-                    <div>
-                        <div className="text-sm font-medium text-gray-700 mb-2">⚡ Quick Filters</div>
-                        <div className="flex flex-wrap gap-2">
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('expired')}
-                                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 border border-red-300"
-                            >
-                                🚨 Expired
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('expiring-soon')}
-                                className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 border border-orange-300"
-                            >
-                                ⏰ Expiring Soon
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('pantry')}
-                                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
-                            >
-                                🏠 Pantry
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('kitchen')}
-                                className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
-                            >
-                                🚪 Kitchen
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('fridge')}
-                                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
-                            >
-                                ❄️ Fridge
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => applyQuickFilter('freezer')}
-                                className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
-                            >
-                                🧊 Freezer
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={clearAllFilters}
-                                className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 border border-gray-300"
-                            >
-                                🔄 Clear All
-                            </TouchEnhancedButton>
+                    {/* Quick Filter Buttons - CONDITIONAL based on user preference */}
+                    {userPreferences.showQuickFilters && (
+                        <div>
+                            <div className="text-sm font-medium text-gray-700 mb-2">⚡ Quick Filters</div>
+                            <div className="flex flex-wrap gap-2">
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('expired')}
+                                    className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 border border-red-300"
+                                >
+                                    🚨 Expired
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('expiring-soon')}
+                                    className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 border border-orange-300"
+                                >
+                                    ⏰ Expiring Soon
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('pantry')}
+                                    className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
+                                >
+                                    🏠 Pantry
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('kitchen')}
+                                    className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
+                                >
+                                    🚪 Kitchen
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('fridge')}
+                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
+                                >
+                                    ❄️ Fridge
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('freezer')}
+                                    className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
+                                >
+                                    🧊 Freezer
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={clearAllFilters}
+                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 border border-gray-300"
+                                >
+                                    🔄 Clear All
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Advanced Filters */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1517,16 +1617,10 @@ function InventoryContent() {
                                 onChange={(e) => setFilterStatus(e.target.value)}
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
-                                <option value="all">All Items ({inventory.length})</option>
-                                <option value="expired">Expired
-                                    ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})
-                                </option>
-                                <option value="expiring">Expiring Soon
-                                    ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})
-                                </option>
-                                <option value="fresh">Fresh
-                                    ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
-                                </option>
+                                <option value="all">📦 All Items ({inventory.length})</option>
+                                <option value="expired">🚨 Expired ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})</option>
+                                <option value="expiring">⏰ Expiring Soon ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
+                                <option value="fresh">✅ Fresh ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})</option>
                             </select>
                         </div>
 
@@ -1575,12 +1669,14 @@ function InventoryContent() {
                                 onChange={(e) => setSortBy(e.target.value)}
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
-                                <option value="expiration">Expiration Date</option>
-                                <option value="name">Name (A-Z)</option>
-                                <option value="category">Category</option>
-                                <option value="location">Location</option>
-                                <option value="quantity">Quantity (High to Low)</option>
-                                <option value="date-added">Date Added (Newest)</option>
+                                <option value="expiration">⚠️ Priority (Expiring First)</option>
+                                <option value="expiration-date">📅 Expiration Date</option>
+                                <option value="name">🔤 Name (A-Z)</option>
+                                <option value="brand">🏷️ Brand (A-Z)</option>
+                                <option value="category">📂 Category</option>
+                                <option value="location">📍 Location</option>
+                                <option value="quantity">📊 Quantity (High to Low)</option>
+                                <option value="date-added">🕒 Recently Added</option>
                             </select>
                         </div>
                     </div>
@@ -1859,12 +1955,64 @@ function InventoryContent() {
                     </div>
                 )}
 
+                {filteredInventory.length !== inventory.length && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <div className="text-sm text-blue-800">
+                            {searchQuery && (
+                                <span>🔍 Found {filteredInventory.length} items matching "{searchQuery}"</span>
+                            )}
+                            {(filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
+                                <span>
+                    {searchQuery ? ' with applied filters' : `📋 Showing ${filteredInventory.length} filtered items`}
+                </span>
+                            )}
+                            {filteredInventory.length === 0 && (
+                                <div className="mt-2">
+                                    <TouchEnhancedButton
+                                        onClick={clearAllFilters}
+                                        className="text-blue-600 hover:text-blue-800 underline text-sm"
+                                    >
+                                        Clear all filters
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Inventory Grid Display with Smart Units */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
-                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                            Current Inventory ({filteredInventory.length} items)
-                        </h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                Current Inventory ({filteredInventory.length} items)
+                            </h3>
+
+                            {/* ADD: View Toggle */}
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-600">View:</span>
+                                <TouchEnhancedButton
+                                    onClick={() => setUserPreferences(prev => ({...prev, compactView: false}))}
+                                    className={`px-3 py-1 text-xs rounded ${
+                                        !userPreferences.compactView
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    📋 Standard
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setUserPreferences(prev => ({...prev, compactView: true}))}
+                                    className={`px-3 py-1 text-xs rounded ${
+                                        userPreferences.compactView
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    📄 Compact
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
 
                         {loading ? (
                             <div className="text-center py-8">
@@ -1925,14 +2073,20 @@ function InventoryContent() {
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className={`grid gap-4 ${
+                                userPreferences.compactView
+                                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                    : 'grid-cols-1 sm:grid-cols-2'
+                            }`}>
                                 {filteredInventory.map((item) => {
                                     const expirationInfo = getExpirationStatus(item.expirationDate);
 
                                     return (
                                         <div
                                             key={item._id}
-                                            className={`border rounded-lg p-4 ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative`}
+                                            className={`border rounded-lg ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative ${
+                                                userPreferences.compactView ? 'p-3' : 'p-4'
+                                            }`}
                                             style={{
                                                 borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
                                                     expirationInfo.color === 'orange' ? '#f97316' :
@@ -1942,41 +2096,51 @@ function InventoryContent() {
                                             }}
                                         >
                                             {/* Status Icon - Top Right */}
-                                            <div className="absolute top-2 right-2 text-lg">
+                                            <div className={`absolute ${userPreferences.compactView ? 'top-1 right-1' : 'top-2 right-2'} text-lg`}>
                                                 {expirationInfo.icon || '📦'}
                                             </div>
 
                                             {/* Item Name and Brand */}
-                                            <div className="mb-3 pr-8">
-                                                <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-1">
+                                            <div className={`${userPreferences.compactView ? 'mb-2 pr-6' : 'mb-3 pr-8'}`}>
+                                                <h4 className={`font-semibold text-gray-900 leading-tight mb-1 ${
+                                                    userPreferences.compactView ? 'text-sm' : 'text-sm'
+                                                }`}>
                                                     {item.name}
                                                 </h4>
                                                 {item.brand && (
-                                                    <p className="text-xs text-gray-600">{item.brand}</p>
+                                                    <p className={`text-gray-600 ${userPreferences.compactView ? 'text-xs' : 'text-xs'}`}>
+                                                        {item.brand}
+                                                    </p>
                                                 )}
                                             </div>
 
-                                            {/* Smart Quantity Display with Dual Units */}
-                                            <div className="flex justify-between items-center mb-3">
-                                                <div className="text-sm font-medium text-gray-900">
+                                            {/* Smart Quantity Display */}
+                                            <div className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
+                                                <div className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
                                                     {formatInventoryDisplayText(item)}
                                                 </div>
                                                 <span
-                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
-                                                    {item.location}
-                                                </span>
+                                                    className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
+                                                        userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
+                                                    }`}>
+                                    {item.location}
+                                </span>
                                             </div>
 
-                                            {/* Category */}
-                                            <div className="text-xs text-gray-500 mb-3">
-                                                {item.category || 'No category'}
-                                            </div>
+                                            {/* Category - Only show in standard view or if no brand */}
+                                            {(!userPreferences.compactView || !item.brand) && (
+                                                <div className={`text-gray-500 ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
+                                                    {item.category || 'No category'}
+                                                </div>
+                                            )}
 
                                             {/* Expiration Status */}
-                                            <div className={`text-xs font-medium ${expirationInfo.textColor} mb-3`}>
+                                            <div className={`font-medium ${expirationInfo.textColor} ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
                                                 {item.expirationDate ? (
                                                     <div>
-                                                        <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
+                                                        {!userPreferences.compactView && (
+                                                            <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
+                                                        )}
                                                         <div>{expirationInfo.label}</div>
                                                     </div>
                                                 ) : (
@@ -1984,31 +2148,43 @@ function InventoryContent() {
                                                 )}
                                             </div>
 
-                                            {/* Action Buttons */}
-                                            <div className="flex gap-1">
+                                            {/* Action Buttons - Updated for compact view */}
+                                            <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
                                                 <TouchEnhancedButton
                                                     onClick={() => handleAddToShoppingList(item)}
-                                                    className="flex-1 bg-green-50 text-green-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-green-100 border border-green-200"
+                                                    className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    } ${
+                                                        expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
+                                                            ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
+                                                            : 'bg-green-50 border-green-200 hover:bg-green-100'
+                                                    }`}
                                                     title="Add to Shopping List"
                                                 >
-                                                    🛒 Add to List
+                                                    {userPreferences.compactView ? '🛒' : '🛒 Add'}
                                                 </TouchEnhancedButton>
                                                 <TouchEnhancedButton
                                                     onClick={() => setConsumingItem(item)}
-                                                    className="flex-1 bg-blue-50 text-blue-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-blue-100 border border-blue-200"
+                                                    className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                     title="Use/Consume Item"
                                                 >
-                                                    📦 Use
+                                                    {userPreferences.compactView ? '📦' : '📦 Use'}
                                                 </TouchEnhancedButton>
                                                 <TouchEnhancedButton
                                                     onClick={() => handleEdit(item)}
-                                                    className="flex-1 bg-indigo-50 text-indigo-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-indigo-100 border border-indigo-200"
+                                                    className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                 >
-                                                    ✏️ Edit
+                                                    {userPreferences.compactView ? '✏️' : '✏️ Edit'}
                                                 </TouchEnhancedButton>
                                                 <TouchEnhancedButton
                                                     onClick={() => handleDelete(item._id)}
-                                                    className="bg-red-50 text-red-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-red-100 border border-red-200"
+                                                    className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                 >
                                                     🗑️
                                                 </TouchEnhancedButton>

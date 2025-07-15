@@ -56,6 +56,15 @@ export default function ProfilePage() {
             cookingLevel: 'beginner',
             favoritesCuisines: []
         },
+        // NEW: Add inventory preferences
+        inventoryPreferences: {
+            defaultSortBy: 'expiration',
+            defaultFilterStatus: 'all',
+            defaultFilterLocation: 'all',
+            showQuickFilters: true,
+            itemsPerPage: 'all',
+            compactView: false
+        },
         notificationSettings: {
             email: {
                 enabled: false,
@@ -423,6 +432,15 @@ export default function ProfilePage() {
                     sodium: 2300
                 };
 
+                const defaultInventoryPreferences = {
+                    defaultSortBy: 'expiration',
+                    defaultFilterStatus: 'all',
+                    defaultFilterLocation: 'all',
+                    showQuickFilters: true,
+                    itemsPerPage: 'all',
+                    compactView: false
+                };
+
                 const userData = {
                     name: data.user?.name || '',
                     avatar: data.user?.avatar || '',
@@ -431,6 +449,8 @@ export default function ProfilePage() {
                         cookingLevel: data.user?.profile?.cookingLevel || 'beginner',
                         favoritesCuisines: data.user?.profile?.favoritesCuisines || []
                     },
+                    // NEW: Include inventory preferences
+                    inventoryPreferences: data.user?.inventoryPreferences || defaultInventoryPreferences,
                     notificationSettings: data.user?.notificationSettings || defaultNotificationSettings,
                     mealPlanningPreferences: {
                         ...defaultMealPlanningPreferences,
@@ -507,6 +527,43 @@ export default function ProfilePage() {
 
         // Otherwise, keep existing selection
         return mealTypes;
+    };
+
+    const getSortDisplayName = (sortBy) => {
+        const sortOptions = {
+            'expiration': 'Priority (Expiring First)',
+            'expiration-date': 'Expiration Date',
+            'name': 'Name (A-Z)',
+            'brand': 'Brand (A-Z)',
+            'category': 'Category',
+            'location': 'Location',
+            'quantity': 'Quantity (High to Low)',
+            'date-added': 'Recently Added'
+        };
+        return sortOptions[sortBy] || sortBy;
+    };
+
+    const getFilterDisplayName = (filter) => {
+        const filterOptions = {
+            'all': 'All Items',
+            'expired': 'Expired Only',
+            'expiring': 'Expiring Soon',
+            'fresh': 'Fresh Only'
+        };
+        return filterOptions[filter] || filter;
+    };
+
+    const getLocationDisplayName = (location) => {
+        const locationOptions = {
+            'all': 'All Locations',
+            'pantry': 'Pantry',
+            'kitchen': 'Kitchen',
+            'fridge': 'Fridge',
+            'freezer': 'Freezer',
+            'garage': 'Garage/Storage',
+            'other': 'Other'
+        };
+        return locationOptions[location] || location;
     };
 
     // Manual refresh function
@@ -619,6 +676,7 @@ export default function ProfilePage() {
     const getAvailableTabs = () => {
         const baseTabs = [
             {id: 'general', name: 'General', icon: '👤'},
+            {id: 'inventory', name: 'Inventory', icon: '📦'}, // NEW TAB
             {id: 'notifications', name: 'Notifications', icon: '🔔'},
             {id: 'meal-planning', name: 'Meal Planning', icon: '📅', requiresSubscription: true},
             {id: 'security', name: 'Security', icon: '🔒'}
@@ -626,9 +684,9 @@ export default function ProfilePage() {
 
         // Add nutrition tab only for Gold+ users
         return [
-            ...baseTabs.slice(0, 3), // general, notifications, meal-planning
+            ...baseTabs.slice(0, 4), // general, inventory, notifications, meal-planning
             {id: 'nutrition', name: 'Nutrition Goals', icon: '🥗', requiresSubscription: true},
-            baseTabs[3] // security
+            baseTabs[4] // security
         ];
     };
 
@@ -907,6 +965,187 @@ export default function ProfilePage() {
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Separate multiple cuisines with commas
                                             </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Inventory Preferences Tab - NEW */}
+                                {activeTab === 'inventory' && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Inventory Display Preferences</h3>
+                                            <p className="text-sm text-gray-600 mb-6">
+                                                Customize how your inventory is displayed and sorted by default. These settings will be applied automatically when you visit your inventory page.
+                                            </p>
+
+                                            <div className="space-y-6">
+                                                {/* Default Sorting */}
+                                                <div className="bg-gray-50 p-4 rounded-lg">
+                                                    <h4 className="text-sm font-semibold text-gray-800 mb-3">🔃 Default Sorting</h4>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Sort inventory by
+                                                            </label>
+                                                            <select
+                                                                value={formData.inventoryPreferences.defaultSortBy}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'defaultSortBy', e.target.value)}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                style={{fontSize: '16px'}}
+                                                            >
+                                                                <option value="expiration">⚠️ Priority (Expiring First)</option>
+                                                                <option value="expiration-date">📅 Expiration Date</option>
+                                                                <option value="name">🔤 Name (A-Z)</option>
+                                                                <option value="brand">🏷️ Brand (A-Z)</option>
+                                                                <option value="category">📂 Category</option>
+                                                                <option value="location">📍 Location</option>
+                                                                <option value="quantity">📊 Quantity (High to Low)</option>
+                                                                <option value="date-added">🕒 Recently Added</option>
+                                                            </select>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                This will be your default sort order when opening inventory
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Default status filter
+                                                            </label>
+                                                            <select
+                                                                value={formData.inventoryPreferences.defaultFilterStatus}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'defaultFilterStatus', e.target.value)}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                style={{fontSize: '16px'}}
+                                                            >
+                                                                <option value="all">📦 All Items</option>
+                                                                <option value="expired">🚨 Expired Only</option>
+                                                                <option value="expiring">⏰ Expiring Soon</option>
+                                                                <option value="fresh">✅ Fresh Only</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Default location filter
+                                                            </label>
+                                                            <select
+                                                                value={formData.inventoryPreferences.defaultFilterLocation}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'defaultFilterLocation', e.target.value)}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                style={{fontSize: '16px'}}
+                                                            >
+                                                                <option value="all">📍 All Locations</option>
+                                                                <option value="pantry">🏠 Pantry</option>
+                                                                <option value="kitchen">🚪 Kitchen</option>
+                                                                <option value="fridge">❄️ Fridge</option>
+                                                                <option value="freezer">🧊 Freezer</option>
+                                                                <option value="garage">🏠 Garage/Storage</option>
+                                                                <option value="other">📦 Other</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Items to display
+                                                            </label>
+                                                            <select
+                                                                value={formData.inventoryPreferences.itemsPerPage}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'itemsPerPage', e.target.value)}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                style={{fontSize: '16px'}}
+                                                            >
+                                                                <option value="all">Show All Items</option>
+                                                                <option value="20">20 items per page</option>
+                                                                <option value="50">50 items per page</option>
+                                                                <option value="100">100 items per page</option>
+                                                            </select>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                Pagination can improve performance with large inventories
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Display Options */}
+                                                <div className="bg-gray-50 p-4 rounded-lg">
+                                                    <h4 className="text-sm font-semibold text-gray-800 mb-3">👁️ Display Options</h4>
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <label className="text-sm font-medium text-gray-700">
+                                                                    Show Quick Filter Buttons
+                                                                </label>
+                                                                <p className="text-xs text-gray-500">
+                                                                    Display quick filter buttons (Expired, Expiring Soon, etc.)
+                                                                </p>
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.inventoryPreferences.showQuickFilters}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'showQuickFilters', e.target.checked)}
+                                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                            />
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <label className="text-sm font-medium text-gray-700">
+                                                                    Compact View
+                                                                </label>
+                                                                <p className="text-xs text-gray-500">
+                                                                    Show more items in less space (smaller cards)
+                                                                </p>
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.inventoryPreferences.compactView}
+                                                                onChange={(e) => handleInputChange('inventoryPreferences', 'compactView', e.target.checked)}
+                                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Preview Section */}
+                                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                                    <h4 className="text-sm font-semibold text-blue-800 mb-2">👀 Preview</h4>
+                                                    <p className="text-sm text-blue-700">
+                                                        With your current settings, your inventory will:
+                                                    </p>
+                                                    <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                                                        <li>• Be sorted by <strong>{getSortDisplayName(formData.inventoryPreferences.defaultSortBy)}</strong></li>
+                                                        <li>• Show <strong>{getFilterDisplayName(formData.inventoryPreferences.defaultFilterStatus)}</strong> items</li>
+                                                        <li>• Filter to <strong>{getLocationDisplayName(formData.inventoryPreferences.defaultFilterLocation)}</strong></li>
+                                                        <li>• Display <strong>{formData.inventoryPreferences.itemsPerPage === 'all' ? 'all items' : formData.inventoryPreferences.itemsPerPage + ' items per page'}</strong></li>
+                                                        <li>• Use <strong>{formData.inventoryPreferences.compactView ? 'compact' : 'standard'}</strong> view</li>
+                                                        <li>• {formData.inventoryPreferences.showQuickFilters ? 'Show' : 'Hide'} quick filter buttons</li>
+                                                    </ul>
+                                                </div>
+
+                                                {/* Reset to Defaults */}
+                                                <div className="text-center">
+                                                    <TouchEnhancedButton
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const defaultPrefs = {
+                                                                defaultSortBy: 'expiration',
+                                                                defaultFilterStatus: 'all',
+                                                                defaultFilterLocation: 'all',
+                                                                showQuickFilters: true,
+                                                                itemsPerPage: 'all',
+                                                                compactView: false
+                                                            };
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                inventoryPreferences: defaultPrefs
+                                                            }));
+                                                        }}
+                                                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                                                    >
+                                                        🔄 Reset to Default Settings
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

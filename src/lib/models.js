@@ -769,6 +769,37 @@ const UserSchema = new mongoose.Schema({
             default: null
         }
     },
+    // NEW: Add inventory preferences
+    inventoryPreferences: {
+        defaultSortBy: {
+            type: String,
+            enum: ['expiration', 'expiration-date', 'name', 'brand', 'category', 'location', 'quantity', 'date-added'],
+            default: 'expiration'
+        },
+        defaultFilterStatus: {
+            type: String,
+            enum: ['all', 'expired', 'expiring', 'fresh'],
+            default: 'all'
+        },
+        defaultFilterLocation: {
+            type: String,
+            enum: ['all', 'pantry', 'kitchen', 'fridge', 'freezer', 'garage', 'other'],
+            default: 'all'
+        },
+        showQuickFilters: {
+            type: Boolean,
+            default: true
+        },
+        itemsPerPage: {
+            type: String,
+            enum: ['all', '20', '50', '100'],
+            default: 'all'
+        },
+        compactView: {
+            type: Boolean,
+            default: false
+        }
+    },
     // Usage tracking for subscription limits
     usageTracking: {
         currentMonth: {type: Number, default: () => new Date().getMonth()},

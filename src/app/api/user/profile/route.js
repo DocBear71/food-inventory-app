@@ -1,4 +1,4 @@
-// file: /src/app/api/user/profile/route.js
+// file: /src/app/api/user/profile/route.js - EXACT CHANGES NEEDED
 
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api-auth';
@@ -34,11 +34,20 @@ export const GET = withAuth(async (request) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                avatar: user.avatar || '', // ADD AVATAR SUPPORT
+                avatar: user.avatar || '',
                 profile: user.profile || {},
                 notificationSettings: user.notificationSettings || {},
                 mealPlanningPreferences: user.mealPlanningPreferences || {},
                 nutritionGoals: user.nutritionGoals || {},
+                // 🆕 ADD THIS LINE:
+                inventoryPreferences: user.inventoryPreferences || {
+                    defaultSortBy: 'expiration',
+                    defaultFilterStatus: 'all',
+                    defaultFilterLocation: 'all',
+                    showQuickFilters: true,
+                    itemsPerPage: 'all',
+                    compactView: false
+                },
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt
             }
@@ -66,11 +75,12 @@ export const PUT = withAuth(async(request) => {
 
         const {
             name,
-            avatar, // ADD AVATAR SUPPORT
+            avatar,
             profile,
             notificationSettings,
             mealPlanningPreferences,
-            nutritionGoals
+            nutritionGoals,
+            inventoryPreferences  // 🆕 ADD THIS LINE
         } = await request.json();
 
         // Validation
@@ -139,6 +149,57 @@ export const PUT = withAuth(async(request) => {
             }
         }
 
+        // 🆕 ADD THIS ENTIRE VALIDATION BLOCK FOR INVENTORY PREFERENCES:
+        if (inventoryPreferences) {
+            const validSortOptions = ['expiration', 'expiration-date', 'name', 'brand', 'category', 'location', 'quantity', 'date-added'];
+            const validStatusOptions = ['all', 'expired', 'expiring', 'fresh'];
+            const validLocationOptions = ['all', 'pantry', 'kitchen', 'fridge', 'freezer', 'garage', 'other'];
+            const validItemsPerPage = ['all', '20', '50', '100'];
+
+            if (inventoryPreferences.defaultSortBy && !validSortOptions.includes(inventoryPreferences.defaultSortBy)) {
+                return NextResponse.json(
+                    { error: 'Invalid sort option' },
+                    { status: 400 }
+                );
+            }
+
+            if (inventoryPreferences.defaultFilterStatus && !validStatusOptions.includes(inventoryPreferences.defaultFilterStatus)) {
+                return NextResponse.json(
+                    { error: 'Invalid filter status' },
+                    { status: 400 }
+                );
+            }
+
+            if (inventoryPreferences.defaultFilterLocation && !validLocationOptions.includes(inventoryPreferences.defaultFilterLocation)) {
+                return NextResponse.json(
+                    { error: 'Invalid filter location' },
+                    { status: 400 }
+                );
+            }
+
+            if (inventoryPreferences.itemsPerPage && !validItemsPerPage.includes(inventoryPreferences.itemsPerPage)) {
+                return NextResponse.json(
+                    { error: 'Invalid items per page' },
+                    { status: 400 }
+                );
+            }
+
+            if (inventoryPreferences.showQuickFilters !== undefined && typeof inventoryPreferences.showQuickFilters !== 'boolean') {
+                return NextResponse.json(
+                    { error: 'showQuickFilters must be a boolean' },
+                    { status: 400 }
+                );
+            }
+
+            if (inventoryPreferences.compactView !== undefined && typeof inventoryPreferences.compactView !== 'boolean') {
+                return NextResponse.json(
+                    { error: 'compactView must be a boolean' },
+                    { status: 400 }
+                );
+            }
+        }
+        // 🆕 END OF INVENTORY PREFERENCES VALIDATION
+
         await connectDB();
 
         const updateData = {
@@ -168,6 +229,11 @@ export const PUT = withAuth(async(request) => {
             updateData.nutritionGoals = nutritionGoals;
         }
 
+        // 🆕 ADD THIS BLOCK:
+        if (inventoryPreferences) {
+            updateData.inventoryPreferences = inventoryPreferences;
+        }
+
         const updatedUser = await User.findByIdAndUpdate(
             session.user.id,
             updateData,
@@ -188,11 +254,20 @@ export const PUT = withAuth(async(request) => {
                 id: updatedUser._id,
                 name: updatedUser.name,
                 email: updatedUser.email,
-                avatar: updatedUser.avatar || '', // ADD AVATAR SUPPORT
+                avatar: updatedUser.avatar || '',
                 profile: updatedUser.profile || {},
                 notificationSettings: updatedUser.notificationSettings || {},
                 mealPlanningPreferences: updatedUser.mealPlanningPreferences || {},
                 nutritionGoals: updatedUser.nutritionGoals || {},
+                // 🆕 ADD THIS LINE:
+                inventoryPreferences: updatedUser.inventoryPreferences || {
+                    defaultSortBy: 'expiration',
+                    defaultFilterStatus: 'all',
+                    defaultFilterLocation: 'all',
+                    showQuickFilters: true,
+                    itemsPerPage: 'all',
+                    compactView: false
+                },
                 updatedAt: updatedUser.updatedAt
             }
         });
