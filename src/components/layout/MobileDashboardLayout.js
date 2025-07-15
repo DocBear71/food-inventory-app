@@ -54,7 +54,7 @@ export default function MobileDashboardLayout({children}) {
     // Close mobile menu when route changes
     useEffect(() => {
         setMobileMenuOpen(false);
-    }, [pathname]);
+    }, [pathname, searchParams]);
 
     const navigation = [
         {name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/'},
@@ -89,7 +89,7 @@ export default function MobileDashboardLayout({children}) {
             name: 'Add Items to Shopping List',
             href: '/shopping/add-items',
             icon: '🛒',
-            current: pathname === '/shopping/add-items',
+            current: pathname === '/shopping/add-items' && !searchParams.get('tab'),
             description: 'Add items from inventory, recently used, or create new ones',
             section: 'Shopping'
         },
@@ -163,6 +163,11 @@ export default function MobileDashboardLayout({children}) {
 
     const handleNavigation = (href) => {
         MobileHaptics.light();
+
+        // ALWAYS close the mobile menu when navigating
+        setMobileMenuOpen(false);
+
+        // Navigate to the new route
         router.push(href);
     };
 
@@ -407,7 +412,15 @@ export default function MobileDashboardLayout({children}) {
                                             {items.map((item) => (
                                                 <TouchEnhancedButton
                                                     key={item.name}
-                                                    onClick={() => handleNavigation(item.href)}
+                                                    onClick={() => {
+                                                        MobileHaptics.light();
+                                                        setMobileMenuOpen(false); // Force close menu
+
+                                                        // Small delay to ensure menu closes before navigation
+                                                        setTimeout(() => {
+                                                            router.push(item.href);
+                                                        }, 100);
+                                                    }}
                                                     className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
                                                         item.current
                                                             ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
