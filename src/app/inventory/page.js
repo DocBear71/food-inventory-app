@@ -185,6 +185,9 @@ function InventoryContent() {
     const [mergeDuplicates, setMergeDuplicates] = useState(true);
     const [showShoppingListModal, setShowShoppingListModal] = useState(false);
     const [selectedItemForShopping, setSelectedItemForShopping] = useState(null);
+    const [trackingPriceForItem, setTrackingPriceForItem] = useState(null); // 🆕 ADD THIS
+    const [priceTrackingModal, setPriceTrackingModal] = useState(false); // 🆕 ADD THIS
+    const [stores, setStores] = useState([]); // 🆕 ADD THIS
 
     const subscription = useSubscription();
 
@@ -1176,6 +1179,56 @@ function InventoryContent() {
         window.dispatchEvent(new CustomEvent('clearBarcodeMemory'));
     };
 
+    const fetchStores = async () => {
+        try {
+            const response = await fetch('/api/stores');
+            const data = await response.json();
+            if (data.success) {
+                setStores(data.stores || []);
+            }
+        } catch (error) {
+            console.error('Error fetching stores:', error);
+        }
+    };
+
+// Handle opening price tracking modal
+    const handleOpenPriceTracking = (item) => {
+        console.log('Opening price tracking for:', item.name);
+        setTrackingPriceForItem(item);
+        setPriceTrackingModal(true);
+
+        // Fetch stores when modal opens
+        fetchStores();
+    };
+
+// Handle closing price tracking modal
+    const handleClosePriceTracking = () => {
+        setTrackingPriceForItem(null);
+        setPriceTrackingModal(false);
+    };
+
+// Handle price added successfully
+    const handlePriceAdded = (priceData) => {
+        console.log('Price added successfully:', priceData);
+
+        // Update the item in the inventory list with new price data
+        setInventoryItems(prevItems =>
+            prevItems.map(item =>
+                item._id === trackingPriceForItem._id
+                    ? {
+                        ...item,
+                        currentBestPrice: priceData.currentBestPrice,
+                        averagePrice: priceData.averagePrice
+                    }
+                    : item
+            )
+        );
+
+        // Show success message
+        setSuccessMessage('Price added successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+    };
+
     // Handle bulk consumption for expired items
     const handleBulkConsumeExpired = () => {
         const expiredItems = inventory.filter(item => {
@@ -2124,6 +2177,25 @@ function InventoryContent() {
                                                 )}
                                             </div>
 
+                                            {/* 🆕 PRICE INFORMATION DISPLAY - SAFE VERSION */}
+                                            {item.currentBestPrice?.price && (
+                                                <div className="text-xs text-gray-600 mb-2">
+                                                    <div className="flex justify-between">
+                                                        <span>Best Price:</span>
+                                                        <span className="font-medium">
+                                    ${(Number(item.currentBestPrice.price) || 0).toFixed(2)}
+                                                            {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
+                                </span>
+                                                    </div>
+                                                    {item.averagePrice && (
+                                                        <div className="flex justify-between">
+                                                            <span>Avg Price:</span>
+                                                            <span>${(Number(item.averagePrice) || 0).toFixed(2)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             {/* Smart Quantity Display */}
                                             <div className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
                                                 <div className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
@@ -2133,8 +2205,8 @@ function InventoryContent() {
                                                     className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
                                                         userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
                                                     }`}>
-                                    {item.location}
-                                </span>
+                            {item.location}
+                        </span>
                                             </div>
 
                                             {/* Category - Only show in standard view or if no brand */}
@@ -2157,66 +2229,58 @@ function InventoryContent() {
                                                     'No expiration set'
                                                 )}
                                             </div>
-                                            {/* Price Information Display - FIXED with type safety */}
-                                            {item.currentBestPrice && item.currentBestPrice.price && (
-                                                <div className="text-xs text-gray-600 mb-2">
-                                                    <div className="flex justify-between">
-                                                        <span>Best Price:</span>
-                                                        <span className="font-medium">
-                ${typeof item.currentBestPrice.price === 'number' ? item.currentBestPrice.price.toFixed(2) : 'N/A'}
-                                                            {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
-            </span>
-                                                    </div>
-                                                    {item.averagePrice && typeof item.averagePrice === 'number' && (
-                                                        <div className="flex justify-between">
-                                                            <span>Avg Price:</span>
-                                                            <span>${item.averagePrice.toFixed(2)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
 
-                                            {/* Action Buttons - Updated for compact view */}
+                                            {/* 🆕 ENHANCED ACTION BUTTONS WITH PRICE TRACKING */}
                                             <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
                                                 <TouchEnhancedButton
                                                     onClick={() => handleAddToShoppingList(item)}
-                                                    className={`flex-1 text-xs font-medium py-1.5 px-2 rounded border transition-colors ${
+                                                    className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    } ${
                                                         expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
-                                                            ? 'bg-white text-green-700 border-green-300 hover:bg-green-50 shadow-sm'
-                                                            : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                                            ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
+                                                            : 'bg-green-50 border-green-200 hover:bg-green-100'
                                                     }`}
                                                     title="Add to Shopping List"
                                                 >
-                                                    🛒 Add
+                                                    {userPreferences.compactView ? '🛒' : '🛒 Add'}
                                                 </TouchEnhancedButton>
 
-                                                {/* NEW: Price Tracking Button */}
+                                                {/* 🆕 PRICE TRACKING BUTTON */}
                                                 <TouchEnhancedButton
-                                                    onClick={() => setTrackingPriceForItem(item)}
-                                                    className="flex-1 bg-yellow-50 text-yellow-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-yellow-100 border border-yellow-200"
+                                                    onClick={() => handleOpenPriceTracking(item)}
+                                                    className={`flex-1 bg-yellow-50 text-yellow-700 font-medium rounded hover:bg-yellow-100 border border-yellow-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                     title="Track Prices"
                                                 >
-                                                    💰 Price
+                                                    {userPreferences.compactView ? '💰' : '💰 Price'}
                                                 </TouchEnhancedButton>
 
                                                 <TouchEnhancedButton
                                                     onClick={() => setConsumingItem(item)}
-                                                    className="flex-1 bg-blue-50 text-blue-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-blue-100 border border-blue-200"
+                                                    className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                     title="Use/Consume Item"
                                                 >
-                                                    📦 Use
+                                                    {userPreferences.compactView ? '📦' : '📦 Use'}
                                                 </TouchEnhancedButton>
 
                                                 <TouchEnhancedButton
                                                     onClick={() => handleEdit(item)}
-                                                    className="flex-1 bg-indigo-50 text-indigo-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-indigo-100 border border-indigo-200"
+                                                    className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                 >
-                                                    ✏️ Edit
+                                                    {userPreferences.compactView ? '✏️' : '✏️ Edit'}
                                                 </TouchEnhancedButton>
 
                                                 <TouchEnhancedButton
                                                     onClick={() => handleDelete(item._id)}
-                                                    className="bg-red-50 text-red-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-red-100 border border-red-200"
+                                                    className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
+                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    }`}
                                                 >
                                                     🗑️
                                                 </TouchEnhancedButton>
@@ -2265,9 +2329,211 @@ function InventoryContent() {
                     onAddToExisting={handleAddToExistingList}
                 />
 
+                {priceTrackingModal && trackingPriceForItem && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-semibold">💰 Track Price: {trackingPriceForItem.name}</h2>
+                                    <TouchEnhancedButton
+                                        onClick={handleClosePriceTracking}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        ✕
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <PriceTrackingForm
+                                    item={trackingPriceForItem}
+                                    stores={stores}
+                                    onPriceAdded={handlePriceAdded}
+                                    onClose={handleClosePriceTracking}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <Footer/>
             </div>
         </MobileOptimizedLayout>
+    );
+}
+
+function PriceTrackingForm({ item, stores, onPriceAdded, onClose }) {
+    const [formData, setFormData] = useState({
+        price: '',
+        store: '',
+        size: '',
+        unit: '',
+        isOnSale: false,
+        notes: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch(`/api/inventory/${item._id}/prices`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                onPriceAdded(data.data);
+                onClose();
+            } else {
+                setError(data.error || 'Failed to add price');
+            }
+        } catch (error) {
+            console.error('Error adding price:', error);
+            setError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                    {error}
+                </div>
+            )}
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price *
+                </label>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2">$</span>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={formData.price}
+                        onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
+                        className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        style={{fontSize: '16px'}}
+                        placeholder="0.00"
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Store *
+                </label>
+                <select
+                    required
+                    value={formData.store}
+                    onChange={(e) => setFormData(prev => ({...prev, store: e.target.value}))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    style={{fontSize: '16px'}}
+                >
+                    <option value="">Select store</option>
+                    {stores.map(store => (
+                        <option key={store._id} value={store.name}>
+                            {store.name} {store.chain && `(${store.chain})`}
+                        </option>
+                    ))}
+                    <option value="Walmart">Walmart</option>
+                    <option value="Target">Target</option>
+                    <option value="Kroger">Kroger</option>
+                    <option value="Safeway">Safeway</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Size
+                    </label>
+                    <input
+                        type="text"
+                        value={formData.size}
+                        onChange={(e) => setFormData(prev => ({...prev, size: e.target.value}))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        style={{fontSize: '16px'}}
+                        placeholder="12 oz"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit
+                    </label>
+                    <select
+                        value={formData.unit}
+                        onChange={(e) => setFormData(prev => ({...prev, unit: e.target.value}))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        style={{fontSize: '16px'}}
+                    >
+                        <option value="">Select unit</option>
+                        <option value="oz">Ounces</option>
+                        <option value="lb">Pounds</option>
+                        <option value="g">Grams</option>
+                        <option value="kg">Kilograms</option>
+                        <option value="ml">Milliliters</option>
+                        <option value="l">Liters</option>
+                        <option value="each">Each</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="flex items-center">
+                <input
+                    type="checkbox"
+                    id="isOnSale"
+                    checked={formData.isOnSale}
+                    onChange={(e) => setFormData(prev => ({...prev, isOnSale: e.target.checked}))}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="isOnSale" className="ml-2 block text-sm text-gray-700">
+                    This item was on sale
+                </label>
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                </label>
+                <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    style={{fontSize: '16px'}}
+                    placeholder="Optional notes..."
+                />
+            </div>
+
+            <div className="flex gap-3">
+                <TouchEnhancedButton
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium"
+                >
+                    Cancel
+                </TouchEnhancedButton>
+                <TouchEnhancedButton
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 font-medium"
+                >
+                    {loading ? 'Adding...' : 'Add Price'}
+                </TouchEnhancedButton>
+            </div>
+        </form>
     );
 }
 
