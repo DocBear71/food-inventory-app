@@ -13,6 +13,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {useSubscription} from '@/hooks/useSubscription';
+import { useFeatureGate } from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { apiPut, apiGet, apiPost, apiDelete } from '@/lib/api-config';
@@ -219,6 +220,8 @@ function InventoryContent() {
         expirationDate: '',
         upc: ''
     });
+
+    const priceTrackingGate = useFeatureGate(FEATURE_GATES.PRICE_TRACKING);
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -926,10 +929,10 @@ function InventoryContent() {
                 setFilterLocation('fridge');
                 break;
             case 'fridge freezer':
-                setFilterLocation('fridge freezer');
+                setFilterLocation('fridge-freezer');
                 break;
             case 'deep/standup freezer':
-                setFilterLocation('deep/standup freezer');
+                setFilterLocation('deep-freezer');
                 break;
             case 'kitchen':
                 setFilterLocation('kitchen');
@@ -1193,13 +1196,36 @@ function InventoryContent() {
 
 // Handle opening price tracking modal
     const handleOpenPriceTracking = (item) => {
+        // Check if user can access price tracking
+        if (!priceTrackingGate.canUse) {
+            // Show upgrade prompt instead of opening modal
+            setShowUpgradePrompt({
+                show: true,
+                feature: 'Price Tracking',
+                requiredTier: 'Gold',
+                description: 'Track grocery prices and find the best deals',
+                currentCount: 0, // Will be filled by backend
+                limit: 0
+            });
+            return;
+        }
+
         console.log('Opening price tracking for:', item.name);
         setTrackingPriceForItem(item);
         setPriceTrackingModal(true);
-
-        // Fetch stores when modal opens
         fetchStores();
     };
+
+// Add upgrade prompt state:
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState({
+        show: false,
+        feature: '',
+        requiredTier: '',
+        description: '',
+        currentCount: 0,
+        limit: 0
+    });
+
 
 // Handle closing price tracking modal
     const handleClosePriceTracking = () => {
@@ -2246,15 +2272,19 @@ function InventoryContent() {
                                                     {userPreferences.compactView ? '🛒' : '🛒 Add'}
                                                 </TouchEnhancedButton>
 
-                                                {/* 🆕 PRICE TRACKING BUTTON */}
+                                                {/* 🆕 FEATURE-GATED PRICE TRACKING BUTTON */}
                                                 <TouchEnhancedButton
                                                     onClick={() => handleOpenPriceTracking(item)}
-                                                    className={`flex-1 bg-yellow-50 text-yellow-700 font-medium rounded hover:bg-yellow-100 border border-yellow-200 ${
+                                                    className={`flex-1 font-medium rounded border transition-colors ${
                                                         userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                    } ${
+                                                        priceTrackingGate.canUse
+                                                            ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200'
+                                                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                                                     }`}
-                                                    title="Track Prices"
+                                                    title={priceTrackingGate.canUse ? "Track Prices" : "Price Tracking (Gold+ Feature)"}
                                                 >
-                                                    {userPreferences.compactView ? '💰' : '💰 Price'}
+                                                    {userPreferences.compactView ? '💰' : priceTrackingGate.canUse ? '💰 Price' : '💰 Gold+'}
                                                 </TouchEnhancedButton>
 
                                                 <TouchEnhancedButton
@@ -2349,6 +2379,38 @@ function InventoryContent() {
                                     onPriceAdded={handlePriceAdded}
                                     onClose={handleClosePriceTracking}
                                 />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showUpgradePrompt.show && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg max-w-md w-full p-6">
+                            <div className="text-center">
+                                <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                                    <span className="text-2xl">💰</span>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    Unlock {showUpgradePrompt.feature}
+                                </h3>
+                                <p className="text-gray-600 mb-6">
+                                    {showUpgradePrompt.description}. Available with {showUpgradePrompt.requiredTier} and Platinum subscriptions.
+                                </p>
+                                <div className="flex gap-3">
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowUpgradePrompt({...showUpgradePrompt, show: false})}
+                                        className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md"
+                                    >
+                                        Maybe Later
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=price-tracking'}
+                                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md font-semibold"
+                                    >
+                                        Upgrade Now
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
                         </div>
                     </div>

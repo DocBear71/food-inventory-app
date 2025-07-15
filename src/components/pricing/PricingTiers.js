@@ -39,15 +39,22 @@ const PricingTiers = ({
                 { name: 'UPC scanning (10 scans/month)', included: true },
                 { name: 'Add up to 5 personal recipes (all input methods)', included: true },
                 { name: 'Receipt scanning (2 receipts/month)', included: true },
-                { name: 'Save up to 10 public recipes to collection', included: true },
+                { name: 'Create 2 collections with a total of 10 saved recipes', included: true },
                 { name: 'Read recipe reviews', included: true },
                 { name: 'Mobile & desktop access', included: true },
+                // 🆕 ADD PRICE TRACKING FEATURES FOR FREE:
+                { name: 'Basic price tracking (10 items)', included: true },
+                { name: 'Price history (30 days)', included: true },
+                // EXISTING EXCLUDED FEATURES:
                 { name: 'Full meal planning capabilities', included: false },
                 { name: 'Nutritional information access', included: false },
                 { name: 'Email notifications & alerts', included: false },
                 { name: 'Common Items Wizard', included: false },
                 { name: 'Write recipe reviews', included: false },
-                { name: 'Make recipes public', included: false }
+                { name: 'Make recipes public', included: false },
+                // 🆕 ADD EXCLUDED PRICE FEATURES:
+                { name: 'Extended price tracking & history', included: false },
+                { name: 'Price alerts & notifications', included: false }
             ],
             cta: 'Get Started Free',
             popular: false,
@@ -74,14 +81,22 @@ const PricingTiers = ({
                 { name: 'Unlimited UPC scanning & Common Items Wizard', included: true },
                 { name: 'Up to 100 personal recipes (all input methods)', included: true },
                 { name: 'Receipt scanning (20 receipts/month)', included: true },
-                { name: 'Save up to 200 public recipes to collection', included: true },
+                { name: 'Create 10 collections with a total of 200 saved recipes', included: true },
                 { name: 'Write & edit recipe reviews with photos', included: true },
                 { name: 'Make up to 25 personal recipes public', included: true },
                 { name: 'Email notifications & expiration alerts', included: true },
                 { name: 'Recipe organization with custom categories', included: true },
+                // 🆕 ADD PRICE TRACKING FEATURES FOR GOLD:
+                { name: 'Enhanced price tracking (50 items)', included: true },
+                { name: 'Extended price history (6 months)', included: true },
+                { name: 'Price comparison across stores', included: true },
+                // EXCLUDED FEATURES:
                 { name: 'Advanced meal prep planning tools', included: false },
                 { name: 'Nutrition goal setting & tracking', included: false },
-                { name: 'Priority support & early access', included: false }
+                { name: 'Priority support & early access', included: false },
+                // 🆕 ADD EXCLUDED PREMIUM PRICE FEATURES:
+                { name: 'Unlimited price tracking & alerts', included: false },
+                { name: 'Price drop email notifications', included: false }
             ],
             cta: 'Start 7-Day Free Trial',
             popular: true,
@@ -106,7 +121,7 @@ const PricingTiers = ({
                 { name: 'Advanced profile settings & dietary restrictions', included: true },
                 { name: 'Unlimited personal recipes with all features', included: true },
                 { name: 'Unlimited receipt scanning', included: true },
-                { name: 'Unlimited recipe collections & sharing', included: true },
+                { name: 'Unlimited collections with Unlimited saved recipes & sharing', included: true },
                 { name: 'Create & share public recipe collections', included: true },
                 { name: 'Recipe collaboration with other users', included: true },
                 { name: 'Creator analytics for public recipes', included: true },
@@ -114,7 +129,13 @@ const PricingTiers = ({
                 { name: 'Advanced search & filtering capabilities', included: true },
                 { name: 'Priority support & fastest response times', included: true },
                 { name: 'Early access to all new features & recipes', included: true },
-                { name: 'Recipe backup & export functionality', included: true }
+                { name: 'Recipe backup & export functionality', included: true },
+                // 🆕 ADD PREMIUM PRICE TRACKING FEATURES:
+                { name: 'Unlimited price tracking for all items', included: true },
+                { name: 'Unlimited price history & analytics', included: true },
+                { name: 'Smart price alerts & email notifications', included: true },
+                { name: 'Price trend analysis & insights', included: true },
+                { name: 'Export price data & shopping analytics', included: true }
             ],
             cta: 'Start 7-Day Free Trial',
             popular: false,

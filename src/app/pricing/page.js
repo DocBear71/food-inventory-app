@@ -54,12 +54,19 @@ function PricingContent() {
                 { name: 'Create 2 collections with a total of 10 saved recipes', included: true },
                 { name: 'Read recipe reviews', included: true },
                 { name: 'Mobile & desktop access', included: true },
+                // 🆕 ADD PRICE TRACKING FEATURES FOR FREE:
+                { name: 'Basic price tracking (10 items)', included: true },
+                { name: 'Price history (30 days)', included: true },
+                // EXISTING EXCLUDED FEATURES:
                 { name: 'Full meal planning capabilities', included: false },
                 { name: 'Nutritional information access', included: false },
                 { name: 'Email notifications & alerts', included: false },
                 { name: 'Common Items Wizard', included: false },
                 { name: 'Write recipe reviews', included: false },
-                { name: 'Make recipes public', included: false }
+                { name: 'Make recipes public', included: false },
+                // 🆕 ADD EXCLUDED PRICE FEATURES:
+                { name: 'Extended price tracking & history', included: false },
+                { name: 'Price alerts & notifications', included: false }
             ],
             cta: session ? 'Current Plan' : 'Get Started Free',
             popular: false,
@@ -91,9 +98,17 @@ function PricingContent() {
                 { name: 'Make up to 25 personal recipes public', included: true },
                 { name: 'Email notifications & expiration alerts', included: true },
                 { name: 'Recipe organization with custom categories', included: true },
+                // 🆕 ADD PRICE TRACKING FEATURES FOR GOLD:
+                { name: 'Enhanced price tracking (50 items)', included: true },
+                { name: 'Extended price history (6 months)', included: true },
+                { name: 'Price comparison across stores', included: true },
+                // EXCLUDED FEATURES:
                 { name: 'Advanced meal prep planning tools', included: false },
                 { name: 'Nutrition goal setting & tracking', included: false },
-                { name: 'Priority support & early access', included: false }
+                { name: 'Priority support & early access', included: false },
+                // 🆕 ADD EXCLUDED PREMIUM PRICE FEATURES:
+                { name: 'Unlimited price tracking & alerts', included: false },
+                { name: 'Price drop email notifications', included: false }
             ],
             cta: billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial',
             popular: true,
@@ -126,7 +141,13 @@ function PricingContent() {
                 { name: 'Advanced search & filtering capabilities', included: true },
                 { name: 'Priority support & fastest response times', included: true },
                 { name: 'Early access to all new features & recipes', included: true },
-                { name: 'Recipe backup & export functionality', included: true }
+                { name: 'Recipe backup & export functionality', included: true },
+                // 🆕 ADD PREMIUM PRICE TRACKING FEATURES:
+                { name: 'Unlimited price tracking for all items', included: true },
+                { name: 'Unlimited price history & analytics', included: true },
+                { name: 'Smart price alerts & email notifications', included: true },
+                { name: 'Price trend analysis & insights', included: true },
+                { name: 'Export price data & shopping analytics', included: true }
             ],
             cta: billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial',
             popular: false,
