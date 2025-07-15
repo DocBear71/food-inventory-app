@@ -6,9 +6,6 @@ import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import { Store } from '@/lib/models.js';
 
-// Create or get the Store model
-const Store = mongoose.models.Store || mongoose.model('Store', storeSchema);
-
 // GET - Fetch stores
 export async function GET(request) {
     try {
