@@ -43,6 +43,37 @@ export default function MealPlanningCalendar() {
     const [inventory, setInventory] = useState([]);
     const [mealDropdowns, setMealDropdowns] = useState({});
 
+    const showToast = (message, type = 'success') => {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full opacity-0`;
+        toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    };
+
     const RECIPE_CATEGORIES = [
         { id: 'entree', name: 'Entrees', icon: '🍖' },
         { id: 'side', name: 'Sides', icon: '🥗' },
@@ -341,7 +372,7 @@ export default function MealPlanningCalendar() {
                 await fetchInventory();
 
                 // Show success message
-                alert(`Meal completed! ${completionData.itemsConsumed} ingredients consumed from inventory.`);
+                showToast(`Meal completed! ${completionData.itemsConsumed} ingredients consumed from inventory.`);
             }
         } catch (error) {
             console.error('Error updating meal completion:', error);
@@ -396,7 +427,7 @@ export default function MealPlanningCalendar() {
                     meals: updatedMeals
                 }));
 
-                alert(`Meal completion status removed. Ingredients remain consumed in inventory history.`);
+                showToast(`Meal completion status removed. Ingredients remain consumed in inventory history.`);
             } else {
                 throw new Error('Failed to update meal plan');
             }

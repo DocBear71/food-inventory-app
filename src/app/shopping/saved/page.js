@@ -34,6 +34,37 @@ export default function SavedShoppingListsPage() {
     const [showingListData, setShowingListData] = useState(null);
     const [stats, setStats] = useState({});
 
+    const showToast = (message, type = 'success') => {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full opacity-0`;
+        toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    };
+
     useEffect(() => {
         if (session?.user?.id) {
             fetchSavedLists();
@@ -126,7 +157,7 @@ export default function SavedShoppingListsPage() {
             setSelectedLists([]);
             fetchSavedLists();
 
-            alert(`Successfully unarchived ${listIds.length} list${listIds.length !== 1 ? 's' : ''}`);
+            showToast(`Successfully unarchived ${listIds.length} list${listIds.length !== 1 ? 's' : ''}`);
 
         } catch (error) {
             console.error('Error unarchiving lists:', error);

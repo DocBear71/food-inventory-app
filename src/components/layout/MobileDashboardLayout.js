@@ -4,18 +4,20 @@
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useRouter, usePathname} from 'next/navigation';
+import {useRouter, usePathname, useSearchParams} from 'next/navigation';
 import {PWAInstallBanner} from '@/components/mobile/PWAInstallBanner';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {getApiUrl} from "@/lib/api-config";
 import {Capacitor} from "@capacitor/core";
 import VerificationBanner from '@/components/auth/VerificationBanner';
+import Link from 'next/link';
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [showPWABanner, setShowPWABanner] = useState(false);
@@ -62,28 +64,68 @@ export default function MobileDashboardLayout({children}) {
         {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
     ];
 
-    // Additional menu items for hamburger menu only - UPDATED: Added Receipt Scanner
+// Enhanced additional menu items for hamburger menu - UPDATED: Added Shopping List Features
     const additionalMenuItems = [
+        // Inventory Section
         {
             name: 'Receipt Scanner',
             href: '/inventory/receipt-scan',
             icon: '📄',
             current: pathname === '/inventory/receipt-scan',
-            description: 'Scan receipts to quickly add multiple items to inventory'
+            description: 'Scan receipts to quickly add multiple items to inventory',
+            section: 'Inventory'
         },
         {
             name: 'Common Items Wizard',
             href: '/inventory?wizard=true',
             icon: '🏠',
-            current: false, // This doesn't have its own page, it's a modal
-            description: 'Quickly add common household items to your inventory'
+            current: false,
+            description: 'Quickly add common household items to your inventory',
+            section: 'Inventory'
         },
+
+        // Shopping List Section - NEW
+        {
+            name: 'Add Items to Shopping List',
+            href: '/shopping/add-items',
+            icon: '🛒',
+            current: pathname === '/shopping/add-items',
+            description: 'Add items from inventory, recently used, or create new ones',
+            section: 'Shopping'
+        },
+        {
+            name: 'Recently Used Items',
+            href: '/shopping/add-items?tab=consumed',
+            icon: '🔄',
+            current: pathname === '/shopping/add-items' && searchParams.get('tab') === 'consumed',
+            description: 'Re-add items you\'ve consumed in the last 30-90 days',
+            section: 'Shopping'
+        },
+        {
+            name: 'Quick Add New Items',
+            href: '/shopping/add-items?tab=manual',
+            icon: '✏️',
+            current: pathname === '/shopping/add-items' && searchParams.get('tab') === 'manual',
+            description: 'Manually add items that aren\'t in your inventory',
+            section: 'Shopping'
+        },
+        {
+            name: 'Saved Shopping Lists',
+            href: '/shopping/saved',
+            icon: '💾',
+            current: pathname === '/shopping/saved',
+            description: 'View and manage your saved shopping lists',
+            section: 'Shopping'
+        },
+
+        // Recipe Section
         {
             name: 'What Can I Make?',
             href: '/recipes/suggestions',
             icon: '💡',
             current: pathname === '/recipes/suggestions',
-            description: 'Find recipes based on your inventory'
+            description: 'Find recipes based on your inventory',
+            section: 'Recipes'
         }
     ];
 
@@ -127,6 +169,15 @@ export default function MobileDashboardLayout({children}) {
     const toggleMobileMenu = () => {
         MobileHaptics.medium();
         setMobileMenuOpen(!mobileMenuOpen);
+    };
+
+    const getGroupedMenuItems = () => {
+        return additionalMenuItems.reduce((acc, item) => {
+            const section = item.section || 'Other';
+            if (!acc[section]) acc[section] = [];
+            acc[section].push(item);
+            return acc;
+        }, {});
     };
 
     // Add this to your mobile layout or create a settings page
@@ -234,6 +285,18 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
+                        {/* NEW: Shopping List Quick Action Button */}
+                        <TouchEnhancedButton
+                            onClick={() => handleNavigation('/shopping/add-items')}
+                            className="p-2 rounded-lg bg-blue-600 text-white shadow-md hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
+                            aria-label="Add to shopping list"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5M7 13l-1.1 5m0 0h12.2M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z"/>
+                            </svg>
+                        </TouchEnhancedButton>
+
                         {/* Quick add Button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
@@ -330,35 +393,42 @@ export default function MobileDashboardLayout({children}) {
                                     ))}
                                 </div>
 
-                                {/* Additional menu items - UPDATED: Now includes Receipt Scanner */}
-                                <div className="mb-6">
-                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
-                                        Tools & Features
-                                    </h3>
-                                    {additionalMenuItems.map((item) => (
-                                        <TouchEnhancedButton
-                                            key={item.name}
-                                            onClick={() => handleNavigation(item.href)}
-                                            className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
-                                                item.current
-                                                    ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
-                                                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
-                                            }`}
-                                        >
-                                            <span className="text-xl mt-0.5">{item.icon}</span>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium">{item.name}</div>
-                                                {item.description && (
-                                                    <div
-                                                        className="text-xs text-gray-500 mt-0.5">{item.description}</div>
-                                                )}
-                                            </div>
-                                            {item.current && (
-                                                <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
-                                            )}
-                                        </TouchEnhancedButton>
-                                    ))}
-                                </div>
+                                {/* Enhanced Additional menu items - NOW WITH SECTIONS */}
+                                {(() => {
+                                    const groupedItems = getGroupedMenuItems();
+                                    return Object.entries(groupedItems).map(([sectionName, items]) => (
+                                        <div key={sectionName} className="mb-6">
+                                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                                {sectionName === 'Inventory' && '📦 '}
+                                                {sectionName === 'Shopping' && '🛒 '}
+                                                {sectionName === 'Recipes' && '🍳 '}
+                                                {sectionName}
+                                            </h3>
+                                            {items.map((item) => (
+                                                <TouchEnhancedButton
+                                                    key={item.name}
+                                                    onClick={() => handleNavigation(item.href)}
+                                                    className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg text-left transition-all touch-friendly ${
+                                                        item.current
+                                                            ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500'
+                                                            : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    <span className="text-xl mt-0.5">{item.icon}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium">{item.name}</div>
+                                                        {item.description && (
+                                                            <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                                                        )}
+                                                    </div>
+                                                    {item.current && (
+                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                                    )}
+                                                </TouchEnhancedButton>
+                                            ))}
+                                        </div>
+                                    ));
+                                })()}
 
                                 {/* ADMIN SECTION - Only show for admin users */}
                                 {isAdmin && (

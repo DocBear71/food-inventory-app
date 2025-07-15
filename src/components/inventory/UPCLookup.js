@@ -69,6 +69,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [showScanner, setShowScanner] = useState(false);
     const [cameraAvailable, setCameraAvailable] = useState(true);
     const [showNutrition, setShowNutrition] = useState(false);
+    const [aiClassification, setAiClassification] = useState(null);
+    const [isAiClassifying, setIsAiClassifying] = useState(false);
 
     // FIXED: Add local UPC state to ensure input works properly
     const [localUPC, setLocalUPC] = useState(currentUPC);
@@ -245,6 +247,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     success: false,
                     message: data.message || 'Product not found'
                 });
+
+                if (localUPC && localUPC.length >= 8) {
+                    console.log('🤖 UPC lookup failed, trying AI classification fallback...');
+
+                    // Try to extract a reasonable product name from the UPC or use a generic approach
+                    const productName = `Product ${localUPC}`;
+                    await performAiClassification(productName, {});
+                }
 
                 // If lookup failed, revert the optimistic update
                 console.log('❌ UPC lookup failed, reverting optimistic update');
@@ -468,7 +478,55 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
+    const performAiClassification = async (productName, existingData = {}) => {
+        if (!productName || !process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS) {
+            return null;
+        }
 
+        setIsAiClassifying(true);
+        setAiClassification(null);
+
+        try {
+            console.log('🤖 Performing AI classification for:', productName);
+
+            const response = await fetch('/api/food/classify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    itemName: productName,
+                    productDetails: existingData.name || '',
+                    context: 'upc_lookup_fallback'
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.success && data.data.classification.confidence_score > 0.7) {
+                    const classification = {
+                        category: data.data.classification.category,
+                        storage_location: data.data.classification.storage_location,
+                        confidence: data.data.classification.confidence_score,
+                        reasoning: data.data.ai_analysis.reasoning,
+                        dietary_flags: data.data.nutritional_category.dietary_flags || [],
+                        allergen_warnings: data.data.nutritional_category.allergen_warnings || []
+                    };
+
+                    setAiClassification(classification);
+                    console.log('✅ AI classification successful:', classification);
+                    return classification;
+                }
+            }
+        } catch (error) {
+            console.warn('AI classification failed:', error);
+        } finally {
+            setIsAiClassifying(false);
+        }
+
+        return null;
+    };
 
 
 // 7. ENHANCED: Display current usage (optimistic or real)
@@ -785,6 +843,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const handleSearchResultSelect = async (product) => {
         setLookupResult({success: true, product});
         onProductFound(product);
+
+        if (product.name && (!product.category || product.category === 'Other' || product.category === 'Unknown')) {
+            console.log('🤖 Enhancing search result with AI classification...');
+            await performAiClassification(product.name, product);
+        }
 
         // Update UPC field with the selected product's UPC
         if (product.upc) {
@@ -1169,6 +1232,21 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             >
                                 {isLooking ? '🔍 Looking up...' : '🔍 Lookup Product'}
                             </TouchEnhancedButton>
+
+                            {/* ADD THIS THIRD BUTTON HERE */}
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={() => {
+                                    if (localUPC && localUPC.length >= 8) {
+                                        const productName = `Product ${localUPC}`;
+                                        performAiClassification(productName, lookupResult?.product || {});
+                                    }
+                                }}
+                                disabled={!localUPC || localUPC.length < 8 || isAiClassifying}
+                                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400"
+                            >
+                                {isAiClassifying ? '🤖 AI Analyzing...' : '🤖 AI Classify'}
+                            </TouchEnhancedButton>
                         </div>
                     </div>
 
@@ -1353,6 +1431,81 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 </div>
                             )}
 
+                            {/* AI Classification Results - ADD THIS ENTIRE SECTION HERE */}
+                            {aiClassification && (
+                                <div className="mt-4 pt-4 border-t border-blue-200">
+                                    <div className="flex items-center mb-3">
+                                        <span className="text-blue-800 font-medium">🤖 AI Suggestions</span>
+                                        <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                            {Math.round(aiClassification.confidence * 100)}% confident
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <strong>Suggested Category:</strong>
+                                                <div className="text-blue-700">{aiClassification.category}</div>
+                                            </div>
+                                            <div>
+                                                <strong>Storage Location:</strong>
+                                                <div className="text-blue-700">{aiClassification.storage_location}</div>
+                                            </div>
+                                            {aiClassification.dietary_flags.length > 0 && (
+                                                <div>
+                                                    <strong>Dietary Flags:</strong>
+                                                    <div className="text-blue-700">{aiClassification.dietary_flags.join(', ')}</div>
+                                                </div>
+                                            )}
+                                            {aiClassification.allergen_warnings.length > 0 && (
+                                                <div>
+                                                    <strong>Allergen Warnings:</strong>
+                                                    <div className="text-orange-700">{aiClassification.allergen_warnings.join(', ')}</div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-3 text-xs text-blue-600">
+                                            {aiClassification.reasoning}
+                                        </div>
+
+                                        <div className="mt-3 flex space-x-2">
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={() => {
+                                                    // Apply AI suggestions to the product
+                                                    if (lookupResult?.product) {
+                                                        const enhancedProduct = {
+                                                            ...lookupResult.product,
+                                                            category: aiClassification.category,
+                                                            storage_location: aiClassification.storage_location,
+                                                            dietary_flags: aiClassification.dietary_flags,
+                                                            allergen_warnings: aiClassification.allergen_warnings,
+                                                            ai_enhanced: true
+                                                        };
+
+                                                        setLookupResult({success: true, product: enhancedProduct});
+                                                        onProductFound(enhancedProduct);
+                                                        setAiClassification(null); // Hide suggestions after applying
+                                                    }
+                                                }}
+                                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
+                                            >
+                                                ✅ Apply Suggestions
+                                            </TouchEnhancedButton>
+
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={() => setAiClassification(null)}
+                                                className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded-md hover:bg-gray-400"
+                                            >
+                                                ❌ Dismiss
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="mt-3 text-xs text-gray-500">
                                 <a
                                     href={lookupResult.product.openFoodFactsUrl}
@@ -1372,6 +1525,15 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             <div className="text-sm text-gray-600">
                                 You can still add this item manually by filling out the form below, or try a different
                                 search.
+                            </div>
+                        </div>
+                    )}
+                    {/* AI Classification Loading - ADD THIS RIGHT AFTER THE ABOVE CLOSING )}  */}
+                    {isAiClassifying && (
+                        <div className="mt-4 pt-4 border-t border-blue-200">
+                            <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                <span className="ml-2 text-blue-700 text-sm">AI analyzing product...</span>
                             </div>
                         </div>
                     )}

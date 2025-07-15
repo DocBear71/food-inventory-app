@@ -178,7 +178,7 @@ export default function Dashboard() {
                     <ExpirationNotifications onItemsUpdated={handleItemsUpdated}/>
                 )}
 
-                {/* Quick actions - FIXED: Using Link components instead of <a> tags */}
+                {/* Quick actions - ENHANCED: Added shopping list quick action */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -195,6 +195,18 @@ export default function Dashboard() {
                                 <div className="min-w-0">
                                     <div className="font-medium text-purple-900 text-base">Scan Receipt</div>
                                     <div className="text-sm text-purple-700">Add items from receipt</div>
+                                </div>
+                            </Link>
+
+                            {/* NEW: Add to Shopping List Quick Action */}
+                            <Link
+                                href="/shopping/add-items"
+                                className="flex items-center p-6 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors min-h-[100px]"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">🛒</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-blue-900 text-base">Add to Shopping List</div>
+                                    <div className="text-sm text-blue-700">From inventory or add new items</div>
                                 </div>
                             </Link>
 
@@ -262,9 +274,22 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             </TouchEnhancedButton>
+
+                            {/* NEW: Recently Used Items Quick Action */}
+                            <Link
+                                href="/shopping/add-items?tab=consumed"
+                                className="flex items-center p-6 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors min-h-[100px]"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">🔄</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-teal-900 text-base">Recently Used Items</div>
+                                    <div className="text-sm text-teal-700">Re-add consumed items</div>
+                                </div>
+                            </Link>
                         </div>
                     </div>
                 </div>
+
 
                 {/* Category breakdown - Fixed version */}
                 {!loading && Object.keys(inventoryStats.categories).length > 0 && (

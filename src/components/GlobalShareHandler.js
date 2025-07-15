@@ -10,6 +10,37 @@ export default function GlobalShareHandler() {
     const router = useRouter();
     const [debugInfo, setDebugInfo] = useState('');
 
+    const showToast = (message, type = 'success') => {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full opacity-0`;
+        toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    };
+
     useEffect(() => {
         console.log('🌍 GlobalShareHandler mounted!');
         return () => {
@@ -22,7 +53,7 @@ export default function GlobalShareHandler() {
         const handleAnyShare = (event) => {
             console.log('🎯 shareReceived event detected:', event.detail);
             if (process.env.NODE_ENV === 'development') {
-                alert(`🎯 JavaScript received share event!\nURL: ${event.detail?.url}\nSource: ${event.detail?.source}`);
+                showToast(`🎯 JavaScript received share event!\nURL: ${event.detail?.url}\nSource: ${event.detail?.source}`);
             }
         };
 
@@ -38,7 +69,7 @@ export default function GlobalShareHandler() {
         console.log('🌍 useShareHandler callback called with:', shareData);
 
         if (process.env.NODE_ENV === 'development') {
-            alert(`🚀 Share handler triggered!\nURL: ${shareData.url}\nType: ${shareData.type}\nPlatform: ${shareData.platform}`);
+            showToast(`🚀 Share handler triggered!\nURL: ${shareData.url}\nType: ${shareData.type}\nPlatform: ${shareData.platform}`);
         }
 
         setDebugInfo(`Last share: ${shareData.platform} from ${shareData.source}`);

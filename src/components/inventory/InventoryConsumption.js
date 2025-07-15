@@ -293,17 +293,18 @@ export default function InventoryConsumption({
                                                     onChange={(e) => updateIngredientData(ingredientName, 'unit', e.target.value)}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 >
-                                                    <option value="item">Item(s)</option>
-                                                    <option value="each">Each</option>
+                                                    <option value="can">Can(s)</option>
                                                     <option value="cup">Cup(s)</option>
+                                                    <option value="each">Each</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="lbs">Pounds</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="oz">Ounces</option>
                                                     <option value="tbsp">Tablespoon(s)</option>
                                                     <option value="tsp">Teaspoon(s)</option>
-                                                    <option value="oz">Ounces</option>
-                                                    <option value="lbs">Pounds</option>
-                                                    <option value="g">Grams</option>
-                                                    <option value="kg">Kilograms</option>
-                                                    <option value="ml">Milliliters</option>
-                                                    <option value="l">Liters</option>
                                                 </select>
                                             </div>
                                         </div>

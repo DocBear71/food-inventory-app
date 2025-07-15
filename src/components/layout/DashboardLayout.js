@@ -56,6 +56,8 @@ export default function DashboardLayout({children}) {
             icon: '📦',
             submenu: [
                 {name: 'View Inventory', href: '/inventory', icon: '📋'},
+                {name: 'Add Items to Shopping List', href: '/shopping/add-items', icon: '🛒'},
+                {name: 'Recently Used Items', href: '/shopping/add-items?tab=consumed', icon: '🔄'},
                 {name: 'Usage History', href: '/inventory/history', icon: '📊'}
             ]
         },
@@ -69,7 +71,17 @@ export default function DashboardLayout({children}) {
             ]
         },
         {name: 'Meal Planning', href: '/meal-planning', icon: '📅'},
-        {name: 'Shopping List', href: '/shopping', icon: '🛒'},
+        {
+            name: 'Shopping Lists',
+            href: '/shopping',
+            icon: '🛒',
+            submenu: [
+                {name: 'Generate from Recipes', href: '/shopping', icon: '📝'},
+                {name: 'Add Items to List', href: '/shopping/add-items', icon: '➕'},
+                {name: 'Quick Add New Items', href: '/shopping/add-items?tab=manual', icon: '✏️'},
+                {name: 'Saved Shopping Lists', href: '/shopping/saved', icon: '💾'}
+            ]
+        },
         {name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡'},
         {name: 'Account Settings', href: '/account', icon: '👤'},
     ];

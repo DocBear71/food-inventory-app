@@ -16,6 +16,7 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { apiPut, apiGet, apiPost, apiDelete } from '@/lib/api-config';
+import AddToShoppingListModal from '@/components/shopping/AddToShoppingListModal';
 
 
 // Import smart display utilities
@@ -182,6 +183,8 @@ function InventoryContent() {
     const [showConsumptionHistory, setShowConsumptionHistory] = useState(false);
     const [showCommonItemsWizard, setShowCommonItemsWizard] = useState(false);
     const [mergeDuplicates, setMergeDuplicates] = useState(true);
+    const [showShoppingListModal, setShowShoppingListModal] = useState(false);
+    const [selectedItemForShopping, setSelectedItemForShopping] = useState(null);
 
     const subscription = useSubscription();
 
@@ -204,6 +207,37 @@ function InventoryContent() {
         expirationDate: '',
         upc: ''
     });
+
+    const showToast = (message, type = 'success') => {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full opacity-0`;
+        toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    };
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -457,7 +491,7 @@ function InventoryContent() {
     const handleCommonItemsComplete = async (result) => {
         if (result.success) {
             // Show success message
-            alert(`🎉 Successfully added ${result.itemsAdded} common items to your inventory!`);
+            showToast(`🎉 Successfully added ${result.itemsAdded} common items to your inventory!`);
 
             // Refresh inventory to show new items
             await fetchInventory();
@@ -492,13 +526,13 @@ function InventoryContent() {
                     message += ` Updated quantities for ${summary.itemsUpdated.length} items.`;
                 }
 
-                alert(message);
+                showToast(message);
             } else {
                 throw new Error(result.error || 'Failed to update inventory');
             }
         } catch (error) {
             console.error('Error consuming items:', error);
-            alert('Error updating inventory: ' + error.message);
+            showToast('Error updating inventory: ' + error.message);
             throw error;
         }
     };
@@ -564,6 +598,108 @@ function InventoryContent() {
                 label: `Fresh (${daysUntil} days left)`,
                 icon: '✅'
             };
+        }
+    };
+
+    const handleAddToShoppingList = (item) => {
+        setSelectedItemForShopping(item);
+        setShowShoppingListModal(true);
+    };
+
+    const handleAddToNewList = async ({ item, listName }) => {
+        try {
+            console.log('Creating new shopping list:', listName, 'with item:', item.name);
+
+            const itemToAdd = {
+                name: item.name,
+                category: item.category || 'Other',
+                unit: item.unit,
+                amount: '1', // Default amount, user can modify later
+                brand: item.brand || '',
+                notes: `From inventory - ${item.location}`,
+                source: 'inventory'
+            };
+
+            const response = await fetch('/api/shopping/custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: listName,
+                    items: [itemToAdd],
+                    listType: 'custom',
+                    description: `Shopping list created from inventory item: ${item.name}`
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create shopping list');
+            }
+
+            showToast(`✅ Created new shopping list: "${listName}" with ${item.name}`, 'success');
+
+            // Optionally show a link to view the shopping list
+            setTimeout(() => {
+                if (confirm(`Shopping list created! Would you like to view it now?`)) {
+                    window.location.href = '/shopping/saved';
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error creating shopping list:', error);
+            showToast(`❌ Error creating shopping list: ${error.message}`, 'error');
+            throw error;
+        }
+    };
+
+    const handleAddToExistingList = async ({ item, listId }) => {
+        try {
+            console.log('Adding to existing list:', listId, 'with item:', item.name);
+
+            const itemToAdd = {
+                name: item.name,
+                category: item.category || 'Other',
+                unit: item.unit,
+                amount: '1', // Default amount
+                brand: item.brand || '',
+                notes: `From inventory - ${item.location}`,
+                source: 'inventory'
+            };
+
+            const response = await fetch('/api/shopping/custom', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    listId: listId,
+                    items: [itemToAdd],
+                    mode: 'add'
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to add item to shopping list');
+            }
+
+            showToast(`✅ Added ${item.name} to existing shopping list`, 'success');
+
+            // Optionally show a link to view the shopping list
+            setTimeout(() => {
+                if (confirm(`Item added to shopping list! Would you like to view it now?`)) {
+                    window.location.href = '/shopping/saved';
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error adding to shopping list:', error);
+            showToast(`❌ Error adding to shopping list: ${error.message}`, 'error');
+            throw error;
         }
     };
 
@@ -752,10 +888,10 @@ function InventoryContent() {
 
                 // Show different messages based on whether item was merged or added
                 if (data.merged) {
-                    alert(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${data.item.unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}${data.item.secondaryQuantity ? ` (${data.item.secondaryQuantity} ${data.item.secondaryUnit})` : ''}`);
+                    showToast(`✅ Item merged successfully!\n\nAdded ${data.addedQuantity} ${data.item.unit} to existing "${data.item.name}"\nNew total: ${data.item.quantity} ${data.item.unit}${data.item.secondaryQuantity ? ` (${data.item.secondaryQuantity} ${data.item.secondaryUnit})` : ''}`);
                 } else {
                     // Normal success message for new items
-                    alert('✅ Item added successfully!');
+                    showToast('✅ Item added successfully!');
                 }
 
                 // Reset form
@@ -947,7 +1083,7 @@ function InventoryContent() {
         });
 
         if (expiredItems.length === 0) {
-            alert('No expired items found');
+            showToast('No expired items found');
             return;
         }
 
@@ -964,7 +1100,7 @@ function InventoryContent() {
             Promise.all(consumptions.map(consumption =>
                 handleConsumption(consumption, 'single')
             )).then(() => {
-                alert(`Successfully removed ${expiredItems.length} expired items`);
+                showToast(`Successfully removed ${expiredItems.length} expired items`);
             }).catch(error => {
                 console.error('Error removing expired items:', error);
             });
@@ -1581,11 +1717,13 @@ function InventoryContent() {
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         >
                                             <option value="pantry">Pantry</option>
-                                            <option value="fridge">Refrigerator</option>
-                                            <option value="freezer">Freezer</option>
                                             <option value="kitchen">Kitchen Cabinets</option>
-                                            <option value="counter">Counter</option>
+                                            <option value="fridge">Fridge</option>
+                                            <option value="fridge">Fridge Freezer</option>
+                                            <option value="freezer">Deep/Stand-up Freezer</option>
                                             <option value="garage">Garage/Storage</option>
+                                            <option value="other">Other</option>
+
                                         </select>
                                     </div>
                                 </div>
@@ -1617,19 +1755,19 @@ function InventoryContent() {
                                                     onChange={handleChange}
                                                     className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
                                                 >
-                                                    <option value="item">Item(s)</option>
-                                                    <option value="each">Each</option>
-                                                    <option value="lbs">Pounds</option>
-                                                    <option value="oz">Ounces</option>
-                                                    <option value="kg">Kilograms</option>
-                                                    <option value="g">Grams</option>
+                                                    <option value="can">Can(s)</option>
                                                     <option value="cup">Cup(s)</option>
+                                                    <option value="each">Each</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="package">Package(s)</option>
+                                                    <option value="lbs">Pounds</option>
                                                     <option value="tbsp">Tablespoon(s)</option>
                                                     <option value="tsp">Teaspoon(s)</option>
-                                                    <option value="ml">Milliliters</option>
-                                                    <option value="l">Liters</option>
-                                                    <option value="can">Can(s)</option>
-                                                    <option value="package">Package(s)</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -1659,19 +1797,19 @@ function InventoryContent() {
                                                     className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
                                                 >
                                                     <option value="">Select unit</option>
-                                                    <option value="item">Item(s)</option>
-                                                    <option value="each">Each</option>
-                                                    <option value="lbs">Pounds</option>
-                                                    <option value="oz">Ounces</option>
-                                                    <option value="kg">Kilograms</option>
-                                                    <option value="g">Grams</option>
+                                                    <option value="can">Can(s)</option>
                                                     <option value="cup">Cup(s)</option>
+                                                    <option value="each">Each</option>
+                                                    <option value="g">Grams</option>
+                                                    <option value="item">Item(s)</option>
+                                                    <option value="kg">Kilograms</option>
+                                                    <option value="l">Liters</option>
+                                                    <option value="ml">Milliliters</option>
+                                                    <option value="oz">Ounces</option>
+                                                    <option value="package">Package(s)</option>
+                                                    <option value="lbs">Pounds</option>
                                                     <option value="tbsp">Tablespoon(s)</option>
                                                     <option value="tsp">Teaspoon(s)</option>
-                                                    <option value="ml">Milliliters</option>
-                                                    <option value="l">Liters</option>
-                                                    <option value="can">Can(s)</option>
-                                                    <option value="package">Package(s)</option>
                                                 </select>
                                             </div>
                                             <p className="mt-1 text-xs text-gray-500">
@@ -1849,6 +1987,13 @@ function InventoryContent() {
                                             {/* Action Buttons */}
                                             <div className="flex gap-1">
                                                 <TouchEnhancedButton
+                                                    onClick={() => handleAddToShoppingList(item)}
+                                                    className="flex-1 bg-green-50 text-green-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-green-100 border border-green-200"
+                                                    title="Add to Shopping List"
+                                                >
+                                                    🛒 Add to List
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
                                                     onClick={() => setConsumingItem(item)}
                                                     className="flex-1 bg-blue-50 text-blue-700 text-xs font-medium py-1.5 px-2 rounded hover:bg-blue-100 border border-blue-200"
                                                     title="Use/Consume Item"
@@ -1899,6 +2044,19 @@ function InventoryContent() {
                         onClose={() => setShowConsumptionHistory(false)}
                     />
                 )}
+
+                {/* Add to Shopping List Modal */}
+                <AddToShoppingListModal
+                    isOpen={showShoppingListModal}
+                    onClose={() => {
+                        setShowShoppingListModal(false);
+                        setSelectedItemForShopping(null);
+                    }}
+                    item={selectedItemForShopping}
+                    onAddToNew={handleAddToNewList}
+                    onAddToExisting={handleAddToExistingList}
+                />
+
                 <Footer/>
             </div>
         </MobileOptimizedLayout>

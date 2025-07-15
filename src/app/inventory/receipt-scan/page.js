@@ -721,6 +721,19 @@ export default function ReceiptScan() {
             const processedText = receiptType === 'email' ? preprocessEmailReceiptText(text) : text;
             const items = parseReceiptText(processedText);
 
+            let finalItems = items;
+            if (process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS === 'true') {
+                try {
+                    const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
+                    finalItems = await enhanceReceiptParsingWithAI(processedText, items, '');
+                    console.log('✅ AI enhancement applied');
+                } catch (error) {
+                    console.warn('AI enhancement failed, using original parsing:', error);
+                    finalItems = items; // Fallback to your existing results
+                }
+            }
+
+            setExtractedItems(finalItems);
 
             if (items.length === 0) {
                 setProcessingStatus('Recording scan attempt...');
@@ -3445,6 +3458,23 @@ export default function ReceiptScan() {
                                                                     <option value="Stuffing & Sides">Stuffing & Sides</option>
                                                                 </select>
                                                             </div>
+                                                            <TouchEnhancedButton
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        const { aiClassifyFoodItem } = await import('@/lib/ai/receipt-ai-helper');
+                                                                        const classification = await aiClassifyFoodItem(item.name, item.category);
+                                                                        if (classification.confidence > 0.8) {
+                                                                            updateItem(item.id, 'category', classification.category);
+                                                                            updateItem(item.id, 'location', classification.storage_location);
+                                                                        }
+                                                                    } catch (error) {
+                                                                        console.warn('AI classification failed:', error);
+                                                                    }
+                                                                }}
+                                                                className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                                                            >
+                                                                🤖 AI Suggest
+                                                            </TouchEnhancedButton>
 
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <div>
@@ -3471,10 +3501,11 @@ export default function ReceiptScan() {
                                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                     >
                                                                         <option value="pantry">Pantry</option>
-                                                                        <option value="kitchen">Kitchen Cabinets
-                                                                        </option>
+                                                                        <option value="kitchen">Kitchen Cabinets</option>
                                                                         <option value="fridge">Fridge</option>
-                                                                        <option value="freezer">Freezer</option>
+                                                                        <option value="fridge">Fridge Freezer</option>
+                                                                        <option value="freezer">Deep/Stand-up Freezer</option>
+                                                                        <option value="garage">Garage/Storage</option>
                                                                         <option value="other">Other</option>
                                                                     </select>
                                                                 </div>
