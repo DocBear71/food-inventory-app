@@ -13,6 +13,7 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {Capacitor} from '@capacitor/core';
+import {Promise} from "mongoose";
 
 export default function ReceiptScan() {
     const router = useRouter();
@@ -300,7 +301,7 @@ export default function ReceiptScan() {
         ];
 
         for (let i = 0; i < configs.length; i++) {
-            const {name, config} = configs[i];
+            const { name, config } = configs[i];
 
             try {
                 console.log(`📄 Trying ${name} configuration...`);
@@ -318,7 +319,7 @@ export default function ReceiptScan() {
                     }
                 });
 
-                const {data: {text, confidence}} = await worker.recognize(imageBlob, config);
+                const { data: { text, confidence } } = await worker.recognize(imageBlob, config);
                 await worker.terminate();
 
                 console.log(`✅ ${name} Tesseract: ${Math.round(confidence)}% confidence, ${text.length} chars`);
@@ -720,63 +721,153 @@ export default function ReceiptScan() {
 
     async function processImage(imageFile) {
         console.log('🔍 processImage called with:', imageFile);
+        console.log('🔍 Image file size:', imageFile?.size);
+        console.log('🔍 Image file type:', imageFile?.type);
+
+        setIsProcessing(true);
+        setStep('processing');
+        setOcrProgress(0);
+
+        if (receiptType === 'email') {
+            setProcessingStatus('Processing email receipt screenshot with enhanced OCR...');
+        } else {
+            setProcessingStatus('Initializing OCR...');
+        }
 
         // 🆕 CAPTURE DEBUG DATA
         setDebugImageFile(imageFile);
 
         try {
-            // Your existing OCR code...
+            // ✅ STEP 1: OCR PROCESSING
+            const text = await processImageWithSimpleTesseract(
+                imageFile,
+                (progress) => {
+                    setOcrProgress(progress);
+                    if (progress < 90) {
+                        setProcessingStatus(`Extracting text... ${progress}%`);
+                    }
+                }
+            );
 
-            // 🆕 ENHANCED AI PROCESSING WITH BETTER ERROR HANDLING
+            setProcessingStatus('Analyzing receipt...');
+
+            // ✅ STEP 2: BASIC PARSING
+            const processedText = receiptType === 'email' ? preprocessEmailReceiptText(text) : text;
+            const basicItems = parseReceiptText(processedText);
+
+            console.log(`✅ OCR complete: extracted ${basicItems.length} items`);
+
+            // ✅ STEP 3: AI ENHANCEMENT (OPTIONAL - will fallback gracefully)
             let finalItems = basicItems;
             setProcessingStatus('Enhancing with AI...');
 
             try {
                 console.log('🤖 Starting AI enhancement...');
 
-                // Test base64 conversion first
+                // Test base64 conversion
                 const testBase64 = await convertImageToBase64(imageFile);
-                setDebugBase64Data(testBase64); // 🆕 CAPTURE FOR DEBUG
+                setDebugBase64Data(testBase64);
 
                 console.log('✅ Base64 conversion successful:', {
                     length: testBase64.length,
-                    startsCorrectly: testBase64.charAt(0) === '/',
                     hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64)
                 });
 
-                const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
+                // Try to import AI helper (may not exist)
+                try {
+                    const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
 
-                finalItems = await enhanceReceiptParsingWithAI(
-                    processedText,
-                    basicItems,
-                    imageFile,
-                    getStoreContextFromReceipt(processedText)
-                );
+                    finalItems = await enhanceReceiptParsingWithAI(
+                        processedText,
+                        basicItems,
+                        imageFile,
+                        getStoreContextFromReceipt(processedText)
+                    );
 
-                console.log(`✅ AI enhancement complete: ${basicItems.length} → ${finalItems.length} items`);
-                setProcessingStatus('AI enhancement complete!');
+                    console.log(`✅ AI enhancement complete: ${basicItems.length} → ${finalItems.length} items`);
+                    setProcessingStatus('AI enhancement complete!');
+                } catch (importError) {
+                    console.warn('⚠️ AI helper not available:', importError.message);
+                    setProcessingStatus('AI helper not available - using OCR results');
+                    finalItems = basicItems;
+                }
 
             } catch (aiError) {
                 console.error('❌ AI enhancement failed:', aiError);
-
-                // Show more specific error messages
-                if (aiError.message.includes('image_data is required')) {
-                    console.error('🔍 Base64 conversion issue detected');
-                    setProcessingStatus('AI enhancement failed (image conversion issue) - using OCR results');
-                } else if (aiError.message.includes('Modal')) {
-                    setProcessingStatus('AI service unavailable - using OCR results');
-                } else {
-                    setProcessingStatus('AI enhancement failed - using OCR results');
-                }
-
+                setProcessingStatus('AI enhancement failed - using OCR results');
                 finalItems = basicItems;
             }
 
-            // Rest of your existing code...
+            // ✅ STEP 4: Handle no items found
+            if (finalItems.length === 0) {
+                setProcessingStatus('Recording scan attempt...');
+                await recordReceiptScanUsage(0, 'no-items-found');
+
+                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image.');
+                setStep('upload');
+                return;
+            }
+
+            // ✅ STEP 5: PROCESS PRICE TRACKING (if available)
+            setProcessingStatus('Processing price data...');
+
+            const itemsWithPriceTracking = await Promise.all(
+                finalItems.map(async (item) => {
+                    try {
+                        if (item.priceData && item.priceData.price > 0) {
+                            await addPriceTrackingFromReceipt(item);
+                            console.log(`💰 Added price tracking for: ${item.name} - $${item.priceData.price}`);
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ Could not add price tracking for ${item.name}:`, error);
+                    }
+                    return item;
+                })
+            );
+
+            // ✅ STEP 6: Record successful scan
+            setProcessingStatus('Recording successful scan...');
+
+            try {
+                const recordResponse = await apiPost('/api/receipt-scan/usage', {
+                    scanType: 'receipt',
+                    itemsExtracted: itemsWithPriceTracking.length,
+                    ocrEngine: 'Enhanced-Tesseract',
+                    priceDataAdded: itemsWithPriceTracking.filter(item => item.priceData).length
+                });
+
+                if (!recordResponse.ok) {
+                    console.error('Failed to record receipt scan usage');
+                } else {
+                    const recordData = await recordResponse.json();
+                    console.log('Receipt scan usage recorded:', recordData);
+
+                    if (recordData.usage.remaining !== 'unlimited') {
+                        setProcessingStatus(`Scan successful! ${recordData.usage.remaining} scans remaining this month.`);
+                    }
+                }
+            } catch (recordError) {
+                console.error('Error recording receipt scan usage:', recordError);
+            }
+
+            setExtractedItems(itemsWithPriceTracking);
+            setProcessingStatus('Complete!');
+            setStep('review');
 
         } catch (error) {
             console.error('❌ Complete processing error:', error);
-            // Your existing error handling...
+
+            try {
+                await recordReceiptScanUsage(0, 'processing-failed');
+            } catch (recordError) {
+                console.error('Failed to record failed scan:', recordError);
+            }
+
+            alert('❌ Error processing receipt. This scan has been counted towards your monthly limit. Please try again with a clearer image.');
+            setStep('upload');
+        } finally {
+            setIsProcessing(false);
+            setOcrProgress(0);
         }
     }
 
