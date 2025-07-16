@@ -11,13 +11,14 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
     console.log('📡 Sending to Modal for AI receipt enhancement...');
     try {
 
+        let base64ImageString;
         const response = await fetch('https://docbear71--receipt-processor-process-receipt-with-ai.modal.run', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                imageFile,
+                imageFile: base64ImageString,
                 storeContext,
                 user_id: "user123",             // Optional user ID if you want to track it
                 raw_ocr: rawOcrText,            // Pass the raw OCR text directly
