@@ -15,19 +15,35 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, st
     console.log('🤖 Enhancing receipt parsing with AI...');
 
     try {
-        // If your existing parser found items, enhance them with AI
-        if (extractedItems && extractedItems.length > 0) {
-            return await enhanceExistingItems(extractedItems, rawOcrText);
+        // Always run full AI parsing for quality comparison
+        const aiParsedItems = await aiParseReceiptFromScratch(rawOcrText, storeContext);
+        const extractedCount = extractedItems?.length || 0;
+
+        console.log(`🧠 AI parsed ${aiParsedItems.length} items vs OCR extracted ${extractedCount} items`);
+
+        // If original OCR found some items, attempt to enhance them
+        let enhancedItems = extractedItems;
+        if (extractedCount > 0) {
+            enhancedItems = await enhanceExistingItems(extractedItems, rawOcrText);
         }
 
-        // If no items found, try AI parsing as fallback
-        return await aiParseReceiptFromScratch(rawOcrText, storeContext);
+        // Heuristic: Use AI-parsed if it returns more useful items
+        const useAI = aiParsedItems.length > enhancedItems.length + 1;
+
+        if (useAI) {
+            console.log("✅ Using AI-parsed results (more complete)");
+            return aiParsedItems;
+        }
+
+        console.log("✅ Using enhanced OCR results");
+        return enhancedItems;
 
     } catch (error) {
         console.error('AI enhancement failed:', error);
-        return extractedItems; // Return original items if AI fails
+        return extractedItems; // fallback
     }
 }
+
 
 /**
  * Enhance items that your existing parser already found
