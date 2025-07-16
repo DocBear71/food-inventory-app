@@ -7,17 +7,18 @@ import {apiPost} from "@/lib/api-config.js";
  * AI-powered enhancement of your existing parseReceiptText function
  * This can be added as an optional enhancement to your current parsing
  */
-export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, storeContext = "") {
+export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, imageFile, storeContext = "") {
     console.log('📡 Sending to Modal for AI receipt enhancement...');
     try {
+
         const response = await fetch('https://docbear71--receipt-processor-process-receipt-with-ai.modal.run', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                image_data: base64ImageString,
-                store_context,
+                imageFile,
+                storeContext,
                 user_id: "user123",             // Optional user ID if you want to track it
                 raw_ocr: rawOcrText,            // Pass the raw OCR text directly
                 fallback_items: extractedItems  // Optional

@@ -725,11 +725,11 @@ export default function ReceiptScan() {
             if (process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS === 'true') {
                 try {
                     const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
-                    finalItems = await enhanceReceiptParsingWithAI(processedText, items, '');
+                    finalItems = await enhanceReceiptParsingWithAI(processedText, items, imageFile,'');
                     console.log('✅ AI enhancement applied');
                 } catch (error) {
                     console.warn('AI enhancement failed, using original parsing:', error);
-                    finalItems = items; // Fallback to your existing results
+                    finalItems = items;
                 }
             }
 
