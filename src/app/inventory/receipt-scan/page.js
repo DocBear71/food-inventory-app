@@ -792,14 +792,14 @@ export default function ReceiptScan() {
 
                 console.log('✅ AI module loaded successfully');
 
-                // Step 3c: Run AI enhancement (required)
+                // Step 3c: Run AI enhancement (required) - INCREASED TIMEOUT
                 console.log('🧠 Running AI enhancement analysis...');
                 setProcessingStatus('AI analyzing receipt and enhancing item detection...');
 
                 const storeContext = getStoreContextFromReceipt(processedText);
                 console.log('🏪 Store context detected:', storeContext);
 
-                // Set reasonable timeout but don't skip AI
+                // 🔧 INCREASED TIMEOUT: 45s → 2 minutes for large receipts
                 const aiPromise = enhanceReceiptParsingWithAI(
                     processedText,
                     basicItems,
@@ -807,11 +807,44 @@ export default function ReceiptScan() {
                     storeContext
                 );
 
+                // Enhanced timeout with progress updates
+                let timeoutId;
                 const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('AI enhancement timeout after 45 seconds')), 45000);
+                    let elapsed = 0;
+                    const totalTimeout = 120000; // 2 minutes (120 seconds)
+
+                    const progressInterval = setInterval(() => {
+                        elapsed += 5000; // Update every 5 seconds
+                        const progress = Math.min(90, (elapsed / totalTimeout) * 90);
+
+                        if (elapsed <= 30000) {
+                            setProcessingStatus(`AI analyzing receipt structure... (${Math.round(elapsed/1000)}s)`);
+                        } else if (elapsed <= 60000) {
+                            setProcessingStatus(`AI resolving product names and details... (${Math.round(elapsed/1000)}s)`);
+                        } else if (elapsed <= 90000) {
+                            setProcessingStatus(`AI finalizing enhanced item data... (${Math.round(elapsed/1000)}s)`);
+                        } else {
+                            setProcessingStatus(`AI completing advanced processing... (${Math.round(elapsed/1000)}s)`);
+                        }
+
+                        if (elapsed >= totalTimeout) {
+                            clearInterval(progressInterval);
+                            reject(new Error(`AI enhancement timeout after ${totalTimeout/1000} seconds`));
+                        }
+                    }, 5000);
+
+                    timeoutId = progressInterval;
                 });
 
-                finalItems = await Promise.race([aiPromise, timeoutPromise]);
+                // Add cleanup function
+                const racePromises = [aiPromise, timeoutPromise];
+
+                finalItems = await Promise.race(racePromises);
+
+                // Clear the timeout interval if AI completes successfully
+                if (timeoutId) {
+                    clearInterval(timeoutId);
+                }
 
                 console.log(`🎉 AI enhancement SUCCESS: ${basicItems.length} basic → ${finalItems.length} enhanced items`);
                 setProcessingStatus('AI enhancement complete - items verified and enhanced!');
@@ -822,7 +855,6 @@ export default function ReceiptScan() {
                     aiEnhanced: true,
                     confidence: item.confidence || 0.85, // Default confidence if not provided
                     enhancementSource: 'AI'
-
                 }));
 
             } catch (aiError) {
@@ -832,22 +864,25 @@ export default function ReceiptScan() {
                     basicItemsCount: basicItems.length
                 });
 
-                // Set detailed error status for user
+                // Enhanced error messages with better guidance
                 if (aiError.message.includes('Base64') || aiError.message.includes('conversion')) {
                     setProcessingStatus('❌ AI enhancement failed: Image conversion error');
-                    alert('❌ AI Enhancement Failed: Could not convert image for AI analysis. Please try with a different image format.');
+                    alert('❌ AI Enhancement Failed: Could not convert image for AI analysis. Please try with a different image format or compress the image.');
                 } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
                     setProcessingStatus('❌ AI enhancement failed: Service unavailable');
-                    alert('❌ AI Enhancement Failed: AI service is currently unavailable. Please try again later.');
+                    alert('❌ AI Enhancement Failed: AI service is currently unavailable. Please try again in a few minutes.');
                 } else if (aiError.message.includes('timeout')) {
-                    setProcessingStatus('❌ AI enhancement failed: Analysis timeout');
-                    alert('❌ AI Enhancement Failed: AI analysis took too long. Please try with a simpler receipt.');
+                    setProcessingStatus('❌ AI enhancement failed: Processing timeout');
+
+                    // More helpful timeout message
+                    const timeoutSeconds = aiError.message.match(/(\d+)\s+seconds/)?.[1] || '120';
+                    alert(`❌ AI Enhancement Timeout: Your receipt took longer than ${timeoutSeconds} seconds to process. This can happen with very large receipts or during high server load.\n\n✅ Try again - most receipts process in 30-60 seconds.\n\n💡 Tip: If this keeps happening, try taking a photo of just the items section of your receipt.`);
                 } else if (aiError.message.includes('Promise') || aiError.message.includes('constructor')) {
                     setProcessingStatus('❌ AI enhancement failed: Service compatibility issue');
-                    alert('❌ AI Enhancement Failed: AI service compatibility issue. Please contact support.');
+                    alert('❌ AI Enhancement Failed: Service compatibility issue. Please refresh the page and try again.');
                 } else {
                     setProcessingStatus('❌ AI enhancement failed: Unknown error');
-                    alert(`❌ AI Enhancement Failed: ${aiError.message}. Please try again or contact support.`);
+                    alert(`❌ AI Enhancement Failed: ${aiError.message}.\n\nPlease try again or contact support if this persists.`);
                 }
 
                 // STOP THE PROCESS - Don't allow non-AI enhanced results
@@ -3748,14 +3783,14 @@ export default function ReceiptScan() {
                                 </div>
                             )}
 
-                            {/* Step 2: Processing */}
+                            {/* Step 2: Processing - Enhanced for AI */}
                             {step === 'processing' && (
                                 <div className="text-center space-y-6">
                                     <div className="text-6xl mb-4">
                                         {platformInfo.isAndroid ? '🤖' : '🔍'}
                                     </div>
                                     <h3 className="text-lg font-medium text-gray-900">
-                                        Processing Receipt with {platformInfo.isAndroid ? 'ML Kit' : 'Tesseract.js'}
+                                        Processing Receipt with {platformInfo.isAndroid ? 'ML Kit' : 'Tesseract.js'} + AI Enhancement
                                     </h3>
                                     <p className="text-gray-600 mb-6">{processingStatus}</p>
 
@@ -3765,6 +3800,20 @@ export default function ReceiptScan() {
                                             style={{width: `${ocrProgress}%`}}
                                         ></div>
                                     </div>
+
+                                    {/* AI Processing Indicator */}
+                                    {processingStatus.includes('AI') && (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mx-auto max-w-md">
+                                            <div className="flex items-center justify-center space-x-2 mb-2">
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                                <span className="text-blue-800 font-medium">🤖 AI Enhancement Active</span>
+                                            </div>
+                                            <p className="text-sm text-blue-700">
+                                                Advanced AI is analyzing your receipt to improve accuracy and extract detailed product information.
+                                                Large receipts may take up to 2 minutes.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {capturedImage && (
                                         <div className="mt-4">
@@ -3776,8 +3825,7 @@ export default function ReceiptScan() {
                                         </div>
                                     )}
 
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
 
