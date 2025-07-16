@@ -18,7 +18,7 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                imageFile: base64ImageString,
+                image_data: base64ImageString,
                 storeContext,
                 user_id: "user123",             // Optional user ID if you want to track it
                 raw_ocr: rawOcrText,            // Pass the raw OCR text directly
