@@ -739,6 +739,7 @@ export default function ReceiptScan() {
 
         try {
             // ✅ STEP 1: OCR PROCESSING
+            console.log('🔍 Starting OCR processing...');
             const text = await processImageWithSimpleTesseract(
                 imageFile,
                 (progress) => {
@@ -749,81 +750,143 @@ export default function ReceiptScan() {
                 }
             );
 
+            console.log('✅ OCR completed, text length:', text.length);
             setProcessingStatus('Analyzing receipt...');
 
             // ✅ STEP 2: BASIC PARSING
+            console.log('🔍 Starting basic parsing...');
             const processedText = receiptType === 'email' ? preprocessEmailReceiptText(text) : text;
             const basicItems = parseReceiptText(processedText);
 
-            console.log(`✅ OCR complete: extracted ${basicItems.length} items`);
+            console.log(`✅ Basic parsing complete: extracted ${basicItems.length} items`);
 
-            // ✅ STEP 3: AI ENHANCEMENT (OPTIONAL - will fallback gracefully)
-            let finalItems = basicItems;
-            setProcessingStatus('Enhancing with AI...');
+            // ✅ STEP 3: AI ENHANCEMENT (COMPLETELY OPTIONAL - SKIP ON ANY ERROR)
+            let finalItems = basicItems; // Default to basic items
 
-            try {
-                console.log('🤖 Starting AI enhancement...');
+            // Only attempt AI enhancement if we have items and it's enabled
+            const shouldTryAI = basicItems.length > 0 && process.env.NODE_ENV !== 'production';
 
-                // Test base64 conversion
-                const testBase64 = await convertImageToBase64(imageFile);
-                setDebugBase64Data(testBase64);
+            if (shouldTryAI) {
+                setProcessingStatus('Attempting AI enhancement...');
 
-                console.log('✅ Base64 conversion successful:', {
-                    length: testBase64.length,
-                    hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64)
-                });
-
-                // Try to import AI helper (may not exist)
                 try {
-                    const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
+                    console.log('🤖 Attempting AI enhancement (optional)...');
 
-                    finalItems = await enhanceReceiptParsingWithAI(
-                        processedText,
-                        basicItems,
-                        imageFile,
-                        getStoreContextFromReceipt(processedText)
-                    );
+                    // Test base64 conversion first (separate try-catch)
+                    let testBase64 = '';
+                    try {
+                        testBase64 = await convertImageToBase64(imageFile);
+                        setDebugBase64Data(testBase64);
+                        console.log('✅ Base64 conversion successful:', {
+                            length: testBase64.length,
+                            hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64)
+                        });
+                    } catch (base64Error) {
+                        console.warn('⚠️ Base64 conversion failed:', base64Error.message);
+                        throw new Error('Base64 conversion failed');
+                    }
 
-                    console.log(`✅ AI enhancement complete: ${basicItems.length} → ${finalItems.length} items`);
-                    setProcessingStatus('AI enhancement complete!');
-                } catch (importError) {
-                    console.warn('⚠️ AI helper not available:', importError.message);
-                    setProcessingStatus('AI helper not available - using OCR results');
+                    // Try to dynamically import AI helper (separate try-catch)
+                    let enhanceReceiptParsingWithAI;
+                    try {
+                        const aiModule = await import('@/lib/ai/receipt-ai-helper');
+                        enhanceReceiptParsingWithAI = aiModule.enhanceReceiptParsingWithAI;
+
+                        if (typeof enhanceReceiptParsingWithAI !== 'function') {
+                            throw new Error('AI enhancement function not found or not a function');
+                        }
+
+                        console.log('✅ AI module imported successfully');
+                    } catch (importError) {
+                        console.warn('⚠️ AI module import failed:', importError.message);
+                        throw new Error(`AI module import failed: ${importError.message}`);
+                    }
+
+                    // Try AI enhancement (separate try-catch)
+                    try {
+                        console.log('🤖 Calling AI enhancement function...');
+
+                        // Set a timeout for AI enhancement
+                        const aiPromise = enhanceReceiptParsingWithAI(
+                            processedText,
+                            basicItems,
+                            imageFile,
+                            getStoreContextFromReceipt(processedText)
+                        );
+
+                        const timeoutPromise = new Promise((_, reject) => {
+                            setTimeout(() => reject(new Error('AI enhancement timeout')), 30000); // 30 second timeout
+                        });
+
+                        finalItems = await Promise.race([aiPromise, timeoutPromise]);
+
+                        console.log(`✅ AI enhancement completed: ${basicItems.length} → ${finalItems.length} items`);
+                        setProcessingStatus('AI enhancement complete!');
+
+                    } catch (aiCallError) {
+                        console.warn('⚠️ AI enhancement call failed:', aiCallError.message);
+                        throw aiCallError;
+                    }
+
+                } catch (aiError) {
+                    console.warn('⚠️ AI enhancement failed (falling back to OCR results):', {
+                        error: aiError.message,
+                        stack: aiError.stack?.substring(0, 200) + '...'
+                    });
+
+                    // Set user-friendly status message based on error type
+                    if (aiError.message.includes('Base64')) {
+                        setProcessingStatus('AI enhancement failed (image conversion issue) - using OCR results');
+                    } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
+                        setProcessingStatus('AI enhancement unavailable - using OCR results');
+                    } else if (aiError.message.includes('timeout')) {
+                        setProcessingStatus('AI enhancement timed out - using OCR results');
+                    } else if (aiError.message.includes('Promise') || aiError.message.includes('constructor')) {
+                        setProcessingStatus('AI service compatibility issue - using OCR results');
+                    } else {
+                        setProcessingStatus('AI enhancement failed - using OCR results');
+                    }
+
+                    // Always fall back to basic items
                     finalItems = basicItems;
                 }
-
-            } catch (aiError) {
-                console.error('❌ AI enhancement failed:', aiError);
-                setProcessingStatus('AI enhancement failed - using OCR results');
-                finalItems = basicItems;
+            } else {
+                console.log('🤖 Skipping AI enhancement (not enabled or no items found)');
+                setProcessingStatus('Using OCR results (AI enhancement skipped)');
             }
 
             // ✅ STEP 4: Handle no items found
             if (finalItems.length === 0) {
+                console.warn('❌ No items extracted from receipt');
                 setProcessingStatus('Recording scan attempt...');
-                await recordReceiptScanUsage(0, 'no-items-found');
 
-                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image.');
+                try {
+                    await recordReceiptScanUsage(0, 'no-items-found');
+                } catch (recordError) {
+                    console.error('Failed to record usage:', recordError);
+                }
+
+                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image or check the debug modal for more information.');
                 setStep('upload');
                 return;
             }
 
-            // ✅ STEP 5: PROCESS PRICE TRACKING (if available)
+            // ✅ STEP 5: PROCESS PRICE TRACKING (safely)
             setProcessingStatus('Processing price data...');
 
-            const itemsWithPriceTracking = await Promise.all(
-                finalItems.map(async (item) => {
-                    try {
-                        if (item.priceData && item.priceData.price > 0) {
-                            await addPriceTrackingFromReceipt(item);
-                            console.log(`💰 Added price tracking for: ${item.name} - $${item.priceData.price}`);
-                        }
-                    } catch (error) {
-                        console.warn(`⚠️ Could not add price tracking for ${item.name}:`, error);
+            const itemsWithPriceTracking = [];
+            for (const item of finalItems) {
+                try {
+                    if (item.priceData && item.priceData.price > 0) {
+                        await addPriceTrackingFromReceipt(item);
+                        console.log(`💰 Added price tracking for: ${item.name} - $${item.priceData.price}`);
                     }
-                    return item;
-                })
-            );
+                    itemsWithPriceTracking.push(item);
+                } catch (priceError) {
+                    console.warn(`⚠️ Could not add price tracking for ${item.name}:`, priceError);
+                    itemsWithPriceTracking.push(item); // Still add the item without price tracking
+                }
+            }
 
             // ✅ STEP 6: Record successful scan
             setProcessingStatus('Recording successful scan...');
@@ -833,41 +896,108 @@ export default function ReceiptScan() {
                     scanType: 'receipt',
                     itemsExtracted: itemsWithPriceTracking.length,
                     ocrEngine: 'Enhanced-Tesseract',
-                    priceDataAdded: itemsWithPriceTracking.filter(item => item.priceData).length
+                    priceDataAdded: itemsWithPriceTracking.filter(item => item.priceData).length,
+                    aiEnhanced: finalItems.length > basicItems.length
                 });
 
-                if (!recordResponse.ok) {
-                    console.error('Failed to record receipt scan usage');
-                } else {
+                if (recordResponse.ok) {
                     const recordData = await recordResponse.json();
-                    console.log('Receipt scan usage recorded:', recordData);
+                    console.log('✅ Receipt scan usage recorded:', recordData);
 
-                    if (recordData.usage.remaining !== 'unlimited') {
+                    if (recordData.usage && recordData.usage.remaining !== 'unlimited') {
                         setProcessingStatus(`Scan successful! ${recordData.usage.remaining} scans remaining this month.`);
+                    } else {
+                        setProcessingStatus('Scan successful!');
                     }
+                } else {
+                    console.error('Failed to record receipt scan usage, status:', recordResponse.status);
                 }
             } catch (recordError) {
                 console.error('Error recording receipt scan usage:', recordError);
+                // Don't fail the whole process for usage recording errors
             }
+
+            // ✅ STEP 7: Success!
+            console.log(`🎉 Processing complete! ${itemsWithPriceTracking.length} items ready for review`);
 
             setExtractedItems(itemsWithPriceTracking);
             setProcessingStatus('Complete!');
             setStep('review');
 
         } catch (error) {
-            console.error('❌ Complete processing error:', error);
+            console.error('❌ Complete processing error:', {
+                message: error.message,
+                stack: error.stack?.substring(0, 500) + '...',
+                name: error.name
+            });
 
+            // Try to record the failed scan
             try {
                 await recordReceiptScanUsage(0, 'processing-failed');
             } catch (recordError) {
                 console.error('Failed to record failed scan:', recordError);
             }
 
-            alert('❌ Error processing receipt. This scan has been counted towards your monthly limit. Please try again with a clearer image.');
+            // User-friendly error message based on error type
+            let errorMessage = '❌ Error processing receipt. ';
+
+            if (error.message.includes('OCR') || error.message.includes('Tesseract')) {
+                errorMessage += 'OCR text extraction failed. ';
+            } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                errorMessage += 'Network error occurred. ';
+            } else {
+                errorMessage += 'An unexpected error occurred. ';
+            }
+
+            errorMessage += 'This scan has been counted towards your monthly limit. Please try again with a clearer image.';
+
+            alert(errorMessage);
             setStep('upload');
+
         } finally {
             setIsProcessing(false);
             setOcrProgress(0);
+
+            // Clean up any object URLs to prevent memory leaks
+            setTimeout(() => {
+                if (capturedImage && capturedImage.startsWith('blob:')) {
+                    try {
+                        URL.revokeObjectURL(capturedImage);
+                    } catch (cleanupError) {
+                        console.warn('Could not clean up object URL:', cleanupError);
+                    }
+                }
+            }, 1000);
+        }
+    }
+
+    async function recordReceiptScanUsage(itemsExtracted, scanType = 'receipt') {
+        try {
+            console.log(`📊 Recording usage: ${itemsExtracted} items, type: ${scanType}`);
+
+            const response = await apiPost('/api/receipt-scan/usage', {
+                scanType,
+                itemsExtracted,
+                ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js',
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent.substring(0, 100) // First 100 chars only
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ Usage recorded successfully:', result);
+                return result;
+            } else {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ Error recording receipt scan usage:', {
+                message: error.message,
+                scanType,
+                itemsExtracted
+            });
+            throw error;
         }
     }
 
@@ -979,25 +1109,6 @@ export default function ReceiptScan() {
 
         } catch (error) {
             console.error('Error preparing price tracking data:', error);
-            throw error;
-        }
-    }
-
-    async function recordReceiptScanUsage(itemsExtracted, scanType = 'receipt') {
-        try {
-            const response = await apiPost('/api/receipt-scan/usage', {
-                scanType,
-                itemsExtracted,
-                ocrEngine: platformInfo.isAndroid ? 'MLKit' : 'Tesseract.js'
-            });
-
-            if (response.ok) {
-                return await response.json();
-            } else {
-                throw new Error(`Failed to record usage: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Error recording receipt scan usage:', error);
             throw error;
         }
     }
